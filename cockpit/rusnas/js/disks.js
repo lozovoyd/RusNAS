@@ -1,6 +1,7 @@
 // ─── Disks & RAID ─────────────────────────────────────────────────────────────
 
-var diskRefreshTimer = null;
+var diskRefreshTimer  = null;
+var physicalDiskCount = 0;  // non-system disks, set in renderDisks
 
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
@@ -180,14 +181,53 @@ function renderArrays(arrays) {
 }
 
 function getRaidHint(arr) {
-    var hints = {
-        "raid0":  "RAID 0 — нет избыточности. Выход из строя любого диска = потеря всех данных.",
-        "raid1":  "RAID 1 — зеркало. Выдержит отказ " + (arr.total - 1) + " диска(ов).",
-        "raid5":  "RAID 5 — выдержит отказ 1 диска. " + (arr.degraded ? "⚠ Сейчас работает без защиты!" : "Защита активна."),
-        "raid6":  "RAID 6 — выдержит отказ 2 дисков. " + (arr.degraded ? "⚠ Защита ослаблена!" : "Защита активна."),
-        "raid10": "RAID 10 — зеркало + страйп. Выдержит отказ 1 диска в каждой паре."
-    };
-    return hints[arr.level] || "";
+    var n       = arr.total;
+    var missing = n - arr.active;
+
+    switch (arr.level) {
+        case "raid0":
+            return "RAID 0: чётность отсутствует, ёмкость = " + n + " × диск. " +
+                   "⚠ Любой отказ диска = полная потеря всех данных.";
+
+        case "raid1": {
+            var canLose1 = n - 1;
+            var statusMsg1 = arr.degraded
+                ? "⚠ Нет " + missing + " диска(ов) — ещё выдержит " + Math.max(0, canLose1 - missing) + " сбой(ев)."
+                : "Защита активна.";
+            return "RAID 1: зеркало всех " + n + " дисков, ёмкость = 1 × диск. " +
+                   "Выдержит отказ " + canLose1 + " из " + n + " дисков. " + statusMsg1;
+        }
+
+        case "raid5": {
+            var statusMsg5 = arr.degraded
+                ? "⚠ Массив деградирован — защита полностью снята! Немедленно замените диск."
+                : "Защита активна.";
+            return "RAID 5: 1 диск-чётность на весь массив (не зависит от числа дисков!), " +
+                   "ёмкость = " + (n - 1) + " из " + n + " дисков. " +
+                   "Выдержит отказ строго 1 диска. Нужна защита от 2 сбоев → используйте RAID 6. " +
+                   statusMsg5;
+        }
+
+        case "raid6": {
+            var remaining6 = Math.max(0, 2 - missing);
+            var statusMsg6 = arr.degraded
+                ? "⚠ Нет " + missing + " диска(ов) — ещё выдержит " + remaining6 + " сбой(ев)."
+                : "Защита активна.";
+            return "RAID 6: 2 диска-чётности, ёмкость = " + (n - 2) + " из " + n + " дисков. " +
+                   "Выдержит отказ любых 2 дисков одновременно. " + statusMsg6;
+        }
+
+        case "raid10": {
+            var pairs     = Math.floor(n / 2);
+            var statusMsg10 = arr.degraded ? "⚠ Есть сбойные диски!" : "Защита активна.";
+            return "RAID 10: " + pairs + " зеркальных пары + страйп, ёмкость = " + pairs + " из " + n + " дисков. " +
+                   "Выдержит отказ 1 диска в каждой паре (до " + pairs + " дисков, если из разных пар). " +
+                   statusMsg10;
+        }
+
+        default:
+            return arr.level.toUpperCase() + ": " + n + " дисков.";
+    }
 }
 
 // ─── Render physical disks ────────────────────────────────────────────────────
@@ -202,6 +242,9 @@ function renderDisks(lsblkOut, arrays) {
     });
 
     var disks = lines.filter(function(l) { return l.trim().split(/\s+/)[2] === "disk"; });
+
+    // Track non-system disk count for RAID advisor (exclude sda = system disk)
+    physicalDiskCount = disks.filter(function(l) { return l.trim().split(/\s+/)[0] !== "sda"; }).length;
 
     if (disks.length === 0) {
         tbody.innerHTML = "<tr><td colspan='6'>Диски не найдены</td></tr>";
@@ -469,11 +512,114 @@ function confirmEjectDisk() {
         .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+// ─── RAID Advisor ─────────────────────────────────────────────────────────────
+
+var RAID_TYPES = [
+    {
+        level: "RAID 0",  minDisks: 2,  evenOnly: false,
+        fault:    function()  { return 0; },
+        capacity: function(n) { return n + " × диск (100% ёмкости)"; },
+        read: 5, write: 5,
+        useCase: "Временные данные, кэш, рендеринг. Максимальная скорость.",
+        danger: true
+    },
+    {
+        level: "RAID 1",  minDisks: 2,  evenOnly: false,
+        fault:    function(n) { return n - 1; },
+        capacity: function(n) { return "1 × диск (" + Math.round(100/n) + "% ёмкости)"; },
+        read: 4, write: 3,
+        useCase: "ОС, базы данных. Максимальная надёжность при малом числе дисков."
+    },
+    {
+        level: "RAID 5",  minDisks: 3,  evenOnly: false,
+        fault:    function()  { return 1; },
+        capacity: function(n) { return (n-1) + " × диск (" + Math.round((n-1)/n*100) + "% ёмкости)"; },
+        read: 4, write: 3,
+        useCase: "Файловый сервер, NAS. Хороший баланс надёжности и ёмкости."
+    },
+    {
+        level: "RAID 6",  minDisks: 4,  evenOnly: false,
+        fault:    function()  { return 2; },
+        capacity: function(n) { return (n-2) + " × диск (" + Math.round((n-2)/n*100) + "% ёмкости)"; },
+        read: 4, write: 2,
+        useCase: "Архивы, критичные данные. Выдержит одновременный отказ 2 дисков."
+    },
+    {
+        level: "RAID 10", minDisks: 4,  evenOnly: true,
+        fault:    function(n) { return Math.floor(n/2) + " (по 1 в каждой паре)"; },
+        capacity: function(n) { return Math.floor(n/2) + " × диск (50% ёмкости)"; },
+        read: 5, write: 4,
+        useCase: "Базы данных, высоконагруженные сервисы. Быстро и надёжно."
+    },
+    {
+        level: "RAID F1", minDisks: 3,  evenOnly: false,
+        fault:    function()  { return 1; },
+        capacity: function(n) { return (n-1) + " × диск (" + Math.round((n-1)/n*100) + "% ёмкости)"; },
+        read: 4, write: 4,
+        useCase: "SSD-массивы. Как RAID 5, но равномерно распределяет износ."
+    }
+];
+
+function stars(n, max) {
+    var s = "";
+    for (var i = 0; i < max; i++) s += i < n ? "★" : "☆";
+    return "<span style='color:var(--warning);letter-spacing:1px;font-size:13px;'>" + s + "</span>";
+}
+
+function openRaidAdvisor() {
+    var n = physicalDiskCount;
+    var content = document.getElementById("raid-advisor-content");
+
+    var rows = RAID_TYPES.map(function(r) {
+        var possible = n >= r.minDisks && (!r.evenOnly || n % 2 === 0);
+        var fault    = possible ? r.fault(n)    : "—";
+        var cap      = possible ? r.capacity(n) : "—";
+
+        var rowStyle = !possible ? " class='raid-advisor-disabled'" : r.danger ? " class='raid-advisor-danger'" : "";
+        var tag = !possible
+            ? "<span class='badge badge-secondary'>нужно ≥" + r.minDisks + (r.evenOnly ? ", чётное" : "") + "</span>"
+            : r.danger
+                ? "<span class='badge badge-danger'>нет защиты</span>"
+                : "<span class='badge badge-success'>доступен</span>";
+
+        return "<tr" + rowStyle + ">" +
+            "<td><b>" + r.level + "</b> " + tag + "</td>" +
+            "<td>" + fault + "</td>" +
+            "<td>" + cap + "</td>" +
+            "<td>" + (possible ? stars(r.read,  5) : "—") + "</td>" +
+            "<td>" + (possible ? stars(r.write, 5) : "—") + "</td>" +
+            "<td><small>" + r.useCase + "</small></td>" +
+            "</tr>";
+    }).join("");
+
+    content.innerHTML =
+        "<p style='margin-bottom:14px;'>Физических дисков (без системного): <b>" + n + "</b> шт.</p>" +
+        "<div style='overflow-x:auto'>" +
+        "<table>" +
+        "<thead><tr>" +
+        "<th>Тип RAID</th>" +
+        "<th>Выдержит сбоев</th>" +
+        "<th>Ёмкость (" + n + " дисков)</th>" +
+        "<th>Чтение</th>" +
+        "<th>Запись</th>" +
+        "<th>Применение</th>" +
+        "</tr></thead>" +
+        "<tbody>" + rows + "</tbody>" +
+        "</table></div>" +
+        "<div class='alert alert-info' style='margin-top:14px;margin-bottom:0;'>" +
+        "📌 Ёмкость рассчитана для одинаковых дисков. При разных размерах за основу берётся размер <b>наименьшего</b> диска." +
+        "</div>";
+
+    showModal("raid-advisor-modal");
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btn-refresh-disks").addEventListener("click", loadDisksAndArrays);
     document.getElementById("btn-rescan-disks").addEventListener("click", rescanDisks);
+    document.getElementById("btn-raid-advisor").addEventListener("click", openRaidAdvisor);
+    document.getElementById("btn-raid-advisor-close").addEventListener("click", function() { closeModal("raid-advisor-modal"); });
     document.getElementById("btn-add-disk-confirm").addEventListener("click", confirmAddDisk);
     document.getElementById("btn-add-disk-cancel").addEventListener("click", function() { closeModal("add-disk-modal"); });
     document.getElementById("btn-eject-confirm").addEventListener("click", confirmEjectDisk);

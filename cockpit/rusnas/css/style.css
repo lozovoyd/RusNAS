@@ -621,3 +621,17 @@ tbody tr:last-child td { border-bottom: none; }
     border: 1px solid var(--success-border);
     color: var(--success-text-on-light);
 }
+
+/* ─── Wide modal (RAID advisor) ─────────────────────────────────────────────── */
+.modal-box-wide {
+    width: 820px;
+}
+
+/* ─── RAID advisor table rows ───────────────────────────────────────────────── */
+.raid-advisor-disabled {
+    opacity: 0.45;
+}
+
+.raid-advisor-danger {
+    background: var(--danger-light);
+}

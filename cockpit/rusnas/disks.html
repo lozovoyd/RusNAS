@@ -21,6 +21,7 @@
         <div class="section-toolbar">
             <h2>RAID массивы</h2>
             <div class="btn-group">
+                <button class="btn btn-secondary" id="btn-raid-advisor">📊 Советник по RAID</button>
                 <button class="btn btn-secondary" id="btn-rescan-disks" title="Сканировать SCSI шину для поиска новых/возвращённых дисков">🔍 Найти новые диски</button>
                 <button class="btn btn-secondary" id="btn-refresh-disks">↻ Обновить</button>
             </div>
@@ -107,6 +108,17 @@
             <div class="modal-footer">
                 <button class="btn btn-danger" id="btn-eject-confirm">⏏ Подтвердить извлечение</button>
                 <button class="btn btn-default" id="btn-eject-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: RAID Advisor -->
+    <div class="modal-overlay hidden" id="raid-advisor-modal">
+        <div class="modal-box modal-box-wide">
+            <h3>📊 Советник по RAID</h3>
+            <div id="raid-advisor-content">Загрузка...</div>
+            <div class="modal-footer">
+                <button class="btn btn-default" id="btn-raid-advisor-close">Закрыть</button>
             </div>
         </div>
     </div>
