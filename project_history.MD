@@ -161,12 +161,70 @@ Node1 ──[eth1]─────────────────── Node
 Синхронизация конфигурации
 При изменении конфига через Cockpit плагин → Ansible синхронизирует конфиги на оба узла.
 
+Сессия 5 — Git, DevOps, UI redesign
+Дата: 12 марта 2026
+Чат: Claude Code — инициализация репозитория и редизайн UI
+
+Что было сделано
+
+1. Git-репозиторий и рабочий каталог
+Инициализирован git-репо в /Users/dvl92/projects/RusNAS/.
+Собраны все файлы плагина с VM (10.10.10.72:/usr/share/cockpit/rusnas/) через scp.
+
+Уточнена реальная структура файлов — отличается от документации:
+/usr/share/cockpit/rusnas/
+├── manifest.json
+├── index.html       ← (не storage.html как было записано)
+├── disks.html
+├── users.html
+├── css/style.css
+└── js/
+    ├── app.js       ← (не storage.js)
+    ├── disks.js
+    └── users.js
+
+2. deploy.sh — автоматический деплой
+Создан скрипт deploy.sh: scp в /tmp/ → sudo cp → chmod 644/755 → готово.
+Проблемы и решения:
+— SSH без пароля: установлен sshpass (brew), добавлены флаги -o PreferredAuthentications=password -o PubkeyAuthentication=no
+— sudo на VM: передача пароля через echo 'pass' | sudo -S
+— Права файлов 600 после scp: Cockpit не мог читать → deploy.sh теперь выставляет 644 на файлы, 755 на директории
+
+3. Фикс страницы Users (зависала на "Загрузка...")
+Три бага одновременно:
+— initUsers() никогда не вызывалась — не было DOMContentLoaded listener
+— showModal/closeModal не определены в users.js (они живут в app.js, который users.html не загружает)
+— Нет .fail() на внутренних cockpit.spawn() в loadUsers() → pending никогда не достигал 0
+
+4. Редизайн UI — dark mode + CSS custom properties
+style.css полностью переписан:
+— CSS custom properties для всех цветов (--bg, --bg-card, --color, --primary и т.д.)
+— @media (prefers-color-scheme: dark) для автоматической тёмной темы
+— Cockpit v337 передаёт тему в iframe через color-scheme CSS property → prefers-color-scheme срабатывает корректно
+— Шрифт Red Hat Text подключён через ../../static/fonts/ (Cockpit bundled fonts)
+— PatternFly v6 inspired дизайн-токены (цвета взяты из bundled Cockpit CSS)
+Все три HTML файла обновлены:
+— <meta name="color-scheme" content="light dark"> добавлен в head
+— Все inline style="..." убраны
+— Новые классы: .section-toolbar, .modal-footer, .btn-group, .table-hint
+— inline <style> блок из disks.html перенесён в style.css
+
+5. ui.md — UI guidelines
+Создан документ с правилами разработки UI:
+— Все компоненты с примерами HTML
+— Правило: никогда не хардкодить цвета вне CSS custom properties
+— Механизм dark mode объяснён
+— CSP правила (что работает через unsafe-inline, что нет)
+— Ссылка добавлена в CLAUDE.md
+
 Текущее состояние проекта
 Готово ✅
 
 Полный стек установлен и протестирован на VM
-Cockpit плагин: Storage (SMB + iSCSI), Users, Disks & RAID
-Ansible спецификация (rusnas-claude-code-task.md) — все роли описаны
+Cockpit плагин: Storage (SMB + NFS + iSCSI), Users, Disks & RAID
+Git-репозиторий инициализирован, deploy.sh работает
+UI redesign: dark mode, CSS custom properties, PatternFly v6 стиль
+ui.md — UI guidelines, CLAUDE.md актуален
 
 В работе / следующие шаги 🔜
 
