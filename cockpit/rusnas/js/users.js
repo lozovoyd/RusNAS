@@ -1,3 +1,8 @@
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+
+function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
+function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
+
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 function loadUsers() {
@@ -31,6 +36,10 @@ function loadUsers() {
                 var lines = (output || "").trim().split("\n");
                 rows[idx].groups = lines[0] || "";
                 rows[idx].samba  = lines[1] === "samba_yes";
+                pending--;
+                if (pending === 0) renderUsers(rows);
+            })
+            .fail(function() {
                 pending--;
                 if (pending === 0) renderUsers(rows);
             });
@@ -298,3 +307,5 @@ function initUsers() {
     loadUsers();
     loadGroups();
 }
+
+document.addEventListener("DOMContentLoaded", initUsers);
