@@ -58,12 +58,12 @@ RusNAS/
 ├── cockpit/
 │   └── rusnas/             # Cockpit plugin source
 │       ├── manifest.json
-│       ├── index.html
-│       ├── storage.html    # SMB shares + iSCSI targets
+│       ├── index.html      # Storage: SMB shares + iSCSI targets
 │       ├── disks.html      # Disks and RAID arrays
 │       ├── users.html      # User management
+│       ├── css/style.css
 │       └── js/
-│           ├── storage.js
+│           ├── app.js      # Storage logic (SMB, NFS, iSCSI)
 │           ├── disks.js
 │           └── users.js
 ├── ansible/                # Ansible monorepo (provisioning)
@@ -103,7 +103,7 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 
 ### Key Implementation Details
 
-**storage.js:**
+**app.js (Storage page):**
 - Mount path dropdown from `findmnt --real`, filtered to `/dev/md|sd[b-z]|nvme`
 - Edit `smb.conf` via `sed` range pattern `/^\[name\]/,/^\[/` (not Python regex — unreliable)
 - NFS: delete old entry before adding: `sed -i '\|^/path |d'` before append (prevents duplication)
