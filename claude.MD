@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
+> UI правила и компоненты: [ui.md](./ui.md)
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
     <title>rusNAS — Хранилище</title>
     <script src="../base1/cockpit.js"></script>
     <link rel="stylesheet" href="css/style.css">
@@ -11,8 +12,10 @@
 
     <!-- SMB Shares -->
     <div class="section">
-        <h2>SMB шары (Windows/Samba)</h2>
-        <button class="btn btn-success" id="btn-add-share">+ Добавить SMB шару</button>
+        <div class="section-toolbar">
+            <h2>SMB шары (Windows/Samba)</h2>
+            <button class="btn btn-success" id="btn-add-share">+ Добавить SMB шару</button>
+        </div>
         <table>
             <thead>
                 <tr><th>Имя</th><th>Путь</th><th>Протокол</th><th>Статус</th><th>Действия</th></tr>
@@ -25,8 +28,10 @@
 
     <!-- NFS Shares -->
     <div class="section">
-        <h2>NFS шары (Linux/Mac)</h2>
-        <button class="btn btn-success" id="btn-add-nfs">+ Добавить NFS шару</button>
+        <div class="section-toolbar">
+            <h2>NFS шары (Linux/Mac)</h2>
+            <button class="btn btn-success" id="btn-add-nfs">+ Добавить NFS шару</button>
+        </div>
         <table>
             <thead>
                 <tr><th>Путь</th><th>Клиенты</th><th>Опции</th><th>Статус</th><th>Действия</th></tr>
@@ -39,8 +44,10 @@
 
     <!-- iSCSI Targets -->
     <div class="section">
-        <h2>iSCSI Targets</h2>
-        <button class="btn btn-success" id="btn-add-iscsi">+ Добавить Target</button>
+        <div class="section-toolbar">
+            <h2>iSCSI Targets</h2>
+            <button class="btn btn-success" id="btn-add-iscsi">+ Добавить Target</button>
+        </div>
         <table>
             <thead>
                 <tr><th>IQN</th><th>LUN</th><th>Размер</th><th>Статус</th><th>Действия</th></tr>
@@ -57,7 +64,7 @@
             <h3>Редактировать SMB шару</h3>
             <div class="form-group">
                 <label>Имя шары</label>
-                <input type="text" id="edit-share-name" disabled style="background:#f0f0f0">
+                <input type="text" id="edit-share-name" disabled>
             </div>
             <div class="form-group">
                 <label>Путь</label>
@@ -105,8 +112,10 @@
                     <option value="no">Нет</option>
                 </select>
             </div>
-            <button class="btn btn-primary" id="btn-share-save">Сохранить</button>
-            <button class="btn btn-default" id="btn-share-edit-cancel">Отмена</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-share-save">Сохранить</button>
+                <button class="btn btn-default" id="btn-share-edit-cancel">Отмена</button>
+            </div>
         </div>
     </div>
 
@@ -140,8 +149,10 @@
                     <option value="private">Приватный (с паролем)</option>
                 </select>
             </div>
-            <button class="btn btn-primary" id="btn-share-create">Создать</button>
-            <button class="btn btn-default" id="btn-share-cancel">Отмена</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-share-create">Создать</button>
+                <button class="btn btn-default" id="btn-share-cancel">Отмена</button>
+            </div>
         </div>
     </div>
 
@@ -151,7 +162,7 @@
             <h3>Редактировать NFS шару</h3>
             <div class="form-group">
                 <label>Путь</label>
-                <input type="text" id="edit-nfs-path" disabled style="background:#f0f0f0">
+                <input type="text" id="edit-nfs-path" disabled>
             </div>
             <div class="form-group">
                 <label>Права директории</label>
@@ -188,8 +199,10 @@
                     <option value="root_squash">Включён (root_squash)</option>
                 </select>
             </div>
-            <button class="btn btn-primary" id="btn-nfs-save">Сохранить</button>
-            <button class="btn btn-default" id="btn-nfs-edit-cancel">Отмена</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-nfs-save">Сохранить</button>
+                <button class="btn btn-default" id="btn-nfs-edit-cancel">Отмена</button>
+            </div>
         </div>
     </div>
 
@@ -234,8 +247,10 @@
                     <option value="root_squash">Включён (root_squash)</option>
                 </select>
             </div>
-            <button class="btn btn-primary" id="btn-nfs-create">Создать</button>
-            <button class="btn btn-default" id="btn-nfs-cancel">Отмена</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-nfs-create">Создать</button>
+                <button class="btn btn-default" id="btn-nfs-cancel">Отмена</button>
+            </div>
         </div>
     </div>
 
@@ -251,8 +266,10 @@
                 <label>Размер LUN (ГБ)</label>
                 <input type="number" id="iscsi-size" value="10" min="1">
             </div>
-            <button class="btn btn-primary" id="btn-iscsi-create">Создать</button>
-            <button class="btn btn-default" id="btn-iscsi-cancel">Отмена</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-iscsi-create">Создать</button>
+                <button class="btn btn-default" id="btn-iscsi-cancel">Отмена</button>
+            </div>
         </div>
     </div>
 
