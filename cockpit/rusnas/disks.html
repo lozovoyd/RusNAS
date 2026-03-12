@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>rusNAS — Диски и RAID</title>
+    <script src="../base1/cockpit.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 8px; font-size: 14px; }
+        .alert a { color: inherit; font-weight: 600; }
+        .alert-danger  { background: #fde8e8; border-left: 4px solid #e53e3e; color: #742a2a; }
+        .alert-warning { background: #fefce8; border-left: 4px solid #d69e2e; color: #744210; }
+        .alert-info    { background: #ebf8ff; border-left: 4px solid #3182ce; color: #2a4365; }
+
+        .array-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:12px; }
+        .array-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .array-name   { font-size:18px; font-weight:700; margin-right:8px; }
+        .array-level  { background:#edf2f7; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:600; margin-right:6px; }
+        .array-size   { color:#718096; font-size:13px; }
+        .array-status { margin-bottom:10px; }
+        .status-desc  { font-size:13px; color:#4a5568; margin-left:6px; }
+        .array-slots  { font-size:26px; letter-spacing:6px; margin:8px 0; }
+        .slot-ok      { color:#38a169; }
+        .slot-missing { color:#e53e3e; }
+        .array-devices { margin:8px 0; }
+        .device-row   { font-size:13px; padding:2px 0; }
+        .array-hint   { font-size:12px; color:#718096; font-style:italic; margin-top:8px; border-top:1px solid #f0f0f0; padding-top:8px; }
+        .array-actions { display:flex; gap:6px; }
+
+        .progress-wrap { position:relative; background:#edf2f7; border-radius:4px; height:22px; margin:8px 0; overflow:hidden; }
+        .progress-bar  { background:#3182ce; height:100%; transition:width 0.5s; }
+        .progress-wrap span { position:absolute; right:8px; top:3px; font-size:12px; color:#2d3748; font-weight:600; }
+
+        .badge           { padding:3px 8px; border-radius:4px; font-size:12px; font-weight:600; }
+        .badge-success   { background:#c6f6d5; color:#276749; }
+        .badge-warning   { background:#fefcbf; color:#744210; }
+        .badge-danger    { background:#fed7d7; color:#742a2a; }
+        .badge-info      { background:#bee3f8; color:#2a4365; }
+        .badge-secondary { background:#edf2f7; color:#4a5568; }
+
+        .text-success { color:#38a169; }
+        .text-warning { color:#d69e2e; }
+        .text-muted   { color:#a0aec0; }
+        .text-danger  { color:#e53e3e; }
+
+        .disk-info-row { padding:4px 0; font-size:13px; border-bottom:1px solid #f0f0f0; }
+        code { background:#f0f0f0; padding:1px 4px; border-radius:3px; font-size:12px; }
+
+        .eject-warning { background:#fff5f5; border:1px solid #fc8181; border-radius:6px; padding:12px; margin-bottom:12px; font-size:13px; }
+        .eject-details { background:#f7fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px; margin-bottom:12px; font-size:13px; line-height:1.8; }
+        .mode-info     { border-radius:6px; padding:12px; font-size:13px; line-height:1.7; margin-bottom:4px; }
+        .mode-replace  { background:#ebf8ff; border:1px solid #90cdf4; color:#2a4365; }
+        .mode-expand   { background:#f0fff4; border:1px solid #9ae6b4; color:#22543d; }
+    </style>
+</head>
+<body>
+    <h1>rusNAS — Диски и RAID</h1>
+
+    <!-- Alert banner -->
+    <div id="raid-alert-banner" class="hidden"></div>
+
+    <!-- Eject status message -->
+    <div id="eject-status"></div>
+
+    <!-- RAID Arrays -->
+    <div class="section">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2 style="margin:0;">RAID массивы</h2>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary" id="btn-rescan-disks" title="Сканировать SCSI шину для поиска новых/возвращённых дисков">🔍 Найти новые диски</button>
+                <button class="btn btn-secondary" id="btn-refresh-disks">↻ Обновить</button>
+            </div>
+        </div>
+        <div id="arrays-container">
+            <p>Загрузка...</p>
+        </div>
+    </div>
+
+    <!-- Physical Disks -->
+    <div class="section">
+        <h2>Физические диски</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Диск</th>
+                    <th>Размер</th>
+                    <th>Модель</th>
+                    <th>Серийный номер</th>
+                    <th>Массив</th>
+                    <th>S.M.A.R.T.</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody id="disks-body">
+                <tr><td colspan="7">Загрузка...</td></tr>
+            </tbody>
+        </table>
+        <div style="margin-top:10px; font-size:12px; color:#718096;">
+            <b>Как найти нужный диск физически:</b>
+            Сверьте <b>серийный номер</b> из таблицы с наклейкой на диске в корпусе.
+            Перед извлечением нажмите <b>«⏏ Извлечь»</b> — система безопасно отключит диск от массива.
+        </div>
+    </div>
+
+    <!-- Modal: Add/Replace/Expand disk -->
+    <div class="modal-overlay hidden" id="add-disk-modal">
+        <div class="modal-box">
+            <h3 id="add-disk-title">Добавить диск</h3>
+            <input type="hidden" id="add-disk-array">
+            <input type="hidden" id="add-disk-mode">
+            <div id="add-disk-desc" style="margin-bottom:12px;"></div>
+            <div class="form-group">
+                <label>Массив</label>
+                <input type="text" id="add-disk-array-label" disabled style="background:#f0f0f0">
+            </div>
+            <div class="form-group">
+                <label>Диск для добавления</label>
+                <select id="add-disk-select"></select>
+            </div>
+            <div id="add-disk-info" style="margin-bottom:12px; font-size:13px; color:#4a5568;"></div>
+            <div class="eject-warning">
+                ⚠ <b>Все данные на выбранном диске будут уничтожены.</b><br>
+                Убедитесь что выбрали правильный диск, сверив серийный номер с наклейкой.
+            </div>
+            <button class="btn btn-primary" id="btn-add-disk-confirm">Подтвердить</button>
+            <button class="btn btn-default" id="btn-add-disk-cancel">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Modal: Safe eject -->
+    <div class="modal-overlay hidden" id="eject-disk-modal">
+        <div class="modal-box">
+            <h3>Безопасное извлечение диска</h3>
+            <input type="hidden" id="eject-disk-value">
+            <input type="hidden" id="eject-array-value">
+
+            <div class="eject-details">
+                <b>Диск:</b> <span id="eject-disk-name"></span><br>
+                <b>Массив:</b> <span id="eject-array-name"></span><br>
+                <div id="eject-disk-details" style="margin-top:8px;">Загрузка...</div>
+            </div>
+
+            <div class="eject-warning">
+                ⚠ <b>После подтверждения:</b><br>
+                1. Диск будет помечен как сбойный и удалён из массива<br>
+                2. Массив перейдёт в режим деградации<br>
+                3. Система отключит диск — его можно физически вытащить<br>
+                4. Вставьте новый диск и добавьте его в массив
+            </div>
+
+            <button class="btn btn-danger" id="btn-eject-confirm">⏏ Подтвердить извлечение</button>
+            <button class="btn btn-default" id="btn-eject-cancel">Отмена</button>
+        </div>
+    </div>
+
+    <script src="js/disks.js"></script>
+</body>
+</html>

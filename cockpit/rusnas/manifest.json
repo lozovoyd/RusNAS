@@ -1,0 +1,24 @@
+{
+  "version": 0,
+  "require": {
+    "cockpit": ">=215"
+  },
+  "content-security-policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'",
+  "menu": {
+    "index": {
+      "label": "Хранилище",
+      "order": 1
+    },
+    "disks": {
+      "label": "Диски и RAID",
+      "order": 2
+    },
+    "users": {
+      "label": "Пользователи",
+      "order": 3
+    }
+  },
+  "superuser": {
+    "default": "try"
+  }
+}

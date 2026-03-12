@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Bash(which sshpass:*)",
+      "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"ls /usr/share/cockpit/rusnas/ && echo --- && ls /usr/share/cockpit/rusnas/js/ 2>/dev/null && cat /usr/share/cockpit/rusnas/manifest.json\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"find /usr/share/cockpit/rusnas/ -type f\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(expect -c '\nset timeout 30\nspawn scp -o StrictHostKeyChecking=no -r rusnas@10.10.10.72:/usr/share/cockpit/rusnas/* /Users/dvl92/projects/RusNAS/cockpit/rusnas/\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(git init:*)"
+    ]
+  }
+}
