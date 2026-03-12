@@ -51,6 +51,8 @@ Or use the deploy script:
 
 Cockpit auto-reloads plugins on page refresh — no service restart needed after file changes.
 
+**After every deploy:** verify the page loads correctly in the browser. Files must have `644` permissions and directories `755` — `scp` copies files with local permissions (often `600`), which makes them unreadable by Cockpit. The deploy script handles this automatically.
+
 ## Project Structure
 
 ```
