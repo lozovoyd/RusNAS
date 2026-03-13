@@ -432,3 +432,103 @@ feature/rusnas-guard → main
 
 Сводка принятых решений
 РешениеВыборПричинаФСBtrfs + mdadmZFS не поддерживает online RAID level migrationВеб-UICockpit + кастомный плагинСкорость разработкиsmb.conf редактированиеsed range patternPython regex ненадёжен для INI-блоковiSCSI в Cockpitявный sudo в spawn()superuser:require не покрывает subprocessПути шарfindmnt --real dropdownНе хардкодить, брать реальные точки монтированияNFS идемпотентностьsed delete перед appendИначе дублируются записиmdstat парсингresync + reshape обаТолько resync → reshape показывало "Active"Арбитр HARaspberry Pi (SBD + QNetd)$50, решает split-brain и зависания ядраGuard сокет правасокет 0o666, dir 0755, без superuser:requirePolkit escalation не propagates в iframe-контекстеGuard daemon жизненный циклСервис всегда запущен; Start/Stop = Detector threadUI всегда может подключиться к сокету и прочитать статусGuard IOPS InotifyTrees_root_path() нормализация перед lookup в _iops_windowsInotifyTrees даёт поддиректорию, не root-путь из конфигаGuard /etc/rusnas-guard права755 (не 700) — Cockpit bridge читает как не-rootCockpit bridge не запускается под root
+
+---
+
+Сессия 9 — rusNAS Snapshots: Btrfs snapshot manager
+Дата: 14 марта 2026
+Ветка: feature/snapshots
+
+Что было сделано
+
+Реализован полноценный менеджер Btrfs-снапшотов для rusNAS:
+CLI-инструмент rusnas-snap, systemd-таймер, Cockpit UI, apt pre-update hook.
+
+1. CLI: rusnas-snap
+
+Python 3 скрипт /usr/local/bin/rusnas-snap (~500 строк).
+SQLite БД /var/lib/rusnas/snaps.db (WAL-режим, retry при lock).
+Таблицы: snapshots, schedules, events.
+
+Команды:
+  init-db           — инициализация БД
+  create            — создать снапшот (--label)
+  list              — список снапшотов (JSON stdout)
+  delete            — удалить снапшот
+  lock / unlock     — заблокировать от retention
+  label             — переименовать метку
+  retention         — применить политику удаления
+  restore           — полное восстановление субволюма
+  restore-file      — восстановить отдельный файл из снапшота
+  browse            — примонтировать снапшот read-only
+  browse-umount     — размонтировать снапшот
+  update-sizes      — обновить размеры снапшотов
+  scheduled-run     — выполнить все активные расписания (для таймера)
+  pre-update-all    — создать снапшоты всех субволюмов (для apt hook)
+  schedule set/list — управление расписаниями
+  events            — журнал событий
+
+Smart Retention (5 окон): last N, hourly, daily, weekly, monthly.
+Locked и manual снапшоты не удаляются retention.
+
+Атомарный restore: tmp subvol → rename current → rename tmp → delete backup.
+Snapshot layout: /mnt/btrfspool/.snapshots/shares__public/@YYYY-MM-DD_HH-MM-SS_type
+
+2. Systemd таймер
+
+rusnas-snapd.timer — каждые 5 минут, запускает scheduled-run.
+rusnas-snapd.service — Type=oneshot.
+
+3. Apt hook
+
+/etc/apt/apt.conf.d/99rusnas-snapshot — автоснапшот перед apt upgrade.
+
+4. Cockpit UI
+
+cockpit/rusnas/snapshots.html + js/snapshots.js
+Три вкладки: Снапшоты / Расписание / Журнал событий.
+Subvol dropdown — автоматически из schedule list.
+Модальные окна: создать снапшот, подтверждение restore, добавить/изменить расписание, путь browse.
+Все кнопки: Просмотр, Восстановить, Метка, Заблокировать/Разблокировать, Удалить.
+Cron presets: каждый час / день / неделю / месяц.
+Locked снапшоты отображаются с 🔒 и кнопкой "Разблокировать".
+
+5. Тестирование
+
+14 автотестов (rusnas-snap-test.sh) — все пройдены:
+create, list, lock, label, retention (locked снапшоты выживают),
+restore-file, full restore, delete, events, schedule list,
+update-sizes, scheduled-run, unlock, verify on-disk layout.
+
+6. Btrfs окружение на VM
+
+VM использует ext4; Btrfs создан через loop-image:
+  /var/lib/rusnas/btrfs-pool.img (5 GB)
+  mount -o loop → /mnt/btrfspool
+  Субволюмы: shares/public, shares/documents, shares/backups
+  Снапшоты: /mnt/btrfspool/.snapshots/shares__*/
+
+7. Deploy
+
+install-snapshots.sh — деплой всей системы на VM (с флагом --setup-btrfs).
+Sudoers: rusnas ALL=(ALL) NOPASSWD: /usr/local/bin/rusnas-snap
+
+Баги и исправления в этой сессии
+
+Проблема                                     | Исправление
+--json флаг у schedule list и events         | Эти команды не принимают --json (всегда JSON stdout); убран из runCmd
+loadSubvols всегда вызывал findBtrfsSubvols  | Упрощён: если есть пути из schedule list — используем их, bash-discovery пропускается
+findBtrfsSubvols: sudo -n bash -c            | bash не в sudoers NOPASSWD; исправлено — discovery не нужен при наличии расписаний
+err:"out" в cockpit.spawn                    | Заменено на err:"message" — иначе stderr смешивается с JSON stdout
+safeJson line-by-line поиск                  | Заменено на JSON.parse(str) напрямую
+Тест T6/T7: permission denied                | chmod 777 на субволюмах для тестов
+Тест: heredoc раскрывался на Mac-хосте      | Записали тест в файл и scp на VM
+
+Принятые решения
+
+Решение          | Выбор                            | Причина
+CLI вывод        | JSON всегда в stdout, лог в stderr| Cockpit spawn err:"message" разделяет их
+schedule list    | Без --json флага                  | Команда всегда выводит JSON
+Subvol discovery | Приоритет — schedule list paths   | bash не в sudoers; зачем bash если есть расписания
+Btrfs на VM      | Loop image 5GB                    | VM не имеет Btrfs раздела; loop — быстро и просто
+Retention locked | Locked снапшоты никогда не удаляются| Явная защита важных точек восстановления
