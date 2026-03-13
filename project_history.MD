@@ -237,5 +237,93 @@ ui.md — UI guidelines, CLAUDE.md актуален
  HA кластер (DRBD + Pacemaker + Corosync + Raspberry Pi)
 
 
+Сессия 6 — rusNAS Guard (Антишифровальщик)
+Дата: 13 марта 2026
+Ветка: feature/rusnas-guard
+Коммит: b27cac4
+
+Что было сделано
+
+Реализован полноценный daemon защиты от шифровальщиков — rusnas-guard.
+
+1. Архитектура daemon (Python 3)
+5 модулей в /usr/lib/rusnas-guard/:
+
+guard.py — точка входа, main loop, управление жизненным циклом
+detector.py — inotify watcher, диспетчер 4 методов обнаружения
+entropy.py — Shannon entropy: 16×4KB случайных блоков, порог 7.2 бит/байт
+honeypot.py — bait-файлы: !~rng_XXXXXXXX.docx/.xlsx/.pdf в каждой папке
+response.py — блокировка IP (nftables), снапшоты Btrfs, уведомления, JSONL-лог
+socket_server.py — Unix socket, JSON protocol, bcrypt PIN, session tokens (30 мин)
+
+2. Четыре независимых метода обнаружения
+
+Метод          | Триггер                                              | Примечание
+Honeypot       | Любое изменение bait-файла                          | Мгновенно, без порога
+Entropy        | >7.2 бит/байт при IN_CLOSE_WRITE                   | Пропускает mp4/zip/jpg и <16KB файлы
+IOPS anomaly   | rate > median + 4×σ И rate > 50 ops/min            | Активен после 7-дневного обучения
+Extensions     | Файл создан/переименован в .locked/.encrypted/etc. | ~200 расширений в списке
+
+3. Три режима реагирования
+
+Monitor — только лог и уведомления, без блокировок
+Active — снапшот + блокировка IP через nftables + отключение SMB-соединений
+Super-Safe — снапшоты ВСЕХ томов → уведомление → стоп всех служб → poweroff через 30 сек
+
+4. Guard PIN
+— Bcrypt hash в /etc/rusnas-guard/guard.pin
+— Независим от пароля Cockpit-администратора
+— Требуется для: start/stop, смены режима, изменения настроек, acknowledge событий
+— Session token 30 минут (только в памяти daemon)
+— First-run wizard при первом открытии страницы без PIN
+
+5. Post-attack safe mode
+— После Super-Safe shutdown: флаг /etc/rusnas-guard/post_attack
+— На следующем старте: Monitor mode, предупреждение в UI
+— Снимается только PIN-подтверждением через "Подтвердить и восстановить режим"
+
+6. Cockpit UI (guard.html + guard.js)
+— Статус-бар: Running/Stopped + кнопки Start/Stop + режим
+— Dashboard: 6 плиток (события/день, IOPS, baseline, снапшот, путей, блокировок)
+— Журнал событий: последние 50, с acknowledge кнопкой
+— Настройки обнаружения: toggle + slider энтропии + dropdown чувствительности IOPS
+— Мониторируемые пути: таблица с per-path флагами
+— Снапшоты: local + remote SSH (с генерацией ed25519 ключа в UI)
+— Список расширений: textarea-редактор
+
+7. Деплой и инфраструктура
+— install-guard.sh: загружает daemon, ставит python3-inotify, регистрирует systemd service
+— systemd service: disabled by default, enable --now только через UI с PIN
+— manifest.json обновлён: Guard 🛡️ → order 4
+
+8. Проверка
+— python3 -m py_compile: все 6 модулей без ошибок
+— Файлы на VM: /usr/lib/rusnas-guard/ ✅, /etc/rusnas-guard/ ✅
+— Cockpit: guard.html + guard.js задеплоены с правами 644 ✅
+— systemctl status rusnas-guard: loaded (disabled) ✅
+
+Зависимости на VM
+python3-inotify (0.2.10-5) — установлен
+python3-bcrypt (4.2.0-2.1+b1) — был установлен
+btrfs-progs, nftables, openssh-client — были установлены
+
+Текущее состояние проекта после сессии 6
+Готово ✅
+
+Все предыдущие фичи (Storage, Disks&RAID, Users)
+rusNAS Guard daemon: установлен на VM, синтаксически валиден
+Cockpit Guard UI: доступен в браузере → Guard 🛡️
+Git: ветка feature/rusnas-guard, коммит b27cac4, запушен на GitHub
+
+Следующие шаги 🔜
+
+Протестировать Guard в реальных условиях:
+  — создать bait-файл и убедиться что honeypot срабатывает
+  — записать /dev/urandom → проверить entropy trigger
+  — переименовать файл в .locked → проверить extensions trigger
+Интеграция уведомлений: создать /usr/lib/rusnas/notify.sh (email + Telegram)
+Ansible роль для Guard (автоустановка на новых устройствах)
+PR: feature/rusnas-guard → main
+
 Сводка принятых решений
 РешениеВыборПричинаФСBtrfs + mdadmZFS не поддерживает online RAID level migrationВеб-UICockpit + кастомный плагинСкорость разработкиsmb.conf редактированиеsed range patternPython regex ненадёжен для INI-блоковiSCSI в Cockpitявный sudo в spawn()superuser:require не покрывает subprocessПути шарfindmnt --real dropdownНе хардкодить, брать реальные точки монтированияNFS идемпотентностьsed delete перед appendИначе дублируются записиmdstat парсингresync + reshape обаТолько resync → reshape показывало "Active"Арбитр HARaspberry Pi (SBD + QNetd)$50, решает split-brain и зависания ядра
