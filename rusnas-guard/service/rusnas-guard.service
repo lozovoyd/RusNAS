@@ -8,6 +8,8 @@ ExecStart=/usr/bin/python3 /usr/lib/rusnas-guard/guard.py
 Restart=on-failure
 RestartSec=5
 User=root
+RuntimeDirectory=rusnas-guard
+RuntimeDirectoryMode=0750
 
 [Install]
 WantedBy=multi-user.target
