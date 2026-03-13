@@ -127,16 +127,18 @@ function refreshStatus() {
 function updateStatusBadge(s) {
     var badge = document.getElementById("daemon-status-badge");
     if (!s) {
-        badge.className = "badge badge-secondary";
-        badge.textContent = "⬤ Недоступен";
+        // Daemon process not reachable
+        badge.className = "badge badge-danger";
+        badge.textContent = "⬤ Служба недоступна";
         return;
     }
+    // Daemon process is always running; badge shows monitoring state
     if (s.daemon_running) {
         badge.className = "badge badge-success";
-        badge.textContent = "⬤ Работает";
+        badge.textContent = "⬤ Защита активна";
     } else {
-        badge.className = "badge badge-danger";
-        badge.textContent = "⬤ Остановлен";
+        badge.className = "badge badge-warning";
+        badge.textContent = "⬤ Мониторинг выключен";
     }
 
     // Mode buttons
@@ -342,28 +344,28 @@ document.addEventListener("DOMContentLoaded", function() {
     // Auto-refresh every 5 seconds
     refreshTimer = setInterval(refreshStatus, 5000);
 
-    // ── Start / Stop ──────────────────────────────────────────────────────────
+    // ── Start / Stop monitoring (daemon process always runs) ──────────────────
     document.getElementById("btn-start-guard").addEventListener("click", function() {
-        requirePin("▶ Запустить Guard", "Введите PIN для запуска службы защиты.", function() {
+        requirePin("▶ Включить защиту", "Введите PIN для включения мониторинга файловой системы.", function() {
             guardCmd("start", {}, function(err, resp) {
                 if (!err && resp && resp.ok) {
-                    cockpit.spawn(["systemctl", "enable", "--now", "rusnas-guard"], { superuser: "require" })
-                        .always(function() { refreshStatus(); });
+                    refreshStatus();
+                    showAlert("info", "Защита включена — Guard начал мониторинг файловой системы.");
                 } else {
-                    showAlert("danger", "Не удалось запустить Guard: " + ((resp && resp.error) || "ошибка"));
+                    showAlert("danger", "Не удалось включить защиту: " + ((resp && resp.error) || "ошибка"));
                 }
             });
         });
     });
 
     document.getElementById("btn-stop-guard").addEventListener("click", function() {
-        requirePin("■ Остановить Guard", "Введите PIN для остановки службы защиты.", function() {
+        requirePin("■ Выключить защиту", "Введите PIN для остановки мониторинга файловой системы.", function() {
             guardCmd("stop", {}, function(err, resp) {
                 if (!err && resp && resp.ok) {
-                    cockpit.spawn(["systemctl", "disable", "--now", "rusnas-guard"], { superuser: "require" })
-                        .always(function() { refreshStatus(); });
+                    refreshStatus();
+                    showAlert("warning", "Мониторинг остановлен. Служба rusnas-guard продолжает работать в фоне.");
                 } else {
-                    showAlert("danger", "Не удалось остановить Guard");
+                    showAlert("danger", "Ошибка остановки мониторинга");
                 }
             });
         });

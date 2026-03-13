@@ -55,9 +55,10 @@ chmod 700 /etc/rusnas-guard
 chmod 640 /etc/rusnas-guard/config.json || true
 chmod 644 /etc/rusnas-guard/ransom_extensions.txt || true
 
-# Reload systemd (but do NOT enable or start — admin must do it from UI)
+# Enable and start daemon — it always runs (idle until monitoring is activated via PIN in UI)
 systemctl daemon-reload
-echo "rusnas-guard installed. Service is disabled by default — start from Cockpit UI."
+systemctl enable --now rusnas-guard
+echo "rusnas-guard installed and started. Monitoring is inactive until activated from Cockpit UI with PIN."
 
 # Cleanup
 rm -rf /tmp/rusnas-guard-install
