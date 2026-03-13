@@ -1,7 +1,8 @@
 // ─── Disks & RAID ─────────────────────────────────────────────────────────────
 
 var diskRefreshTimer  = null;
-var physicalDiskCount = 0;  // non-system disks, set in renderDisks
+var physicalDiskCount = 0;   // non-system disks, set in renderDisks
+var currentArrays     = [];  // last parsed mdstat, used by RAID advisor
 
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
@@ -350,6 +351,7 @@ function loadDisksAndArrays() {
     cockpit.spawn(["bash", "-c", "cat /proc/mdstat"])
         .done(function(mdstat) {
             var arrays = parseMdstat(mdstat);
+            currentArrays = arrays;
             updateAlertBanner(arrays);
             renderArrays(arrays);
 
@@ -516,101 +518,243 @@ function confirmEjectDisk() {
 
 var RAID_TYPES = [
     {
-        level: "RAID 0",  minDisks: 2,  evenOnly: false,
-        fault:    function()  { return 0; },
-        capacity: function(n) { return n + " × диск (100% ёмкости)"; },
+        level: "RAID 0",  minDisks: 2, evenOnly: false,
+        fault:  function()  { return 0; },
+        usable: function(n) { return n; },
         read: 5, write: 5,
         useCase: "Временные данные, кэш, рендеринг. Максимальная скорость.",
         danger: true
     },
     {
-        level: "RAID 1",  minDisks: 2,  evenOnly: false,
-        fault:    function(n) { return n - 1; },
-        capacity: function(n) { return "1 × диск (" + Math.round(100/n) + "% ёмкости)"; },
+        level: "RAID 1",  minDisks: 2, evenOnly: false,
+        fault:  function(n) { return n - 1; },
+        usable: function()  { return 1; },
         read: 4, write: 3,
         useCase: "ОС, базы данных. Максимальная надёжность при малом числе дисков."
     },
     {
-        level: "RAID 5",  minDisks: 3,  evenOnly: false,
-        fault:    function()  { return 1; },
-        capacity: function(n) { return (n-1) + " × диск (" + Math.round((n-1)/n*100) + "% ёмкости)"; },
+        level: "RAID 5",  minDisks: 3, evenOnly: false,
+        fault:  function()  { return 1; },
+        usable: function(n) { return n - 1; },
         read: 4, write: 3,
         useCase: "Файловый сервер, NAS. Хороший баланс надёжности и ёмкости."
     },
     {
-        level: "RAID 6",  minDisks: 4,  evenOnly: false,
-        fault:    function()  { return 2; },
-        capacity: function(n) { return (n-2) + " × диск (" + Math.round((n-2)/n*100) + "% ёмкости)"; },
+        level: "RAID 6",  minDisks: 4, evenOnly: false,
+        fault:  function()  { return 2; },
+        usable: function(n) { return n - 2; },
         read: 4, write: 2,
         useCase: "Архивы, критичные данные. Выдержит одновременный отказ 2 дисков."
     },
     {
-        level: "RAID 10", minDisks: 4,  evenOnly: true,
-        fault:    function(n) { return Math.floor(n/2) + " (по 1 в каждой паре)"; },
-        capacity: function(n) { return Math.floor(n/2) + " × диск (50% ёмкости)"; },
+        level: "RAID 10", minDisks: 4, evenOnly: true,
+        fault:  function(n) { return Math.floor(n / 2) + " (по 1 в паре)"; },
+        usable: function(n) { return Math.floor(n / 2); },
         read: 5, write: 4,
         useCase: "Базы данных, высоконагруженные сервисы. Быстро и надёжно."
     },
     {
-        level: "RAID F1", minDisks: 3,  evenOnly: false,
-        fault:    function()  { return 1; },
-        capacity: function(n) { return (n-1) + " × диск (" + Math.round((n-1)/n*100) + "% ёмкости)"; },
+        level: "RAID F1", minDisks: 3, evenOnly: false,
+        fault:  function()  { return 1; },
+        usable: function(n) { return n - 1; },
         read: 4, write: 4,
-        useCase: "SSD-массивы. Как RAID 5, но равномерно распределяет износ."
+        useCase: "SSD-массивы. Как RAID 5, но равномерно распределяет износ флеш-памяти."
     }
 ];
 
 function stars(n, max) {
     var s = "";
     for (var i = 0; i < max; i++) s += i < n ? "★" : "☆";
-    return "<span style='color:var(--warning);letter-spacing:1px;font-size:13px;'>" + s + "</span>";
+    return "<span style='color:var(--warning);letter-spacing:1px;'>" + s + "</span>";
 }
 
 function openRaidAdvisor() {
-    var n = physicalDiskCount;
+    var content = document.getElementById("raid-advisor-content");
+    content.innerHTML = "<p class='text-muted' style='padding:16px 0;'>Загрузка данных о дисках...</p>";
+    showModal("raid-advisor-modal");
+
+    cockpit.spawn(["bash", "-c", "lsblk -rno NAME,SIZE,TYPE -b 2>/dev/null | grep ' disk$'"])
+        .done(function(out) {
+            var allDisks = out.trim().split("\n").filter(Boolean).map(function(line) {
+                var p = line.trim().split(/\s+/);
+                return { name: p[0], sizeBytes: parseInt(p[1]) || 0 };
+            });
+            var dataDisks = allDisks.filter(function(d) { return d.name !== "sda"; });
+            renderAdvisor(dataDisks);
+        })
+        .fail(function() { renderAdvisor([]); });
+}
+
+function renderAdvisor(dataDisks) {
+    var n       = dataDisks.length;
     var content = document.getElementById("raid-advisor-content");
 
-    var rows = RAID_TYPES.map(function(r) {
-        var possible = n >= r.minDisks && (!r.evenOnly || n % 2 === 0);
-        var fault    = possible ? r.fault(n)    : "—";
-        var cap      = possible ? r.capacity(n) : "—";
+    content.innerHTML =
+        "<div class='advisor-tabs'>" +
+            "<button class='advisor-tab-btn active' id='tab-btn-compare'>Сравнение типов RAID</button>" +
+            "<button class='advisor-tab-btn' id='tab-btn-builder'>Из ваших " + n + " дисков</button>" +
+        "</div>" +
+        "<div id='advisor-tab-compare'>"  + buildCompareTab(n)          + "</div>" +
+        "<div id='advisor-tab-builder' class='hidden'>" + buildBuilderTab(dataDisks) + "</div>";
 
-        var rowStyle = !possible ? " class='raid-advisor-disabled'" : r.danger ? " class='raid-advisor-danger'" : "";
-        var tag = !possible
-            ? "<span class='badge badge-secondary'>нужно ≥" + r.minDisks + (r.evenOnly ? ", чётное" : "") + "</span>"
+    document.getElementById("tab-btn-compare").addEventListener("click", function() { switchAdvisorTab("compare"); });
+    document.getElementById("tab-btn-builder").addEventListener("click", function() { switchAdvisorTab("builder"); });
+}
+
+function switchAdvisorTab(name) {
+    ["compare", "builder"].forEach(function(t) {
+        document.getElementById("advisor-tab-" + t).classList.toggle("hidden", t !== name);
+        document.getElementById("tab-btn-" + t).classList.toggle("active", t === name);
+    });
+}
+
+// ── Tab 1: comparison table ───────────────────────────────────────────────────
+
+function buildCompareTab(n) {
+    var rows = RAID_TYPES.map(function(r) {
+        var ok     = n >= r.minDisks && (!r.evenOnly || n % 2 === 0);
+        var fault  = ok ? r.fault(n)  : "—";
+        var usable = ok ? r.usable(n) : null;
+        var cap    = ok ? usable + " × диск (" + Math.round(usable / n * 100) + "%)" : "—";
+
+        var rowCls = !ok ? " class='raid-advisor-disabled'" : r.danger ? " class='raid-advisor-danger'" : "";
+        var tag    = !ok
+            ? "<span class='badge badge-secondary'>нужно ≥" + r.minDisks + (r.evenOnly ? " (чётное)" : "") + "</span>"
             : r.danger
                 ? "<span class='badge badge-danger'>нет защиты</span>"
                 : "<span class='badge badge-success'>доступен</span>";
 
-        return "<tr" + rowStyle + ">" +
+        return "<tr" + rowCls + ">" +
             "<td><b>" + r.level + "</b> " + tag + "</td>" +
             "<td>" + fault + "</td>" +
             "<td>" + cap + "</td>" +
-            "<td>" + (possible ? stars(r.read,  5) : "—") + "</td>" +
-            "<td>" + (possible ? stars(r.write, 5) : "—") + "</td>" +
+            "<td>" + (ok ? stars(r.read,  5) : "—") + "</td>" +
+            "<td>" + (ok ? stars(r.write, 5) : "—") + "</td>" +
             "<td><small>" + r.useCase + "</small></td>" +
             "</tr>";
     }).join("");
 
-    content.innerHTML =
-        "<p style='margin-bottom:14px;'>Физических дисков (без системного): <b>" + n + "</b> шт.</p>" +
-        "<div style='overflow-x:auto'>" +
-        "<table>" +
-        "<thead><tr>" +
-        "<th>Тип RAID</th>" +
-        "<th>Выдержит сбоев</th>" +
+    return "<div style='overflow-x:auto'>" +
+        "<table><thead><tr>" +
+        "<th>Тип RAID</th><th>Выдержит сбоев</th>" +
         "<th>Ёмкость (" + n + " дисков)</th>" +
-        "<th>Чтение</th>" +
-        "<th>Запись</th>" +
-        "<th>Применение</th>" +
-        "</tr></thead>" +
-        "<tbody>" + rows + "</tbody>" +
-        "</table></div>" +
-        "<div class='alert alert-info' style='margin-top:14px;margin-bottom:0;'>" +
-        "📌 Ёмкость рассчитана для одинаковых дисков. При разных размерах за основу берётся размер <b>наименьшего</b> диска." +
+        "<th>Чтение</th><th>Запись</th><th>Применение</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table></div>" +
+        "<div class='alert alert-info' style='margin-top:12px;margin-bottom:8px;'>" +
+        "📌 Ёмкость для одинаковых дисков. При разных размерах — по наименьшему." +
+        "</div>" +
+        "<div class='alert alert-warning' style='margin-bottom:0;'>" +
+        "💡 <b>Нужна защита от 3 отказов?</b> Добавьте <b>горячий spare</b> к RAID 6: при первом сбое " +
+        "spare автоматически подключается и начинает восстановление, пока вы ещё не заменили диск. " +
+        "В итоге: 2 одновременных отказа + 1 автовосстанавливаемый. " +
+        "В mdadm spare добавляется так же как обычный диск в полный массив: <code>mdadm /dev/mdX --add /dev/sdY</code>." +
         "</div>";
+}
 
-    showModal("raid-advisor-modal");
+// ── Tab 2: builder — actual disk configurations ───────────────────────────────
+
+function buildBuilderTab(dataDisks) {
+    var n = dataDisks.length;
+    if (n === 0) return "<p class='text-muted' style='padding:16px 0;'>Нет данных о физических дисках.</p>";
+
+    var minBytes    = Math.min.apply(null, dataDisks.map(function(d) { return d.sizeBytes; }));
+    var maxBytes    = Math.max.apply(null, dataDisks.map(function(d) { return d.sizeBytes; }));
+    var mixedSizes  = (maxBytes - minBytes) > 1e9;
+
+    // ── Disk inventory ────────────────────────────────────────────────────────
+    var diskRows = dataDisks.map(function(d) {
+        var inArray = null;
+        currentArrays.forEach(function(arr) {
+            arr.devices.forEach(function(dev) { if (dev.name === d.name) inArray = arr.name; });
+        });
+        var gb = (d.sizeBytes / 1e9).toFixed(1);
+        return "<tr>" +
+            "<td><b>/dev/" + d.name + "</b></td>" +
+            "<td>" + gb + " GB</td>" +
+            "<td>" + (inArray
+                ? "<span class='badge badge-info'>" + inArray + "</span>"
+                : "<span class='badge badge-secondary'>свободен</span>") + "</td>" +
+            "</tr>";
+    }).join("");
+
+    var inventoryHtml =
+        "<table style='width:auto;margin-bottom:6px;'>" +
+        "<thead><tr><th>Диск</th><th>Размер</th><th>Использование</th></tr></thead>" +
+        "<tbody>" + diskRows + "</tbody></table>" +
+        (mixedSizes
+            ? "<p style='font-size:12px;color:var(--color-muted);margin:4px 0 0;'>" +
+              "⚠ Диски разного размера — ёмкость рассчитана по наименьшему (" + (minBytes/1e9).toFixed(1) + " GB).</p>"
+            : "");
+
+    // ── Config cards ──────────────────────────────────────────────────────────
+    var cards = RAID_TYPES.map(function(r) {
+        var ok = n >= r.minDisks && (!r.evenOnly || n % 2 === 0);
+        if (!ok) return null;
+
+        var usableDrives = r.usable(n);
+        var usableGB     = (usableDrives * minBytes / 1e9).toFixed(1);
+        var efficiency   = Math.round(usableDrives / n * 100);
+        var fault        = r.fault(n);
+
+        var normalized = r.level.toLowerCase().replace(/[^a-z0-9]/g, "");
+        var isCurrent  = currentArrays.some(function(arr) { return arr.level === normalized; });
+
+        var headerStyle = isCurrent ? "background:var(--info-light);border-color:var(--info-border);"
+                        : r.danger  ? "background:var(--danger-light);border-color:var(--danger-border);"
+                        : "";
+
+        var statusBadge = isCurrent
+            ? "<span class='badge badge-info'>● текущий массив</span>"
+            : r.danger
+                ? "<span class='badge badge-danger'>нет защиты</span>"
+                : "<span class='badge badge-success'>можно создать</span>";
+
+        return "<div class='array-card' style='" + headerStyle + "margin-bottom:8px;'>" +
+            "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>" +
+                "<div><span class='array-name'>" + r.level + "</span> " + statusBadge + "</div>" +
+                "<div style='font-size:22px;font-weight:700;color:var(--primary);'>" + usableGB + " GB</div>" +
+            "</div>" +
+            "<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px;margin-bottom:8px;'>" +
+                "<div><span class='text-muted'>Сбоев:</span> <b>" + fault + "</b></div>" +
+                "<div><span class='text-muted'>КПД:</span> <b>" + efficiency + "%</b></div>" +
+                "<div><span class='text-muted'>Чт/Зп:</span> " + stars(r.read,5) + "/" + stars(r.write,5) + "</div>" +
+            "</div>" +
+            "<div style='font-size:12px;color:var(--color-muted);'>" + r.useCase + "</div>" +
+            "</div>";
+    }).filter(Boolean).join("");
+
+    // ── RAID 6 + spare card (needs n >= 5: 4 for RAID6 + 1 spare) ────────────
+    var spareCard = "";
+    if (n >= 5) {
+        // N-1 disks in RAID 6, 1 as hot spare
+        var r6drives  = n - 1;
+        var r6usable  = r6drives - 2;
+        var r6GB      = (r6usable * minBytes / 1e9).toFixed(1);
+        var r6eff     = Math.round(r6usable / n * 100);
+        spareCard = "<div class='array-card' style='background:var(--success-light);border-color:var(--success-border);margin-bottom:8px;'>" +
+            "<div style='display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;'>" +
+                "<div><span class='array-name'>RAID 6 + spare</span> <span class='badge badge-success'>максимальная защита</span></div>" +
+                "<div style='font-size:22px;font-weight:700;color:var(--primary);'>" + r6GB + " GB</div>" +
+            "</div>" +
+            "<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px;margin-bottom:8px;'>" +
+                "<div><span class='text-muted'>Сбоев:</span> <b>2 + 1 авто</b></div>" +
+                "<div><span class='text-muted'>КПД:</span> <b>" + r6eff + "%</b></div>" +
+                "<div><span class='text-muted'>Чт/Зп:</span> " + stars(4,5) + "/" + stars(2,5) + "</div>" +
+            "</div>" +
+            "<div style='font-size:12px;color:var(--color-muted);'>" +
+                r6drives + " дисков в RAID 6 + 1 горячий spare. " +
+                "Spare автоматически запускает восстановление при первом сбое, пока вы ищете замену." +
+            "</div>" +
+            "</div>";
+    }
+
+    return "<div style='display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;'>" +
+        "<div>" + inventoryHtml + "</div>" +
+        "</div>" +
+        "<h4 style='margin:16px 0 10px;font-size:14px;border-bottom:1px solid var(--color-border);padding-bottom:8px;'>" +
+            "Возможные конфигурации из " + n + " дисков:" +
+        "</h4>" +
+        cards + spareCard;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
