@@ -6,7 +6,23 @@
       "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"ls /usr/share/cockpit/rusnas/ && echo --- && ls /usr/share/cockpit/rusnas/js/ 2>/dev/null && cat /usr/share/cockpit/rusnas/manifest.json\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
       "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"find /usr/share/cockpit/rusnas/ -type f\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
       "Bash(expect -c '\nset timeout 30\nspawn scp -o StrictHostKeyChecking=no -r rusnas@10.10.10.72:/usr/share/cockpit/rusnas/* /Users/dvl92/projects/RusNAS/cockpit/rusnas/\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(chmod +x /Users/dvl92/projects/RusNAS/deploy.sh)",
+      "Bash(git add:*)",
+      "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"echo Port: && grep -E \\\\\"^ListenAddress|^Port\\\\\" /etc/ssh/sshd_config 2>/dev/null; ss -tlnp | grep cockpit || ss -tlnp | grep 900\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no rusnas@10.10.10.72 \"ss -tlnp | grep 9090; systemctl is-active cockpit\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(./deploy.sh 2>&1)",
+      "Bash(expect -c '\nspawn ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/\"\nexpect \"password:\"\nsend \"kl4389qd\\\\r\"\nexpect eof\n' 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"echo 'kl4389qd' | sudo -S chmod -R 644 /usr/share/cockpit/rusnas/ && echo 'kl4389qd' | sudo -S chmod 755 /usr/share/cockpit/rusnas/ /usr/share/cockpit/rusnas/css /usr/share/cockpit/rusnas/js && ls -la /usr/share/cockpit/rusnas/\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls /usr/share/cockpit/base1/ | head -40\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"zcat /usr/share/cockpit/packagekit/updates.css.gz 2>/dev/null | head -60\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"cat /usr/share/cockpit/packagekit/index.html\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/css/ /usr/share/cockpit/rusnas/js/\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"journalctl -u cockpit --since '10 minutes ago' --no-pager 2>/dev/null | tail -20\" 2>&1)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/ /usr/share/cockpit/rusnas/js/ /usr/share/cockpit/rusnas/css/\" 2>&1 | grep -E '^-|^d')",
+      "Bash(bash deploy.sh)",
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/css/style.css /usr/share/cockpit/rusnas/js/disks.js\")"
     ]
   }
 }
