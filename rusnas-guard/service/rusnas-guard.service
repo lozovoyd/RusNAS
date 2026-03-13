@@ -1,0 +1,13 @@
+[Unit]
+Description=rusNAS Guard - Ransomware Protection Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/lib/rusnas-guard/guard.py
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

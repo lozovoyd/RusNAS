@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="color-scheme" content="light dark">
+    <title>rusNAS — Guard</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<h1>rusNAS — Guard 🛡️</h1>
+
+<!-- Post-attack warning -->
+<div class="alert alert-danger hidden" id="post-attack-banner">
+    🔴 <b>Запущен в безопасном режиме после обнаружения атаки.</b>
+    Просмотрите события и подтвердите, что угроза устранена.
+    <button class="btn btn-danger btn-sm" id="btn-clear-post-attack" style="margin-left:12px;">Подтвердить и восстановить режим</button>
+</div>
+
+<!-- Alert banner -->
+<div id="guard-alert-banner"></div>
+
+<!-- ── Top status bar ─────────────────────────────────────────────── -->
+<div class="section">
+    <div class="section-toolbar">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <div>
+                <span id="daemon-status-badge" class="badge badge-secondary">⬤ Загрузка...</span>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" id="btn-start-guard">▶ Запустить</button>
+                <button class="btn btn-danger"  id="btn-stop-guard">■ Остановить</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:13px;color:var(--color-muted);">Режим:</span>
+                <button class="btn btn-secondary btn-sm mode-btn" id="mode-monitor"    data-mode="monitor">Мониторинг</button>
+                <button class="btn btn-secondary btn-sm mode-btn" id="mode-active"     data-mode="active">Активный</button>
+                <button class="btn btn-danger    btn-sm mode-btn" id="mode-super_safe" data-mode="super_safe">⚠ Супер-защита</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Dashboard ──────────────────────────────────────────────────── -->
+<div class="section">
+    <h2>Статистика</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:12px;">
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:28px;font-weight:700;color:var(--danger);" id="stat-events-today">—</div>
+            <div class="text-muted" style="font-size:12px;">Событий сегодня</div>
+        </div>
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:28px;font-weight:700;color:var(--primary);" id="stat-iops">—</div>
+            <div class="text-muted" style="font-size:12px;">Операций/мин</div>
+        </div>
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:14px;font-weight:600;" id="stat-baseline">—</div>
+            <div class="text-muted" style="font-size:12px;">Базовый уровень</div>
+        </div>
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:12px;font-weight:600;" id="stat-last-snapshot">—</div>
+            <div class="text-muted" style="font-size:12px;">Последний снапшот</div>
+        </div>
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:28px;font-weight:700;color:var(--color);" id="stat-paths">—</div>
+            <div class="text-muted" style="font-size:12px;">Мониторимых путей</div>
+        </div>
+        <div class="array-card" style="text-align:center;padding:12px 8px;">
+            <div style="font-size:28px;font-weight:700;color:var(--warning);" id="stat-blocked">—</div>
+            <div class="text-muted" style="font-size:12px;">Заблокировано IP</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Event log ──────────────────────────────────────────────────── -->
+<div class="section">
+    <div class="section-toolbar">
+        <h2>Журнал событий</h2>
+        <button class="btn btn-danger btn-sm" id="btn-clear-blocks">🚫 Снять все блокировки</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Время</th>
+                <th>Метод</th>
+                <th>Путь</th>
+                <th>IP источника</th>
+                <th>Действие</th>
+                <th>Статус</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="events-body">
+            <tr><td colspan="7" class="text-muted">Загрузка...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ── Detection settings ─────────────────────────────────────────── -->
+<div class="section">
+    <h2>Методы обнаружения</h2>
+    <p class="table-hint">Для изменения настроек требуется PIN-код Guard.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px;">
+
+        <div class="array-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <b>🪤 Файлы-приманки (Honeypot)</b>
+                <label class="checkbox-label" style="margin:0;">
+                    <input type="checkbox" id="det-honeypot"> Вкл
+                </label>
+            </div>
+            <p class="text-muted" style="font-size:12px;margin:8px 0 0;">
+                Скрытые файлы-приманки в каждой папке. Любое изменение = немедленная тревога.
+            </p>
+        </div>
+
+        <div class="array-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <b>📊 Анализ энтропии</b>
+                <label class="checkbox-label" style="margin:0;">
+                    <input type="checkbox" id="det-entropy"> Вкл
+                </label>
+            </div>
+            <div style="margin-top:8px;">
+                <label style="font-size:12px;color:var(--color-muted);">
+                    Порог: <span id="entropy-threshold-val">7.2</span> бит/байт
+                </label>
+                <input type="range" id="det-entropy-threshold" min="6.5" max="7.5" step="0.1" value="7.2"
+                       style="width:100%;margin-top:4px;">
+            </div>
+        </div>
+
+        <div class="array-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <b>📈 Аномалия IOPS</b>
+                <label class="checkbox-label" style="margin:0;">
+                    <input type="checkbox" id="det-iops"> Вкл
+                </label>
+            </div>
+            <div style="margin-top:8px;">
+                <label style="font-size:12px;color:var(--color-muted);">Чувствительность:</label>
+                <select id="det-iops-mult" style="width:100%;margin-top:4px;">
+                    <option value="2">Высокая (2× σ)</option>
+                    <option value="3">Средняя (3× σ)</option>
+                    <option value="4" selected>Низкая (4× σ)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="array-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <b>🔒 Расширения шифровальщиков</b>
+                <label class="checkbox-label" style="margin:0;">
+                    <input type="checkbox" id="det-extensions"> Вкл
+                </label>
+            </div>
+            <p class="text-muted" style="font-size:12px;margin:8px 0 4px;">
+                Реагирует мгновенно при появлении файла с известным расширением вымогателя.
+            </p>
+            <button class="btn btn-secondary btn-sm" id="btn-view-extensions">Список расширений</button>
+        </div>
+
+    </div>
+    <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-detection">Сохранить настройки</button>
+    </div>
+</div>
+
+<!-- ── Monitored paths ────────────────────────────────────────────── -->
+<div class="section">
+    <div class="section-toolbar">
+        <h2>Мониторируемые пути</h2>
+        <button class="btn btn-success" id="btn-add-path">+ Добавить путь</button>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Путь</th>
+                <th>Приманки</th>
+                <th>Энтропия</th>
+                <th>IOPS</th>
+                <th>Расширения</th>
+                <th>Вкл</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="paths-body">
+            <tr><td colspan="7" class="text-muted">Загрузка...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ── Snapshot settings ──────────────────────────────────────────── -->
+<div class="section">
+    <h2>Снапшоты и репликация</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;">
+        <div class="array-card">
+            <b>Локальные снапшоты</b>
+            <div style="margin-top:8px;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="snap-local-enabled"> Создавать Btrfs-снапшот при обнаружении
+                </label>
+            </div>
+        </div>
+        <div class="array-card">
+            <b>Удалённая репликация</b>
+            <div style="margin-top:8px;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="snap-remote-enabled"> Включить репликацию по SSH
+                </label>
+            </div>
+            <div id="snap-remote-fields" class="hidden" style="margin-top:8px;">
+                <div class="form-group">
+                    <label>Хост</label>
+                    <input type="text" id="snap-remote-host" placeholder="192.168.1.100">
+                </div>
+                <div class="form-group">
+                    <label>Пользователь</label>
+                    <input type="text" id="snap-remote-user" placeholder="rusnas">
+                </div>
+                <div class="form-group">
+                    <label>Путь на удалённом NAS</label>
+                    <input type="text" id="snap-remote-path" placeholder="/mnt/backup_pool">
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-gen-ssh-key">🔑 Сгенерировать SSH-ключ</button>
+                <div class="form-group hidden" id="ssh-pubkey-block" style="margin-top:8px;">
+                    <label>Публичный ключ (добавьте на удалённый NAS):</label>
+                    <textarea id="ssh-pubkey" rows="3" style="width:100%;font-family:monospace;font-size:11px;" readonly></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-snapshot">Сохранить</button>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- Modals -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+
+<!-- PIN dialog -->
+<div class="modal-overlay hidden" id="pin-modal">
+    <div class="modal-box" style="max-width:360px;">
+        <h3 id="pin-modal-title">🔐 PIN Guard</h3>
+        <p class="text-muted" style="font-size:13px;" id="pin-modal-desc">Введите PIN-код для продолжения.</p>
+        <div class="form-group">
+            <label>PIN-код</label>
+            <input type="password" id="pin-input" placeholder="••••••" autocomplete="off">
+        </div>
+        <div id="pin-error" class="alert alert-danger hidden" style="margin-top:8px;padding:6px 10px;font-size:13px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="btn-pin-confirm">Подтвердить</button>
+            <button class="btn btn-default"  id="btn-pin-cancel">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- First-run PIN setup -->
+<div class="modal-overlay hidden" id="setup-pin-modal">
+    <div class="modal-box" style="max-width:400px;">
+        <h3>🛡️ Настройка Guard PIN</h3>
+        <div class="alert alert-info">
+            Это первый запуск Guard. Установите отдельный PIN-код для управления защитой.
+            Пароль администратора Cockpit <b>не подходит</b> для управления Guard.
+        </div>
+        <div class="form-group">
+            <label>Новый PIN (минимум 6 символов)</label>
+            <input type="password" id="setup-pin-input" placeholder="••••••">
+        </div>
+        <div class="form-group">
+            <label>Подтвердите PIN</label>
+            <input type="password" id="setup-pin-confirm" placeholder="••••••">
+        </div>
+        <div id="setup-pin-error" class="alert alert-danger hidden" style="padding:6px 10px;font-size:13px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="btn-setup-pin-save">Установить PIN</button>
+        </div>
+    </div>
+</div>
+
+<!-- Super-safe confirmation -->
+<div class="modal-overlay hidden" id="supersafe-modal">
+    <div class="modal-box" style="max-width:460px;">
+        <h3>⚠️ Режим Супер-защита</h3>
+        <div class="alert alert-danger">
+            <b>Внимание!</b> В этом режиме при обнаружении атаки устройство автоматически
+            создаст снапшоты, остановит все файловые службы и <b>выключится</b>.
+            Восстановление потребует физического доступа к серверу.
+        </div>
+        <p>Вы уверены, что хотите включить режим Супер-защита?</p>
+        <div class="modal-footer">
+            <button class="btn btn-danger" id="btn-supersafe-confirm">Включить Супер-защиту</button>
+            <button class="btn btn-default" id="btn-supersafe-cancel">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add path modal -->
+<div class="modal-overlay hidden" id="add-path-modal">
+    <div class="modal-box" style="max-width:400px;">
+        <h3>Добавить путь мониторинга</h3>
+        <div class="form-group">
+            <label>Путь</label>
+            <input type="text" id="add-path-input" placeholder="/mnt/data">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="btn-add-path-confirm">Добавить</button>
+            <button class="btn btn-default" id="btn-add-path-cancel">Отмена</button>
+        </div>
+    </div>
+</div>
+
+<!-- Extensions list modal -->
+<div class="modal-overlay hidden" id="extensions-modal">
+    <div class="modal-box modal-box-wide">
+        <h3>Расширения шифровальщиков</h3>
+        <p class="text-muted" style="font-size:13px;">Одно расширение на строку. Изменения сохраняются немедленно.</p>
+        <textarea id="extensions-text" rows="16"
+            style="width:100%;font-family:monospace;font-size:12px;border:1px solid var(--color-border);
+                   background:var(--bg-input);color:var(--color);padding:8px;border-radius:4px;resize:vertical;">
+        </textarea>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="btn-extensions-save">Сохранить</button>
+            <button class="btn btn-default"  id="btn-extensions-close">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<script src="../base1/cockpit.js"></script>
+<script src="js/guard.js"></script>
+</body>
+</html>

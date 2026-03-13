@@ -16,6 +16,10 @@
     "users": {
       "label": "Пользователи",
       "order": 3
+    },
+    "guard": {
+      "label": "Guard 🛡️",
+      "order": 4
     }
   },
   "superuser": {

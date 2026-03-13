@@ -1,0 +1,25 @@
+{
+  "mode": "monitor",
+  "detection": {
+    "honeypot": true,
+    "entropy": true,
+    "entropy_threshold": 7.2,
+    "iops": true,
+    "iops_multiplier": 4,
+    "iops_min_rate": 50,
+    "extensions": true
+  },
+  "monitored_paths": [],
+  "bait_registry": {},
+  "snapshot": {
+    "enabled": true,
+    "local": true,
+    "remote": {
+      "enabled": false,
+      "host": "",
+      "user": "rusnas",
+      "path": "/mnt/backup_pool",
+      "ssh_key": "/etc/rusnas-guard/replication_key"
+    }
+  }
+}
