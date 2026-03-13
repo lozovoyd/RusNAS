@@ -183,14 +183,16 @@ Each path entry:
 
 ### Dashboard Section
 
-Real-time stats, refreshed every 5 seconds by polling `/run/rusnas-guard/state.json` via `cockpit.file()`:
+Real-time stats, refreshed every 5 seconds via `guardCmd("status")` через Unix socket:
 
 - **Events today** — count of detection events in last 24h
-- **Current IOPS** — ops/min across all monitored volumes (live)
-- **Baseline status** — "Learning (day 3 of 7)" or "Active"
+- **Current IOPS** — ops/min across all monitored volumes (live, обновляется каждую секунду через `_update_state()` в daemon)
+- **Baseline status** — "Обучение (день N из 7)" or "Активен"
 - **Last snapshot** — timestamp of last auto-snapshot
 - **Monitored paths** — count of active paths
 - **Active blocks** — count of currently blocked IPs
+
+> **Реализовано иначе:** в ТЗ предполагалось чтение `state.json` через `cockpit.file().watch()`. В реальности все данные приходят через socket `cmd=status`. Это надёжнее — нет race conditions при записи файла.
 
 **Event Log Table** (last 50 events, newest first):
 | Time | Path | Method | Source IP | Action Taken | Status |
@@ -233,24 +235,38 @@ Reuse the existing rusNAS notification settings (email + Telegram) — guard use
 
 Simple JSON over Unix socket. Each message is a single JSON object followed by newline.
 
-**Request:**
+**Сокет:** `/run/rusnas-guard/control.sock`, права **0o666** — доступен без root. Безопасность обеспечивается PIN-аутентификацией, а не правами ФС.
+
+**Аутентификация:**
+- Unauthenticated commands (без PIN): `status`, `get_events`, `get_config`, `has_pin`, `set_pin_initial`
+- Authenticated commands: всё остальное. Принимают `pin` или `token`. При успехе возвращают новый `token` (TTL 30 мин, только в памяти daemon).
+
+**Requests:**
 ```json
 {"cmd": "status"}
-{"cmd": "start", "pin": "1234"}
-{"cmd": "stop", "pin": "1234"}
-{"cmd": "set_mode", "mode": "active", "pin": "1234"}
+{"cmd": "has_pin"}
+{"cmd": "set_pin_initial", "pin": "123456"}
+{"cmd": "auth", "pin": "123456"}
+{"cmd": "start", "token": "..."}
+{"cmd": "stop", "token": "..."}
+{"cmd": "set_mode", "mode": "active", "token": "..."}
 {"cmd": "get_events", "limit": 50}
-{"cmd": "acknowledge", "event_id": "abc123", "pin": "1234"}
-{"cmd": "clear_blocks", "pin": "1234"}
-{"cmd": "set_config", "config": {...}, "pin": "1234"}
+{"cmd": "acknowledge", "event_id": "abc123", "token": "..."}
+{"cmd": "clear_blocks", "token": "..."}
+{"cmd": "set_config", "config": {...}, "token": "..."}
 {"cmd": "get_config"}
+{"cmd": "generate_ssh_key", "token": "..."}
+{"cmd": "change_pin", "new_pin": "...", "token": "..."}
+{"cmd": "acknowledge_post_attack", "token": "..."}
 ```
 
 **Response:**
 ```json
 {"ok": true, "data": {...}}
-{"ok": false, "error": "Invalid PIN"}
+{"ok": false, "error": "Invalid PIN or session expired"}
 ```
+
+**Важно (UI):** Функция `requirePin()` в guard.js **всегда** показывает PIN-диалог для sensitive операций, даже если session token уже есть. Это намеренно — двойная проверка для критических действий.
 
 ---
 
@@ -302,19 +318,28 @@ ExecStart=/usr/bin/python3 /usr/lib/rusnas-guard/guard.py
 Restart=on-failure
 RestartSec=5
 User=root
+RuntimeDirectory=rusnas-guard
+RuntimeDirectoryMode=0755
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+> **Реализовано:** `RuntimeDirectory=rusnas-guard` автоматически создаёт `/run/rusnas-guard/` при запуске сервиса и удаляет его при остановке. `RuntimeDirectoryMode=0755` обязателен — без этого Cockpit bridge (не-root) не может подключиться к сокету, даже если сам сокет имеет права 0o666.
+
+**Daemon lifecycle (отличие от ТЗ):**
+
+В ТЗ предполагалось, что Start/Stop кнопки включают/выключают systemd-сервис. В реальности реализовано иначе:
+
+- **systemd-сервис запущен всегда** (enabled=true на старте). Процесс не останавливается.
+- **Start** в UI (`cmd=start`) запускает внутренний **Detector thread** — inotify watcher начинает мониторинг.
+- **Stop** в UI (`cmd=stop`) останавливает Detector thread — мониторинг прекращается, но сокет-сервер остаётся доступен.
+
+Преимущество: UI всегда может подключиться к сокету и прочитать статус, даже когда мониторинг выключен. Нет race condition между остановкой systemd и следующим обращением UI.
+
 **Default state:** disabled. On fresh install the daemon is installed but not enabled (`systemctl disable rusnas-guard`).
 
-**Persistent enable/disable:** when admin clicks "Start" in the UI (with PIN), the daemon starts AND is enabled for autostart on boot (`systemctl enable --now rusnas-guard`). When admin clicks "Stop" (with PIN), the daemon stops AND is disabled from autostart (`systemctl disable --now rusnas-guard`).
-
-This means:
-- After power failure or unexpected reboot: daemon restarts automatically if it was running before (enabled state is preserved).
-- After Super-Safe shutdown triggered by attack: daemon was running before shutdown → it will autostart on next boot. To prevent re-triggering, the daemon writes a **post-attack flag** to `/etc/rusnas-guard/post_attack` before initiating shutdown. On startup, if this flag exists, the daemon starts in **Monitor mode only** (no blocking, no shutdown) and shows a prominent warning in the UI: "Started in safe mode after attack detection. Review events and acknowledge before resuming active protection." Admin must acknowledge (with PIN) to clear the flag and restore previous mode.
-- By default on fresh install: daemon is disabled, does not start on boot until admin explicitly activates it.
+Post-attack behavior: daemon writes `/etc/rusnas-guard/post_attack` flag before initiating shutdown. On next start, if flag exists, daemon starts in Monitor mode only and shows warning banner in UI. Admin must acknowledge (with PIN) to clear the flag.
 
 ---
 
@@ -348,6 +373,17 @@ All available in Debian 13:
 15. No regressions in existing rusNAS plugin pages (storage, disks, users).
 
 ---
+
+## Known Bugs Fixed During Implementation
+
+| Баг | Причина | Исправление |
+|-----|---------|-------------|
+| IOPS counter always 0 | `InotifyTrees` возвращает `watch_path` = поддиректория события (`/mnt/data/docs`), а `_iops_windows` заполнен ключами root-путей (`/mnt/data`) | Добавлен `_root_path(watch_path)` хелпер; нормализует поддиректорию до корневого пути перед lookup |
+| Detector thread крашится молча | `_iops_windows[watch_path]` → `KeyError` на первом событии в поддиректории, поток падает | Та же причина; исправлено тем же фиксом |
+| `current_iops` не обновляется без событий | `_update_state()` в guard.py не вызывал `get_iops()` — счётчик обновлялся только при inotify-событии | `_update_state()` теперь вызывает `self._detector.get_iops()` каждую секунду |
+| Socket timeout при `superuser: "require"` | Cockpit polkit-эскалация не propagates между iframe Guard и shell когда admin уже разблокирован на другой странице | Убрано `superuser: "require"` из `cockpit.channel()`; сокет `chmod 0o666`; безопасность — PIN |
+| Extensions list показывает "Файл не найден" | `/etc/rusnas-guard/` был `chmod 700`; Cockpit bridge (не-root) не мог войти в директорию | `chmod 755 /etc/rusnas-guard/` при установке |
+| `/run/rusnas-guard/` пропадает после ребута | Tmpfs очищается при перезагрузке, папка не пересоздавалась | `RuntimeDirectory=rusnas-guard` в systemd unit автоматически создаёт папку при старте сервиса |
 
 ## Out of Scope
 

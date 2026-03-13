@@ -216,6 +216,8 @@ class GuardDaemon:
 
     def _update_state(self):
         self._state["mode"] = self._config.get("mode", "monitor")
+        if self._detector:
+            self._state["current_iops"] = self._detector.get_iops()
         write_state(self._state)
 
     def _get_blocked_ips(self) -> list:
@@ -261,7 +263,25 @@ class GuardDaemon:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+PIN_PATH = "/etc/rusnas-guard/guard.pin"
+
+
+def cmd_reset_pin():
+    if os.geteuid() != 0:
+        print("Ошибка: требуются права root. Запустите: sudo rusnas-guard --reset-pin", file=sys.stderr)
+        sys.exit(1)
+    if os.path.exists(PIN_PATH):
+        os.remove(PIN_PATH)
+        print("Guard PIN сброшен. Откройте страницу Guard в Cockpit для установки нового PIN.")
+    else:
+        print("Guard PIN не установлен (файл не существует).")
+
+
 if __name__ == "__main__":
+    if "--reset-pin" in sys.argv:
+        cmd_reset_pin()
+        sys.exit(0)
+
     daemon = GuardDaemon()
 
     def _sigterm(sig, frame):

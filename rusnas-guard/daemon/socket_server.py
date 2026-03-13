@@ -38,7 +38,7 @@ class SocketServer:
 
         self._server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._server.bind(SOCK_PATH)
-        os.chmod(SOCK_PATH, 0o660)
+        os.chmod(SOCK_PATH, 0o666)
         self._server.listen(5)
         self._thread = threading.Thread(target=self._accept_loop, daemon=True)
         self._thread.start()

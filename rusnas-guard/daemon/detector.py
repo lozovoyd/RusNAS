@@ -212,8 +212,9 @@ class Detector:
 
             # ── IOPS anomaly ──────────────────────────────────────────────────
             if pconf.get("iops", True) and self._config.get("detection", {}).get("iops", True):
-                rate = self._iops_windows[watch_path].rate_per_min()
-                bl   = self._baseline.get(watch_path)
+                root = self._root_path(watch_path)
+                rate = self._iops_windows[root].rate_per_min()
+                bl   = self._baseline.get(root)
                 if bl:
                     bl.record_rate(rate)
                     if bl.is_anomaly(rate):
@@ -230,13 +231,21 @@ class Detector:
                 return p
         return None
 
+    def _root_path(self, watch_path: str) -> str:
+        for p in self._monitored():
+            if watch_path.startswith(p["path"]):
+                return p["path"]
+        return watch_path
+
+    def get_iops(self) -> int:
+        return sum(w.rate_per_min() for w in self._iops_windows.values())
+
     def _record_iops(self, watch_path: str):
-        window = self._iops_windows.get(watch_path)
+        root   = self._root_path(watch_path)
+        window = self._iops_windows.get(root)
         if window:
             window.record()
-        self._state["current_iops"] = sum(
-            w.rate_per_min() for w in self._iops_windows.values()
-        )
+        self._state["current_iops"] = self.get_iops()
 
         # Update entropy rate bucket (events per second)
         bucket = self._entropy_rate.setdefault(watch_path, collections.deque())

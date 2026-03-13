@@ -55,6 +55,9 @@ chmod 700 /etc/rusnas-guard
 chmod 640 /etc/rusnas-guard/config.json || true
 chmod 644 /etc/rusnas-guard/ransom_extensions.txt || true
 
+# Symlink for CLI convenience: sudo rusnas-guard --reset-pin
+ln -sf /usr/lib/rusnas-guard/guard.py /usr/local/sbin/rusnas-guard
+
 # Enable and start daemon — it always runs (idle until monitoring is activated via PIN in UI)
 systemctl daemon-reload
 systemctl enable --now rusnas-guard

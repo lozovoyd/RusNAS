@@ -24,9 +24,8 @@ function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
 
 function socketSend(req, callback) {
     var ch = cockpit.channel({
-        payload:   "stream",
-        unix:      SOCK_PATH,
-        superuser: "require"
+        payload: "stream",
+        unix:    SOCK_PATH
     });
 
     var buf = "";

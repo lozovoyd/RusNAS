@@ -2,6 +2,7 @@
 
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
 > UI правила и компоненты: [ui.md](./ui.md)
+> Антишифровальщик: [rusnas-guard-task.md](./rusnas-guard-task.md) — ТЗ и архитектура Guard
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -64,11 +65,26 @@ RusNAS/
 │       ├── index.html      # Storage: SMB shares + iSCSI targets
 │       ├── disks.html      # Disks and RAID arrays
 │       ├── users.html      # User management
+│       ├── guard.html      # Guard 🛡️ — ransomware protection
 │       ├── css/style.css
 │       └── js/
 │           ├── app.js      # Storage logic (SMB, NFS, iSCSI)
 │           ├── disks.js
-│           └── users.js
+│           ├── users.js
+│           └── guard.js    # Guard UI logic
+├── rusnas-guard/           # Guard daemon source
+│   ├── daemon/
+│   │   ├── guard.py        # Main daemon entry point
+│   │   ├── detector.py     # inotify watcher + detection logic
+│   │   ├── entropy.py      # Shannon entropy computation
+│   │   ├── honeypot.py     # Bait file management
+│   │   ├── response.py     # Blocking, snapshots, notifications
+│   │   └── socket_server.py # Unix socket server
+│   ├── config/
+│   │   ├── config.json     # Default configuration
+│   │   └── ransom_extensions.txt  # ~200 known ransomware extensions
+│   └── service/
+│       └── rusnas-guard.service   # systemd unit
 ├── ansible/                # Ansible monorepo (provisioning)
 │   └── roles/
 │       ├── base/           # Base system configuration
@@ -83,9 +99,46 @@ RusNAS/
 │       ├── cockpit/        # Cockpit + rusnas plugin
 │       ├── firewall/       # nftables
 │       └── notifications/  # email + Telegram
-├── deploy.sh               # Deploy plugin to VM
+├── deploy.sh               # Deploy Cockpit plugin to VM
+├── install-guard.sh        # Deploy Guard daemon to VM
+├── rusnas-guard-task.md    # Guard ТЗ и архитектура
 └── CLAUDE.md
 ```
+
+## rusNAS Guard (Антишифровальщик)
+
+Daemon-based ransomware protection. See [rusnas-guard-task.md](./rusnas-guard-task.md) for full spec.
+
+**Deploy daemon to VM:**
+```bash
+./install-guard.sh
+```
+
+**Key architecture notes:**
+- Daemon on VM: `/usr/lib/rusnas-guard/` — Python 3, systemd service `rusnas-guard`
+- Config dir: `/etc/rusnas-guard/` — must be **chmod 755** (not 700) so Cockpit bridge can read `ransom_extensions.txt`
+- Events log: `/var/log/rusnas-guard/events.jsonl`
+- Socket: `/run/rusnas-guard/control.sock` — permissions **0o666** (world-accessible); Cockpit bridge connects as non-root without `superuser: "require"`
+- `RuntimeDirectory=rusnas-guard` in systemd unit creates `/run/rusnas-guard/` on start; `RuntimeDirectoryMode=0755` makes it traversable
+- Guard PIN stored as bcrypt hash at `/etc/rusnas-guard/guard.pin` — independent of Cockpit admin password
+- **Daemon lifecycle:** the systemd service runs continuously; `Start/Stop` buttons in UI control the **Detector thread** only, not the process. This allows the socket server to always be reachable.
+- Post-attack flag: `/etc/rusnas-guard/post_attack` — forces Monitor mode on next start
+- PIN reset requires root/SSH access (security model: Cockpit admin password must NOT grant PIN reset)
+
+**PIN reset (если забыт):**
+```bash
+sudo rusnas-guard --reset-pin
+# Symlink: /usr/local/sbin/rusnas-guard → /usr/lib/rusnas-guard/guard.py
+# После сброса — Guard покажет диалог установки нового PIN
+```
+
+PIN-диалог в UI показывает подсказку с этой командой.
+
+**Critical guard.js notes:**
+- Socket channel: `cockpit.channel({ payload: "stream", unix: SOCK_PATH })` — NO `superuser: "require"` (causes timeout in iframe context)
+- `requirePin()` always shows PIN modal even when a session token is already active — this is intentional for sensitive operations
+- Dashboard stats come from `guardCmd("status")` polled every 5 seconds, NOT from `cockpit.file(state.json).watch()`
+- Extensions file read: `cockpit.file(EXTS_PATH).read()` works without superuser because `/etc/rusnas-guard/` is `755` and the file is `644`
 
 ## Cockpit Plugin Rules
 
@@ -131,6 +184,11 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | mdadm reshape shows "Active" in UI | Check both `resync` and `reshape` in /proc/mdstat parser |
 | macOS NFS mount fails | Add `insecure` option to /etc/exports |
 | Binaries not in PATH (mdadm, mkfs.btrfs) | Add `/sbin` to PATH in `.bashrc` |
+| Guard IOPS counter always 0 | `InotifyTrees` returns subdirectory watch_path; normalize with `_root_path()` before lookup in `_iops_windows` dict |
+| Guard detector thread crashes silently | Same root cause: `_iops_windows[watch_path]` raises `KeyError` on first subdirectory event, killing the thread |
+| Guard socket channel timeout | `superuser: "require"` in iframe context causes polkit timeout; removed — security maintained by PIN auth |
+| Guard extensions list shows "Файл не найден" | `/etc/rusnas-guard/` had `chmod 700`; must be `755` so Cockpit bridge (non-root) can read `ransom_extensions.txt` |
+| `/run/rusnas-guard/` disappears after reboot | Add `RuntimeDirectory=rusnas-guard` + `RuntimeDirectoryMode=0755` to systemd unit |
 
 ## Development Patterns
 

@@ -62,6 +62,7 @@ def ensure_baits(monitored_path: str, bait_registry: dict) -> list:
         try:
             size = random.choice(BAIT_SIZES)
             _fill_bait(full, size)
+            os.chmod(full, 0o666)  # must be writable by SMB users — otherwise ransomware skips it
             # Hide on Linux via leading dot-like prefix — already using !~
             alive.append(name)
             logger.info("Created bait file: %s", full)
@@ -87,6 +88,7 @@ def recreate_bait(path: str, bait_registry: dict):
     try:
         size = random.choice(BAIT_SIZES)
         _fill_bait(full, size)
+        os.chmod(full, 0o666)
         logger.info("Recreated bait file: %s", full)
         if basename not in bait_registry.get(dirname, []):
             bait_registry.setdefault(dirname, []).append(basename)
