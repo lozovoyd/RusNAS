@@ -20,6 +20,10 @@
     "guard": {
       "label": "Guard 🛡️",
       "order": 4
+    },
+    "snapshots": {
+      "label": "Снапшоты 📸",
+      "order": 5
     }
   },
   "superuser": {

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>rusNAS — Снапшоты</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="../base1/cockpit.js"></script>
+  <script src="js/snapshots.js" defer></script>
+</head>
+<body>
+
+<h1>rusNAS — Снапшоты 📸</h1>
+
+<!-- Alert banner -->
+<div id="snap-alert" class="alert hidden"></div>
+
+<!-- Object selector + actions -->
+<div class="section">
+  <div class="section-toolbar">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <label style="font-weight:600;white-space:nowrap">Объект:</label>
+      <select id="snap-object-select" style="min-width:260px;max-width:480px"></select>
+      <span id="snap-no-volumes" class="text-muted hidden" style="font-size:13px">
+        Btrfs-субволюмы не обнаружены. Проверьте монтирование.
+      </span>
+    </div>
+    <div class="btn-group">
+      <button id="btn-create-snap" class="btn btn-primary">+ Создать снапшот</button>
+      <button id="btn-refresh" class="btn btn-secondary">↻ Обновить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="advisor-tabs">
+  <button class="advisor-tab-btn active" data-tab="snapshots">Снапшоты</button>
+  <button class="advisor-tab-btn" data-tab="schedule">Расписание</button>
+  <button class="advisor-tab-btn" data-tab="events">Журнал событий</button>
+</div>
+
+<!-- ── Tab: Snapshots ───────────────────────────────────────────────────────── -->
+<div id="tab-snapshots">
+
+  <!-- Summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+    <div class="array-card" style="text-align:center;padding:14px 8px">
+      <div style="font-size:32px;font-weight:700;color:var(--primary)" id="sum-count">—</div>
+      <div class="text-muted" style="font-size:12px;margin-top:2px">Всего снапшотов</div>
+    </div>
+    <div class="array-card" style="text-align:center;padding:14px 8px">
+      <div style="font-size:22px;font-weight:700" id="sum-size">—</div>
+      <div class="text-muted" style="font-size:12px;margin-top:2px">Занято места</div>
+    </div>
+    <div class="array-card" style="text-align:center;padding:14px 8px">
+      <div style="font-size:14px;font-weight:600" id="sum-last">—</div>
+      <div class="text-muted" style="font-size:12px;margin-top:2px">Последний снапшот</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Список снапшотов</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Имя / Метка</th>
+          <th>Тип</th>
+          <th>Создан</th>
+          <th>Размер</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="snap-tbody">
+        <tr><td colspan="5">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Tab: Schedule ────────────────────────────────────────────────────────── -->
+<div id="tab-schedule" class="hidden">
+  <div id="schedule-content"></div>
+</div>
+
+<!-- ── Tab: Events ──────────────────────────────────────────────────────────── -->
+<div id="tab-events" class="hidden">
+  <div class="section">
+    <h2>Журнал событий (последние 50)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Время</th>
+          <th>Тип</th>
+          <th>Объект</th>
+          <th>Сообщение</th>
+        </tr>
+      </thead>
+      <tbody id="events-tbody">
+        <tr><td colspan="4">Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- ── Modal: Create snapshot ───────────────────────────────────────────────── -->
+<div id="modal-create" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Создать снапшот</h3>
+    <div class="form-group">
+      <label>Объект</label>
+      <select id="modal-create-subvol"></select>
+    </div>
+    <div class="form-group">
+      <label>Метка <span class="text-muted">(необязательно)</span></label>
+      <input type="text" id="modal-create-label" placeholder="Например: перед обновлением">
+    </div>
+    <div class="modal-footer">
+      <button id="modal-create-confirm" class="btn btn-primary">Создать</button>
+      <button class="btn btn-default" data-close="modal-create">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Confirm restore ───────────────────────────────────────────────── -->
+<div id="modal-restore" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Подтверждение восстановления</h3>
+    <div class="alert alert-warning" style="margin-bottom:0">
+      ⚠ Текущее состояние <strong id="restore-subvol-name"></strong>
+      будет заменено снапшотом <strong id="restore-snap-name"></strong>.
+      <br><br>Убедитесь, что никто не работает с этим ресурсом.
+    </div>
+    <div class="modal-footer">
+      <button id="modal-restore-confirm" class="btn btn-danger">Восстановить</button>
+      <button class="btn btn-default" data-close="modal-restore">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Edit label ─────────────────────────────────────────────────────── -->
+<div id="modal-label" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Изменить метку</h3>
+    <div class="form-group">
+      <label>Метка снапшота</label>
+      <input type="text" id="modal-label-input" placeholder="Введите метку...">
+    </div>
+    <div class="modal-footer">
+      <button id="modal-label-confirm" class="btn btn-primary">Сохранить</button>
+      <button class="btn btn-default" data-close="modal-label">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Confirm delete ────────────────────────────────────────────────── -->
+<div id="modal-delete" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Удалить снапшот</h3>
+    <div class="alert alert-danger" style="margin-bottom:0">
+      🗑 Снапшот <strong id="delete-snap-name"></strong> будет удалён безвозвратно.
+    </div>
+    <div class="modal-footer">
+      <button id="modal-delete-confirm" class="btn btn-danger">Удалить</button>
+      <button class="btn btn-default" data-close="modal-delete">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Add/Edit schedule ─────────────────────────────────────────────── -->
+<div id="modal-schedule" class="modal-overlay hidden">
+  <div class="modal-box" style="width:520px">
+    <h3 id="modal-schedule-title">Настройка расписания</h3>
+    <div class="form-group">
+      <label>Объект</label>
+      <select id="modal-sched-subvol"></select>
+    </div>
+    <div class="form-group">
+      <label>Расписание (cron)</label>
+      <div class="btn-group" style="margin-bottom:8px">
+        <button class="btn btn-secondary btn-sm cron-preset" data-cron="0 * * * *">Каждый час</button>
+        <button class="btn btn-secondary btn-sm cron-preset" data-cron="0 0 * * *">Каждый день</button>
+        <button class="btn btn-secondary btn-sm cron-preset" data-cron="0 0 * * 0">Еженедельно</button>
+        <button class="btn btn-secondary btn-sm cron-preset" data-cron="0 0 1 * *">Ежемесячно</button>
+      </div>
+      <input type="text" id="modal-sched-cron" value="0 0 * * *" style="font-family:monospace">
+    </div>
+    <div style="border-top:1px solid var(--color-border);padding-top:14px;margin-bottom:4px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:12px">Retention Policy</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label>Последние (шт.)</label>
+          <input type="number" id="sched-ret-last" value="10" min="1" max="100">
+        </div>
+        <div class="form-group">
+          <label>Hourly (часов)</label>
+          <input type="number" id="sched-ret-hourly" value="24" min="0" max="168">
+        </div>
+        <div class="form-group">
+          <label>Daily (дней)</label>
+          <input type="number" id="sched-ret-daily" value="14" min="0" max="365">
+        </div>
+        <div class="form-group">
+          <label>Weekly (недель)</label>
+          <input type="number" id="sched-ret-weekly" value="8" min="0" max="52">
+        </div>
+        <div class="form-group">
+          <label>Monthly (месяцев)</label>
+          <input type="number" id="sched-ret-monthly" value="6" min="0" max="36">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-sched-save" class="btn btn-primary">Сохранить</button>
+      <button class="btn btn-default" data-close="modal-schedule">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Browse path ────────────────────────────────────────────────────── -->
+<div id="modal-browse" class="modal-overlay hidden">
+  <div class="modal-box" style="width:540px">
+    <h3>Снапшот смонтирован как сетевая папка</h3>
+    <p style="margin-bottom:4px">Снапшот <strong id="browse-snap-label"></strong> доступен только для чтения.</p>
+    <p class="text-muted" style="font-size:12px;margin-bottom:16px">Автоматически закроется через 30 минут.</p>
+
+    <div class="form-group">
+      <label>Windows (проводник / Win+R)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code id="browse-win-path" style="flex:1;display:block;padding:8px 10px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;word-break:break-all;font-size:13px"></code>
+        <button id="browse-copy-win" class="btn btn-secondary btn-sm">Копировать</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>macOS / Linux (Finder → Переход → Подключение к серверу)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code id="browse-mac-path" style="flex:1;display:block;padding:8px 10px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;word-break:break-all;font-size:13px"></code>
+        <button id="browse-copy-mac" class="btn btn-secondary btn-sm">Копировать</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="browse-umount-btn" class="btn btn-secondary">Закрыть доступ</button>
+      <button class="btn btn-default" data-close="modal-browse">Отмена</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

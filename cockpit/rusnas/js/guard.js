@@ -97,8 +97,14 @@ function submitPin() {
 
 // ── Daemon status ─────────────────────────────────────────────────────────────
 
+var _statusPending = false;
+
 function refreshStatus() {
+    if (_statusPending) return;   // previous request still in flight — skip
+    _statusPending = true;
+
     guardCmd("status", {}, function(err, resp) {
+        _statusPending = false;
         if (err || !resp || !resp.ok) {
             updateStatusBadge(null);
             return;
@@ -114,12 +120,13 @@ function refreshStatus() {
         } else {
             banner.classList.add("hidden");
         }
-    });
 
-    guardCmd("get_events", { limit: 50 }, function(err, resp) {
-        if (!err && resp && resp.ok) {
-            renderEvents(resp.data);
-        }
+        // Load events only after status succeeds (sequential, not concurrent)
+        guardCmd("get_events", { limit: 50 }, function(evErr, evResp) {
+            if (!evErr && evResp && evResp.ok) {
+                renderEvents(evResp.data);
+            }
+        });
     });
 }
 
@@ -340,8 +347,19 @@ document.addEventListener("DOMContentLoaded", function() {
     refreshStatus();
     loadConfig();
 
-    // Auto-refresh every 5 seconds
-    refreshTimer = setInterval(refreshStatus, 5000);
+    // Auto-refresh every 10 seconds; pause when tab is hidden
+    refreshTimer = setInterval(refreshStatus, 10000);
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        } else {
+            if (!refreshTimer) {
+                refreshStatus();
+                refreshTimer = setInterval(refreshStatus, 10000);
+            }
+        }
+    });
 
     // ── Start / Stop monitoring (daemon process always runs) ──────────────────
     document.getElementById("btn-start-guard").addEventListener("click", function() {

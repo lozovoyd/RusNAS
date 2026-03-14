@@ -1,0 +1,1 @@
+DPkg::Pre-Invoke { "/usr/local/bin/rusnas-snap pre-update-all 2>/dev/null || true"; };

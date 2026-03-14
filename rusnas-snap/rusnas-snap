@@ -1,0 +1,1007 @@
+#!/usr/bin/env python3
+"""
+rusnas-snap — Btrfs snapshot management CLI for rusNAS.
+
+Usage: rusnas-snap <command> [options]
+Run as root (sudo).
+"""
+
+import argparse
+import json
+import logging
+import os
+import socket
+import sqlite3
+import subprocess
+import sys
+import time
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+DB_PATH     = "/var/lib/rusnas/snaps.db"
+BROWSE_BASE = "/mnt/rusnas-browse"
+SMB_CONF    = "/etc/samba/smb.conf"
+LOG_PATH    = "/var/log/rusnas/snapshots.log"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[logging.StreamHandler(sys.stderr)],
+)
+log = logging.getLogger("rusnas-snap")
+
+
+# ── DB helpers ────────────────────────────────────────────────────────────────
+
+def get_db() -> sqlite3.Connection:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=5)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+@contextmanager
+def db():
+    conn = get_db()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def db_retry(fn, *args, retries=3, delay=0.1):
+    for i in range(retries):
+        try:
+            return fn(*args)
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e) and i < retries - 1:
+                time.sleep(delay)
+                continue
+            raise
+
+
+# ── Output helpers ────────────────────────────────────────────────────────────
+
+def out_json(data):
+    print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def fatal(msg: str, code: int = 1):
+    log.error(msg)
+    print(json.dumps({"ok": False, "error": msg}), file=sys.stderr)
+    sys.exit(code)
+
+
+def ok_json(data: dict):
+    data["ok"] = True
+    out_json(data)
+
+
+def human_bytes(n: int) -> str:
+    if n == 0:
+        return "0 Б"
+    for unit in ("Б", "КБ", "МБ", "ГБ", "ТБ"):
+        if n < 1024:
+            return f"{n:.1f} {unit}" if unit != "Б" else f"{n} {unit}"
+        n /= 1024
+    return f"{n:.1f} ПБ"
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).astimezone().isoformat()
+
+
+# ── Btrfs helpers ─────────────────────────────────────────────────────────────
+
+def btrfs_root(path: str) -> str:
+    """Return the Btrfs filesystem root for a given path."""
+    # Use findmnt to get the actual mount point of the btrfs volume
+    result2 = subprocess.run(
+        ["findmnt", "--noheadings", "-o", "TARGET", "--target", path, "-t", "btrfs"],
+        capture_output=True, text=True
+    )
+    root = result2.stdout.strip()
+    if not root:
+        fatal(f"Не является Btrfs путём: {path}")
+    return root
+
+
+def is_btrfs_subvol(path: str) -> bool:
+    r = subprocess.run(
+        ["btrfs", "subvolume", "show", path],
+        capture_output=True
+    )
+    return r.returncode == 0
+
+
+def snap_dir_name(subvol_path: str, vol_root: str) -> str:
+    rel = os.path.relpath(subvol_path, vol_root)
+    return rel.replace("/", "__")
+
+
+def get_snap_size(snap_path: str) -> int:
+    """Get exclusive size of snapshot using btrfs qgroup (best effort)."""
+    try:
+        r = subprocess.run(
+            ["btrfs", "subvolume", "show", snap_path],
+            capture_output=True, text=True
+        )
+        # Try to parse 'Exclusive size' from output
+        for line in r.stdout.splitlines():
+            if "Exclusive size" in line:
+                parts = line.split()
+                # format: "Exclusive size: 142.00MiB"
+                size_str = parts[-1]
+                return parse_btrfs_size(size_str)
+    except Exception:
+        pass
+    # Fallback: du
+    try:
+        r = subprocess.run(["du", "-sb", snap_path], capture_output=True, text=True)
+        return int(r.stdout.split()[0])
+    except Exception:
+        return 0
+
+
+def parse_btrfs_size(s: str) -> int:
+    s = s.strip()
+    multipliers = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
+    for suffix, mult in multipliers.items():
+        if s.endswith(suffix):
+            try:
+                return int(float(s[:-len(suffix)]) * mult)
+            except ValueError:
+                return 0
+    return 0
+
+
+# ── cmd: init-db ──────────────────────────────────────────────────────────────
+
+def cmd_init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    with db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS snapshots (
+                id          TEXT PRIMARY KEY,
+                subvol_path TEXT NOT NULL,
+                snap_path   TEXT NOT NULL UNIQUE,
+                snap_name   TEXT NOT NULL,
+                snap_type   TEXT NOT NULL,
+                label       TEXT DEFAULT '',
+                created_at  TEXT NOT NULL,
+                size_bytes  INTEGER DEFAULT 0,
+                locked      INTEGER DEFAULT 0,
+                valid       INTEGER DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS schedules (
+                id                TEXT PRIMARY KEY,
+                subvol_path       TEXT NOT NULL UNIQUE,
+                enabled           INTEGER DEFAULT 1,
+                cron_expr         TEXT DEFAULT '0 0 * * *',
+                retention_last    INTEGER DEFAULT 10,
+                retention_hourly  INTEGER DEFAULT 24,
+                retention_daily   INTEGER DEFAULT 14,
+                retention_weekly  INTEGER DEFAULT 8,
+                retention_monthly INTEGER DEFAULT 6,
+                notify_email      INTEGER DEFAULT 1,
+                notify_telegram   INTEGER DEFAULT 1,
+                updated_at        TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS events (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type  TEXT NOT NULL,
+                snap_id     TEXT,
+                subvol_path TEXT,
+                message     TEXT,
+                created_at  TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_snapshots_subvol   ON snapshots(subvol_path);
+            CREATE INDEX IF NOT EXISTS idx_snapshots_created  ON snapshots(created_at);
+            CREATE INDEX IF NOT EXISTS idx_events_created     ON events(created_at);
+        """)
+    log.info("Database initialised at %s", DB_PATH)
+    ok_json({"db_path": DB_PATH})
+
+
+# ── cmd: create ───────────────────────────────────────────────────────────────
+
+def cmd_create(subvol_path: str, label: str = "", snap_type: str = "manual") -> str:
+    subvol_path = os.path.realpath(subvol_path)
+
+    if not is_btrfs_subvol(subvol_path):
+        fatal(f"Не является Btrfs subvolume: {subvol_path}")
+
+    vol_root = btrfs_root(subvol_path)
+    dir_name = snap_dir_name(subvol_path, vol_root)
+    snaps_dir = os.path.join(vol_root, ".snapshots", dir_name)
+    os.makedirs(snaps_dir, exist_ok=True)
+
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    snap_name = f"@{ts}_{snap_type}"
+    snap_path = os.path.join(snaps_dir, snap_name)
+
+    subprocess.run(
+        ["btrfs", "subvolume", "snapshot", "-r", subvol_path, snap_path],
+        check=True, capture_output=True
+    )
+
+    snap_id = str(uuid.uuid4())
+    created_at = now_iso()
+
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO snapshots
+               (id, subvol_path, snap_path, snap_name, snap_type, label, created_at, locked, valid)
+               VALUES (?,?,?,?,?,?,?,0,1)""",
+            (snap_id, subvol_path, snap_path, snap_name, snap_type, label, created_at)
+        )
+        conn.execute(
+            """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
+               VALUES ('created',?,?,?,?)""",
+            (snap_id, subvol_path, f"Создан снапшот {snap_name}" + (f" ({label})" if label else ""), created_at)
+        )
+
+    log.info("Snapshot created: %s", snap_path)
+    ok_json({"id": snap_id, "snap_path": snap_path, "snap_name": snap_name})
+    return snap_id
+
+
+# ── cmd: list ─────────────────────────────────────────────────────────────────
+
+def cmd_list(subvol_path: str | None = None):
+    with db() as conn:
+        if subvol_path:
+            subvol_path = os.path.realpath(subvol_path)
+            rows = conn.execute(
+                "SELECT * FROM snapshots WHERE subvol_path=? AND valid=1 ORDER BY created_at DESC",
+                (subvol_path,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM snapshots WHERE valid=1 ORDER BY created_at DESC"
+            ).fetchall()
+
+    snaps = []
+    total_size = 0
+    for r in rows:
+        size = r["size_bytes"] or 0
+        total_size += size
+        snaps.append({
+            "id":         r["id"],
+            "subvol_path": r["subvol_path"],
+            "snap_name":  r["snap_name"],
+            "snap_path":  r["snap_path"],
+            "snap_type":  r["snap_type"],
+            "label":      r["label"] or "",
+            "created_at": r["created_at"],
+            "size_bytes": size,
+            "size_human": human_bytes(size),
+            "locked":     bool(r["locked"]),
+            "valid":      bool(r["valid"]),
+        })
+
+    result = {
+        "subvol_path":      subvol_path,
+        "snapshots":        snaps,
+        "total_count":      len(snaps),
+        "total_size_bytes": total_size,
+        "total_size_human": human_bytes(total_size),
+    }
+    out_json(result)
+
+
+# ── cmd: delete ───────────────────────────────────────────────────────────────
+
+def cmd_delete(snap_id: str, force: bool = False):
+    with db() as conn:
+        row = conn.execute(
+            "SELECT * FROM snapshots WHERE id=?", (snap_id,)
+        ).fetchone()
+        if not row:
+            fatal(f"Снапшот не найден: {snap_id}")
+        if row["locked"] and not force:
+            fatal("Снапшот заблокирован. Используйте --force для принудительного удаления.")
+
+        snap_path = row["snap_path"]
+        if os.path.exists(snap_path):
+            subprocess.run(
+                ["btrfs", "subvolume", "delete", snap_path],
+                check=True, capture_output=True
+            )
+
+        conn.execute("UPDATE snapshots SET valid=0 WHERE id=?", (snap_id,))
+        conn.execute(
+            """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
+               VALUES ('deleted',?,?,?,?)""",
+            (snap_id, row["subvol_path"], f"Удалён снапшот {row['snap_name']}", now_iso())
+        )
+    log.info("Snapshot deleted: %s", snap_path)
+    ok_json({"deleted": snap_id})
+
+
+# ── cmd: lock / unlock ────────────────────────────────────────────────────────
+
+def cmd_lock(snap_id: str):
+    with db() as conn:
+        n = conn.execute("UPDATE snapshots SET locked=1 WHERE id=? AND valid=1", (snap_id,)).rowcount
+        if not n:
+            fatal(f"Снапшот не найден: {snap_id}")
+    ok_json({"locked": snap_id})
+
+
+def cmd_unlock(snap_id: str):
+    with db() as conn:
+        n = conn.execute("UPDATE snapshots SET locked=0 WHERE id=? AND valid=1", (snap_id,)).rowcount
+        if not n:
+            fatal(f"Снапшот не найден: {snap_id}")
+    ok_json({"unlocked": snap_id})
+
+
+# ── cmd: label ────────────────────────────────────────────────────────────────
+
+def cmd_label(snap_id: str, label: str):
+    with db() as conn:
+        n = conn.execute(
+            "UPDATE snapshots SET label=? WHERE id=? AND valid=1", (label, snap_id)
+        ).rowcount
+        if not n:
+            fatal(f"Снапшот не найден: {snap_id}")
+    ok_json({"id": snap_id, "label": label})
+
+
+# ── cmd: retention ────────────────────────────────────────────────────────────
+
+def cmd_retention(subvol_path: str):
+    subvol_path = os.path.realpath(subvol_path)
+    with db() as conn:
+        sched = conn.execute(
+            "SELECT * FROM schedules WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+        if not sched:
+            log.info("No schedule for %s — skipping retention", subvol_path)
+            ok_json({"deleted": []})
+            return
+
+        snaps = conn.execute(
+            "SELECT * FROM snapshots WHERE subvol_path=? AND valid=1 ORDER BY created_at DESC",
+            (subvol_path,)
+        ).fetchall()
+
+    keep_ids: set[str] = set()
+
+    # Always keep locked
+    for s in snaps:
+        if s["locked"]:
+            keep_ids.add(s["id"])
+
+    # Always keep manual snapshots
+    for s in snaps:
+        if s["snap_type"] == "manual":
+            keep_ids.add(s["id"])
+
+    # Last N
+    for s in snaps[:sched["retention_last"]]:
+        keep_ids.add(s["id"])
+
+    def pick_one_per_period(period_sec: int, count: int):
+        if count == 0:
+            return
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=period_sec * count)
+        picked: dict[int, str] = {}
+        for s in snaps:
+            dt = datetime.fromisoformat(s["created_at"])
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < cutoff:
+                continue
+            key = int(dt.timestamp() // period_sec)
+            if key not in picked:
+                picked[key] = s["id"]
+        keep_ids.update(picked.values())
+
+    pick_one_per_period(3600,   sched["retention_hourly"])
+    pick_one_per_period(86400,  sched["retention_daily"])
+    pick_one_per_period(604800, sched["retention_weekly"])
+    pick_one_per_period(2592000, sched["retention_monthly"])
+
+    deleted = []
+    for s in snaps:
+        if s["id"] in keep_ids:
+            continue
+        try:
+            if os.path.exists(s["snap_path"]):
+                r = subprocess.run(
+                    ["btrfs", "subvolume", "delete", s["snap_path"]],
+                    capture_output=True, timeout=60
+                )
+                if r.returncode != 0:
+                    log.error("btrfs delete failed for %s: %s", s["snap_path"], r.stderr.decode())
+                    continue
+            with db() as conn:
+                conn.execute("UPDATE snapshots SET valid=0 WHERE id=?", (s["id"],))
+                conn.execute(
+                    """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
+                       VALUES ('deleted',?,?,?,?)""",
+                    (s["id"], subvol_path, f"Retention: удалён {s['snap_name']}", now_iso())
+                )
+            deleted.append(s["snap_name"])
+            log.info("Retention: deleted %s", s["snap_name"])
+        except subprocess.TimeoutExpired:
+            log.error("Timeout deleting %s", s["snap_path"])
+        except Exception as e:
+            log.error("Error deleting %s: %s", s["snap_path"], e)
+
+    ok_json({"deleted": deleted, "kept": len(keep_ids)})
+
+
+# ── cmd: restore ──────────────────────────────────────────────────────────────
+
+def cmd_restore(snap_id: str):
+    with db() as conn:
+        snap = conn.execute(
+            "SELECT * FROM snapshots WHERE id=? AND valid=1", (snap_id,)
+        ).fetchone()
+    if not snap:
+        fatal(f"Снапшот не найден: {snap_id}")
+
+    subvol_path = snap["subvol_path"]
+    snap_path   = snap["snap_path"]
+    ts          = datetime.now().strftime("%Y%m%d%H%M%S")
+    tmp_path    = subvol_path + f".restore_tmp_{ts}"
+    backup_path = subvol_path + f".restore_backup_{ts}"
+
+    log.info("Restoring %s from %s", subvol_path, snap["snap_name"])
+
+    # 1. Create writable snapshot from snap_path → tmp
+    subprocess.run(
+        ["btrfs", "subvolume", "snapshot", snap_path, tmp_path],
+        check=True, capture_output=True
+    )
+
+    # 2. Move current subvol to backup
+    os.rename(subvol_path, backup_path)
+
+    # 3. Move tmp to target
+    os.rename(tmp_path, subvol_path)
+
+    # 4. Delete old backup
+    subprocess.run(
+        ["btrfs", "subvolume", "delete", backup_path],
+        check=True, capture_output=True
+    )
+
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
+               VALUES ('restored',?,?,?,?)""",
+            (snap_id, subvol_path, f"Восстановлено из {snap['snap_name']}", now_iso())
+        )
+
+    log.info("Restore complete: %s", subvol_path)
+    ok_json({"restored": subvol_path, "from_snap": snap["snap_name"]})
+
+
+# ── cmd: restore-file ─────────────────────────────────────────────────────────
+
+def cmd_restore_file(snap_id: str, rel_path: str, dest_path: str):
+    with db() as conn:
+        snap = conn.execute(
+            "SELECT * FROM snapshots WHERE id=? AND valid=1", (snap_id,)
+        ).fetchone()
+    if not snap:
+        fatal(f"Снапшот не найден: {snap_id}")
+
+    src = os.path.join(snap["snap_path"], rel_path.lstrip("/"))
+    if not os.path.exists(src):
+        fatal(f"Файл не найден в снапшоте: {rel_path}")
+
+    os.makedirs(os.path.dirname(os.path.abspath(dest_path)), exist_ok=True)
+    subprocess.run(["cp", "-a", src, dest_path], check=True)
+
+    with db() as conn:
+        conn.execute(
+            """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
+               VALUES ('restored',?,?,?,?)""",
+            (snap_id, snap["subvol_path"],
+             f"Восстановлен файл {rel_path} → {dest_path}", now_iso())
+        )
+
+    ok_json({"restored_file": dest_path, "from_snap": snap["snap_name"]})
+
+
+# ── cmd: browse ───────────────────────────────────────────────────────────────
+
+def _smb_share_name(snap_id: str) -> str:
+    """Generate short valid SMB share name from snap_id."""
+    return "snap-" + snap_id[:8]
+
+
+def _smb_add_share(share_name: str, mount_point: str):
+    """Append temporary share section to smb.conf and reload Samba."""
+    block = (
+        f"\n[{share_name}]\n"
+        f"   path = {mount_point}\n"
+        f"   read only = yes\n"
+        f"   browseable = yes\n"
+        f"   writable = no\n"
+        f"   guest ok = no\n"
+        f"   valid users = rusnas\n"
+        f"   comment = Снапшот rusNAS (авто-удаление через 30 мин)\n"
+    )
+    with open(SMB_CONF, "a") as f:
+        f.write(block)
+    subprocess.run(["smbcontrol", "smbd", "reload-config"],
+                   capture_output=True, timeout=10)
+    log.info("SMB share [%s] добавлена → %s", share_name, mount_point)
+
+
+def _smb_remove_share(share_name: str):
+    """Remove share section from smb.conf and reload Samba."""
+    try:
+        with open(SMB_CONF, "r") as f:
+            lines = f.readlines()
+    except OSError:
+        return
+    result = []
+    skip = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == f"[{share_name}]":
+            skip = True
+            continue
+        if skip and stripped.startswith("["):
+            skip = False
+        if not skip:
+            result.append(line)
+    with open(SMB_CONF, "w") as f:
+        f.writelines(result)
+    subprocess.run(["smbcontrol", "smbd", "reload-config"],
+                   capture_output=True, timeout=10)
+    log.info("SMB share [%s] удалена", share_name)
+
+
+def cmd_browse(snap_id: str):
+    with db() as conn:
+        snap = conn.execute(
+            "SELECT * FROM snapshots WHERE id=? AND valid=1", (snap_id,)
+        ).fetchone()
+    if not snap:
+        fatal(f"Снапшот не найден: {snap_id}")
+
+    share_name  = _smb_share_name(snap_id)
+    mount_point = os.path.join(BROWSE_BASE, share_name)
+    os.makedirs(mount_point, exist_ok=True)
+
+    # Already mounted?
+    r = subprocess.run(["findmnt", "-n", mount_point], capture_output=True)
+    if r.returncode != 0:
+        subprocess.run(
+            ["mount", "--bind", snap["snap_path"], mount_point],
+            check=True
+        )
+        subprocess.run(
+            ["mount", "-o", "remount,ro,bind", mount_point],
+            check=True
+        )
+        _smb_add_share(share_name, mount_point)
+        # Schedule auto-umount in 30 minutes
+        subprocess.Popen([
+            "systemd-run", "--on-active=1800",
+            "/usr/local/bin/rusnas-snap", "browse-umount", snap_id
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    hostname = socket.gethostname()
+    smb_path = f"\\\\{hostname}\\{share_name}"
+    ok_json({
+        "mount_path": mount_point,
+        "smb_path":   smb_path,
+        "share_name": share_name,
+        "hostname":   hostname,
+        "snap_name":  snap["snap_name"],
+    })
+
+
+def cmd_browse_umount(snap_id: str):
+    share_name  = _smb_share_name(snap_id)
+    mount_point = os.path.join(BROWSE_BASE, share_name)
+    _smb_remove_share(share_name)
+    if os.path.ismount(mount_point):
+        subprocess.run(["umount", mount_point], capture_output=True)
+    if os.path.isdir(mount_point):
+        try:
+            os.rmdir(mount_point)
+        except OSError:
+            pass
+    ok_json({"ok": True, "umounted": share_name})
+
+
+# ── cmd: update-sizes ─────────────────────────────────────────────────────────
+
+def cmd_update_sizes(subvol_path: str | None = None):
+    with db() as conn:
+        if subvol_path:
+            subvol_path = os.path.realpath(subvol_path)
+            rows = conn.execute(
+                "SELECT id, snap_path FROM snapshots WHERE subvol_path=? AND valid=1",
+                (subvol_path,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, snap_path FROM snapshots WHERE valid=1"
+            ).fetchall()
+
+    updated = 0
+    for row in rows:
+        size = get_snap_size(row["snap_path"])
+        with db() as conn:
+            conn.execute("UPDATE snapshots SET size_bytes=? WHERE id=?", (size, row["id"]))
+        updated += 1
+
+    ok_json({"updated": updated})
+
+
+# ── cmd: schedule set ─────────────────────────────────────────────────────────
+
+def cmd_schedule_set(subvol_path: str, cron_expr: str, retention_last: int,
+                     retention_hourly: int, retention_daily: int,
+                     retention_weekly: int, retention_monthly: int,
+                     enabled: bool = True,
+                     notify_email: bool = True, notify_telegram: bool = True):
+    subvol_path = os.path.realpath(subvol_path)
+    now = now_iso()
+    with db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM schedules WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE schedules SET
+                    enabled=?, cron_expr=?,
+                    retention_last=?, retention_hourly=?, retention_daily=?,
+                    retention_weekly=?, retention_monthly=?,
+                    notify_email=?, notify_telegram=?,
+                    updated_at=?
+                WHERE subvol_path=?
+            """, (int(enabled), cron_expr,
+                  retention_last, retention_hourly, retention_daily,
+                  retention_weekly, retention_monthly,
+                  int(notify_email), int(notify_telegram),
+                  now, subvol_path))
+        else:
+            conn.execute("""
+                INSERT INTO schedules
+                    (id, subvol_path, enabled, cron_expr,
+                     retention_last, retention_hourly, retention_daily,
+                     retention_weekly, retention_monthly,
+                     notify_email, notify_telegram, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (str(uuid.uuid4()), subvol_path, int(enabled), cron_expr,
+                  retention_last, retention_hourly, retention_daily,
+                  retention_weekly, retention_monthly,
+                  int(notify_email), int(notify_telegram), now))
+    ok_json({"subvol_path": subvol_path, "cron_expr": cron_expr})
+
+
+# ── cmd: schedule get ─────────────────────────────────────────────────────────
+
+def cmd_schedule_get(subvol_path: str):
+    subvol_path = os.path.realpath(subvol_path)
+    with db() as conn:
+        row = conn.execute(
+            "SELECT * FROM schedules WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+    if not row:
+        fatal(f"Расписание не найдено: {subvol_path}")
+    ok_json(dict(row))
+
+
+# ── cmd: schedule list ────────────────────────────────────────────────────────
+
+def cmd_schedule_list():
+    with db() as conn:
+        rows = conn.execute("SELECT * FROM schedules ORDER BY subvol_path").fetchall()
+    ok_json({"schedules": [dict(r) for r in rows]})
+
+
+# ── cmd: scheduled-run ────────────────────────────────────────────────────────
+
+def cmd_scheduled_run():
+    try:
+        from croniter import croniter
+        has_croniter = True
+    except ImportError:
+        has_croniter = False
+        log.warning("croniter not available — using simple hour-match fallback")
+
+    with db() as conn:
+        schedules = conn.execute(
+            "SELECT * FROM schedules WHERE enabled=1"
+        ).fetchall()
+
+    now = datetime.now()
+    created = []
+    errors = []
+
+    for sched in schedules:
+        subvol_path = sched["subvol_path"]
+        try:
+            # Check cron expression
+            should_run = False
+            if has_croniter:
+                cron = croniter(sched["cron_expr"], now - timedelta(minutes=5))
+                next_run = cron.get_next(datetime)
+                should_run = next_run <= now
+            else:
+                # Simple fallback: match hour and minute from "M H * * *"
+                parts = sched["cron_expr"].split()
+                if len(parts) == 5:
+                    m, h = parts[0], parts[1]
+                    should_run = (
+                        (m == "*" or int(m) == now.minute) and
+                        (h == "*" or int(h) == now.hour)
+                    )
+
+            if not should_run:
+                continue
+
+            # Check recent snapshot to avoid duplicates
+            with db() as conn2:
+                last = conn2.execute(
+                    """SELECT created_at FROM snapshots WHERE subvol_path=? AND valid=1
+                       ORDER BY created_at DESC LIMIT 1""",
+                    (subvol_path,)
+                ).fetchone()
+
+            if last:
+                last_dt = datetime.fromisoformat(last["created_at"])
+                if last_dt.tzinfo:
+                    last_dt = last_dt.replace(tzinfo=None)
+                # Don't create if last snap was within 4 minutes
+                if (now - last_dt).total_seconds() < 240:
+                    continue
+
+            if not os.path.isdir(subvol_path):
+                log.warning("Subvolume not found, skipping: %s", subvol_path)
+                continue
+
+            cmd_create(subvol_path, snap_type="scheduled")
+            cmd_retention(subvol_path)
+            created.append(subvol_path)
+
+        except Exception as e:
+            log.error("scheduled-run error for %s: %s", subvol_path, e)
+            errors.append({"subvol": subvol_path, "error": str(e)})
+
+    log.info("scheduled-run: created=%d errors=%d", len(created), len(errors))
+    ok_json({"created": created, "errors": errors})
+
+
+# ── cmd: pre-update-all ───────────────────────────────────────────────────────
+
+def cmd_pre_update_all():
+    with db() as conn:
+        schedules = conn.execute(
+            "SELECT subvol_path FROM schedules WHERE enabled=1"
+        ).fetchall()
+
+    version = "unknown"
+    try:
+        r = subprocess.run(
+            ["dpkg-query", "-W", "-f=${Version}", "rusnas"],
+            capture_output=True, text=True
+        )
+        version = r.stdout.strip() or "unknown"
+    except Exception:
+        pass
+
+    results = []
+    for sched in schedules:
+        subvol_path = sched["subvol_path"]
+        if not os.path.isdir(subvol_path):
+            continue
+        try:
+            cmd_create(subvol_path, label=f"pre-update {version}", snap_type="pre_update")
+            results.append({"subvol": subvol_path, "ok": True})
+        except Exception as e:
+            log.error("pre-update-all failed for %s: %s", subvol_path, e)
+            results.append({"subvol": subvol_path, "ok": False, "error": str(e)})
+
+    ok_json({"results": results})
+
+
+# ── cmd: events ───────────────────────────────────────────────────────────────
+
+def cmd_events(limit: int = 50, subvol_path: str | None = None):
+    with db() as conn:
+        if subvol_path:
+            rows = conn.execute(
+                """SELECT * FROM events WHERE subvol_path=?
+                   ORDER BY created_at DESC LIMIT ?""",
+                (subvol_path, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM events ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+    ok_json({"events": [dict(r) for r in rows]})
+
+
+# ── Argument parser ───────────────────────────────────────────────────────────
+
+def build_parser():
+    p = argparse.ArgumentParser(
+        prog="rusnas-snap",
+        description="rusNAS Btrfs snapshot management"
+    )
+    sub = p.add_subparsers(dest="cmd")
+
+    sub.add_parser("init-db", help="Initialise SQLite database")
+
+    c = sub.add_parser("create", help="Create snapshot")
+    c.add_argument("subvol_path")
+    c.add_argument("--label", default="")
+    c.add_argument("--type", dest="snap_type", default="manual",
+                   choices=["manual", "scheduled", "pre_update"])
+
+    l = sub.add_parser("list", help="List snapshots")
+    l.add_argument("subvol_path", nargs="?")
+    l.add_argument("--json", dest="as_json", action="store_true", default=True)
+
+    d = sub.add_parser("delete", help="Delete snapshot")
+    d.add_argument("snap_id")
+    d.add_argument("--force", action="store_true")
+
+    lk = sub.add_parser("lock", help="Lock snapshot")
+    lk.add_argument("snap_id")
+
+    ul = sub.add_parser("unlock", help="Unlock snapshot")
+    ul.add_argument("snap_id")
+
+    lb = sub.add_parser("label", help="Set label")
+    lb.add_argument("snap_id")
+    lb.add_argument("label_text")
+
+    r = sub.add_parser("retention", help="Apply retention policy")
+    r.add_argument("subvol_path")
+
+    rs = sub.add_parser("restore", help="Restore subvolume from snapshot")
+    rs.add_argument("snap_id")
+
+    rf = sub.add_parser("restore-file", help="Restore single file from snapshot")
+    rf.add_argument("snap_id")
+    rf.add_argument("rel_path")
+    rf.add_argument("dest_path")
+
+    br = sub.add_parser("browse", help="Mount snapshot read-only for inspection")
+    br.add_argument("snap_id")
+
+    bu = sub.add_parser("browse-umount", help="Unmount browsed snapshot")
+    bu.add_argument("snap_id")
+
+    us = sub.add_parser("update-sizes", help="Update snapshot size metadata")
+    us.add_argument("subvol_path", nargs="?")
+
+    sub.add_parser("scheduled-run", help="Run scheduled snapshots")
+
+    sub.add_parser("pre-update-all", help="Create pre-update snapshots for all volumes")
+
+    # schedule subcommands
+    sch = sub.add_parser("schedule", help="Manage schedules")
+    sch_sub = sch.add_subparsers(dest="schedule_cmd")
+
+    sch_set = sch_sub.add_parser("set")
+    sch_set.add_argument("subvol_path")
+    sch_set.add_argument("--cron", default="0 0 * * *")
+    sch_set.add_argument("--retention-last",    type=int, default=10)
+    sch_set.add_argument("--retention-hourly",  type=int, default=24)
+    sch_set.add_argument("--retention-daily",   type=int, default=14)
+    sch_set.add_argument("--retention-weekly",  type=int, default=8)
+    sch_set.add_argument("--retention-monthly", type=int, default=6)
+    sch_set.add_argument("--disabled", action="store_true")
+    sch_set.add_argument("--no-email",    action="store_true")
+    sch_set.add_argument("--no-telegram", action="store_true")
+
+    sch_get = sch_sub.add_parser("get")
+    sch_get.add_argument("subvol_path")
+
+    sch_sub.add_parser("list")
+
+    ev = sub.add_parser("events", help="Show event log")
+    ev.add_argument("--limit", type=int, default=50)
+    ev.add_argument("--subvol", dest="subvol_path", default=None)
+
+    return p
+
+
+def main():
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.cmd == "init-db":
+        cmd_init_db()
+
+    elif args.cmd == "create":
+        cmd_create(args.subvol_path, label=args.label, snap_type=args.snap_type)
+
+    elif args.cmd == "list":
+        cmd_list(subvol_path=getattr(args, "subvol_path", None))
+
+    elif args.cmd == "delete":
+        cmd_delete(args.snap_id, force=args.force)
+
+    elif args.cmd == "lock":
+        cmd_lock(args.snap_id)
+
+    elif args.cmd == "unlock":
+        cmd_unlock(args.snap_id)
+
+    elif args.cmd == "label":
+        cmd_label(args.snap_id, args.label_text)
+
+    elif args.cmd == "retention":
+        cmd_retention(args.subvol_path)
+
+    elif args.cmd == "restore":
+        cmd_restore(args.snap_id)
+
+    elif args.cmd == "restore-file":
+        cmd_restore_file(args.snap_id, args.rel_path, args.dest_path)
+
+    elif args.cmd == "browse":
+        cmd_browse(args.snap_id)
+
+    elif args.cmd == "browse-umount":
+        cmd_browse_umount(args.snap_id)
+
+    elif args.cmd == "update-sizes":
+        cmd_update_sizes(subvol_path=getattr(args, "subvol_path", None))
+
+    elif args.cmd == "scheduled-run":
+        cmd_scheduled_run()
+
+    elif args.cmd == "pre-update-all":
+        cmd_pre_update_all()
+
+    elif args.cmd == "events":
+        cmd_events(limit=args.limit, subvol_path=args.subvol_path)
+
+    elif args.cmd == "schedule":
+        if args.schedule_cmd == "set":
+            cmd_schedule_set(
+                args.subvol_path,
+                cron_expr=args.cron,
+                retention_last=args.retention_last,
+                retention_hourly=args.retention_hourly,
+                retention_daily=args.retention_daily,
+                retention_weekly=args.retention_weekly,
+                retention_monthly=args.retention_monthly,
+                enabled=not args.disabled,
+                notify_email=not args.no_email,
+                notify_telegram=not args.no_telegram,
+            )
+        elif args.schedule_cmd == "get":
+            cmd_schedule_get(args.subvol_path)
+        elif args.schedule_cmd == "list":
+            cmd_schedule_list()
+        else:
+            parser.parse_args(["schedule", "--help"])
+
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

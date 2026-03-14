@@ -1,0 +1,13 @@
+[Unit]
+Description=rusNAS Snapshot Scheduler
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rusnas-snap scheduled-run
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
