@@ -74,6 +74,12 @@
         el._timer = setTimeout(function () { el.classList.add("hidden"); }, 6000);
     }
 
+    function hideAlert() {
+        var el = document.getElementById("snap-alert");
+        clearTimeout(el._timer);
+        el.classList.add("hidden");
+    }
+
     // ── runCmd ────────────────────────────────────────────────────────────────
     function runCmd(args) {
         return new Promise(function (resolve, reject) {
@@ -311,10 +317,30 @@
                 var data = safeJson(out);
                 if (!data) { showAlert("danger", "Ошибка парсинга ответа"); return; }
                 browseSnapId = id;
-                document.getElementById("browse-path").textContent = data.mount_path;
+                var shareName = data.share_name;
+                var hostname  = data.hostname || "rusNAS";
+                var ip        = window.location.hostname || "10.10.10.72";
+                var winPath   = "\\\\" + hostname + "\\" + shareName;
+                var macPath   = "smb://" + ip + "/" + shareName;
+                document.getElementById("browse-win-path").textContent = winPath;
+                document.getElementById("browse-mac-path").textContent = macPath;
+                document.getElementById("browse-snap-label").textContent = data.snap_name || shareName;
                 showModal("modal-browse");
+                hideAlert();
             })
             .catch(function (e) { showAlert("danger", "Ошибка монтирования: " + e); });
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).catch(function () {
+            // fallback
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+        });
     }
 
     function doBrowseUmount() {
@@ -517,6 +543,18 @@
         document.getElementById("modal-delete-confirm").addEventListener("click", doDeleteExec);
         document.getElementById("modal-sched-save").addEventListener("click", saveSchedule);
         document.getElementById("browse-umount-btn").addEventListener("click", doBrowseUmount);
+        document.getElementById("browse-copy-win").addEventListener("click", function () {
+            copyToClipboard(document.getElementById("browse-win-path").textContent);
+            this.textContent = "✓";
+            var self = this;
+            setTimeout(function () { self.textContent = "Копировать"; }, 1500);
+        });
+        document.getElementById("browse-copy-mac").addEventListener("click", function () {
+            copyToClipboard(document.getElementById("browse-mac-path").textContent);
+            this.textContent = "✓";
+            var self = this;
+            setTimeout(function () { self.textContent = "Копировать"; }, 1500);
+        });
 
         // Enter key in label modal
         document.getElementById("modal-label-input").addEventListener("keydown", function (e) {

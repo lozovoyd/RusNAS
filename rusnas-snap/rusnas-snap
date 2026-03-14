@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -21,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 # ── Config ────────────────────────────────────────────────────────────────────
 
 DB_PATH     = "/var/lib/rusnas/snaps.db"
-BROWSE_BASE = "/tmp/rusnas-snap-browse"
+BROWSE_BASE = "/mnt/rusnas-browse"
+SMB_CONF    = "/etc/samba/smb.conf"
 LOG_PATH    = "/var/log/rusnas/snapshots.log"
 
 logging.basicConfig(
@@ -521,6 +523,55 @@ def cmd_restore_file(snap_id: str, rel_path: str, dest_path: str):
 
 # ── cmd: browse ───────────────────────────────────────────────────────────────
 
+def _smb_share_name(snap_id: str) -> str:
+    """Generate short valid SMB share name from snap_id."""
+    return "snap-" + snap_id[:8]
+
+
+def _smb_add_share(share_name: str, mount_point: str):
+    """Append temporary share section to smb.conf and reload Samba."""
+    block = (
+        f"\n[{share_name}]\n"
+        f"   path = {mount_point}\n"
+        f"   read only = yes\n"
+        f"   browseable = yes\n"
+        f"   writable = no\n"
+        f"   guest ok = no\n"
+        f"   valid users = rusnas\n"
+        f"   comment = Снапшот rusNAS (авто-удаление через 30 мин)\n"
+    )
+    with open(SMB_CONF, "a") as f:
+        f.write(block)
+    subprocess.run(["smbcontrol", "smbd", "reload-config"],
+                   capture_output=True, timeout=10)
+    log.info("SMB share [%s] добавлена → %s", share_name, mount_point)
+
+
+def _smb_remove_share(share_name: str):
+    """Remove share section from smb.conf and reload Samba."""
+    try:
+        with open(SMB_CONF, "r") as f:
+            lines = f.readlines()
+    except OSError:
+        return
+    result = []
+    skip = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == f"[{share_name}]":
+            skip = True
+            continue
+        if skip and stripped.startswith("["):
+            skip = False
+        if not skip:
+            result.append(line)
+    with open(SMB_CONF, "w") as f:
+        f.writelines(result)
+    subprocess.run(["smbcontrol", "smbd", "reload-config"],
+                   capture_output=True, timeout=10)
+    log.info("SMB share [%s] удалена", share_name)
+
+
 def cmd_browse(snap_id: str):
     with db() as conn:
         snap = conn.execute(
@@ -529,27 +580,43 @@ def cmd_browse(snap_id: str):
     if not snap:
         fatal(f"Снапшот не найден: {snap_id}")
 
-    mount_point = os.path.join(BROWSE_BASE, snap_id)
+    share_name  = _smb_share_name(snap_id)
+    mount_point = os.path.join(BROWSE_BASE, share_name)
     os.makedirs(mount_point, exist_ok=True)
 
     # Already mounted?
     r = subprocess.run(["findmnt", "-n", mount_point], capture_output=True)
     if r.returncode != 0:
         subprocess.run(
-            ["mount", "--bind", "-o", "ro,bind", snap["snap_path"], mount_point],
+            ["mount", "--bind", snap["snap_path"], mount_point],
             check=True
         )
+        subprocess.run(
+            ["mount", "-o", "remount,ro,bind", mount_point],
+            check=True
+        )
+        _smb_add_share(share_name, mount_point)
         # Schedule auto-umount in 30 minutes
         subprocess.Popen([
             "systemd-run", "--on-active=1800",
             "/usr/local/bin/rusnas-snap", "browse-umount", snap_id
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    ok_json({"mount_path": mount_point, "snap_name": snap["snap_name"]})
+    hostname = socket.gethostname()
+    smb_path = f"\\\\{hostname}\\{share_name}"
+    ok_json({
+        "mount_path": mount_point,
+        "smb_path":   smb_path,
+        "share_name": share_name,
+        "hostname":   hostname,
+        "snap_name":  snap["snap_name"],
+    })
 
 
 def cmd_browse_umount(snap_id: str):
-    mount_point = os.path.join(BROWSE_BASE, snap_id)
+    share_name  = _smb_share_name(snap_id)
+    mount_point = os.path.join(BROWSE_BASE, share_name)
+    _smb_remove_share(share_name)
     if os.path.ismount(mount_point):
         subprocess.run(["umount", mount_point], capture_output=True)
     if os.path.isdir(mount_point):
@@ -557,7 +624,7 @@ def cmd_browse_umount(snap_id: str):
             os.rmdir(mount_point)
         except OSError:
             pass
-    ok_json({"umounted": mount_point})
+    ok_json({"ok": True, "umounted": share_name})
 
 
 # ── cmd: update-sizes ─────────────────────────────────────────────────────────
