@@ -112,6 +112,11 @@ RusNAS/
 │       └── notifications/  # email + Telegram
 ├── deploy.sh               # Deploy Cockpit plugin to VM
 ├── install-guard.sh        # Deploy Guard daemon to VM
+├── install-snapshots.sh    # Deploy snapshot system to VM
+├── rusnas-metrics-install.sh  # Deploy Metrics Server to VM
+├── rusnas-metrics/
+│   ├── metrics_server.py   # Prometheus + JSON metrics HTTP server (port 9100)
+│   └── rusnas-metrics.service  # systemd unit
 ├── rusnas-guard-task.md    # Guard ТЗ и архитектура
 └── CLAUDE.md
 ```
@@ -234,6 +239,85 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | Guard extensions list shows "Файл не найден" | `/etc/rusnas-guard/` had `chmod 700`; must be `755` so Cockpit bridge (non-root) can read `ransom_extensions.txt` |
 | `/run/rusnas-guard/` disappears after reboot | Add `RuntimeDirectory=rusnas-guard` + `RuntimeDirectoryMode=0755` to systemd unit |
 
+## Git Branching & Versioning Rules
+
+### Стратегия: Feature Branch Flow
+
+```
+main              ──●────────────●────────────●──  ← production
+                                 ↑            ↑
+feature/dashboard  ──●──●──●────┘            │
+feature/replication         ──●──●──●────────┘
+hotfix/bug-name                     ──●──────┘
+```
+
+### Правила
+
+| Ветка | Назначение | Создаётся от | Вливается в |
+|-------|-----------|-------------|------------|
+| `main` | Production. То что деплоено на VM | — | — |
+| `feature/<name>` | Новая фича (дашборд, репликация и т.д.) | `main` | `main` (merge --no-ff) |
+| `hotfix/<name>` | Срочный баг в production | `main` | `main` (прямой commit) |
+
+**`main` всегда = задеплоенный код.** После merge → сразу `./deploy.sh`.
+
+### Как начать новую фичу
+
+```bash
+git checkout main
+git pull origin main           # синхронизировать с GitHub
+git checkout -b feature/replication
+# ... работа ...
+git push -u origin feature/replication
+```
+
+### Как влить фичу в main
+
+```bash
+git checkout main
+git merge feature/replication --no-ff   # --no-ff сохраняет историю ветки
+git push origin main
+./deploy.sh                             # деплой на VM
+```
+
+### Если main обновился пока работаешь над фичей
+
+```bash
+git checkout feature/replication
+git rebase main    # перенести коммиты ветки поверх нового main
+# при конфликтах: исправить файл → git add → git rebase --continue
+git push origin feature/replication --force-with-lease   # нужен force после rebase
+```
+
+### Баг-фиксы
+
+- **Срочный**: коммит прямо в `main` → `./deploy.sh`
+- **В рамках текущей фичи**: коммит в feature-ветку как обычно
+- **Нужен в нескольких ветках**: `git cherry-pick <commit-hash>`
+
+### Правила коммитов
+
+Формат: `тип: краткое описание`
+
+| Тип | Когда |
+|-----|-------|
+| `feat:` | Новая функциональность |
+| `fix:` | Исправление бага |
+| `docs:` | Только документация (CLAUDE.md, project_history.MD) |
+| `refactor:` | Рефактор без изменения поведения |
+
+Всегда добавлять в конец:
+```
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```
+
+### Текущие ветки
+
+- `main` — стабильная production, задеплоена на VM
+- `feature/dashboard` — слита в main (2026-03-15)
+
+---
+
 ## Development Patterns
 
 - Iterate and verify — confirm each step works before proceeding
@@ -245,6 +329,19 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 ---
 
 ## Roadmap — следующие задачи
+
+### ✅ Dashboard (реализован 2026-03-15, ветка feature/dashboard)
+- `dashboard.html` + `css/dashboard.css` + `js/dashboard.js` — полный дашборд
+- `rusnas-metrics/metrics_server.py` — Prometheus + JSON API на порту 9100
+- `rusnas-metrics.service` — задеплоен и работает на VM
+
+**rusNAS Dashboard — ключевые факты:**
+- Интервалы: `TICK_FAST=1000` (CPU/Net/IO), `TICK_STORAGE=10000`, `TICK_SMART=300000`, `TICK_GUARD=5000`
+- Sparklines — чистый SVG, без внешних библиотек
+- SMART cache TTL 5мин (`smartCache[device].time`)
+- Guard state из `/run/rusnas-guard/state.json`
+- Metrics server: warmup 1 сек перед первым delta-расчётом
+- Metrics endpoint: `http://<IP>:9100/metrics` (Prometheus) + `/metrics.json` (JSON)
 
 ### Снапшоты: репликация (следующая сессия)
 
