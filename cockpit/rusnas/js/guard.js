@@ -215,7 +215,18 @@ function renderEvents(events) {
     var body = document.getElementById("events-body");
     if (!events || events.length === 0) {
         body.innerHTML = "<tr><td colspan='7' class='text-muted'>Событий нет.</td></tr>";
+        var badge = document.getElementById("tab-events-badge");
+        badge.classList.add("hidden");
         return;
+    }
+    // Update badge with unacknowledged count
+    var unack = events.filter(function(e) { return e.status !== "acknowledged"; }).length;
+    var badge = document.getElementById("tab-events-badge");
+    if (unack > 0) {
+        badge.textContent = unack;
+        badge.classList.remove("hidden");
+    } else {
+        badge.classList.add("hidden");
     }
 
     body.innerHTML = events.map(function(ev) {
@@ -483,6 +494,16 @@ function renderPathChoices(mounts, smbPaths, configured) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    document.querySelectorAll(".tab-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            document.querySelectorAll(".tab-btn").forEach(function(b) { b.classList.remove("tab-active"); });
+            document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.add("hidden"); });
+            btn.classList.add("tab-active");
+            document.getElementById(btn.dataset.tab).classList.remove("hidden");
+        });
+    });
 
     // Check if PIN is set (also called from refreshStatus)
     checkPinSetup();

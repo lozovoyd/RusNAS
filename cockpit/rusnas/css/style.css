@@ -862,3 +862,38 @@ tbody tr:last-child td { border-bottom: none; }
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ── Guard tabs ──────────────────────────────────────────────────────────────── */
+.tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 0;
+    padding: 0 0 0 0;
+}
+.tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover {
+    color: var(--color);
+}
+.tab-btn.tab-active {
+    color: var(--primary, #2b9af3);
+    border-bottom-color: var(--primary, #2b9af3);
+    font-weight: 600;
+}
+.tab-panel {
+    margin-top: 0;
+}
+.tab-panel.hidden {
+    display: none;
+}
