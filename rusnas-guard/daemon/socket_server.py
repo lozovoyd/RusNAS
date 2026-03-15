@@ -121,6 +121,8 @@ class SocketServer:
         token = req.get("token", "")
 
         if not self._auth(pin, token):
+            if not os.path.exists(PIN_PATH):
+                return {"ok": False, "error": "no_pin_set"}
             return {"ok": False, "error": "Invalid PIN or session expired"}
 
         # Issue new token on successful auth
@@ -184,8 +186,8 @@ class SocketServer:
     # ── Auth ──────────────────────────────────────────────────────────────────
 
     def _auth(self, pin: str, token: str) -> bool:
-        # Token auth (session)
-        if token:
+        # Token auth (session) — only valid if PIN file still exists
+        if token and os.path.exists(PIN_PATH):
             with self._lock:
                 expiry = self._tokens.get(token)
                 if expiry and time.time() < expiry:

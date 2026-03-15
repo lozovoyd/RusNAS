@@ -81,6 +81,11 @@ function submitPin() {
 
     guardCmd("auth", { pin: pin }, function(err, resp) {
         if (err || !resp || !resp.ok) {
+            if (resp && resp.error === "no_pin_set") {
+                closeModal("pin-modal");
+                showModal("setup-pin-modal");
+                return;
+            }
             var errEl = document.getElementById("pin-error");
             errEl.textContent = (resp && resp.error) || "Неверный PIN";
             errEl.classList.remove("hidden");
@@ -92,6 +97,32 @@ function submitPin() {
             pendingAction = null;
             fn(pin);
         }
+    });
+}
+
+// ── PIN setup check ───────────────────────────────────────────────────────────
+
+var _pinCheckPending = false;
+
+function checkPinSetup() {
+    if (_pinCheckPending) return;
+    _pinCheckPending = true;
+
+    guardCmd("has_pin", {}, function(err, resp) {
+        _pinCheckPending = false;
+        if (!err && resp && resp.ok) {
+            if (!resp.data.has_pin) {
+                showModal("setup-pin-modal");
+            }
+            return;
+        }
+        // Socket unavailable — fall back to checking file existence directly
+        cockpit.spawn(["test", "-f", "/etc/rusnas-guard/guard.pin"],
+                      {err: "ignore"})
+            .fail(function() {
+                // Exit code 1 = file does not exist
+                showModal("setup-pin-modal");
+            });
     });
 }
 
@@ -107,6 +138,7 @@ function refreshStatus() {
         _statusPending = false;
         if (err || !resp || !resp.ok) {
             updateStatusBadge(null);
+            checkPinSetup();
             return;
         }
         var s = resp.data;
@@ -336,12 +368,8 @@ function toggleRemoteFields(show) {
 
 document.addEventListener("DOMContentLoaded", function() {
 
-    // Check if PIN is set
-    guardCmd("has_pin", {}, function(err, resp) {
-        if (!err && resp && resp.ok && !resp.data.has_pin) {
-            showModal("setup-pin-modal");
-        }
-    });
+    // Check if PIN is set (also called from refreshStatus)
+    checkPinSetup();
 
     // Initial load
     refreshStatus();
