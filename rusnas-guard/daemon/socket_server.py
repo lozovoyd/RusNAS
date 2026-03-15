@@ -99,7 +99,15 @@ class SocketServer:
 
         if cmd == "get_events":
             from response import load_events
-            return {"ok": True, "data": load_events(req.get("limit", 50))}
+            result = load_events(
+                limit=req.get("limit", 50),
+                offset=req.get("offset", 0),
+                method=req.get("method") or None,
+                date_from=req.get("date_from") or None,
+                date_to=req.get("date_to") or None,
+                status=req.get("status") or None,
+            )
+            return {"ok": True, "data": result}
 
         if cmd == "get_config":
             return {"ok": True, "data": self._daemon.get_config_public()}
@@ -165,6 +173,11 @@ class SocketServer:
         if cmd == "generate_ssh_key":
             pub = self._gen_ssh_key()
             return {"ok": True, "data": {"public_key": pub, "token": new_token}}
+
+        if cmd == "clear_events":
+            from response import clear_events
+            clear_events()
+            return {"ok": True, "data": {"token": new_token}}
 
         if cmd == "acknowledge_post_attack":
             flag = "/etc/rusnas-guard/post_attack"

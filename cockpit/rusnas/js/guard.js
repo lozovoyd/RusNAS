@@ -153,12 +153,25 @@ function refreshStatus() {
             banner.classList.add("hidden");
         }
 
-        // Load events only after status succeeds (sequential, not concurrent)
-        guardCmd("get_events", { limit: 50 }, function(evErr, evResp) {
-            if (!evErr && evResp && evResp.ok) {
-                renderEvents(evResp.data);
-            }
-        });
+        // Refresh events if the events tab is active
+        var evTab = document.getElementById("tab-events");
+        if (evTab && !evTab.classList.contains("hidden")) {
+            loadEvents(false);
+        } else {
+            // Still update badge: fetch first page quietly
+            guardCmd("get_events", { limit: 1, offset: 0 }, function(evErr, evResp) {
+                if (!evErr && evResp && evResp.ok) {
+                    var total = (evResp.data || {}).total || 0;
+                    // Fetch unacknowledged count for badge
+                    guardCmd("get_events", { limit: 1, offset: 0, status: "new" }, function(e2, r2) {
+                        var badge = document.getElementById("tab-events-badge");
+                        var unack = (!e2 && r2 && r2.ok) ? ((r2.data || {}).total || 0) : 0;
+                        if (unack > 0) { badge.textContent = unack; badge.classList.remove("hidden"); }
+                        else           { badge.classList.add("hidden"); }
+                    });
+                }
+            });
+        }
     });
 }
 
@@ -211,54 +224,92 @@ var METHOD_LABELS = {
     extension: "🔒 Расширение"
 };
 
-function renderEvents(events) {
-    var body = document.getElementById("events-body");
-    if (!events || events.length === 0) {
-        body.innerHTML = "<tr><td colspan='7' class='text-muted'>Событий нет.</td></tr>";
-        var badge = document.getElementById("tab-events-badge");
-        badge.classList.add("hidden");
-        return;
-    }
-    // Update badge with unacknowledged count
-    var unack = events.filter(function(e) { return e.status !== "acknowledged"; }).length;
+var PAGE_SIZE    = 25;
+var eventsPage   = 0;
+var eventsFilters = {};
+var _eventsLoadPending = false;
+
+function loadEvents(resetPage) {
+    if (_eventsLoadPending) return;
+    if (resetPage) eventsPage = 0;
+    _eventsLoadPending = true;
+
+    var req = {
+        limit:     PAGE_SIZE,
+        offset:    eventsPage * PAGE_SIZE,
+        method:    eventsFilters.method    || "",
+        status:    eventsFilters.status    || "",
+        date_from: eventsFilters.date_from || "",
+        date_to:   eventsFilters.date_to   || "",
+    };
+
+    guardCmd("get_events", req, function(err, resp) {
+        _eventsLoadPending = false;
+        if (err || !resp || !resp.ok) return;
+        renderEvents(resp.data);
+    });
+}
+
+function renderEvents(data) {
+    // data may be {events, total} (new) or plain array (legacy status poll)
+    var events = Array.isArray(data) ? data : (data.events || []);
+    var total  = Array.isArray(data) ? events.length : (data.total || 0);
+
+    // Badge with unacknowledged count
     var badge = document.getElementById("tab-events-badge");
-    if (unack > 0) {
-        badge.textContent = unack;
-        badge.classList.remove("hidden");
-    } else {
-        badge.classList.add("hidden");
+    var unack = events.filter(function(e) { return e.status !== "acknowledged"; }).length;
+    if (unack > 0) { badge.textContent = unack; badge.classList.remove("hidden"); }
+    else           { badge.classList.add("hidden"); }
+
+    // Pagination info
+    var from = total === 0 ? 0 : eventsPage * PAGE_SIZE + 1;
+    var to   = Math.min((eventsPage + 1) * PAGE_SIZE, total);
+    document.getElementById("events-count-info").textContent =
+        total === 0 ? "Событий не найдено" : "Показано " + from + "–" + to + " из " + total;
+    document.getElementById("btn-events-prev").disabled = eventsPage === 0;
+    document.getElementById("btn-events-next").disabled = to >= total;
+
+    var body = document.getElementById("events-body");
+    if (!events.length) {
+        body.innerHTML = "<tr><td colspan='7' class='text-muted'>Событий нет.</td></tr>";
+        return;
     }
 
     body.innerHTML = events.map(function(ev) {
-        var t       = ev.time ? new Date(ev.time).toLocaleString("ru") : "—";
-        var method  = METHOD_LABELS[ev.method] || ev.method;
-        var path    = ev.path    || "—";
-        var ip      = ev.source_ip || "—";
-        var action  = ev.action  || "logged";
-        var status  = ev.status  === "acknowledged"
-            ? "<span class='badge badge-secondary'>Просмотрено</span>"
-            : "<span class='badge badge-danger'>Новое</span>";
-        var ackBtn  = ev.status !== "acknowledged"
-            ? "<button class='btn btn-secondary btn-sm' onclick='ackEvent(\"" + ev.id + "\")'>✓ Принято</button>"
+        var t      = ev.time ? new Date(ev.time).toLocaleString("ru") : "—";
+        var method = METHOD_LABELS[ev.method] || ev.method || "—";
+        var path   = ev.path || "—";
+        var ip     = ev.source_ip || "—";
+        var isNew  = ev.status !== "acknowledged";
+        var statusBadge = isNew
+            ? "<span class='badge badge-danger'>Новое</span>"
+            : "<span class='badge badge-secondary'>Просмотрено</span>";
+        var ackBtn = isNew
+            ? "<button class='btn btn-secondary btn-sm' onclick='ackEvent(\"" + ev.id + "\")'>✓</button>"
             : "";
 
-        var details = "";
+        var details = [];
         if (ev.files && ev.files.length) {
-            details = ev.files.slice(0, 5).join(", ");
-            if (ev.files.length > 5) details += " ...+" + (ev.files.length - 5);
+            var flist = ev.files.slice(0, 8).join(", ");
+            if (ev.files.length > 8) flist += " +ещё " + (ev.files.length - 8);
+            details.push(flist);
         }
-        if (ev.entropy) details += " [энтропия: " + ev.entropy + "]";
-        if (ev.iops_rate) details += " [" + ev.iops_rate + " оп/мин]";
+        if (ev.entropy  != null) details.push("энтропия: " + Number(ev.entropy).toFixed(4));
+        if (ev.iops_rate != null) details.push(ev.iops_rate + " оп/мин");
+        if (ev.action)           details.push(ev.action);
+        var detailHtml = details.length
+            ? "<div style='font-size:11px;color:var(--color-muted);margin-top:2px;word-break:break-all;'>" +
+              details.join(" · ") + "</div>"
+            : "";
 
-        return "<tr>" +
+        var rowClass = isNew ? "style='background:rgba(204,34,0,0.06);'" : "";
+        return "<tr " + rowClass + ">" +
             "<td style='font-size:12px;white-space:nowrap;'>" + t + "</td>" +
-            "<td>" + method + "</td>" +
-            "<td style='font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' title='" + path + "'>" + path + "</td>" +
-            "<td><code>" + ip + "</code></td>" +
-            "<td style='font-size:12px;'>" + action +
-                (details ? "<br><span class='text-muted' style='font-size:11px;'>" + details + "</span>" : "") +
-            "</td>" +
-            "<td>" + status + "</td>" +
+            "<td style='white-space:nowrap;'>" + method + "</td>" +
+            "<td style='font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' title='" + path.replace(/'/g,"") + "'>" + path + "</td>" +
+            "<td style='white-space:nowrap;'><code>" + ip + "</code></td>" +
+            "<td>" + detailHtml + "</td>" +
+            "<td>" + statusBadge + "</td>" +
             "<td>" + ackBtn + "</td>" +
             "</tr>";
     }).join("");
@@ -267,9 +318,47 @@ function renderEvents(events) {
 function ackEvent(eventId) {
     requirePin("✓ Подтвердить событие", "Введите PIN для подтверждения события.", function() {
         guardCmd("acknowledge", { event_id: eventId }, function(err, resp) {
-            if (!err && resp && resp.ok) refreshStatus();
+            if (!err && resp && resp.ok) loadEvents(false);
             else showAlert("danger", "Ошибка подтверждения события");
         });
+    });
+}
+
+function exportEventsCsv() {
+    // Request all matching events (no pagination)
+    var req = {
+        limit:     10000,
+        offset:    0,
+        method:    eventsFilters.method    || "",
+        status:    eventsFilters.status    || "",
+        date_from: eventsFilters.date_from || "",
+        date_to:   eventsFilters.date_to   || "",
+    };
+    guardCmd("get_events", req, function(err, resp) {
+        if (err || !resp || !resp.ok) { showAlert("danger", "Ошибка экспорта"); return; }
+        var events = (resp.data || {}).events || [];
+        var rows = ["Время,Тип,Путь,IP,Статус,Файлы,Энтропия,IOPS"];
+        events.forEach(function(ev) {
+            var files = (ev.files || []).join("; ").replace(/,/g, ";");
+            rows.push([
+                ev.time || "",
+                ev.method || "",
+                (ev.path || "").replace(/,/g, ";"),
+                ev.source_ip || "",
+                ev.status || "",
+                '"' + files + '"',
+                ev.entropy != null ? ev.entropy : "",
+                ev.iops_rate != null ? ev.iops_rate : "",
+            ].join(","));
+        });
+        var blob = new Blob(["\uFEFF" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+        var url  = URL.createObjectURL(blob);
+        var a    = document.createElement("a");
+        a.href   = url;
+        a.download = "rusnas-guard-events-" + new Date().toISOString().slice(0,10) + ".csv";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 1000);
     });
 }
 
@@ -502,6 +591,53 @@ document.addEventListener("DOMContentLoaded", function() {
             document.querySelectorAll(".tab-panel").forEach(function(p) { p.classList.add("hidden"); });
             btn.classList.add("tab-active");
             document.getElementById(btn.dataset.tab).classList.remove("hidden");
+            // Load events when switching to events tab
+            if (btn.dataset.tab === "tab-events") loadEvents(true);
+        });
+    });
+
+    // ── Event log controls ────────────────────────────────────────────────────
+    document.getElementById("btn-filter-apply").addEventListener("click", function() {
+        eventsFilters = {
+            method:    document.getElementById("filter-method").value,
+            status:    document.getElementById("filter-status").value,
+            date_from: document.getElementById("filter-date-from").value,
+            date_to:   document.getElementById("filter-date-to").value,
+        };
+        loadEvents(true);
+    });
+
+    document.getElementById("btn-filter-reset").addEventListener("click", function() {
+        eventsFilters = {};
+        document.getElementById("filter-method").value    = "";
+        document.getElementById("filter-status").value    = "";
+        document.getElementById("filter-date-from").value = "";
+        document.getElementById("filter-date-to").value   = "";
+        loadEvents(true);
+    });
+
+    document.getElementById("btn-events-prev").addEventListener("click", function() {
+        if (eventsPage > 0) { eventsPage--; loadEvents(false); }
+    });
+
+    document.getElementById("btn-events-next").addEventListener("click", function() {
+        eventsPage++;
+        loadEvents(false);
+    });
+
+    document.getElementById("btn-events-export").addEventListener("click", exportEventsCsv);
+
+    document.getElementById("btn-events-clear").addEventListener("click", function() {
+        requirePin("🗑 Очистить журнал", "Введите PIN для полной очистки журнала событий.", function() {
+            guardCmd("clear_events", {}, function(err, resp) {
+                if (!err && resp && resp.ok) {
+                    eventsPage = 0;
+                    loadEvents(true);
+                    showAlert("info", "Журнал событий очищен");
+                } else {
+                    showAlert("danger", "Ошибка очистки журнала");
+                }
+            });
         });
     });
 

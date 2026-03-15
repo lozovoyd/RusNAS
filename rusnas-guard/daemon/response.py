@@ -38,10 +38,11 @@ def log_event(event: dict, state: dict):
     return event["id"]
 
 
-def load_events(limit=50) -> list:
-    """Return last N events from log, newest first."""
+def load_events(limit=50, offset=0, method=None, date_from=None,
+                date_to=None, status=None) -> dict:
+    """Return filtered events with total count. Newest first."""
     if not os.path.exists(EVENTS_LOG):
-        return []
+        return {"events": [], "total": 0}
     events = []
     try:
         with open(EVENTS_LOG) as fh:
@@ -53,8 +54,30 @@ def load_events(limit=50) -> list:
                     except json.JSONDecodeError:
                         pass
     except OSError:
-        return []
-    return list(reversed(events[-limit:]))
+        return {"events": [], "total": 0}
+
+    # Apply filters
+    if method:
+        events = [e for e in events if e.get("method") == method]
+    if status:
+        events = [e for e in events if e.get("status") == status]
+    if date_from:
+        events = [e for e in events if (e.get("time") or "")[:10] >= date_from]
+    if date_to:
+        events = [e for e in events if (e.get("time") or "")[:10] <= date_to]
+
+    total = len(events)
+    events = list(reversed(events))  # newest first
+    page = events[offset:offset + limit]
+    return {"events": page, "total": total}
+
+
+def clear_events():
+    """Truncate the events log."""
+    try:
+        open(EVENTS_LOG, "w").close()
+    except OSError:
+        pass
 
 
 def acknowledge_event(event_id: str) -> bool:

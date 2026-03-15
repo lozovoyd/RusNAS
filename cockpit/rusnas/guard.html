@@ -89,16 +89,64 @@
 <div class="section">
     <div class="section-toolbar">
         <h2>Журнал событий</h2>
-        <button class="btn btn-danger btn-sm" id="btn-clear-blocks">🚫 Снять все блокировки</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" id="btn-events-export">⬇ CSV</button>
+            <button class="btn btn-danger btn-sm" id="btn-events-clear">🗑 Очистить журнал</button>
+            <button class="btn btn-warning btn-sm" id="btn-clear-blocks">🚫 Снять блокировки</button>
+        </div>
     </div>
+
+    <!-- Filter bar -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:10px 12px;margin-bottom:10px;background:var(--bg-input,#111);border-radius:6px;border:1px solid var(--color-border);">
+        <div>
+            <label style="font-size:11px;color:var(--color-muted);display:block;margin-bottom:3px;">Тип события</label>
+            <select id="filter-method" style="font-size:13px;min-width:140px;">
+                <option value="">Все типы</option>
+                <option value="honeypot">🪤 Приманка</option>
+                <option value="entropy">📊 Энтропия</option>
+                <option value="iops">📈 IOPS</option>
+                <option value="extension">🔒 Расширение</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:11px;color:var(--color-muted);display:block;margin-bottom:3px;">Статус</label>
+            <select id="filter-status" style="font-size:13px;min-width:130px;">
+                <option value="">Все</option>
+                <option value="new">Новые</option>
+                <option value="acknowledged">Просмотренные</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:11px;color:var(--color-muted);display:block;margin-bottom:3px;">С даты</label>
+            <input type="date" id="filter-date-from" style="font-size:13px;">
+        </div>
+        <div>
+            <label style="font-size:11px;color:var(--color-muted);display:block;margin-bottom:3px;">По дату</label>
+            <input type="date" id="filter-date-to" style="font-size:13px;">
+        </div>
+        <div style="display:flex;gap:6px;">
+            <button class="btn btn-primary btn-sm" id="btn-filter-apply">Применить</button>
+            <button class="btn btn-secondary btn-sm" id="btn-filter-reset">Сбросить</button>
+        </div>
+    </div>
+
+    <!-- Pagination info -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;">
+        <span id="events-count-info" class="text-muted">—</span>
+        <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm" id="btn-events-prev" disabled>◀</button>
+            <button class="btn btn-secondary btn-sm" id="btn-events-next" disabled>▶</button>
+        </div>
+    </div>
+
     <table>
         <thead>
             <tr>
-                <th>Время</th>
-                <th>Метод</th>
+                <th style="white-space:nowrap;">Время</th>
+                <th>Тип</th>
                 <th>Путь</th>
-                <th>IP источника</th>
-                <th>Действие</th>
+                <th>IP</th>
+                <th>Детали</th>
                 <th>Статус</th>
                 <th></th>
             </tr>
