@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>rusNAS — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <script src="../base1/cockpit.js"></script>
+  <script src="js/dashboard.js" defer></script>
+</head>
+<body>
+
+<!-- ── System Identity Bar ───────────────────────────────────────────────── -->
+<div class="db-identity-bar">
+  <span class="db-identity-item">🖥 <strong id="db-hostname">…</strong></span>
+  <span class="db-identity-sep">|</span>
+  <span class="db-identity-item">IP: <strong id="db-ip">…</strong></span>
+  <span class="db-identity-sep">|</span>
+  <span class="db-identity-item">Uptime: <strong id="db-uptime">…</strong></span>
+  <span class="db-identity-sep">|</span>
+  <span class="db-identity-item">rusNAS 1.0</span>
+  <span class="db-identity-sep">|</span>
+  <span class="db-identity-item" id="db-datetime">…</span>
+</div>
+
+<!-- ── Alert Banner ──────────────────────────────────────────────────────── -->
+<div id="db-alert-banner" class="db-alert-banner hidden"></div>
+
+<!-- ── Section A: Storage Overview ──────────────────────────────────────── -->
+<div class="db-grid-4" style="margin-bottom:14px">
+
+  <!-- A1: Storage Usage -->
+  <div class="db-card" id="card-storage" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
+    <div class="db-card-icon">💾</div>
+    <div class="db-card-title">STORAGE</div>
+    <div class="db-card-metric" id="storage-used-pct">—</div>
+    <div class="db-progress-bar">
+      <div class="db-progress-fill" id="storage-bar" style="width:0%"></div>
+    </div>
+    <div class="db-card-sub" id="storage-detail">— / —</div>
+    <div class="db-card-tags" id="storage-raids"></div>
+  </div>
+
+  <!-- A2: RAID Status -->
+  <div class="db-card" id="card-raid" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
+    <div class="db-card-icon">🔧</div>
+    <div class="db-card-title">RAID</div>
+    <div id="raid-list" class="db-raid-list"><span class="text-muted">Загрузка…</span></div>
+  </div>
+
+  <!-- A3: Disk Health -->
+  <div class="db-card" id="card-disks" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
+    <div class="db-card-icon">💿</div>
+    <div class="db-card-title">ДИСКИ</div>
+    <div class="db-card-metric" id="disk-summary">—</div>
+    <div class="db-card-tags" id="disk-tags"></div>
+  </div>
+
+  <!-- A4: Shares & Protocols -->
+  <div class="db-card" id="card-shares" style="cursor:pointer" onclick="cockpit.jump('/rusnas')">
+    <div class="db-card-icon">📁</div>
+    <div class="db-card-title">ОБЩИЙ ДОСТУП</div>
+    <div id="services-list" class="db-service-list"><span class="text-muted">Загрузка…</span></div>
+  </div>
+
+</div>
+
+<!-- ── Section B: Performance Metrics ───────────────────────────────────── -->
+<div class="db-grid-3" style="margin-bottom:14px">
+
+  <!-- B1: CPU -->
+  <div class="db-card">
+    <div class="db-perf-header">
+      <div><span class="db-card-icon">⚡</span> <span class="db-card-title">CPU</span></div>
+      <div class="db-metric-big" id="cpu-pct">—%</div>
+    </div>
+    <svg id="spark-cpu" class="db-sparkline"></svg>
+    <div class="db-card-sub" id="cpu-detail">— ядер | Load: —</div>
+    <div class="db-card-sub" id="cpu-temp"></div>
+  </div>
+
+  <!-- B2: Memory -->
+  <div class="db-card">
+    <div class="db-perf-header">
+      <div><span class="db-card-icon">🧠</span> <span class="db-card-title">RAM</span></div>
+      <div class="db-metric-big" id="ram-pct">—%</div>
+    </div>
+    <svg id="spark-ram" class="db-sparkline"></svg>
+    <div class="db-card-sub" id="ram-detail">— / —</div>
+    <div class="db-card-sub" id="swap-detail">Swap: —</div>
+  </div>
+
+  <!-- B3: Network -->
+  <div class="db-card">
+    <div class="db-perf-header">
+      <div><span class="db-card-icon">🌐</span> <span class="db-card-title">СЕТЬ</span></div>
+      <div class="db-metric-big" id="net-iface">—</div>
+    </div>
+    <svg id="spark-net" class="db-sparkline"></svg>
+    <div class="db-card-sub" id="net-rx">↓ —</div>
+    <div class="db-card-sub" id="net-tx">↑ —</div>
+  </div>
+
+</div>
+
+<!-- ── Section C: Disk I/O ───────────────────────────────────────────────── -->
+<div class="db-card" style="margin-bottom:14px">
+  <div class="db-perf-header">
+    <div><span class="db-card-icon">📊</span> <span class="db-card-title">ДИСКОВЫЙ I/O</span></div>
+    <div style="display:flex;gap:24px">
+      <span class="db-card-sub">Чтение: <strong id="io-read">—</strong></span>
+      <span class="db-card-sub">Запись: <strong id="io-write">—</strong></span>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+    <div>
+      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Чтение MB/s</div>
+      <svg id="spark-io-read" class="db-sparkline"></svg>
+    </div>
+    <div>
+      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Запись MB/s</div>
+      <svg id="spark-io-write" class="db-sparkline"></svg>
+    </div>
+  </div>
+  <div class="db-card-sub" id="io-per-disk" style="margin-top:8px;font-size:11px"></div>
+</div>
+
+<!-- ── Section D+E: Events, Snapshots, Guard ─────────────────────────────── -->
+<div class="db-grid-3" style="margin-bottom:14px">
+
+  <!-- D1: System Events -->
+  <div class="db-card">
+    <div class="db-card-title" style="margin-bottom:10px">📋 СОБЫТИЯ</div>
+    <div id="events-list" class="db-events-list"><span class="text-muted">Загрузка…</span></div>
+  </div>
+
+  <!-- D2: Snapshot Status -->
+  <div class="db-card" style="cursor:pointer" onclick="cockpit.jump('/rusnas/snapshots')">
+    <div class="db-card-title" style="margin-bottom:10px">📸 СНАПШОТЫ</div>
+    <div id="snap-list" class="db-snap-list"><span class="text-muted">Загрузка…</span></div>
+    <div class="db-card-sub" id="snap-total" style="margin-top:8px"></div>
+  </div>
+
+  <!-- E: Guard Status -->
+  <div class="db-card" id="card-guard">
+    <div class="db-guard-header">
+      <div class="db-card-title">🛡 RUSNAS GUARD</div>
+      <div id="guard-status-dot" class="db-status-dot db-dot-gray"></div>
+    </div>
+    <div id="guard-status-text" class="db-guard-mode text-muted">Загрузка…</div>
+    <div id="guard-uptime" class="db-card-sub" style="margin-bottom:8px"></div>
+
+    <div id="guard-stats" class="db-guard-stats hidden">
+      <div class="db-guard-stat"><span id="gs-ops">—</span><br><small>операций 24ч</small></div>
+      <div class="db-guard-stat"><span id="gs-threats">—</span><br><small>угроз</small></div>
+      <div class="db-guard-stat"><span id="gs-snaps">—</span><br><small>снапшотов</small></div>
+      <div class="db-guard-stat"><span id="gs-blocked">—</span><br><small>заблок. шар</small></div>
+    </div>
+
+    <div id="guard-entropy" class="db-entropy-list hidden"></div>
+
+    <div id="guard-post-attack-banner" class="db-post-attack hidden">
+      🟠 Guard в безопасном режиме после инцидента. Требуется подтверждение.
+    </div>
+
+    <div style="margin-top:10px">
+      <a href="/rusnas/guard" onclick="cockpit.jump('/rusnas/guard');return false;" class="btn btn-secondary btn-sm">Настройки Guard →</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Metrics Endpoint Block ─────────────────────────────────────────────── -->
+<div class="db-card" style="margin-bottom:14px">
+  <div class="db-card-title" style="margin-bottom:10px">🔗 ВНЕШНИЙ МОНИТОРИНГ</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div>
+      <div class="db-card-sub" style="margin-bottom:4px">Prometheus / Zabbix endpoint:</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <code id="metrics-url-prom" style="flex:1;padding:6px 8px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;font-size:12px"></code>
+        <button class="btn btn-secondary btn-sm" onclick="copyMetricsUrl('prom')">📋</button>
+      </div>
+    </div>
+    <div>
+      <div class="db-card-sub" style="margin-bottom:4px">JSON API:</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <code id="metrics-url-json" style="flex:1;padding:6px 8px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;font-size:12px"></code>
+        <button class="btn btn-secondary btn-sm" onclick="copyMetricsUrl('json')">📋</button>
+      </div>
+    </div>
+  </div>
+  <div class="db-card-sub" style="margin-top:8px;font-size:11px">
+    Для Prometheus: <code>scrape_configs target: &lt;IP&gt;:9100</code> &nbsp;|&nbsp;
+    Для Zabbix: HTTP Agent → URL выше &nbsp;|&nbsp;
+    <span id="metrics-server-status"></span>
+  </div>
+</div>
+
+</body>
+</html>

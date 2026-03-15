@@ -5,25 +5,29 @@
   },
   "content-security-policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'",
   "menu": {
+    "dashboard": {
+      "label": "Dashboard 🏠",
+      "order": 1
+    },
     "index": {
       "label": "Хранилище",
-      "order": 1
+      "order": 2
     },
     "disks": {
       "label": "Диски и RAID",
-      "order": 2
+      "order": 3
     },
     "users": {
       "label": "Пользователи",
-      "order": 3
+      "order": 4
     },
     "guard": {
       "label": "Guard 🛡️",
-      "order": 4
+      "order": 5
     },
     "snapshots": {
       "label": "Снапшоты 📸",
-      "order": 5
+      "order": 6
     }
   },
   "superuser": {

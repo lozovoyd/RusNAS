@@ -1,0 +1,15 @@
+[Unit]
+Description=rusNAS Metrics Server (port 9100)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /usr/local/lib/rusnas/metrics_server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
