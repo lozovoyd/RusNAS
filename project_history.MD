@@ -788,3 +788,76 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 - `b6e188d` feat: FTP/WebDAV settings sections + dashboard fixes + Guard path discovery
 - `b885a41` refactor: move Guard event log to separate tab
 - `3a026e3` feat: Guard event log — filters, pagination, CSV export, clear
+
+---
+
+## Сессия 2026-03-15 — Деdup Manager: реализация + тестирование + фиксы
+
+### Цели сессии
+1. Реализовать полный раздел «Дедупликация» по spec `rusnas-dedup-spec.md`
+2. Починить WORM «Выбрать» кнопку и пути в storage
+3. Провести промышленное тестирование раздела Dedup
+
+### Реализованные компоненты
+
+**`cockpit/rusnas/dedup.html`** — новая страница:
+- 4 статус-карточки: последний прогон, сэкономлено, файлов, статус
+- Панель действий: Запустить / Остановить / Лог
+- Вкладка «Как работает»: SVG-инфографика 3 уровня дедупликации, SVG-таймлайн суток, история 7 дней (бар-чарт), FAQ-аккордеон
+- Вкладка «Настройки»: расписание (время + дни), таблица томов, SMB vfs_btrfs per-шара, продвинутые параметры duperemove
+
+**`cockpit/rusnas/js/dedup.js`** — JavaScript логика:
+- `loadLastRun()`, `loadHistory()`, `loadConfig()`, `loadVolumes()`, `loadSambaShares()`
+- `renderStatusCards()`, `renderTimeline()`, `renderHistoryChart()`
+- `saveSchedule()`, `saveVolumeConfig()`, `saveSambaConfig()`, `saveAdvancedConfig()`
+- `runDedup()`, `stopDedup()`, `checkRunning()`, `startPolling()`
+- `showLog()`, `showMsg()`
+
+**`rusnas-dedup/rusnas-dedup-run.sh`** — backend wrapper:
+- Читает `/etc/rusnas/dedup-config.json`
+- Запускает duperemove с параметрами из конфига
+- Считает метрику через `btrfs filesystem du -s` (shared extents)
+- Пишет `dedup-last.json` и `dedup-history.json` с chmod 644
+
+**`rusnas-dedup/rusnas-dedup.service`** — systemd oneshot, Nice=19, IOSchedulingClass=idle
+
+**`install-dedup.sh`** — deploy script: копирует скрипт, сервис, настраивает sudoers, создаёт дефолтный конфиг
+
+### Баги найдены и исправлены при тестировании
+
+| Баг | Причина | Фикс |
+|-----|---------|------|
+| SMB шары "не найдены" | `configparser` падает на inline-комментариях smb.conf | Парсер на Python regex через tmpfile |
+| duperemove exit code 22 | `--min-size` и `--hash` не поддерживаются v0.11.2 | Удалены из формы и saveAdvancedConfig() |
+| Статус застывает в "Выполняется" | `setRunningState(false)` не очищал текст | Сразу ставим "—", loadLastRun() дополняет |
+| Устаревший JSON после прогона | Race: polling читал файл до записи скриптом | 800ms задержка перед loadLastRun() |
+| Controls расписания активны при disabled | Нет disabled-стейта на time/days | change listener + populateSettings() |
+| WORM «Выбрать» не работает | Не был зарегистрирован event listener | Добавлен addEventListener + load SMB paths |
+
+### Итог тестирования
+Все элементы управления протестированы:
+- Статус-карточки, таймлайн, история, FAQ ✅
+- Запустить/Остановить + полинг + индикатор ✅
+- Лог (полный вывод duperemove) ✅
+- Расписание (cron создаётся/удаляется) ✅
+- Тома (конфиг записывается) ✅
+- SMB vfs_btrfs (добавляется/удаляется в smb.conf) ✅
+- Параметры duperemove (hashfile + extra args) ✅
+
+### Изменённые файлы
+
+| Файл | Изменение |
+|------|-----------|
+| `cockpit/rusnas/dedup.html` | Новый файл (страница дедупликации) |
+| `cockpit/rusnas/js/dedup.js` | Новый файл (логика UI) |
+| `cockpit/rusnas/manifest.json` | Добавлен пункт меню dedup (order 7) |
+| `cockpit/rusnas/js/app.js` | WORM browse button fix + SMB paths in suggestions |
+| `rusnas-dedup/rusnas-dedup-run.sh` | Новый файл (backend wrapper) |
+| `rusnas-dedup/rusnas-dedup.service` | Новый файл (systemd unit) |
+| `install-dedup.sh` | Новый файл (deploy script) |
+| `rusnas-dedup-spec.md` | Обновлён: статус реализован + implementation notes |
+| `CLAUDE.md` | Добавлен раздел Dedup, ссылка на spec, известные баги |
+
+### Git commits
+- `git log --oneline feature/dedup` → реализация + фиксы тестирования
+- Ветка `feature/dedup` слита в `main` 2026-03-15
