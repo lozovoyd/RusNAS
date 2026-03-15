@@ -238,6 +238,44 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | Guard socket channel timeout | `superuser: "require"` in iframe context causes polkit timeout; removed — security maintained by PIN auth |
 | Guard extensions list shows "Файл не найден" | `/etc/rusnas-guard/` had `chmod 700`; must be `755` so Cockpit bridge (non-root) can read `ransom_extensions.txt` |
 | `/run/rusnas-guard/` disappears after reboot | Add `RuntimeDirectory=rusnas-guard` + `RuntimeDirectoryMode=0755` to systemd unit |
+| Guard crash on enable: `AttributeError: get_iops` | `guard.py:_update_state()` called non-existent method; `Detector._record_iops()` already writes to shared state dict directly |
+| Guard crash on enable: `FileNotFoundError` in `InotifyTrees` | Filter paths with `os.path.isdir()` before passing to `InotifyTrees`; non-existent configured paths are skipped with warning |
+| Dashboard disk health block shows nothing | `ls /dev/sd? /dev/nvme?n?` exits with code 1 when no nvme devices → cockpit.spawn calls `.fail()`; fixed by appending `; true` |
+| Guard PIN modal not appearing after `--reset-pin` | Socket unavailable after reset → `guardCmd("has_pin")` silently fails; added `checkPinSetup()` with `test -f` fallback called from both DOMContentLoaded and refreshStatus error branch |
+
+## FTP and WebDAV settings (app.js / index.html)
+
+Settings sections added to the Storage page (`/rusnas`):
+
+**FTP:**
+- Status badge + start/stop buttons
+- `loadFtp()`: reads `/etc/vsftpd.conf`, shows anonymous/write/chroot toggles and passive port range
+- `saveFtp()`: writes config via Python inline script (`re.sub` for each key), then `systemctl restart vsftpd`
+- Active connections from `/proc/net/tcp` port 0x7530 (21)
+
+**WebDAV:**
+- Status badge + start/stop buttons
+- `loadWebdav()`: reads `/etc/apache2/sites-enabled/webdav.conf` (Alias + Directory block)
+- `saveWebdav()`: writes full config block + `systemctl reload apache2`
+- User management: list from `/etc/apache2/webdav.passwords`, add via `htdigest -b` (Python MD5 fallback), remove via `sed -i`
+
+## Guard page structure (guard.html)
+
+Three tabs:
+- **Обзор** — stats + how-it-works infographic
+- **Журнал событий** — filtered paginated event log
+- **Настройки** — detection methods, monitored paths, snapshot config
+
+Tab badge on "Журнал событий" shows unacknowledged event count.
+
+## Guard event log (guard.js)
+
+- `loadEvents(resetPage)` — main function; sends `get_events` with filters + pagination
+- `eventsFilters = {method, status, date_from, date_to}` — global filter state
+- `eventsPage` — 0-based page index; `PAGE_SIZE = 25`
+- `exportEventsCsv()` — requests all matching events (limit=10000), builds Blob CSV with UTF-8 BOM, triggers download
+- Backend: `load_events()` in response.py supports offset/method/status/date_from/date_to; returns `{events, total}`
+- Backend: `clear_events` socket command (auth required) truncates `events.jsonl`
 
 ## Git Branching & Versioning Rules
 
@@ -308,7 +346,7 @@ git push origin feature/replication --force-with-lease   # нужен force по
 
 Всегда добавлять в конец:
 ```
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)
 ```
 
 ### Текущие ветки

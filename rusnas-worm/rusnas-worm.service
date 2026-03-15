@@ -1,0 +1,10 @@
+[Unit]
+Description=rusNAS WORM enforcement (chattr +i on files past grace period)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rusnas-worm
+User=root
+StandardOutput=journal
+StandardError=journal

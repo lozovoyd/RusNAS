@@ -1,0 +1,11 @@
+[Unit]
+Description=rusNAS WORM enforcement timer (every minute)
+Requires=rusnas-worm.service
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+AccuracySec=30
+
+[Install]
+WantedBy=timers.target

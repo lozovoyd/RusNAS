@@ -569,6 +569,19 @@ document.addEventListener("DOMContentLoaded", function() {
     loadNFS();
     loadISCSI();
 
+    // WORM
+    loadWorm();
+    document.getElementById("btn-worm-refresh").addEventListener("click", loadWormStatus);
+    document.getElementById("btn-add-worm").addEventListener("click", openAddWormModal);
+    document.getElementById("btn-worm-add-confirm").addEventListener("click", confirmAddWorm);
+    document.getElementById("btn-worm-add-cancel").addEventListener("click", function() { closeModal("add-worm-modal"); });
+    document.getElementById("worm-grace-select").addEventListener("change", function() {
+        document.getElementById("worm-grace-custom-wrap").classList.toggle("hidden", this.value !== "custom");
+    });
+    document.getElementById("worm-path-input").addEventListener("input", function() {
+        checkWormSambaMatch(this.value.trim());
+    });
+
     // FTP
     loadFtp();
     document.getElementById("btn-ftp-start").addEventListener("click", function() {
@@ -776,4 +789,272 @@ function removeWebdavUser(user) {
         "sed -i '/^" + user + ":/d' " + WEBDAV_PASS
     ], {superuser: "require", err: "message"})
     .done(function() { loadWebdav(); });
+}
+
+// ─── WriteOnce / WORM ─────────────────────────────────────────────────────────
+
+var WORM_CONFIG = "/etc/rusnas/worm.json";
+var WORM_BIN    = "/usr/local/bin/rusnas-worm";
+var _wormConfig = { paths: [] };   // cached config
+var _wormStatus = {};              // cached status: path -> {locked, total, pending}
+
+var GRACE_LABELS = {
+    "3600":    "1 час",
+    "28800":   "8 часов",
+    "86400":   "1 день",
+    "604800":  "7 дней",
+    "2592000": "30 дней",
+};
+
+function graceLabel(sec) {
+    return GRACE_LABELS[String(sec)] || (sec < 3600 ? Math.round(sec/60) + " мин"
+        : sec < 86400 ? Math.round(sec/3600) + " ч"
+        : Math.round(sec/86400) + " д");
+}
+
+function loadWorm() {
+    cockpit.file(WORM_CONFIG, { superuser: "require" }).read()
+        .then(function(content) {
+            try { _wormConfig = JSON.parse(content || '{"paths":[]}'); }
+            catch(e) { _wormConfig = { paths: [] }; }
+            renderWorm();
+            loadWormStatus();
+        })
+        .catch(function() {
+            _wormConfig = { paths: [] };
+            renderWorm();
+        });
+}
+
+function renderWorm() {
+    var tbody = document.getElementById("worm-body");
+    var paths = (_wormConfig || {}).paths || [];
+    if (!paths.length) {
+        tbody.innerHTML = "<tr><td colspan='7' class='text-muted'>Нет настроенных WORM-путей. Нажмите «+ Добавить путь».</td></tr>";
+        return;
+    }
+    tbody.innerHTML = paths.map(function(p, idx) {
+        var st      = _wormStatus[p.path] || {};
+        var statStr = st.total != null
+            ? "<span style='color:#22aa44;'>🔒 " + st.locked + "</span>/" + st.total +
+              (st.pending ? " <span style='color:#e68a00;font-size:11px;'>(+"+st.pending+" скоро)</span>" : "")
+            : "<span class='text-muted' style='font-size:11px;'>—</span>";
+        var modeTag = p.mode === "compliance"
+            ? "<span class='badge badge-danger' style='font-size:11px;'>Compliance</span>"
+            : "<span class='badge badge-secondary' style='font-size:11px;'>Normal</span>";
+        var sambaTag = p.samba_vfs
+            ? "<span style='color:#22aa44;font-size:12px;'>✅ вкл</span>"
+            : "<span class='text-muted' style='font-size:12px;'>—</span>";
+        var unlockBtn = (p.mode !== "compliance")
+            ? "<button class='btn btn-secondary btn-sm' onclick='wormUnlockPrompt(\""+idx+"\")' title='Разблокировать файл/папку'>🔓</button> "
+            : "";
+        return "<tr>" +
+            "<td><code style='font-size:12px;'>" + p.path + "</code></td>" +
+            "<td style='white-space:nowrap;'>" + graceLabel(p.grace_period) + "</td>" +
+            "<td>" + modeTag + "</td>" +
+            "<td style='text-align:center;'>" + sambaTag + "</td>" +
+            "<td>" + statStr + "</td>" +
+            "<td style='text-align:center;'><input type='checkbox' " + (p.enabled !== false ? "checked" : "") +
+                " onchange='toggleWormPath(" + idx + ",this.checked)'></td>" +
+            "<td style='white-space:nowrap;'>" + unlockBtn +
+                "<button class='btn btn-danger btn-sm' onclick='removeWormPath(" + idx + ")'>✕</button></td>" +
+            "</tr>";
+    }).join("");
+}
+
+function loadWormStatus() {
+    var paths = ((_wormConfig || {}).paths || []).filter(function(p){ return p.enabled !== false; });
+    if (!paths.length) return;
+    cockpit.spawn(["sudo", "-n", WORM_BIN, "--status"], { err: "message" })
+        .done(function(out) {
+            try {
+                var arr = JSON.parse(out);
+                arr.forEach(function(s) { _wormStatus[s.path] = s; });
+                renderWorm();
+            } catch(e) {}
+        });
+}
+
+function saveWormConfig(callback) {
+    var content = JSON.stringify(_wormConfig, null, 2);
+    cockpit.file(WORM_CONFIG, { superuser: "require" })
+        .replace(content)
+        .then(function() { if (callback) callback(); })
+        .catch(function(e) { alert("Ошибка сохранения WORM config: " + e); });
+}
+
+function toggleWormPath(idx, enabled) {
+    _wormConfig.paths[idx].enabled = enabled;
+    saveWormConfig(function() {
+        if (enabled) loadWormStatus();
+        else renderWorm();
+    });
+}
+
+function removeWormPath(idx) {
+    var p = _wormConfig.paths[idx];
+    if (!confirm("Удалить WORM-путь " + p.path + "?\n\nСуществующие заблокированные файлы останутся с chattr +i — разблокировка только вручную.")) return;
+    // Remove Samba vfs_worm if it was enabled
+    if (p.samba_vfs) {
+        removeSambaWorm(p.path);
+    }
+    _wormConfig.paths.splice(idx, 1);
+    saveWormConfig(renderWorm);
+}
+
+function openAddWormModal() {
+    document.getElementById("worm-path-input").value = "";
+    document.getElementById("worm-grace-select").value = "86400";
+    document.getElementById("worm-grace-custom-wrap").classList.add("hidden");
+    document.getElementById("worm-samba-option").style.display = "none";
+    document.getElementById("worm-add-error").classList.add("hidden");
+    document.querySelectorAll("input[name='worm-mode']")[0].checked = true;
+    document.getElementById("worm-samba-vfs").checked = true;
+
+    // Populate path suggestions from mounts
+    var sugg = document.getElementById("worm-path-suggestions");
+    sugg.innerHTML = "";
+    cockpit.spawn(["bash", "-c",
+        "findmnt --real -o TARGET,FSTYPE --noheadings 2>/dev/null | grep -v '^\/ \\|/boot\\|/efi\\|tmpfs\\|swap'; true"
+    ], {err: "message"})
+    .done(function(out) {
+        out.trim().split("\n").filter(Boolean).forEach(function(line) {
+            var p = line.trim().split(/\s+/);
+            var target = p[0];
+            if (!target) return;
+            var chip = document.createElement("button");
+            chip.className = "btn btn-secondary btn-sm";
+            chip.style.cssText = "font-size:11px;padding:2px 8px;";
+            chip.textContent = target + " (" + (p[1] || "") + ")";
+            chip.addEventListener("click", function() {
+                document.getElementById("worm-path-input").value = target;
+                checkWormSambaMatch(target);
+            });
+            sugg.appendChild(chip);
+        });
+    });
+
+    showModal("add-worm-modal");
+}
+
+function checkWormSambaMatch(path) {
+    // Check if this path (or a parent) is an SMB share path
+    cockpit.spawn(["bash", "-c",
+        "grep -r 'path\\s*=\\s*" + path.replace(/\//g, "\\/") + "' /etc/samba/smb.conf 2>/dev/null | head -1; true"
+    ], {err: "message"})
+    .done(function(out) {
+        var opt = document.getElementById("worm-samba-option");
+        opt.style.display = out.trim() ? "block" : "none";
+    });
+}
+
+function getWormGraceSeconds() {
+    var sel = document.getElementById("worm-grace-select").value;
+    if (sel === "custom") {
+        var val  = parseInt(document.getElementById("worm-grace-custom-val").value) || 1;
+        var unit = parseInt(document.getElementById("worm-grace-custom-unit").value) || 3600;
+        return val * unit;
+    }
+    return parseInt(sel);
+}
+
+function confirmAddWorm() {
+    var path  = document.getElementById("worm-path-input").value.trim();
+    var errEl = document.getElementById("worm-add-error");
+    errEl.classList.add("hidden");
+
+    if (!path) {
+        errEl.textContent = "Укажите путь";
+        errEl.classList.remove("hidden");
+        return;
+    }
+    // Check duplicate
+    if ((_wormConfig.paths || []).some(function(p){ return p.path === path; })) {
+        errEl.textContent = "Этот путь уже добавлен";
+        errEl.classList.remove("hidden");
+        return;
+    }
+
+    var mode       = document.querySelector("input[name='worm-mode']:checked").value;
+    var graceSec   = getWormGraceSeconds();
+    var sambaVfs   = document.getElementById("worm-samba-vfs").checked &&
+                     document.getElementById("worm-samba-option").style.display !== "none";
+
+    var entry = {
+        path:         path,
+        enabled:      true,
+        grace_period: graceSec,
+        mode:         mode,
+        samba_vfs:    sambaVfs,
+    };
+
+    _wormConfig.paths = _wormConfig.paths || [];
+    _wormConfig.paths.push(entry);
+
+    saveWormConfig(function() {
+        closeModal("add-worm-modal");
+        renderWorm();
+        if (sambaVfs) {
+            addSambaWorm(path, graceSec, function() { loadWormStatus(); });
+        } else {
+            loadWormStatus();
+        }
+    });
+}
+
+function wormUnlockPrompt(idx) {
+    var p    = _wormConfig.paths[idx];
+    var path = prompt("Разблокировать файл или папку (введите полный путь):\nБаза: " + p.path);
+    if (!path) return;
+    cockpit.spawn(["sudo", "-n", WORM_BIN, "--unlock", path], { err: "message" })
+        .done(function(out) {
+            try {
+                var r = JSON.parse(out);
+                if (r.ok) { alert("Разблокировано: " + r.path); loadWormStatus(); }
+                else       { alert("Ошибка: " + (r.message || r.error)); }
+            } catch(e) { alert("OK"); loadWormStatus(); }
+        })
+        .fail(function(e) { alert("Ошибка разблокировки: " + e); });
+}
+
+// ── Samba vfs_worm helpers ─────────────────────────────────────────────────────
+
+function addSambaWorm(sharePath, gracePeriod, callback) {
+    // Find share name by path in smb.conf, inject vfs_worm settings
+    var script =
+        "python3 << 'PYEOF'\n" +
+        "import re, subprocess\n" +
+        "path = '" + sharePath.replace(/'/g,"") + "'\n" +
+        "grace = " + gracePeriod + "\n" +
+        "with open('/etc/samba/smb.conf') as f: conf = f.read()\n" +
+        // Find the share section containing this path
+        "sections = re.split(r'(^\\[)', conf, flags=re.M)\n" +
+        "# Use sed instead: find section with path= and inject\n" +
+        "result = subprocess.run(['testparm','-s','--section-name=global','2>/dev/null'],capture_output=True)\n" +
+        "# Simple approach: find [sectionname] blocks, check for path =\n" +
+        "pattern = r'(\\[(?!global\\]|homes\\]|printers\\])\\w[^\\]]*\\].*?path\\s*=\\s*" +
+        sharePath.replace(/\//g, "\\/").replace(/'/g,"") + "\\s*$)'\n" +
+        "# Inject after path line\n" +
+        "conf2 = re.sub(\n" +
+        "    r'(path\\s*=\\s*" + sharePath.replace(/\//g, "\\/").replace(/'/g,"") + "\\s*\\n)',\n" +
+        "    r'\\1    vfs objects = worm\\n    worm:grace_period = " + gracePeriod + "\\n',\n" +
+        "    conf, flags=re.M\n" +
+        ")\n" +
+        "if conf2 != conf:\n" +
+        "    with open('/etc/samba/smb.conf', 'w') as f: f.write(conf2)\n" +
+        "    print('patched')\n" +
+        "else:\n" +
+        "    print('not_found')\n" +
+        "PYEOF\n" +
+        "systemctl reload smbd 2>/dev/null || true";
+
+    cockpit.spawn(["bash", "-c", script], { superuser: "require", err: "message" })
+        .always(function() { if (callback) callback(); });
+}
+
+function removeSambaWorm(sharePath) {
+    var script =
+        "sed -i '/^\\s*vfs objects = worm/d; /^\\s*worm:grace_period/d' /etc/samba/smb.conf && " +
+        "systemctl reload smbd 2>/dev/null || true";
+    cockpit.spawn(["bash", "-c", script], { superuser: "require", err: "message" });
 }

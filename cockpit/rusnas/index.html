@@ -331,6 +331,95 @@
         </div>
     </div>
 
+    <!-- WriteOnce / WORM -->
+    <div class="section">
+        <div class="section-toolbar">
+            <h2>WriteOnce / WORM</h2>
+            <button class="btn btn-success" id="btn-add-worm">+ Добавить путь</button>
+        </div>
+        <p class="table-hint">
+            Файлы блокируются от изменения и удаления (<code>chattr +i</code>) по истечении grace period.
+            Работает для SMB, NFS и всех протоколов одновременно.
+            <button class="btn btn-secondary btn-sm" id="btn-worm-refresh" style="margin-left:8px;">↻ Обновить статус</button>
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Путь</th>
+                    <th>Grace period</th>
+                    <th>Режим</th>
+                    <th>SMB vfs_worm</th>
+                    <th>Статус файлов</th>
+                    <th>Вкл</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="worm-body">
+                <tr><td colspan="7" class="text-muted">Загрузка...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal: Add WORM path -->
+    <div class="modal-overlay hidden" id="add-worm-modal">
+        <div class="modal-box" style="max-width:480px;">
+            <h3>Добавить путь WriteOnce (WORM)</h3>
+            <div class="form-group">
+                <label>Путь к папке</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="worm-path-input" placeholder="/mnt/data/shares/documents" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" id="btn-worm-browse">Выбрать…</button>
+                </div>
+                <div id="worm-path-suggestions" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div class="form-group">
+                <label>Grace period (время до блокировки)</label>
+                <select id="worm-grace-select">
+                    <option value="3600">1 час</option>
+                    <option value="28800">8 часов</option>
+                    <option value="86400" selected>1 день</option>
+                    <option value="604800">7 дней</option>
+                    <option value="2592000">30 дней</option>
+                    <option value="custom">Задать вручную...</option>
+                </select>
+                <div id="worm-grace-custom-wrap" class="hidden" style="margin-top:6px;">
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="number" id="worm-grace-custom-val" placeholder="Значение" style="width:100px;" min="60">
+                        <select id="worm-grace-custom-unit">
+                            <option value="60">минут</option>
+                            <option value="3600">часов</option>
+                            <option value="86400">дней</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Режим защиты</label>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+                    <label class="checkbox-label">
+                        <input type="radio" name="worm-mode" value="normal" checked>
+                        <span><b>Normal</b> — администратор может разблокировать файлы через интерфейс</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="radio" name="worm-mode" value="compliance">
+                        <span><b>Compliance</b> — разблокировка только вручную через SSH/root (для регуляторных требований)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="form-group" id="worm-samba-option" style="display:none;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="worm-samba-vfs" checked>
+                    Также включить Samba <code>vfs_worm</code> для этой шары (немедленная блокировка для SMB-клиентов)
+                </label>
+            </div>
+            <div id="worm-add-error" class="alert alert-danger hidden" style="margin-top:8px;padding:6px 10px;font-size:13px;"></div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-worm-add-confirm">Добавить</button>
+                <button class="btn btn-default" id="btn-worm-add-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Add iSCSI Target -->
     <div class="modal-overlay hidden" id="add-iscsi-modal">
         <div class="modal-box">
