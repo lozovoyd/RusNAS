@@ -3,8 +3,19 @@
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
 > UI правила и компоненты: [ui.md](./ui.md)
 > Антишифровальщик: [rusnas-guard-task.md](./rusnas-guard-task.md) — ТЗ и архитектура Guard
+> RAID Manager: [rusnas-RAIDmanager.md](./rusnas-RAIDmanager.md) — ТЗ и архитектура RAID Manager
+> MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ (планируется)
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+> ⚠️ **project_history.MD — только ДОПОЛНЯТЬ, никогда не перезаписывать целиком!**
+> Всегда добавлять новую сессию в конец файла. Существующие записи не трогать.
+
+Always write all changes on project in project_history.md and other files with techical specifications in header
+Always update information in claud.md after deploy features, bugfixes, and new code
+Always use MCP services what available
+
+
 
 ## Project Overview
 
@@ -197,6 +208,15 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
   - Expand: `--add` + `--grow --raid-devices=N` + auto `resize2fs`/`btrfs resize` on completion
 - SCSI bus rescan: `echo "- - -" > /sys/class/scsi_host/host*/scan`
 - Auto-refresh every 4 seconds during degraded or resyncing states
+- **Full RAID lifecycle UI** (implemented 2026-03-14):
+  - `+ Создать массив` — 2-step wizard: select level + disks → progress log → mdadm create + mkfs.btrfs + mount + fstab
+  - `Удалить` — confirmation modal with member disk list → umount + fstab cleanup + mdadm --stop + zero-superblock
+  - `Смонтировать` — blkid FS detection (disabled if no FS) → mkdir + mount + fstab
+  - `Размонтировать` — confirm dialog → umount
+  - `Субтома` (Btrfs only, when mounted) — list + create + delete subvolumes
+  - Mount status shown on card: `📂 /mnt/data (btrfs)` or `— не смонтирован`
+  - `currentMountMap{}` populated from `findmnt -rno SOURCE,TARGET,FSTYPE` on each load
+- **Admin access required**: `superuser: "require"` works in disks.js (not nested iframe). User must enable "Turn on administrative access" in Cockpit main page before first use.
 
 ## Known Bugs and Fixes
 
@@ -221,3 +241,65 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 - Test on the real VM, not theoretical correctness
 - When regressions appear, check whether the last refactor broke a working approach
 - Separate sessions for UI work (Cockpit plugin) vs infrastructure (Ansible)
+
+---
+
+## Roadmap — следующие задачи
+
+### Снапшоты: репликация (следующая сессия)
+
+**Суть:** вынос снапшотов за пределы NAS. Три уровня:
+
+#### Уровень 1 — кастомный `snap_dir` per-schedule (средний приоритет)
+Позволяет хранить снапшоты на другом томе того же NAS (например `/mnt/data2/.snapshots/...`).
+- Добавить поле `snap_dir TEXT` в таблицу `schedules` (с дефолтом `NULL` = автовычисление)
+- Добавить поле в модал создания/редактирования расписания (с подсказкой и кнопкой "по умолчанию")
+- CLI: `--snap-dir` параметр в `schedule set`
+- В `cmd_create()` использовать `snap_dir` из расписания если задан, иначе авто
+
+#### Уровень 2 — репликация на удалённый хост (главная задача)
+Инкрементальная репликация через `btrfs send/receive` по SSH.
+
+**Архитектура:**
+- Новая таблица `replication_tasks`: `id, subvol_path, remote_user, remote_host, remote_path, method, last_sent_snap, enabled, cron_expr`
+- CLI команда: `rusnas-snap replicate <subvol_path> [--snap-id <id>]` — делает `btrfs send -p <parent> | ssh user@host btrfs receive /path`
+- CLI команда: `rusnas-snap replication set <subvol_path> --host ... --user ... --path ... --cron ...`
+- CLI команда: `rusnas-snap replication list/delete`
+- Новая вкладка "Репликация" в `snapshots.html` (рядом с Расписанием)
+
+**Метод `btrfs send/receive`:**
+```bash
+# Первая передача (полный снапшот):
+btrfs send /mnt/data/.snapshots/docs/@2026-03-14_... | ssh user@host btrfs receive /backup/docs/
+
+# Инкрементальная (только diff от предыдущего):
+btrfs send -p /mnt/data/.snapshots/docs/@prev | ssh user@host btrfs receive /backup/docs/
+```
+CLI отслеживает `last_sent_snap` в БД — при следующем запуске передаёт только diff.
+
+**UI — вкладка Репликация:**
+- Список задач репликации (subvol → host:/path, последняя передача, статус)
+- Кнопки: + Добавить, Изменить, Запустить сейчас, Удалить
+- Модал добавления: субволюм, SSH host, user, remote path, расписание
+- Журнал репликаций (отдельный от событий снапшотов)
+
+#### Уровень 3 — S3/rclone (низкий приоритет, позже)
+- `rclone copy snap_path s3:bucket/path` как альтернативный метод
+- Конфигурация rclone remote через UI
+
+**Что уже готово:**
+- `rusnas-snap storage-info` — глобальная статистика
+- `rusnas-snap schedule delete` — удаление расписания
+- Sidebar с деревом папок, offline-группы
+- `snap_dir` показывается в per-folder header и в карточке расписания
+
+**Что НЕ делать при репликации:**
+- Не использовать rsync для Btrfs-снапшотов — не сохраняет read-only subvol структуру
+- Не передавать через SMB/FTP — слишком медленно и ненадёжно
+- SSH ключи должны быть преднастроены вручную (безопасность), UI только вводит host/user/path
+
+### MCP Server + AI Agent (после репликации)
+Полное ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)
+- MCP-сервер на Python, инструменты для всех функций NAS
+- Встроенный AI-чат в Cockpit (Ollama / Claude API)
+- HTTP-транспорт для внешних клиентов (Claude Desktop, Cursor)

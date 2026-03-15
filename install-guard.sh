@@ -39,8 +39,8 @@ mkdir -p /run/rusnas-guard
 
 # Copy daemon
 cp /tmp/rusnas-guard-install/daemon/* /usr/lib/rusnas-guard/
-chmod 755 /usr/lib/rusnas-guard/guard.py
 chmod 644 /usr/lib/rusnas-guard/*.py
+chmod 755 /usr/lib/rusnas-guard/guard.py   # must be last — overrides the 644 above
 
 # Copy service
 cp /tmp/rusnas-guard-install/rusnas-guard.service /lib/systemd/system/
@@ -50,8 +50,8 @@ chmod 644 /lib/systemd/system/rusnas-guard.service
 [ -f /etc/rusnas-guard/config.json ] || cp /tmp/rusnas-guard-install/config/config.json /etc/rusnas-guard/
 [ -f /etc/rusnas-guard/ransom_extensions.txt ] || cp /tmp/rusnas-guard-install/config/ransom_extensions.txt /etc/rusnas-guard/
 
-# Permissions
-chmod 700 /etc/rusnas-guard
+# Permissions — /etc/rusnas-guard must be 755 (not 700) so Cockpit bridge can read files
+chmod 755 /etc/rusnas-guard
 chmod 640 /etc/rusnas-guard/config.json || true
 chmod 644 /etc/rusnas-guard/ransom_extensions.txt || true
 

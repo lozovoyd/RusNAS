@@ -3,6 +3,8 @@
 var diskRefreshTimer  = null;
 var physicalDiskCount = 0;   // non-system disks, set in renderDisks
 var currentArrays     = [];  // last parsed mdstat, used by RAID advisor
+var currentDisks      = [];  // free disks cache, populated in renderDisks
+var currentMountMap   = {};  // md device name → {target, fstype}
 
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
@@ -106,7 +108,8 @@ function parseMdstat(text) {
 
 // ─── Render RAID arrays ───────────────────────────────────────────────────────
 
-function renderArrays(arrays) {
+function renderArrays(arrays, mountMap) {
+    mountMap = mountMap || {};
     var container = document.getElementById("arrays-container");
     if (arrays.length === 0) {
         container.innerHTML = "<p class='text-muted'>RAID массивов не обнаружено</p>";
@@ -118,7 +121,7 @@ function renderArrays(arrays) {
         if (arr.inactive) {
             badge      = "<span class='badge badge-danger'>🔴 Неактивен</span>";
             statusDesc = "Массив не запущен. Данные недоступны.";
-            actionBtn  = "<button class='btn btn-warning btn-sm' onclick='runArray(\"" + arr.name + "\")'>▶ Запустить</button>";
+            actionBtn  = "<button class='btn btn-warning btn-sm' data-action='run' data-array='" + arr.name + "'>▶ Запустить</button>";
         } else if (arr.resyncing) {
             var opLabel = arr.resyncType === "reshape" ? "Расширение" : "Восстановление";
             var opDesc  = arr.resyncType === "reshape"
@@ -154,14 +157,34 @@ function renderArrays(arrays) {
 
         // Replace disk: show when degraded/inactive
         var addDiskBtn = (arr.degraded || arr.inactive)
-            ? "<button class='btn btn-primary btn-sm' onclick='openAddDisk(\"" + arr.name + "\", \"replace\")'>🔄 Заменить диск</button>"
+            ? "<button class='btn btn-primary btn-sm' data-action='replace' data-array='" + arr.name + "'>🔄 Заменить диск</button>"
             : "";
 
         // Expand array: show only when fully healthy and not resyncing/reshaping
         var expandBtn = (!arr.inactive && !arr.degraded && !arr.resyncing &&
                          ["raid5","raid6","raid10","raid1"].indexOf(arr.level) !== -1)
-            ? "<button class='btn btn-secondary btn-sm' onclick='openAddDisk(\"" + arr.name + "\", \"expand\")'>⤢ Расширить массив</button>"
+            ? "<button class='btn btn-secondary btn-sm' data-action='expand' data-array='" + arr.name + "'>⤢ Расширить массив</button>"
             : "";
+
+        // Mount status + mount/umount/subvolume buttons
+        var mountInfo = mountMap[arr.name];
+        var mountStatusHtml = "";
+        var mountBtn = "", umountBtn = "", subvolBtn = "", deleteBtn = "";
+
+        if (mountInfo) {
+            mountStatusHtml = "<div class='text-muted' style='font-size:13px;margin-top:4px'>📂 " +
+                mountInfo.target + " <small>(" + mountInfo.fstype + ")</small></div>";
+            umountBtn = "<button class='btn btn-secondary btn-sm' data-action='umount' data-array='" + arr.name + "' data-target='" + mountInfo.target + "'>⏏ Размонтировать</button>";
+            if (mountInfo.fstype === "btrfs") {
+                subvolBtn = "<button class='btn btn-secondary btn-sm' data-action='subvol' data-array='" + arr.name + "' data-target='" + mountInfo.target + "'>🗂 Субтома</button>";
+            }
+        } else if (!arr.inactive) {
+            mountStatusHtml = "<div class='text-muted' style='font-size:13px;margin-top:4px'>— не смонтирован</div>";
+            mountBtn = "<button class='btn btn-secondary btn-sm' data-action='mount' data-array='" + arr.name + "'>📂 Смонтировать</button>";
+        }
+
+        deleteBtn = "<button class='btn btn-danger btn-sm' data-action='delete' data-array='" + arr.name + "' data-disks='" +
+            arr.devices.map(function(d) { return d.name; }).join(",") + "'>🗑 Удалить</button>";
 
         return "<div class='array-card'>" +
             "<div class='array-header'>" +
@@ -170,15 +193,20 @@ function renderArrays(arrays) {
                     "<span class='array-level'>" + arr.level.toUpperCase() + "</span>" +
                     "<span class='array-size'>" + arr.sizeGB + " GB</span>" +
                 "</div>" +
-                "<div class='array-actions'>" + actionBtn + " " + addDiskBtn + " " + expandBtn + "</div>" +
+                "<div class='array-actions'>" +
+                    actionBtn + " " + addDiskBtn + " " + expandBtn + " " +
+                    mountBtn + " " + umountBtn + " " + subvolBtn + " " + deleteBtn +
+                "</div>" +
             "</div>" +
             "<div class='array-status'>" + badge + " <span class='status-desc'>" + statusDesc + "</span></div>" +
+            mountStatusHtml +
             "<div class='array-slots'>" + slots + "</div>" +
             resyncBar +
             "<div class='array-devices'>" + devList + "</div>" +
             "<div class='array-hint'>" + getRaidHint(arr) + "</div>" +
         "</div>";
     }).join("");
+
 }
 
 function getRaidHint(arr) {
@@ -246,6 +274,12 @@ function renderDisks(lsblkOut, arrays) {
 
     // Track non-system disk count for RAID advisor (exclude sda = system disk)
     physicalDiskCount = disks.filter(function(l) { return l.trim().split(/\s+/)[0] !== "sda"; }).length;
+
+    // Populate currentDisks for create-array modal
+    currentDisks = disks.map(function(line) {
+        var parts = line.trim().split(/\s+/);
+        return { name: parts[0], size: parts[1], array: diskArrayMap[parts[0]] || null };
+    });
 
     if (disks.length === 0) {
         tbody.innerHTML = "<tr><td colspan='6'>Диски не найдены</td></tr>";
@@ -347,13 +381,38 @@ function rescanDisks() {
 
 // ─── Load all ─────────────────────────────────────────────────────────────────
 
+function parseMountInfo(out) {
+    var map = {};
+    out.trim().split("\n").forEach(function(line) {
+        var parts = line.trim().split(/\s+/);
+        if (parts.length < 3) return;
+        var src    = parts[0];
+        var target = parts[1];
+        var fstype = parts[2];
+        // match /dev/mdX or /dev/md/X
+        var m = src.match(/\/dev\/(md\w+)/);
+        if (m) map[m[1]] = { target: target, fstype: fstype };
+    });
+    return map;
+}
+
 function loadDisksAndArrays() {
     cockpit.spawn(["bash", "-c", "cat /proc/mdstat"])
         .done(function(mdstat) {
             var arrays = parseMdstat(mdstat);
             currentArrays = arrays;
             updateAlertBanner(arrays);
-            renderArrays(arrays);
+
+            // Fetch mount info in parallel
+            cockpit.spawn(["bash", "-c", "findmnt -rno SOURCE,TARGET,FSTYPE 2>/dev/null || true"])
+                .done(function(mountOut) {
+                    currentMountMap = parseMountInfo(mountOut);
+                    renderArrays(arrays, currentMountMap);
+                })
+                .fail(function() {
+                    currentMountMap = {};
+                    renderArrays(arrays, {});
+                });
 
             var resyncing = arrays.some(function(a) { return a.resyncing; });
             var degraded  = arrays.some(function(a) { return a.degraded; });
@@ -757,6 +816,397 @@ function buildBuilderTab(dataDisks) {
         cards + spareCard;
 }
 
+// ─── Create array ─────────────────────────────────────────────────────────────
+
+var RAID_MIN_DISKS = { "0": 2, "1": 2, "5": 3, "6": 4, "10": 4 };
+
+function openCreateArrayModal() {
+    // Reset to step 1
+    document.getElementById("create-step1").classList.remove("hidden");
+    document.getElementById("create-step2").classList.add("hidden");
+    document.getElementById("create-done-btn").classList.add("hidden");
+    document.getElementById("create-log").textContent = "";
+
+    // Populate checkboxes with free disks (not sda, not in array)
+    var freeDisksList = currentDisks.filter(function(d) { return d.name !== "sda" && !d.array; });
+    var container = document.getElementById("create-disks-checkboxes");
+    if (freeDisksList.length === 0) {
+        container.innerHTML = "<span class='text-muted'>Нет свободных дисков</span>";
+    } else {
+        container.innerHTML = freeDisksList.map(function(d) {
+            return "<label style='display:flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--color-border);border-radius:4px;cursor:pointer'>" +
+                "<input type='checkbox' class='create-disk-cb' value='" + d.name + "'> " +
+                "<b>/dev/" + d.name + "</b> <small class='text-muted'>(" + d.size + ")</small>" +
+                "</label>";
+        }).join("");
+        // Listen for checkbox changes to validate
+        container.querySelectorAll(".create-disk-cb").forEach(function(cb) {
+            cb.addEventListener("change", validateCreateForm);
+        });
+    }
+    validateCreateForm();
+    showModal("modal-create-array");
+}
+
+function validateCreateForm() {
+    var level = document.getElementById("create-raid-level").value;
+    var minDisks = RAID_MIN_DISKS[level] || 2;
+    var checked = document.querySelectorAll(".create-disk-cb:checked").length;
+    var needEven = level === "10";
+    var hint = document.getElementById("create-disks-hint");
+    var warning = document.getElementById("create-disks-warning");
+    var nextBtn = document.getElementById("create-step1-next");
+
+    hint.textContent = "(мин. " + minDisks + (needEven ? ", чётное число)" : ")");
+
+    var valid = checked >= minDisks && (!needEven || checked % 2 === 0);
+    if (!valid && checked > 0) {
+        warning.textContent = needEven && checked % 2 !== 0
+            ? "RAID 10 требует чётного числа дисков"
+            : "Выберите минимум " + minDisks + " дисков";
+    } else {
+        warning.textContent = "";
+    }
+    nextBtn.disabled = !valid || checked === 0;
+}
+
+function appendCreateLog(msg) {
+    var log = document.getElementById("create-log");
+    log.textContent += msg + "\n";
+    log.scrollTop = log.scrollHeight;
+}
+
+function startCreateArray() {
+    var level = document.getElementById("create-raid-level").value;
+    var mountPoint = document.getElementById("create-mountpoint").value.trim() || "/mnt/data";
+    var label = document.getElementById("create-fslabel").value.trim() || "rusnas-data";
+    var selectedDisks = [];
+    document.querySelectorAll(".create-disk-cb:checked").forEach(function(cb) {
+        selectedDisks.push("/dev/" + cb.value);
+    });
+
+    // Switch to step 2
+    document.getElementById("create-step1").classList.add("hidden");
+    document.getElementById("create-step2").classList.remove("hidden");
+
+    var logEl = document.getElementById("create-log");
+    logEl.textContent = "";
+
+    function log(msg) { appendCreateLog(msg); }
+
+    // Find free md device name
+    log("▶ Поиск свободного имени md...");
+    cockpit.spawn(["bash", "-c",
+        "for i in 0 1 2 3 4 5 6 7 8 9; do [ ! -e /dev/md$i ] && echo md$i && break; done"
+    ], {superuser: "require"})
+    .done(function(out) {
+        var mdName = out.trim();
+        if (!mdName) { log("✗ Не удалось найти свободное имя md-устройства"); return; }
+        log("✓ Устройство: /dev/" + mdName);
+
+        var numDisks = selectedDisks.length;
+        var createCmd = "mdadm --create /dev/" + mdName +
+            " --level=" + level +
+            " --raid-devices=" + numDisks +
+            " " + selectedDisks.join(" ") +
+            " --force --run";
+
+        log("▶ Создание массива: " + createCmd);
+        cockpit.spawn(["bash", "-c", "sudo " + createCmd + " 2>&1"], {superuser: "require"})
+        .done(function(out2) {
+            log("✓ Массив создан\n" + out2.trim());
+
+            log("▶ Сохранение конфигурации mdadm...");
+            cockpit.spawn(["bash", "-c",
+                "sudo mdadm --detail --scan | grep " + mdName + " >> /etc/mdadm/mdadm.conf 2>&1 || true"
+            ], {superuser: "require"})
+            .always(function() {
+                log("✓ Конфигурация сохранена");
+
+                log("▶ Создание точки монтирования: " + mountPoint);
+                cockpit.spawn(["bash", "-c", "sudo mkdir -p " + mountPoint], {superuser: "require"})
+                .done(function() {
+                    log("✓ Каталог создан");
+
+                    log("▶ Форматирование Btrfs (" + label + ")...");
+                    cockpit.spawn(["bash", "-c",
+                        "sudo mkfs.btrfs -L " + label + " -f /dev/" + mdName + " 2>&1"
+                    ], {superuser: "require"})
+                    .done(function(out3) {
+                        log("✓ Файловая система создана\n" + out3.split("\n").slice(-3).join("\n").trim());
+
+                        log("▶ Монтирование /dev/" + mdName + " → " + mountPoint + "...");
+                        cockpit.spawn(["bash", "-c",
+                            "sudo mount /dev/" + mdName + " " + mountPoint + " 2>&1"
+                        ], {superuser: "require"})
+                        .done(function() {
+                            log("✓ Смонтирован");
+
+                            log("▶ Добавление в /etc/fstab...");
+                            cockpit.spawn(["bash", "-c",
+                                "UUID=$(sudo blkid -s UUID -o value /dev/" + mdName + ") && " +
+                                "grep -q \"$UUID\" /etc/fstab || " +
+                                "echo \"UUID=$UUID " + mountPoint + " btrfs defaults,nofail 0 0\" | sudo tee -a /etc/fstab"
+                            ], {superuser: "require"})
+                            .done(function() {
+                                log("✓ fstab обновлён");
+                                log("\n✅ Массив /dev/" + mdName + " успешно создан и смонтирован в " + mountPoint);
+                                document.getElementById("create-done-btn").classList.remove("hidden");
+                                loadDisksAndArrays();
+                            })
+                            .fail(function(err) { log("✗ Ошибка fstab: " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+                        })
+                        .fail(function(err) { log("✗ Ошибка монтирования: " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+                    })
+                    .fail(function(err) { log("✗ Ошибка mkfs.btrfs: " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+                })
+                .fail(function(err) { log("✗ Ошибка mkdir: " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+            });
+        })
+        .fail(function(err) { log("✗ Ошибка создания массива: " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+    })
+    .fail(function(err) { log("✗ " + err); document.getElementById("create-done-btn").classList.remove("hidden"); });
+}
+
+// ─── Delete array ─────────────────────────────────────────────────────────────
+
+function openDeleteArrayModal(arrayName, disksStr) {
+    document.getElementById("delete-array-name").value = arrayName;
+    document.getElementById("delete-array-label").textContent = arrayName;
+    document.getElementById("delete-array-disks").textContent =
+        (disksStr || "").split(",").map(function(d) { return "/dev/" + d; }).join(", ");
+    document.getElementById("delete-array-log").classList.add("hidden");
+    document.getElementById("delete-array-log").textContent = "";
+    document.getElementById("delete-array-footer").classList.remove("hidden");
+    showModal("modal-delete-array");
+}
+
+function doDeleteArray() {
+    var arrayName = document.getElementById("delete-array-name").value;
+    var log = document.getElementById("delete-array-log");
+    log.classList.remove("hidden");
+    document.getElementById("delete-array-footer").classList.add("hidden");
+
+    function append(msg) { log.textContent += msg + "\n"; log.scrollTop = log.scrollHeight; }
+
+    // Find members first, then proceed
+    cockpit.spawn(["bash", "-c",
+        "sudo mdadm --detail /dev/" + arrayName + " 2>/dev/null | grep '/dev/sd' | awk '{print $NF}' | tr '\\n' ' '"
+    ], {superuser: "require"})
+    .done(function(memberOut) {
+        var members = memberOut.trim().split(/\s+/).filter(Boolean);
+
+        append("▶ Определение точки монтирования...");
+        cockpit.spawn(["bash", "-c",
+            "findmnt -n -o TARGET /dev/" + arrayName + " 2>/dev/null || true"
+        ], {superuser: "require"})
+        .done(function(mpOut) {
+            var mp = mpOut.trim();
+
+            var chain = Promise.resolve();
+
+            if (mp) {
+                chain = chain.then(function() {
+                    append("▶ Размонтирование " + mp + "...");
+                    return cockpit.spawn(["bash", "-c",
+                        "sudo umount " + mp + " 2>&1 || true"
+                    ], {superuser: "require"}).done(function() { append("✓ Размонтирован"); });
+                });
+            }
+
+            chain = chain.then(function() {
+                append("▶ Удаление записи из /etc/fstab...");
+                return cockpit.spawn(["bash", "-c",
+                    "UUID=$(sudo blkid -s UUID -o value /dev/" + arrayName + " 2>/dev/null || true) && " +
+                    "[ -n \"$UUID\" ] && sudo sed -i \"/UUID=$UUID/d\" /etc/fstab 2>/dev/null || true"
+                ], {superuser: "require"}).done(function() { append("✓ fstab очищен"); });
+            });
+
+            chain = chain.then(function() {
+                append("▶ Остановка массива /dev/" + arrayName + "...");
+                return cockpit.spawn(["bash", "-c",
+                    "sudo mdadm --stop /dev/" + arrayName + " 2>&1"
+                ], {superuser: "require"}).done(function(o) { append("✓ " + (o.trim() || "Остановлен")); });
+            });
+
+            chain = chain.then(function() {
+                append("▶ Очистка суперблоков...");
+                var zeroCmds = members.map(function(dev) {
+                    return "sudo mdadm --zero-superblock " + dev + " 2>/dev/null || true";
+                }).join(" && ");
+                return cockpit.spawn(["bash", "-c", zeroCmds || "true"], {superuser: "require"})
+                    .done(function() { append("✓ Суперблоки очищены: " + members.join(", ")); });
+            });
+
+            chain = chain.then(function() {
+                append("\n✅ Массив удалён. Диски свободны.");
+                loadDisksAndArrays();
+                setTimeout(function() { closeModal("modal-delete-array"); }, 2000);
+            });
+
+            chain.catch(function(err) { append("✗ Ошибка: " + err); });
+        });
+    })
+    .fail(function(err) { log.textContent = "✗ " + err; });
+}
+
+// ─── Mount / Umount array ─────────────────────────────────────────────────────
+
+function openMountModal(arrayName) {
+    document.getElementById("mount-array-name").value = arrayName;
+    document.getElementById("mount-array-label").value = "/dev/" + arrayName;
+    document.getElementById("mount-array-fsinfo").textContent = "Определение файловой системы...";
+
+    cockpit.spawn(["bash", "-c",
+        "sudo blkid -o value -s TYPE /dev/" + arrayName + " 2>/dev/null || true"
+    ], {superuser: "require"})
+    .done(function(out) {
+        var fstype = out.trim();
+        var info = document.getElementById("mount-array-fsinfo");
+        var confirmBtn = document.getElementById("mount-array-confirm");
+        if (!fstype) {
+            info.innerHTML = "<span style='color:var(--danger)'>⚠ Файловая система не найдена. Сначала отформатируйте массив.</span>";
+            confirmBtn.disabled = true;
+        } else {
+            info.textContent = "Файловая система: " + fstype;
+            confirmBtn.disabled = false;
+        }
+    })
+    .fail(function() {
+        document.getElementById("mount-array-fsinfo").textContent = "";
+    });
+
+    showModal("modal-mount-array");
+}
+
+function doMountArray() {
+    var arrayName  = document.getElementById("mount-array-name").value;
+    var mountPoint = document.getElementById("mount-array-point").value.trim();
+    if (!mountPoint) return;
+
+    var btn = document.getElementById("mount-array-confirm");
+    btn.disabled = true;
+    btn.textContent = "Монтирование...";
+
+    cockpit.spawn(["bash", "-c",
+        "sudo mkdir -p " + mountPoint + " && sudo mount /dev/" + arrayName + " " + mountPoint + " 2>&1"
+    ], {superuser: "require"})
+    .done(function() {
+        // Add to fstab if not already there
+        cockpit.spawn(["bash", "-c",
+            "UUID=$(sudo blkid -s UUID -o value /dev/" + arrayName + ") && " +
+            "grep -q \"$UUID\" /etc/fstab || " +
+            "echo \"UUID=$UUID " + mountPoint + " btrfs defaults,nofail 0 0\" | sudo tee -a /etc/fstab"
+        ], {superuser: "require"});
+        closeModal("modal-mount-array");
+        btn.disabled = false;
+        btn.textContent = "Смонтировать";
+        loadDisksAndArrays();
+    })
+    .fail(function(err) {
+        alert("Ошибка монтирования: " + err);
+        btn.disabled = false;
+        btn.textContent = "Смонтировать";
+    });
+}
+
+function doUmountArray(arrayName, mountPoint) {
+    if (!confirm("Размонтировать /dev/" + arrayName + " (" + mountPoint + ")?")) return;
+    cockpit.spawn(["bash", "-c",
+        "sudo umount " + mountPoint + " 2>&1"
+    ], {superuser: "require"})
+    .done(function() { loadDisksAndArrays(); })
+    .fail(function(err) { alert("Ошибка размонтирования: " + err); });
+}
+
+// ─── Btrfs subvolumes ─────────────────────────────────────────────────────────
+
+function openSubvolumesModal(mountPoint) {
+    document.getElementById("subvol-mount-point").value = mountPoint;
+    document.getElementById("subvol-new-name").value = "";
+    showModal("modal-subvolumes");
+    refreshSubvolumeList(mountPoint);
+}
+
+function refreshSubvolumeList(mountPoint) {
+    var container = document.getElementById("subvol-list-container");
+    container.innerHTML = "<p class='text-muted'>Загрузка...</p>";
+
+    cockpit.spawn(
+        ["btrfs", "subvolume", "list", mountPoint],
+        {superuser: "require", err: "message"}
+    )
+    .done(function(out) {
+        var lines = out.trim().split("\n").filter(Boolean);
+        // Parse "ID 256 gen 7 top level 5 path homes", exclude .snapshots
+        var subvols = lines.map(function(line) {
+            var m = line.match(/path\s+(.+)$/);
+            return m ? m[1].trim() : null;
+        }).filter(function(path) {
+            return path && path.indexOf(".snapshots") === -1;
+        });
+
+        if (subvols.length === 0) {
+            container.innerHTML = "<p class='text-muted'>Субтома не найдены</p>";
+            return;
+        }
+
+        var rows = subvols.map(function(path, i) {
+            return "<tr>" +
+                "<td><code>" + mountPoint + "/" + path + "</code></td>" +
+                "<td><button class='btn btn-danger btn-sm' data-idx='" + i + "'>🗑</button></td>" +
+                "</tr>";
+        }).join("");
+
+        container.innerHTML = "<table><thead><tr><th>Путь</th><th>Действие</th></tr></thead>" +
+            "<tbody>" + rows + "</tbody></table>";
+
+        container.querySelectorAll("[data-idx]").forEach(function(btn) {
+            var path = subvols[parseInt(btn.dataset.idx, 10)];
+            btn.addEventListener("click", function() {
+                var mp = document.getElementById("subvol-mount-point").value;
+                deleteSubvolume(mp, path);
+            });
+        });
+    })
+    .fail(function(err) {
+        container.innerHTML = "<p class='text-muted'>Ошибка: " + err + "</p>";
+    });
+}
+
+function createSubvolume() {
+    var mountPoint = document.getElementById("subvol-mount-point").value;
+    var name = document.getElementById("subvol-new-name").value.trim();
+    if (!name) return;
+    if (!/^[\w-]+$/.test(name)) { alert("Имя субтома может содержать только буквы, цифры и дефисы"); return; }
+
+    var btn = document.getElementById("subvol-create-btn");
+    btn.disabled = true;
+
+    cockpit.spawn(["bash", "-c",
+        "sudo btrfs subvolume create " + mountPoint + "/" + name + " 2>&1"
+    ], {superuser: "require"})
+    .done(function() {
+        document.getElementById("subvol-new-name").value = "";
+        btn.disabled = false;
+        refreshSubvolumeList(mountPoint);
+    })
+    .fail(function(err) {
+        alert("Ошибка создания субтома: " + err);
+        btn.disabled = false;
+    });
+}
+
+function deleteSubvolume(mountPoint, name) {
+    if (!confirm("Удалить субтом " + name + "? Все данные в нём будут уничтожены.")) return;
+    cockpit.spawn(
+        ["btrfs", "subvolume", "delete", mountPoint + "/" + name],
+        {superuser: "require", err: "message"}
+    )
+    .done(function() { refreshSubvolumeList(mountPoint); })
+    .fail(function(err) { alert("Ошибка удаления: " + err); });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -768,6 +1218,41 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btn-add-disk-cancel").addEventListener("click", function() { closeModal("add-disk-modal"); });
     document.getElementById("btn-eject-confirm").addEventListener("click", confirmEjectDisk);
     document.getElementById("btn-eject-cancel").addEventListener("click", function() { closeModal("eject-disk-modal"); });
+
+    // Array card actions (event delegation — set up once, handles dynamically rendered buttons)
+    document.getElementById("arrays-container").addEventListener("click", function(e) {
+        var btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        var action    = btn.dataset.action;
+        var arrayName = btn.dataset.array;
+        if (action === "run")     runArray(arrayName);
+        if (action === "replace") openAddDisk(arrayName, "replace");
+        if (action === "expand")  openAddDisk(arrayName, "expand");
+        if (action === "mount")   openMountModal(arrayName);
+        if (action === "umount")  doUmountArray(arrayName, btn.dataset.target);
+        if (action === "subvol")  openSubvolumesModal(btn.dataset.target);
+        if (action === "delete")  openDeleteArrayModal(arrayName, btn.dataset.disks);
+    });
+
+    // Create array
+    document.getElementById("btn-create-array").addEventListener("click", openCreateArrayModal);
+    document.getElementById("create-cancel-btn").addEventListener("click", function() { closeModal("modal-create-array"); });
+    document.getElementById("create-done-btn").addEventListener("click", function() { closeModal("modal-create-array"); });
+    document.getElementById("create-step1-next").addEventListener("click", startCreateArray);
+    document.getElementById("create-raid-level").addEventListener("change", validateCreateForm);
+
+    // Delete array
+    document.getElementById("delete-array-confirm").addEventListener("click", doDeleteArray);
+    document.getElementById("delete-array-cancel").addEventListener("click", function() { closeModal("modal-delete-array"); });
+
+    // Mount array
+    document.getElementById("mount-array-confirm").addEventListener("click", doMountArray);
+    document.getElementById("mount-array-cancel").addEventListener("click", function() { closeModal("modal-mount-array"); });
+
+    // Subvolumes
+    document.getElementById("subvol-create-btn").addEventListener("click", createSubvolume);
+    document.getElementById("subvol-close-btn").addEventListener("click", function() { closeModal("modal-subvolumes"); });
+
     loadDisksAndArrays();
 });
 

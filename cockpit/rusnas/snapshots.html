@@ -15,92 +15,120 @@
 <!-- Alert banner -->
 <div id="snap-alert" class="alert hidden"></div>
 
-<!-- Object selector + actions -->
-<div class="section">
-  <div class="section-toolbar">
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <label style="font-weight:600;white-space:nowrap">Объект:</label>
-      <select id="snap-object-select" style="min-width:260px;max-width:480px"></select>
-      <span id="snap-no-volumes" class="text-muted hidden" style="font-size:13px">
-        Btrfs-субволюмы не обнаружены. Проверьте монтирование.
-      </span>
-    </div>
-    <div class="btn-group">
-      <button id="btn-create-snap" class="btn btn-primary">+ Создать снапшот</button>
-      <button id="btn-refresh" class="btn btn-secondary">↻ Обновить</button>
-    </div>
-  </div>
+<!-- Global storage summary strip -->
+<div class="snap-summary-strip">
+  <span><strong id="total-count-all">—</strong> снапшотов</span>
+  <span class="snap-summary-sep">·</span>
+  <span><strong id="total-size-all">—</strong> занято</span>
+  <span class="snap-summary-sep">·</span>
+  <span><strong id="total-subvols-all">—</strong> папок</span>
+  <span id="snap-no-volumes" class="text-muted hidden" style="font-size:13px;margin-left:8px">
+    Btrfs-субволюмы не обнаружены. Проверьте монтирование.
+  </span>
 </div>
 
-<!-- Tabs -->
-<div class="advisor-tabs">
-  <button class="advisor-tab-btn active" data-tab="snapshots">Снапшоты</button>
-  <button class="advisor-tab-btn" data-tab="schedule">Расписание</button>
-  <button class="advisor-tab-btn" data-tab="events">Журнал событий</button>
-</div>
+<!-- Two-panel layout -->
+<div class="snap-layout">
 
-<!-- ── Tab: Snapshots ───────────────────────────────────────────────────────── -->
-<div id="tab-snapshots">
-
-  <!-- Summary cards -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
-    <div class="array-card" style="text-align:center;padding:14px 8px">
-      <div style="font-size:32px;font-weight:700;color:var(--primary)" id="sum-count">—</div>
-      <div class="text-muted" style="font-size:12px;margin-top:2px">Всего снапшотов</div>
-    </div>
-    <div class="array-card" style="text-align:center;padding:14px 8px">
-      <div style="font-size:22px;font-weight:700" id="sum-size">—</div>
-      <div class="text-muted" style="font-size:12px;margin-top:2px">Занято места</div>
-    </div>
-    <div class="array-card" style="text-align:center;padding:14px 8px">
-      <div style="font-size:14px;font-weight:600" id="sum-last">—</div>
-      <div class="text-muted" style="font-size:12px;margin-top:2px">Последний снапшот</div>
+  <!-- ── Left sidebar: folder list ───────────────────────────────────────────── -->
+  <div class="snap-sidebar">
+    <div class="snap-sidebar-head">Папки</div>
+    <div id="snap-sidebar-list"></div>
+    <div class="snap-sidebar-foot">
+      <button id="btn-create-snap" class="btn btn-primary" style="width:100%">+ Создать снапшот</button>
     </div>
   </div>
 
-  <div class="section">
-    <h2>Список снапшотов</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Имя / Метка</th>
-          <th>Тип</th>
-          <th>Создан</th>
-          <th>Размер</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody id="snap-tbody">
-        <tr><td colspan="5">Загрузка...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+  <!-- ── Right: per-folder content ───────────────────────────────────────────── -->
+  <div class="snap-main">
 
-<!-- ── Tab: Schedule ────────────────────────────────────────────────────────── -->
-<div id="tab-schedule" class="hidden">
-  <div id="schedule-content"></div>
-</div>
+    <!-- Per-folder header -->
+    <div class="snap-folder-header">
+      <div>
+        <div style="font-weight:700;font-size:16px" id="snap-current-title">—</div>
+        <div class="text-muted" id="snap-current-path" style="font-size:11px;margin-top:2px"></div>
+        <div class="text-muted" id="snap-current-snapdir" style="font-size:11px;margin-top:1px"></div>
+      </div>
+      <button id="btn-refresh" class="btn btn-secondary btn-sm">↻ Обновить</button>
+    </div>
 
-<!-- ── Tab: Events ──────────────────────────────────────────────────────────── -->
-<div id="tab-events" class="hidden">
-  <div class="section">
-    <h2>Журнал событий (последние 50)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Время</th>
-          <th>Тип</th>
-          <th>Объект</th>
-          <th>Сообщение</th>
-        </tr>
-      </thead>
-      <tbody id="events-tbody">
-        <tr><td colspan="4">Загрузка...</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+    <!-- Per-folder summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+      <div class="array-card" style="text-align:center;padding:12px 8px">
+        <div style="font-size:28px;font-weight:700;color:var(--primary)" id="sum-count">—</div>
+        <div class="text-muted" style="font-size:12px;margin-top:2px">Снапшотов</div>
+      </div>
+      <div class="array-card" style="text-align:center;padding:12px 8px">
+        <div style="font-size:20px;font-weight:700" id="sum-size">—</div>
+        <div class="text-muted" style="font-size:12px;margin-top:2px">Занято места</div>
+      </div>
+      <div class="array-card" style="text-align:center;padding:12px 8px">
+        <div style="font-size:14px;font-weight:600" id="sum-last">—</div>
+        <div class="text-muted" style="font-size:12px;margin-top:2px">Последний снапшот</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="advisor-tabs">
+      <button class="advisor-tab-btn active" data-tab="snapshots">Снапшоты</button>
+      <button class="advisor-tab-btn" data-tab="schedule">Расписание</button>
+      <button class="advisor-tab-btn" data-tab="replication">Репликация</button>
+      <button class="advisor-tab-btn" data-tab="events">Журнал событий</button>
+    </div>
+
+    <!-- ── Tab: Snapshots ──────────────────────────────────────────────────────── -->
+    <div id="tab-snapshots">
+      <div class="section">
+        <h2>Список снапшотов</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Имя / Метка</th>
+              <th>Тип</th>
+              <th>Создан</th>
+              <th>Размер</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="snap-tbody">
+            <tr><td colspan="5">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Tab: Schedule ───────────────────────────────────────────────────────── -->
+    <div id="tab-schedule" class="hidden">
+      <div id="schedule-content"></div>
+    </div>
+
+    <!-- ── Tab: Replication ───────────────────────────────────────────────────── -->
+    <div id="tab-replication" class="hidden">
+      <div id="replication-content"></div>
+    </div>
+
+    <!-- ── Tab: Events ────────────────────────────────────────────────────────── -->
+    <div id="tab-events" class="hidden">
+      <div class="section">
+        <h2>Журнал событий (последние 50)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Время</th>
+              <th>Тип</th>
+              <th>Объект</th>
+              <th>Сообщение</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+            <tr><td colspan="4">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- .snap-main -->
+</div><!-- .snap-layout -->
 
 
 <!-- ── Modal: Create snapshot ───────────────────────────────────────────────── -->
@@ -213,6 +241,56 @@
     <div class="modal-footer">
       <button id="modal-sched-save" class="btn btn-primary">Сохранить</button>
       <button class="btn btn-default" data-close="modal-schedule">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal: Add/Edit replication task ─────────────────────────────────────── -->
+<div id="modal-replication" class="modal-overlay hidden">
+  <div class="modal-box" style="width:540px">
+    <h3 id="modal-repl-title">Настройка репликации</h3>
+
+    <!-- SSH key notice -->
+    <div class="alert alert-warning" style="font-size:12px;padding:10px 14px;margin-bottom:16px">
+      <strong>Требуется SSH-ключ без пароля.</strong><br>
+      Настройте доступ заранее:<br>
+      <code style="font-size:11px;display:block;margin-top:4px">
+        ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_rusnas_repl<br>
+        ssh-copy-id -i /root/.ssh/id_rusnas_repl.pub user@remote-host
+      </code>
+    </div>
+
+    <div class="form-group">
+      <label>Субволюм-источник</label>
+      <select id="modal-repl-subvol"></select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label>Remote host</label>
+        <input type="text" id="modal-repl-host" placeholder="192.168.1.100 или nas2.local">
+      </div>
+      <div class="form-group">
+        <label>Remote user</label>
+        <input type="text" id="modal-repl-user" value="rusnas">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Remote path <span class="text-muted">(должен существовать, Btrfs)</span></label>
+      <input type="text" id="modal-repl-path" placeholder="/backup/nas1">
+    </div>
+    <div class="form-group">
+      <label>Расписание (cron) <span class="text-muted">— автозапуск через таймер</span></label>
+      <div class="btn-group" style="margin-bottom:8px">
+        <button class="btn btn-secondary btn-sm repl-cron-preset" data-cron="0 1 * * *">Каждую ночь</button>
+        <button class="btn btn-secondary btn-sm repl-cron-preset" data-cron="0 */6 * * *">Каждые 6ч</button>
+        <button class="btn btn-secondary btn-sm repl-cron-preset" data-cron="0 1 * * 0">Еженедельно</button>
+      </div>
+      <input type="text" id="modal-repl-cron" value="0 1 * * *" style="font-family:monospace">
+    </div>
+    <div class="modal-footer">
+      <button id="modal-repl-save" class="btn btn-primary">Сохранить</button>
+      <button id="modal-repl-test" class="btn btn-secondary">Проверить SSH</button>
+      <button class="btn btn-default" data-close="modal-replication">Отмена</button>
     </div>
   </div>
 </div>

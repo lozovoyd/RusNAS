@@ -10,38 +10,88 @@ function closeModal(id) {
 
 // ─── Volumes (mounted non-system) ────────────────────────────────────────────
 
-function loadVolumeSelects(callback) {
-    // Get mounted filesystems excluding system ones
-    var cmd = "findmnt -rno TARGET,SOURCE,FSTYPE,SIZE " +
-        "| grep -v '^/ \\|^/boot\\|^/sys\\|^/proc\\|^/dev\\|^/run\\|^/snap\\|^/efi' " +
-        "| grep -v 'tmpfs\\|devtmpfs\\|sysfs\\|proc\\|cgroup\\|pstore\\|efivarfs\\|hugetlbfs\\|mqueue\\|debugfs\\|tracefs\\|configfs\\|fusectl\\|bpf'";
+var SKIP_TARGETS = /^(\/boot|\/sys|\/proc|\/dev|\/run|\/snap|\/efi)(\/|$)/;
+var SKIP_FSTYPES = /tmpfs|devtmpfs|sysfs|proc|cgroup|pstore|efivarfs|hugetlbfs|mqueue|debugfs|tracefs|configfs|fusectl|bpf/;
 
-    cockpit.spawn(["bash", "-c", cmd])
-        .done(function(out) {
-            var lines = out.trim().split("\n").filter(Boolean);
-            var options = lines.map(function(line) {
-                var parts = line.trim().split(/\s+/);
-                var mount  = parts[0];
-                var source = parts[1] || "";
-                var size   = parts[3] || "";
-                return "<option value='" + mount + "'>" + mount + " (" + source + ", " + size + ")</option>";
-            });
-            if (options.length === 0) {
-                options = ["<option value=''>— нет смонтированных томов —</option>"];
-            }
-            // Update all volume selects on the page
-            ["share-volume", "nfs-volume"].forEach(function(id) {
-                var sel = document.getElementById(id);
-                if (sel) sel.innerHTML = options.join("");
-            });
-            if (callback) callback(lines.length > 0 ? lines[0].trim().split(/\s+/)[0] : "");
-        })
-        .fail(function() {
-            ["share-volume", "nfs-volume"].forEach(function(id) {
-                var sel = document.getElementById(id);
-                if (sel) sel.innerHTML = "<option value=''>— ошибка загрузки томов —</option>";
-            });
+function spawnBtrfsSubvols(mountPoint) {
+    return new Promise(function(resolve) {
+        var proc = cockpit.spawn(
+            ["btrfs", "subvolume", "list", "-o", mountPoint],
+            { superuser: "require", err: "message" }
+        );
+        var out = "";
+        proc.stream(function(data) { out += data; });
+        proc.then(function() {
+            var subvols = out.trim().split("\n").filter(Boolean)
+                .map(function(line) {
+                    return mountPoint.replace(/\/$/, "") + "/" + line.split(" ").pop();
+                })
+                .filter(function(p) { return p.indexOf(".snapshots") === -1; });
+            resolve({ target: mountPoint, subvols: subvols });
+        }).catch(function() {
+            resolve({ target: mountPoint, subvols: [] });
         });
+    });
+}
+
+function loadVolumeSelects(callback) {
+    var proc = cockpit.spawn(["findmnt", "-rno", "TARGET,SOURCE,FSTYPE,SIZE"], { err: "message" });
+    var out = "";
+    proc.stream(function(data) { out += data; });
+    proc.then(function() {
+        var volumes = out.trim().split("\n").filter(Boolean)
+            .map(function(line) {
+                var p = line.trim().split(/\s+/);
+                return { target: p[0], source: p[1] || "", fstype: p[2] || "", size: p[3] || "" };
+            })
+            .filter(function(v) {
+                return v.target !== "/" &&
+                    !SKIP_TARGETS.test(v.target) &&
+                    !SKIP_FSTYPES.test(v.fstype);
+            });
+
+        if (volumes.length === 0) {
+            ["share-volume", "nfs-volume"].forEach(function(id) {
+                var sel = document.getElementById(id);
+                if (sel) sel.innerHTML = "<option value=''>— нет смонтированных томов —</option>";
+            });
+            if (callback) callback("");
+            return;
+        }
+
+        var btrfsVols = volumes.filter(function(v) { return v.fstype === "btrfs"; });
+        var svPromises = btrfsVols.map(function(v) { return spawnBtrfsSubvols(v.target); });
+
+        Promise.all(svPromises).then(function(svResults) {
+            var svMap = {};
+            svResults.forEach(function(r) { svMap[r.target] = r.subvols; });
+
+            var html = volumes.map(function(v) {
+                var label = v.target + " (" + v.source + ", " + v.fstype + ", " + v.size + ")";
+                var subvols = svMap[v.target] || [];
+                if (v.fstype === "btrfs" && subvols.length > 0) {
+                    var inner = "<option value='" + v.target + "' data-is-subvol='false'>  Весь том</option>";
+                    inner += subvols.map(function(sv) {
+                        var svName = sv.split("/").pop();
+                        return "<option value='" + sv + "' data-is-subvol='true' data-subvol-name='" + svName + "'>  📁 " + svName + "</option>";
+                    }).join("");
+                    return "<optgroup label='" + label + "'>" + inner + "</optgroup>";
+                }
+                return "<option value='" + v.target + "' data-is-subvol='false'>" + label + "</option>";
+            }).join("");
+
+            ["share-volume", "nfs-volume"].forEach(function(id) {
+                var sel = document.getElementById(id);
+                if (sel) sel.innerHTML = html;
+            });
+            if (callback) callback(volumes[0].target);
+        });
+    }).catch(function() {
+        ["share-volume", "nfs-volume"].forEach(function(id) {
+            var sel = document.getElementById(id);
+            if (sel) sel.innerHTML = "<option value=''>— ошибка загрузки томов —</option>";
+        });
+    });
 }
 
 
@@ -99,21 +149,24 @@ function populateUserCheckboxes(containerId, selectedUsers) {
 function loadShares() {
     var tbody = document.getElementById("shares-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
+    var cmd = "python3 -c \"\nimport subprocess\nout=subprocess.check_output(['testparm','-s'],stderr=subprocess.DEVNULL,text=True)\nshare=None\nskip={'global','homes','printers','print\$'}\nfor line in out.splitlines():\n  line=line.strip()\n  if line.startswith('['):\n    name=line.strip('[]')\n    share=name if name not in skip else None\n  elif share and line.startswith('path ='):\n    print(share+'\\\\t'+line.split('=',1)[1].strip())\n\"";
     cockpit.spawn(
-        ["bash", "-c", "testparm -s 2>/dev/null | grep '^\\[' | grep -v 'global\\|homes\\|printers\\|print'"],
-        
+        ["bash", "-c", cmd],
+        {superuser: "require", err: "message"}
     )
     .done(function(output) {
-        var shares = output.trim().split("\n").filter(Boolean);
-        if (shares.length === 0) {
+        var lines = output.trim().split("\n").filter(Boolean);
+        if (lines.length === 0) {
             tbody.innerHTML = "<tr><td colspan='5'>Нет шар</td></tr>";
             return;
         }
-        tbody.innerHTML = shares.map(function(s) {
-            var name = s.replace(/[\[\]]/g, "").trim();
+        tbody.innerHTML = lines.map(function(line) {
+            var parts = line.split("\t");
+            var name = parts[0];
+            var path = parts[1] || ("/mnt/data/shares/" + name);
             return "<tr>" +
                 "<td>" + name + "</td>" +
-                "<td>/mnt/data/shares/" + name + "</td>" +
+                "<td>" + path + "</td>" +
                 "<td>SMB</td>" +
                 "<td class='status-active'>Активна</td>" +
                 "<td>" +
@@ -135,40 +188,55 @@ function loadShares() {
 }
 
 function openEditShare(name) {
-    var path = "/mnt/data/shares/" + name;
-    var cmd = "python3 -c \"\nimport configparser\nc = configparser.ConfigParser(strict=False)\nc.read('/etc/samba/smb.conf')\nif '" + name + "' in c:\n    s = c['" + name + "']\n    print(s.get('path', '" + path + "'))\n    print(s.get('guest ok', 'no').strip().lower())\n    print(s.get('browseable', 'yes').strip().lower())\n    print(s.get('writable', 'yes').strip().lower())\n    print(s.get('valid users', ''))\nelse:\n    print('" + path + "')\n    print('no')\n    print('yes')\n    print('yes')\n    print('')\n\"";
+    var defaultPath = "/mnt/data/shares/" + name;
 
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
+    function _showEditModal(sharePath, guestOk, browseable, writable, validUsers, chmod, owner, group) {
+        document.getElementById("edit-share-name").value = name;
+        document.getElementById("edit-share-path").value = sharePath;
+        document.getElementById("edit-share-access").value = (guestOk === "yes") ? "public" : "private";
+        document.getElementById("edit-share-browseable").value = (browseable === "no") ? "no" : "yes";
+        document.getElementById("edit-share-writable").value = (writable === "no") ? "no" : "yes";
+        document.getElementById("edit-share-chmod").value = chmod || "755";
+        populateOwnerSelects("edit-share-owner", "edit-share-group", owner || "root", group || "root");
+        populateUserCheckboxes("edit-share-users",
+            validUsers ? validUsers.trim().split(/[\s,]+/).filter(Boolean) : []);
+        showModal("edit-share-modal");
+    }
+
+    var cmd = "grep -A20 '^\\[" + name + "\\]' /etc/samba/smb.conf | grep -v '^\\[' | head -20";
+    cockpit.spawn(["bash", "-c", cmd], {superuser: "require", err: "message"})
         .done(function(output) {
-            var lines = (output || "").trim().split("\n");
-            var sharePath    = lines[0] || path;
-            var guestOk      = lines[1] || "no";
-            var browseable   = lines[2] || "yes";
-            var writable     = lines[3] || "yes";
-            var validUsers   = lines[4] || "";
+            var lines = (output || "").split("\n");
+            function getVal(key, def) {
+                var re = new RegExp("^\\s*" + key + "\\s*=\\s*(.+)", "i");
+                for (var i = 0; i < lines.length; i++) {
+                    var m = lines[i].match(re);
+                    if (m) return m[1].trim();
+                }
+                return def;
+            }
+            var sharePath  = getVal("path", defaultPath);
+            var guestOk    = getVal("guest ok", "no");
+            var browseable = getVal("browseable", "yes");
+            var writable   = getVal("writable", "yes");
+            var validUsers = getVal("valid users", "");
 
-            document.getElementById("edit-share-name").value = name;
-            document.getElementById("edit-share-path").value = sharePath;
-            document.getElementById("edit-share-access").value = (guestOk === "yes") ? "public" : "private";
-            document.getElementById("edit-share-browseable").value = (browseable === "no") ? "no" : "yes";
-            document.getElementById("edit-share-writable").value = (writable === "no") ? "no" : "yes";
-
-            // Get current chmod and owner
             cockpit.spawn(["bash", "-c",
                 "stat -c '%a %U %G' " + sharePath + " 2>/dev/null || echo '755 root root'"
-            ])
+            ], {superuser: "require", err: "message"})
             .done(function(statOut) {
                 var parts = (statOut || "755 root root").trim().split(" ");
-                var chmod = parts[0] || "755";
-                var owner = parts[1] || "root";
-                var group = parts[2] || "root";
-
-                document.getElementById("edit-share-chmod").value = chmod;
-                populateOwnerSelects("edit-share-owner", "edit-share-group", owner, group);
-                populateUserCheckboxes("edit-share-users",
-                    validUsers ? validUsers.trim().split(/[\s,]+/).filter(Boolean) : []);
-                showModal("edit-share-modal");
+                _showEditModal(sharePath, guestOk, browseable, writable, validUsers,
+                    parts[0], parts[1], parts[2]);
+            })
+            .fail(function() {
+                _showEditModal(sharePath, guestOk, browseable, writable, validUsers,
+                    "755", "root", "root");
             });
+        })
+        .fail(function() {
+            // If we can't read smb.conf, show modal with defaults so user can still edit
+            _showEditModal(defaultPath, "no", "yes", "yes", "", "755", "root", "root");
         });
 }
 
@@ -211,11 +279,14 @@ function addShare() {
     var name   = document.getElementById("share-name").value.trim();
     var access = document.getElementById("share-access").value;
     var chmod  = document.getElementById("share-chmod").value;
-    var volume = document.getElementById("share-volume").value;
+    var shareVolumeEl = document.getElementById("share-volume");
+    var volume = shareVolumeEl.value;
     if (!name)   { alert("Введите имя шары"); return; }
     if (!volume) { alert("Выберите том"); return; }
 
-    var path    = volume.replace(/\/$/, "") + "/" + name;
+    var opt      = shareVolumeEl.options[shareVolumeEl.selectedIndex];
+    var isSubvol = opt && opt.dataset.isSubvol === "true";
+    var path     = isSubvol ? volume : (volume.replace(/\/$/, "") + "/" + name);
     var guestOk = access === "public" ? "Yes" : "No";
     // Remove existing section first (idempotent), then append clean block
     var cmd = "mkdir -p " + path +
@@ -251,8 +322,8 @@ function loadNFS() {
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
 
     cockpit.spawn(
-        ["bash", "-c", "cat /etc/exports 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$'"],
-        
+        ["bash", "-c", "cat /etc/exports 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$' || true"],
+        {superuser: "require", err: "message"}
     )
     .done(function(output) {
         var lines = output.trim().split("\n").filter(Boolean);
@@ -458,6 +529,25 @@ function deleteISCSI(iqn) {
 document.addEventListener("DOMContentLoaded", function() {
     // SMB
     document.getElementById("btn-add-share").addEventListener("click", function() { loadVolumeSelects(); showModal("add-share-modal"); });
+    document.getElementById("share-volume").addEventListener("change", function() {
+        var opt = this.options[this.selectedIndex];
+        var isSubvol = opt && opt.dataset.isSubvol === "true";
+        var nameInput = document.getElementById("share-name");
+        var hint = document.getElementById("share-path-hint");
+        if (isSubvol) {
+            if (!nameInput.value || nameInput.dataset.autoFilled === "true") {
+                nameInput.value = opt.dataset.subvolName;
+                nameInput.dataset.autoFilled = "true";
+            }
+            hint.textContent = "Путь шары: " + opt.value + " (Btrfs субтом)";
+        } else {
+            nameInput.dataset.autoFilled = "";
+            hint.textContent = "";
+        }
+    });
+    document.getElementById("share-name").addEventListener("input", function() {
+        this.dataset.autoFilled = "";
+    });
     document.getElementById("btn-share-create").addEventListener("click", addShare);
     document.getElementById("btn-share-cancel").addEventListener("click", function() { closeModal("add-share-modal"); });
     document.getElementById("btn-share-save").addEventListener("click", saveEditShare);

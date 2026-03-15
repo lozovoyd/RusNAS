@@ -670,3 +670,195 @@ tbody tr:last-child td { border-bottom: none; }
     border-bottom-color: var(--bg-card);
     font-weight: 500;
 }
+
+/* ─── Snapshots sidebar layout ──────────────────────────────────────────────── */
+.snap-summary-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 9px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    box-shadow: var(--card-shadow);
+    flex-wrap: wrap;
+}
+
+.snap-summary-strip strong { color: var(--primary); }
+.snap-summary-sep { color: var(--color-muted); }
+
+.snap-layout {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.snap-sidebar {
+    width: 210px;
+    flex-shrink: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 120px);
+}
+
+.snap-sidebar-head {
+    padding: 10px 12px 8px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-muted);
+    border-bottom: 1px solid var(--color-border);
+}
+
+#snap-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.snap-sidebar-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    border-bottom: 1px solid var(--color-border);
+    transition: background 0.1s;
+}
+
+.snap-sidebar-item:last-child { border-bottom: none; }
+.snap-sidebar-item:hover { background: var(--bg-row-hover); }
+
+.snap-sidebar-item.active {
+    background: var(--info-light);
+    border-left-color: var(--primary);
+}
+
+.snap-sidebar-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+
+.snap-sidebar-name {
+    font-weight: 600;
+    font-size: 13px;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.snap-sidebar-meta {
+    font-size: 11px;
+    color: var(--color-muted);
+    margin-top: 2px;
+}
+
+.snap-sidebar-foot {
+    padding: 10px;
+    border-top: 1px solid var(--color-border);
+}
+
+.snap-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.snap-folder-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* ─── Snapshots tree view ───────────────────────────────────────────────────── */
+.snap-tree-group {
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-muted);
+    background: var(--bg-th);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.snap-tree-group + .snap-tree-group {
+    border-top: 2px solid var(--color-border);
+}
+
+.snap-tree-node {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 7px 10px 7px 10px;
+    border-bottom: 1px solid var(--color-border);
+    border-left: 3px solid transparent;
+}
+
+.snap-tree-real {
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.snap-tree-real:hover { background: var(--bg-row-hover); }
+
+.snap-tree-real.active {
+    background: var(--info-light);
+    border-left-color: var(--primary);
+}
+
+.snap-tree-virtual { cursor: default; }
+
+.snap-tree-toggle {
+    font-size: 9px;
+    min-width: 14px;
+    cursor: pointer;
+    color: var(--color-muted);
+    margin-top: 2px;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.snap-tree-spacer {
+    min-width: 14px;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.snap-tree-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.snap-tree-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.snap-tree-name {
+    font-weight: 600;
+    font-size: 13px;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.snap-tree-virtual .snap-tree-name {
+    font-weight: 400;
+    color: var(--color-muted);
+}
+
+/* ── Replication tab ─────────────────────────────────────────────────────────── */
+.snap-sidebar-meta {
+    font-size: 11px;
+    color: var(--color-muted);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

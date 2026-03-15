@@ -21,6 +21,7 @@
         <div class="section-toolbar">
             <h2>RAID массивы</h2>
             <div class="btn-group">
+                <button class="btn btn-primary" id="btn-create-array">+ Создать массив</button>
                 <button class="btn btn-secondary" id="btn-raid-advisor">📊 Советник по RAID</button>
                 <button class="btn btn-secondary" id="btn-rescan-disks" title="Сканировать SCSI шину для поиска новых/возвращённых дисков">🔍 Найти новые диски</button>
                 <button class="btn btn-secondary" id="btn-refresh-disks">↻ Обновить</button>
@@ -119,6 +120,111 @@
             <div id="raid-advisor-content">Загрузка...</div>
             <div class="modal-footer">
                 <button class="btn btn-default" id="btn-raid-advisor-close">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create array (2-step wizard) -->
+    <div class="modal-overlay hidden" id="modal-create-array">
+        <div class="modal-box" style="width:560px">
+            <h3>+ Создать RAID массив</h3>
+
+            <!-- Step 1: Configuration -->
+            <div id="create-step1">
+                <div class="form-group">
+                    <label>Уровень RAID</label>
+                    <select id="create-raid-level">
+                        <option value="0">RAID 0 — страйп (мин. 2 диска, нет защиты)</option>
+                        <option value="1">RAID 1 — зеркало (мин. 2 диска)</option>
+                        <option value="5" selected>RAID 5 — 1 диск чётности (мин. 3 диска)</option>
+                        <option value="6">RAID 6 — 2 диска чётности (мин. 4 диска)</option>
+                        <option value="10">RAID 10 — зеркало+страйп (мин. 4 диска, чётное)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Диски для массива <span id="create-disks-hint" class="text-muted" style="font-size:12px"></span></label>
+                    <div id="create-disks-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+                    <div id="create-disks-warning" class="text-muted" style="font-size:13px;margin-top:6px;color:var(--warning)"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div class="form-group">
+                        <label>Точка монтирования</label>
+                        <input type="text" id="create-mountpoint" value="/mnt/data" placeholder="/mnt/data">
+                    </div>
+                    <div class="form-group">
+                        <label>Метка файловой системы</label>
+                        <input type="text" id="create-fslabel" value="rusnas-data" placeholder="rusnas-data">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="create-step1-next">Создать →</button>
+                    <button class="btn btn-default" id="create-cancel-btn">Отмена</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Progress log -->
+            <div id="create-step2" class="hidden">
+                <p class="text-muted" style="font-size:13px;margin-bottom:8px">Выполняется создание массива. Не закрывайте страницу.</p>
+                <div id="create-log" style="font-family:monospace;font-size:12px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;padding:10px;max-height:260px;overflow-y:auto;white-space:pre-wrap"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary hidden" id="create-done-btn">Готово ✓</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Delete array -->
+    <div class="modal-overlay hidden" id="modal-delete-array">
+        <div class="modal-box">
+            <h3>🗑 Удалить RAID массив</h3>
+            <input type="hidden" id="delete-array-name">
+            <div class="alert alert-danger" style="margin-bottom:12px">
+                ⚠ <b>Все данные на массиве <span id="delete-array-label"></span> будут уничтожены безвозвратно!</b><br>
+                Диски: <span id="delete-array-disks"></span>
+            </div>
+            <div id="delete-array-log" class="hidden" style="font-family:monospace;font-size:12px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;padding:10px;max-height:200px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px"></div>
+            <div class="modal-footer" id="delete-array-footer">
+                <button class="btn btn-danger" id="delete-array-confirm">Да, удалить</button>
+                <button class="btn btn-default" id="delete-array-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Mount array -->
+    <div class="modal-overlay hidden" id="modal-mount-array">
+        <div class="modal-box">
+            <h3>📂 Смонтировать массив</h3>
+            <input type="hidden" id="mount-array-name">
+            <div class="form-group">
+                <label>Массив</label>
+                <input type="text" id="mount-array-label" disabled>
+            </div>
+            <div id="mount-array-fsinfo" class="text-muted" style="font-size:13px;margin-bottom:8px"></div>
+            <div class="form-group">
+                <label>Точка монтирования</label>
+                <input type="text" id="mount-array-point" value="/mnt/data" placeholder="/mnt/data">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="mount-array-confirm">Смонтировать</button>
+                <button class="btn btn-default" id="mount-array-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Subvolumes -->
+    <div class="modal-overlay hidden" id="modal-subvolumes">
+        <div class="modal-box" style="width:520px">
+            <h3>🗂 Btrfs субтома</h3>
+            <input type="hidden" id="subvol-mount-point">
+            <div id="subvol-list-container" style="margin-bottom:16px">
+                <p class="text-muted">Загрузка...</p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;border-top:1px solid var(--color-border);padding-top:12px">
+                <input type="text" id="subvol-new-name" placeholder="Имя нового субтома (напр. homes)" style="flex:1">
+                <button class="btn btn-primary" id="subvol-create-btn">+ Создать</button>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" id="subvol-close-btn">Закрыть</button>
             </div>
         </div>
     </div>

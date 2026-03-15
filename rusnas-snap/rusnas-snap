@@ -207,6 +207,22 @@ def cmd_init_db():
                 created_at  TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS replication_tasks (
+                id              TEXT PRIMARY KEY,
+                subvol_path     TEXT NOT NULL UNIQUE,
+                remote_user     TEXT NOT NULL,
+                remote_host     TEXT NOT NULL,
+                remote_path     TEXT NOT NULL,
+                cron_expr       TEXT DEFAULT '0 1 * * *',
+                enabled         INTEGER DEFAULT 1,
+                last_sent_snap  TEXT DEFAULT NULL,
+                last_run_at     TEXT DEFAULT NULL,
+                last_status     TEXT DEFAULT NULL,
+                last_error      TEXT DEFAULT NULL,
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_snapshots_subvol   ON snapshots(subvol_path);
             CREATE INDEX IF NOT EXISTS idx_snapshots_created  ON snapshots(created_at);
             CREATE INDEX IF NOT EXISTS idx_events_created     ON events(created_at);
@@ -239,13 +255,14 @@ def cmd_create(subvol_path: str, label: str = "", snap_type: str = "manual") -> 
 
     snap_id = str(uuid.uuid4())
     created_at = now_iso()
+    size_bytes = get_snap_size(snap_path)
 
     with db() as conn:
         conn.execute(
             """INSERT INTO snapshots
-               (id, subvol_path, snap_path, snap_name, snap_type, label, created_at, locked, valid)
-               VALUES (?,?,?,?,?,?,?,0,1)""",
-            (snap_id, subvol_path, snap_path, snap_name, snap_type, label, created_at)
+               (id, subvol_path, snap_path, snap_name, snap_type, label, created_at, size_bytes, locked, valid)
+               VALUES (?,?,?,?,?,?,?,?,0,1)""",
+            (snap_id, subvol_path, snap_path, snap_name, snap_type, label, created_at, size_bytes)
         )
         conn.execute(
             """INSERT INTO events (event_type, snap_id, subvol_path, message, created_at)
@@ -652,6 +669,34 @@ def cmd_update_sizes(subvol_path: str | None = None):
     ok_json({"updated": updated})
 
 
+# ── cmd: storage-info ─────────────────────────────────────────────────────────
+
+def cmd_storage_info():
+    with db() as conn:
+        by_subvol = conn.execute(
+            """SELECT subvol_path, COUNT(*) as cnt, COALESCE(SUM(size_bytes), 0) as total_size
+               FROM snapshots WHERE valid=1 GROUP BY subvol_path ORDER BY subvol_path"""
+        ).fetchall()
+        totals = conn.execute(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(size_bytes), 0) as total FROM snapshots WHERE valid=1"
+        ).fetchone()
+
+    ok_json({
+        "total_count": totals["cnt"],
+        "total_size_bytes": totals["total"],
+        "total_size_human": human_bytes(totals["total"]),
+        "subvols": [
+            {
+                "subvol_path": r["subvol_path"],
+                "count": r["cnt"],
+                "size_bytes": r["total_size"],
+                "size_human": human_bytes(r["total_size"]),
+            }
+            for r in by_subvol
+        ],
+    })
+
+
 # ── cmd: schedule set ─────────────────────────────────────────────────────────
 
 def cmd_schedule_set(subvol_path: str, cron_expr: str, retention_last: int,
@@ -713,6 +758,19 @@ def cmd_schedule_list():
     with db() as conn:
         rows = conn.execute("SELECT * FROM schedules ORDER BY subvol_path").fetchall()
     ok_json({"schedules": [dict(r) for r in rows]})
+
+
+# ── cmd: schedule delete ───────────────────────────────────────────────────────
+
+def cmd_schedule_delete(subvol_path: str):
+    with db() as conn:
+        row = conn.execute(
+            "SELECT id FROM schedules WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+        if not row:
+            fatal(f"Расписание не найдено: {subvol_path}")
+        conn.execute("DELETE FROM schedules WHERE subvol_path=?", (subvol_path,))
+    ok_json({"deleted": subvol_path})
 
 
 # ── cmd: scheduled-run ────────────────────────────────────────────────────────
@@ -838,6 +896,274 @@ def cmd_events(limit: int = 50, subvol_path: str | None = None):
     ok_json({"events": [dict(r) for r in rows]})
 
 
+# ── Replication helpers ───────────────────────────────────────────────────────
+
+def cmd_replication_set(subvol_path: str, remote_user: str, remote_host: str,
+                        remote_path: str, cron_expr: str = "0 1 * * *",
+                        enabled: bool = True):
+    now = now_iso()
+    with db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM replication_tasks WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE replication_tasks SET
+                    remote_user=?, remote_host=?, remote_path=?,
+                    cron_expr=?, enabled=?, updated_at=?
+                WHERE subvol_path=?
+            """, (remote_user, remote_host, remote_path,
+                  cron_expr, int(enabled), now, subvol_path))
+        else:
+            conn.execute("""
+                INSERT INTO replication_tasks
+                    (id, subvol_path, remote_user, remote_host, remote_path,
+                     cron_expr, enabled, created_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?)
+            """, (str(uuid.uuid4()), subvol_path, remote_user, remote_host, remote_path,
+                  cron_expr, int(enabled), now, now))
+    ok_json({"subvol_path": subvol_path, "remote": f"{remote_user}@{remote_host}:{remote_path}"})
+
+
+def cmd_replication_list():
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM replication_tasks ORDER BY subvol_path"
+        ).fetchall()
+    ok_json({"tasks": [dict(r) for r in rows]})
+
+
+def cmd_replication_delete(subvol_path: str):
+    with db() as conn:
+        row = conn.execute(
+            "SELECT id FROM replication_tasks WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+        if not row:
+            fatal(f"Задача репликации не найдена: {subvol_path}")
+        conn.execute("DELETE FROM replication_tasks WHERE subvol_path=?", (subvol_path,))
+    ok_json({"deleted": subvol_path})
+
+
+def cmd_replication_check_ssh(subvol_path: str):
+    with db() as conn:
+        task = conn.execute(
+            "SELECT * FROM replication_tasks WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+    if not task:
+        fatal(f"Задача репликации не найдена: {subvol_path}")
+    try:
+        r = subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
+             "-o", "StrictHostKeyChecking=accept-new",
+             f"{task['remote_user']}@{task['remote_host']}", "echo", "OK"],
+            capture_output=True, text=True, timeout=15
+        )
+        if r.returncode == 0:
+            ok_json({"ssh_ok": True, "host": task["remote_host"]})
+        else:
+            ok_json({"ssh_ok": False, "error": r.stderr.strip() or "Отказано в подключении"})
+    except subprocess.TimeoutExpired:
+        ok_json({"ssh_ok": False, "error": "Таймаут подключения"})
+    except Exception as e:
+        ok_json({"ssh_ok": False, "error": str(e)})
+
+
+def _do_btrfs_send_receive(task: dict) -> dict:
+    """Core btrfs send|receive. Returns result dict or raises RuntimeError."""
+    subvol_path = task["subvol_path"]
+
+    with db() as conn:
+        latest = conn.execute(
+            "SELECT * FROM snapshots WHERE subvol_path=? AND valid=1 ORDER BY created_at DESC LIMIT 1",
+            (subvol_path,)
+        ).fetchone()
+
+    if not latest:
+        raise RuntimeError(f"Нет снапшотов для репликации: {subvol_path}")
+    snap_path = latest["snap_path"]
+    if not os.path.exists(snap_path):
+        raise RuntimeError(f"Снапшот не найден на диске: {snap_path}")
+
+    # Try incremental if parent is known and exists locally
+    parent_path = None
+    if task.get("last_sent_snap") and task["last_sent_snap"] != latest["id"]:
+        with db() as conn:
+            parent_row = conn.execute(
+                "SELECT snap_path FROM snapshots WHERE id=? AND valid=1",
+                (task["last_sent_snap"],)
+            ).fetchone()
+        if parent_row and os.path.exists(parent_row["snap_path"]):
+            parent_path = parent_row["snap_path"]
+
+    send_cmd = (["btrfs", "send", "-p", parent_path, snap_path]
+                if parent_path else ["btrfs", "send", snap_path])
+    recv_cmd = [
+        "ssh",
+        "-o", "BatchMode=yes",
+        "-o", "ConnectTimeout=30",
+        "-o", "StrictHostKeyChecking=accept-new",
+        f"{task['remote_user']}@{task['remote_host']}",
+        "btrfs", "receive", task["remote_path"]
+    ]
+
+    log.info("Replication %s → %s@%s:%s incremental=%s",
+             snap_path, task["remote_user"], task["remote_host"],
+             task["remote_path"], bool(parent_path))
+
+    send_proc = subprocess.Popen(send_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    recv_proc = subprocess.Popen(recv_cmd, stdin=send_proc.stdout,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    send_proc.stdout.close()
+
+    try:
+        recv_out, recv_err = recv_proc.communicate(timeout=7200)
+        send_proc.wait(timeout=60)
+    except subprocess.TimeoutExpired:
+        send_proc.kill()
+        recv_proc.kill()
+        raise RuntimeError("Таймаут репликации (2 часа)")
+
+    if recv_proc.returncode != 0:
+        err = recv_err.decode(errors="replace").strip()
+        raise RuntimeError(f"btrfs receive: {err}")
+    if send_proc.returncode != 0:
+        err = send_proc.stderr.read().decode(errors="replace").strip() if send_proc.stderr else ""
+        raise RuntimeError(f"btrfs send: {err}")
+
+    return {
+        "snap_id":    latest["id"],
+        "snap_name":  latest["snap_name"],
+        "snap_path":  snap_path,
+        "parent":     parent_path,
+        "incremental": bool(parent_path),
+        "remote": f"{task['remote_user']}@{task['remote_host']}:{task['remote_path']}",
+    }
+
+
+def cmd_replication_run(subvol_path: str):
+    """Run one replication task. Prints one JSON result (for Cockpit UI)."""
+    with db() as conn:
+        task = conn.execute(
+            "SELECT * FROM replication_tasks WHERE subvol_path=?", (subvol_path,)
+        ).fetchone()
+    if not task:
+        fatal(f"Задача репликации не найдена: {subvol_path}")
+
+    task = dict(task)
+    # Mark as running
+    with db() as conn:
+        conn.execute(
+            "UPDATE replication_tasks SET last_status='running', updated_at=? WHERE subvol_path=?",
+            (now_iso(), subvol_path)
+        )
+
+    try:
+        result = _do_btrfs_send_receive(task)
+        run_at = now_iso()
+        with db() as conn:
+            conn.execute("""
+                UPDATE replication_tasks
+                SET last_sent_snap=?, last_status='ok', last_error=NULL,
+                    last_run_at=?, updated_at=?
+                WHERE subvol_path=?
+            """, (result["snap_id"], run_at, run_at, subvol_path))
+            conn.execute(
+                """INSERT INTO events (event_type, subvol_path, message, created_at)
+                   VALUES ('replicated',?,?,?)""",
+                (subvol_path,
+                 f"Реплицировано {result['snap_name']} → {result['remote']}"
+                 + (" (инкрементально)" if result["incremental"] else " (полный)"),
+                 run_at)
+            )
+        ok_json(result)
+    except Exception as e:
+        err_msg = str(e)
+        run_at = now_iso()
+        with db() as conn:
+            conn.execute("""
+                UPDATE replication_tasks
+                SET last_status='error', last_error=?, last_run_at=?, updated_at=?
+                WHERE subvol_path=?
+            """, (err_msg, run_at, run_at, subvol_path))
+            conn.execute(
+                """INSERT INTO events (event_type, subvol_path, message, created_at)
+                   VALUES ('replication_error',?,?,?)""",
+                (subvol_path, f"Ошибка репликации: {err_msg}", run_at)
+            )
+        log.error("Replication failed for %s: %s", subvol_path, err_msg)
+        fatal(err_msg)
+
+
+def cmd_replication_run_all():
+    """Run all enabled replication tasks respecting their cron schedule (for systemd timer)."""
+    try:
+        from croniter import croniter
+        has_croniter = True
+    except ImportError:
+        has_croniter = False
+
+    with db() as conn:
+        tasks = [dict(r) for r in conn.execute(
+            "SELECT * FROM replication_tasks WHERE enabled=1"
+        ).fetchall()]
+
+    now = datetime.now()
+    ran, skipped, errors = [], [], []
+
+    for task in tasks:
+        subvol_path = task["subvol_path"]
+        try:
+            # Check cron
+            if has_croniter:
+                from croniter import croniter as _ci
+                cron = _ci(task["cron_expr"], now - timedelta(minutes=5))
+                if not (cron.get_next(datetime) <= now):
+                    skipped.append(subvol_path)
+                    continue
+
+            with db() as conn:
+                conn.execute(
+                    "UPDATE replication_tasks SET last_status='running', updated_at=? WHERE subvol_path=?",
+                    (now_iso(), subvol_path)
+                )
+            result = _do_btrfs_send_receive(task)
+            run_at = now_iso()
+            with db() as conn:
+                conn.execute("""
+                    UPDATE replication_tasks
+                    SET last_sent_snap=?, last_status='ok', last_error=NULL,
+                        last_run_at=?, updated_at=?
+                    WHERE subvol_path=?
+                """, (result["snap_id"], run_at, run_at, subvol_path))
+                conn.execute(
+                    """INSERT INTO events (event_type, subvol_path, message, created_at)
+                       VALUES ('replicated',?,?,?)""",
+                    (subvol_path,
+                     f"Реплицировано {result['snap_name']} → {result['remote']}", run_at)
+                )
+            ran.append(subvol_path)
+        except Exception as e:
+            err_msg = str(e)
+            run_at = now_iso()
+            with db() as conn:
+                conn.execute("""
+                    UPDATE replication_tasks
+                    SET last_status='error', last_error=?, last_run_at=?, updated_at=?
+                    WHERE subvol_path=?
+                """, (err_msg, run_at, run_at, subvol_path))
+                conn.execute(
+                    """INSERT INTO events (event_type, subvol_path, message, created_at)
+                       VALUES ('replication_error',?,?,?)""",
+                    (subvol_path, f"Ошибка репликации: {err_msg}", run_at)
+                )
+            log.error("Replication run-all failed for %s: %s", subvol_path, err_msg)
+            errors.append({"subvol": subvol_path, "error": err_msg})
+
+    log.info("replication run-all: ran=%d skipped=%d errors=%d",
+             len(ran), len(skipped), len(errors))
+    ok_json({"ran": ran, "skipped": skipped, "errors": errors})
+
+
 # ── Argument parser ───────────────────────────────────────────────────────────
 
 def build_parser():
@@ -891,6 +1217,7 @@ def build_parser():
     bu.add_argument("snap_id")
 
     us = sub.add_parser("update-sizes", help="Update snapshot size metadata")
+    sub.add_parser("storage-info", help="Global storage usage summary across all subvolumes")
     us.add_argument("subvol_path", nargs="?")
 
     sub.add_parser("scheduled-run", help="Run scheduled snapshots")
@@ -918,9 +1245,37 @@ def build_parser():
 
     sch_sub.add_parser("list")
 
+    sch_del = sch_sub.add_parser("delete")
+    sch_del.add_argument("subvol_path")
+
     ev = sub.add_parser("events", help="Show event log")
     ev.add_argument("--limit", type=int, default=50)
     ev.add_argument("--subvol", dest="subvol_path", default=None)
+
+    # replication subcommands
+    rep = sub.add_parser("replication", help="Manage replication tasks")
+    rep_sub = rep.add_subparsers(dest="replication_cmd")
+
+    rep_set = rep_sub.add_parser("set", help="Add or update replication task")
+    rep_set.add_argument("subvol_path")
+    rep_set.add_argument("--host", required=True, dest="remote_host")
+    rep_set.add_argument("--user", default="rusnas", dest="remote_user")
+    rep_set.add_argument("--path", required=True, dest="remote_path")
+    rep_set.add_argument("--cron", default="0 1 * * *")
+    rep_set.add_argument("--disabled", action="store_true")
+
+    rep_sub.add_parser("list", help="List replication tasks")
+
+    rep_del = rep_sub.add_parser("delete", help="Delete replication task")
+    rep_del.add_argument("subvol_path")
+
+    rep_run = rep_sub.add_parser("run", help="Run replication for one subvolume")
+    rep_run.add_argument("subvol_path")
+
+    rep_sub.add_parser("run-all", help="Run all enabled replication tasks")
+
+    rep_ssh = rep_sub.add_parser("check-ssh", help="Test SSH connectivity for a task")
+    rep_ssh.add_argument("subvol_path")
 
     return p
 
@@ -968,6 +1323,9 @@ def main():
     elif args.cmd == "update-sizes":
         cmd_update_sizes(subvol_path=getattr(args, "subvol_path", None))
 
+    elif args.cmd == "storage-info":
+        cmd_storage_info()
+
     elif args.cmd == "scheduled-run":
         cmd_scheduled_run()
 
@@ -976,6 +1334,29 @@ def main():
 
     elif args.cmd == "events":
         cmd_events(limit=args.limit, subvol_path=args.subvol_path)
+
+    elif args.cmd == "replication":
+        if args.replication_cmd == "set":
+            cmd_replication_set(
+                args.subvol_path,
+                remote_user=args.remote_user,
+                remote_host=args.remote_host,
+                remote_path=args.remote_path,
+                cron_expr=args.cron,
+                enabled=not args.disabled,
+            )
+        elif args.replication_cmd == "list":
+            cmd_replication_list()
+        elif args.replication_cmd == "delete":
+            cmd_replication_delete(args.subvol_path)
+        elif args.replication_cmd == "run":
+            cmd_replication_run(args.subvol_path)
+        elif args.replication_cmd == "run-all":
+            cmd_replication_run_all()
+        elif args.replication_cmd == "check-ssh":
+            cmd_replication_check_ssh(args.subvol_path)
+        else:
+            parser.parse_args(["replication", "--help"])
 
     elif args.cmd == "schedule":
         if args.schedule_cmd == "set":
@@ -995,6 +1376,8 @@ def main():
             cmd_schedule_get(args.subvol_path)
         elif args.schedule_cmd == "list":
             cmd_schedule_list()
+        elif args.schedule_cmd == "delete":
+            cmd_schedule_delete(args.subvol_path)
         else:
             parser.parse_args(["schedule", "--help"])
 

@@ -1,25 +1,28 @@
-rusNAS — История разработки проекта
+# rusNAS — История разработки проекта
 
 Хронология ключевых решений и результатов по всем чат-сессиям проекта.
 Передаётся в Claude Code вместе с CLAUDE.md для полного контекста.
 
+> ⚠️ ВАЖНО: этот файл только ДОПОЛНЯЕТСЯ. Никогда не перезаписывать целиком.
 
-Сессия 1 — Архитектура и ТЗ
-Дата: февраль 2026
-Чат: Создание собственного NAS на базе TrueNAS
-Что было сделано
+---
 
-Определили бизнес-модель: коммерческий NAS для SMB-клиентов, собственное железо, 1000+ устройств
-Выбрали функциональный ориентир: Synology RS1619xs+
-Сформировали полный технический стек
-Создали Word-документ с ТЗ
+## Сессия 1 — Архитектура и ТЗ
+**Дата:** февраль 2026
 
-Ключевые архитектурные решения
-ZFS vs Btrfs:
-Изначально рассматривали ZFS как enterprise-решение. Отказались потому что ZFS не поддерживает online миграцию уровня RAID (например RAID5 → RAID6 без пересоздания). Это hard requirement бизнес-модели — клиент должен мочь расширить массив без downtime. Финальный выбор: Btrfs + mdadm.
-Веб-интерфейс: Cockpit (быстро, готовый) → свой UI потом
-Обновления: Кастомный deb-репозиторий (reprepro + nginx), устройства pull через apt upgrade по расписанию
-Итоговый стек
+### Что было сделано
+
+- Определили бизнес-модель: коммерческий NAS для SMB-клиентов, собственное железо, 1000+ устройств
+- Выбрали функциональный ориентир: Synology RS1619xs+
+- Сформировали полный технический стек
+- Создали Word-документ с ТЗ
+
+### Ключевые архитектурные решения
+
+**ZFS vs Btrfs:** Изначально рассматривали ZFS как enterprise-решение. Отказались потому что ZFS не поддерживает online миграцию уровня RAID (например RAID5 → RAID6 без пересоздания). Это hard requirement бизнес-модели — клиент должен мочь расширить массив без downtime. Финальный выбор: **Btrfs + mdadm**.
+
+**Итоговый стек:**
+```
 ОС:           Debian (начали с 12, перешли на 13 Trixie)
 RAID:         mdadm — Basic, JBOD, RAID 0/1/5/6/10, RAID F1
 ФС:           Btrfs (снапшоты, online resize)
@@ -28,128 +31,103 @@ NFS:          knfsd
 FTP:          vsftpd
 WebDAV:       Apache
 Rsync:        rsync daemon
-AFP:          запланировано
 iSCSI:        targetcli-fb (LIO)
-AD:           winbind / sssd
 Веб-UI:       Cockpit + плагин rusnas
-Уведомления: email (msmtp) + Telegram (bash + curl)
+Уведомления:  email (msmtp) + Telegram (bash + curl)
 Файрвол:      nftables
 Провизионинг: Ansible монорепо
 Обновления:   reprepro + nginx deb-репо
+```
 
-Сессия 2 — Сборка стека на VM
-Дата: февраль–март 2026
-Чат: Сборка NAS платформы на Debian 12 в UTM
-Среда
+---
 
-Host: Intel Mac, UTM (QEMU)
-VM: Debian 13 Trixie x86_64, 2 ядра, 4GB RAM
-Диски: 1×16GB системный + 3×10GB для тестового RAID
-Перенос файлов: scp через пользователя rusnas (root SSH отключён)
+## Сессия 2 — Сборка стека на VM
+**Дата:** февраль–март 2026
 
-Что было установлено и протестировано
-КомпонентСтатусПримечанияmdadm RAID5✅/dev/md0, три дискаBtrfs✅UUID-based fstab, /mnt/dataSamba✅Проверено с Mac через smbutil и FinderNFS✅mountd зафиксирован на порт 20048vsftpd✅Пассивные порты 30000–30100, нужны правила файрволаWebDAV (Apache)✅Digest auth, нужен Options IndexesRsync daemon✅Пользователь rsyncuser с паролёмiSCSI (targetcli-fb)✅fileio backstoreCockpit✅+ cockpit-storagednftables✅
-Cockpit плагин — первая версия (rusnas-storage)
+### Среда
+- Host: Intel Mac, UTM (QEMU)
+- VM: Debian 13 Trixie x86_64, 2 ядра, 4GB RAM
+- Диски: 1×16GB системный + 3×10GB для тестового RAID
+- Перенос файлов: scp через пользователя rusnas (root SSH отключён)
+
+### Что было установлено и протестировано
+
+| Компонент | Статус | Примечания |
+|-----------|--------|-----------|
+| mdadm RAID5 | ✅ | /dev/md0, три диска |
+| Btrfs | ✅ | UUID-based fstab, /mnt/data |
+| Samba | ✅ | Проверено с Mac через smbutil и Finder |
+| NFS | ✅ | mountd зафиксирован на порт 20048 |
+| vsftpd | ✅ | Пассивные порты 30000–30100, нужны правила файрвола |
+| WebDAV (Apache) | ✅ | Digest auth, нужен Options Indexes |
+| Rsync daemon | ✅ | Пользователь rsyncuser с паролём |
+| iSCSI (targetcli-fb) | ✅ | fileio backstore |
+| Cockpit | ✅ | + cockpit-storaged |
+| nftables | ✅ | |
+
+### Cockpit плагин — первая версия (rusnas-storage)
+
 Разработан итеративно. Решённые проблемы:
+- Неправильный путь к cockpit.js → правильный: `../base1/cockpit.js`
+- CSP блокирует inline обработчики → перенесли всё в `addEventListener`
+- JS не выполнялся → добавили `unsafe-inline` и `unsafe-eval` в CSP в `manifest.json`
 
-Неправильный путь к cockpit.js → правильный: ../base1/cockpit.js
-CSP блокирует inline обработчики → перенесли всё в addEventListener
-JS не выполнялся → добавили unsafe-inline и unsafe-eval в CSP в manifest.json
+### Решённые технические проблемы
+- Бинарники mdadm, mkfs.btrfs не в PATH → добавили `/sbin` в `.bashrc`
+- VPN на хосте отключал сеть VM → переключили UTM на Bridged режим
+- Длинные команды обрезаются при вставке в терминал → workflow: файл + scp
+- macOS NFS mount не работает → нужна опция `insecure` в `/etc/exports`
 
-Результат: плагин показывает SMB-шары и iSCSI-таргеты, поддерживает создание/удаление через cockpit.spawn().
-Решённые технические проблемы
+---
 
-Бинарники mdadm, mkfs.btrfs не в PATH → добавили /sbin в .bashrc
-VPN на хосте отключал сеть VM → переключили UTM на Bridged режим
-Длинные команды обрезаются при вставке в терминал → workflow: файл + scp
-macOS NFS mount не работает → нужна опция insecure в /etc/exports
+## Сессия 3 — Cockpit плагин: доработка и раздел Disks & RAID
+**Дата:** март 2026
 
-Завершение сессии
-Создан документ rusnas-claude-code-task.md — детальная спецификация Ansible-ролей для всех компонентов (base, mdadm, btrfs, samba, nfs, ftp, webdav, rsync, iscsi, cockpit, firewall, notifications). Готов для передачи в Claude Code.
+### Что было исправлено
 
-Сессия 3 — Cockpit плагин: доработка и раздел Disks & RAID
-Дата: март 2026
-Чат: Cockpit плагин для управления NAS
-Что было исправлено
-1. smb.conf — критический баг
-Python regex для редактирования INI-блоков оказался ненадёжным: при удалении/редактировании шары портился весь smb.conf.
-Решение: заменили на sed range pattern:
-bashsed -i '/^\[sharename\]/,/^\[/{/^\[sharename\]/d; /^\[/!d}' /etc/samba/smb.conf
-2. NFS — дублирование записей
-При каждом добавлении экспорта запись дублировалась.
-Решение: перед append удалять старую запись:
-bashsed -i '\|^/path |d' /etc/exports
-3. iSCSI targetcli — не выполнялся
-superuser: "require" в manifest.json покрывает файловые операции, но не subprocess-вызовы targetcli.
-Решение: явный sudo в каждом вызове:
-javascriptcockpit.spawn(["sudo", "targetcli", ...])
-4. Архитектура путей шар
-Раньше пути были хардкодными. Переделали: dropdown заполняется через findmnt --real, фильтруя устройства /dev/md*, /dev/sd[b-z]*, /dev/nvme*.
-Новый раздел: Диски и RAID (disks.html + disks.js)
-Парсер /proc/mdstat
-Определяет состояния: active / degraded / inactive / resyncing / reshaping.
-⚠️ Важно: проверяются оба ключевых слова — resync И reshape. Баг: изначально проверялся только resync, при reshape показывалось "Active". Исправлено.
-Таблица физических дисков
+**1. smb.conf — критический баг**
+Python regex для редактирования INI-блоков оказался ненадёжным. Решение — `sed` range pattern:
+```bash
+sed -i '/^\[sharename\]/,/^\[/{/^\[sharename\]/d; /^\[/!d}' /etc/samba/smb.conf
+```
 
-Модель и серийный номер: sudo smartctl -i /dev/sdX
-S.M.A.R.T. здоровье
+**2. NFS — дублирование записей**
+При каждом добавлении экспорта запись дублировалась. Решение — перед append удалять старую запись:
+```bash
+sed -i '\|^/path |d' /etc/exports
+```
 
-Операции с дисками
+**3. iSCSI targetcli — не выполнялся**
+`superuser: "require"` в manifest.json покрывает файловые операции, но не subprocess-вызовы targetcli. Решение — явный `sudo` в каждом вызове:
+```javascript
+cockpit.spawn(["sudo", "targetcli", ...])
+```
 
-Безопасное извлечение: --fail → --remove → device/delete, подтверждение по серийному номеру
-Replace disk и Expand array — отдельные операции
-Expand: --add + --grow --raid-devices=N + автоматический resize2fs или btrfs resize по завершению reshape
-Ресканирование SCSI-шины: echo "- - -" > /sys/class/scsi_host/host*/scan
+**4. Архитектура путей шар**
+Dropdown заполняется через `findmnt --real`, фильтруя устройства `/dev/md*`, `/dev/sd[b-z]*`, `/dev/nvme*`.
 
-Авто-обновление
-Каждые 4 секунды когда массив в состоянии degraded или resyncing/reshaping.
-Структура меню (manifest.json)
-Order 1: Storage   → storage.html
-Order 2: Disks     → disks.html   ← новый
-Order 3: Users     → users.html
-Структура файлов плагина
-/usr/share/cockpit/rusnas/
-├── manifest.json
-├── index.html
-├── storage.html
-├── users.html
-├── disks.html
-└── js/
-    ├── storage.js
-    ├── users.js
-    └── disks.js
+### Новый раздел: Диски и RAID (disks.html + disks.js)
 
-Сессия 4 — HA кластер (исследование)
-Дата: март 2026
-Чат: Синхронизация NAS для отказоустойчивого кластера
+- Парсер `/proc/mdstat`: состояния `active` / `degraded` / `inactive` / `resyncing` / `reshaping`
+  - ⚠️ Важно: проверяются оба ключевых слова — `resync` И `reshape`
+- S.M.A.R.T. информация о дисках через `sudo smartctl -i`
+- Безопасное извлечение: `--fail → --remove → device/delete`, подтверждение по серийному номеру
+- Replace disk и Expand array — отдельные операции
+- Авто-обновление каждые 4 сек при degraded/resyncing
+
+---
+
+## Сессия 4 — HA кластер (исследование)
+**Дата:** март 2026
 
 Исследовательская сессия. В код ничего не легло, но решения приняты для будущей реализации.
 
-Архитектура HA-кластера для rusNAS
-Репликация данных — DRBD
-Node1: /dev/drbd0 ←── TCP/IP ──→ /dev/drbd0 :Node2
-            ↑                           ↑
-        mdadm RAID                  mdadm RAID
-            ↓                           ↓
-          Btrfs                       Btrfs
+### Архитектура HA-кластера
+- **Репликация данных:** DRBD поверх mdadm-массива (Протокол C — синхронный)
+- **Failover:** Pacemaker + Corosync (~10–30 сек даунтайм при падении узла)
+- **Арбитр:** Raspberry Pi 4 (~$50) — iSCSI SBD диск + QNetd
 
-Протокол C = синхронный (zero data loss)
-Протокол A = асинхронный (выше производительность)
-DRBD идёт поверх mdadm-массива
-
-Failover — Pacemaker + Corosync
-
-Corosync: heartbeat между узлами
-Pacemaker: управляет ресурсами (VIP, DRBD, mount, Samba/NFS)
-При падении узла: ~10–30 сек даунтайм для клиентов (floating IP мигрирует)
-
-Арбитр — Raspberry Pi
-Решает проблему split-brain при двух узлах:
-
-iSCSI SBD диск — каждый узел пишет heartbeat в свой слот. Если узел завис, watchdog его ребутит (15 сек → 30 сек даунтайм, полностью автономно)
-QNetd — кворум-арбитр
-
-Финальная схема:
+```
 Node1 ──[eth0]── Switch ──[eth0]── Node2   (клиенты + SBD iSCSI)
 Node1 ──[eth1]─────────────────── Node2    (прямой кабель, DRBD)
                 Switch
@@ -157,21 +135,18 @@ Node1 ──[eth1]─────────────────── Node
             Raspberry Pi 4
             ├── iSCSI target (SBD диск)
             └── QNetd (кворум)
-Стоимость арбитра: ~$50. Одна плата тянет обе роли.
-Синхронизация конфигурации
-При изменении конфига через Cockpit плагин → Ansible синхронизирует конфиги на оба узла.
+```
 
-Сессия 5 — Git, DevOps, UI redesign
-Дата: 12 марта 2026
-Чат: Claude Code — инициализация репозитория и редизайн UI
+---
 
-Что было сделано
+## Сессия 5 — Git, DevOps, UI redesign
+**Дата:** 12 марта 2026
 
-1. Git-репозиторий и рабочий каталог
-Инициализирован git-репо в /Users/dvl92/projects/RusNAS/.
-Собраны все файлы плагина с VM (10.10.10.72:/usr/share/cockpit/rusnas/) через scp.
+### Что было сделано
 
-Уточнена реальная структура файлов — отличается от документации:
+**1. Git-репозиторий**
+Инициализирован git-репо в `/Users/dvl92/projects/RusNAS/`. Уточнена реальная структура файлов:
+```
 /usr/share/cockpit/rusnas/
 ├── manifest.json
 ├── index.html       ← (не storage.html как было записано)
@@ -182,353 +157,473 @@ Node1 ──[eth1]─────────────────── Node
     ├── app.js       ← (не storage.js)
     ├── disks.js
     └── users.js
+```
 
-2. deploy.sh — автоматический деплой
-Создан скрипт deploy.sh: scp в /tmp/ → sudo cp → chmod 644/755 → готово.
-Проблемы и решения:
-— SSH без пароля: установлен sshpass (brew), добавлены флаги -o PreferredAuthentications=password -o PubkeyAuthentication=no
-— sudo на VM: передача пароля через echo 'pass' | sudo -S
-— Права файлов 600 после scp: Cockpit не мог читать → deploy.sh теперь выставляет 644 на файлы, 755 на директории
+**2. deploy.sh**
+`scp → /tmp/ → sudo cp → chmod 644/755`. Проблемы: sshpass, sudo -S, права 600 после scp.
 
-3. Фикс страницы Users (зависала на "Загрузка...")
-Три бага одновременно:
-— initUsers() никогда не вызывалась — не было DOMContentLoaded listener
-— showModal/closeModal не определены в users.js (они живут в app.js, который users.html не загружает)
-— Нет .fail() на внутренних cockpit.spawn() в loadUsers() → pending никогда не достигал 0
+**3. Фикс страницы Users (зависала на "Загрузка...")**
+- `initUsers()` не вызывалась — нет `DOMContentLoaded` listener
+- `showModal/closeModal` не определены в `users.js`
+- Нет `.fail()` на `cockpit.spawn()` → pending никогда не достигал 0
 
-4. Редизайн UI — dark mode + CSS custom properties
-style.css полностью переписан:
-— CSS custom properties для всех цветов (--bg, --bg-card, --color, --primary и т.д.)
-— @media (prefers-color-scheme: dark) для автоматической тёмной темы
-— Cockpit v337 передаёт тему в iframe через color-scheme CSS property → prefers-color-scheme срабатывает корректно
-— Шрифт Red Hat Text подключён через ../../static/fonts/ (Cockpit bundled fonts)
-— PatternFly v6 inspired дизайн-токены (цвета взяты из bundled Cockpit CSS)
-Все три HTML файла обновлены:
-— <meta name="color-scheme" content="light dark"> добавлен в head
-— Все inline style="..." убраны
-— Новые классы: .section-toolbar, .modal-footer, .btn-group, .table-hint
-— inline <style> блок из disks.html перенесён в style.css
-
-5. ui.md — UI guidelines
-Создан документ с правилами разработки UI:
-— Все компоненты с примерами HTML
-— Правило: никогда не хардкодить цвета вне CSS custom properties
-— Механизм dark mode объяснён
-— CSP правила (что работает через unsafe-inline, что нет)
-— Ссылка добавлена в CLAUDE.md
-
-Текущее состояние проекта
-Готово ✅
-
-Полный стек установлен и протестирован на VM
-Cockpit плагин: Storage (SMB + NFS + iSCSI), Users, Disks & RAID
-Git-репозиторий инициализирован, deploy.sh работает
-UI redesign: dark mode, CSS custom properties, PatternFly v6 стиль
-ui.md — UI guidelines, CLAUDE.md актуален
-
-В работе / следующие шаги 🔜
-
- Ansible роли — реализация по спеке (отдельная Claude Code сессия)
- Cockpit плагин — снапшоты Btrfs
- Cockpit плагин — мониторинг и уведомления
- AFP протокол
- Active Directory (winbind/sssd)
- Email + Telegram уведомления
- HA кластер (DRBD + Pacemaker + Corosync + Raspberry Pi)
-
-
-Сессия 6 — rusNAS Guard (Антишифровальщик)
-Дата: 13 марта 2026
-Ветка: feature/rusnas-guard
-Коммит: b27cac4
-
-Что было сделано
-
-Реализован полноценный daemon защиты от шифровальщиков — rusnas-guard.
-
-1. Архитектура daemon (Python 3)
-5 модулей в /usr/lib/rusnas-guard/:
-
-guard.py — точка входа, main loop, управление жизненным циклом
-detector.py — inotify watcher, диспетчер 4 методов обнаружения
-entropy.py — Shannon entropy: 16×4KB случайных блоков, порог 7.2 бит/байт
-honeypot.py — bait-файлы: !~rng_XXXXXXXX.docx/.xlsx/.pdf в каждой папке
-response.py — блокировка IP (nftables), снапшоты Btrfs, уведомления, JSONL-лог
-socket_server.py — Unix socket, JSON protocol, bcrypt PIN, session tokens (30 мин)
-
-2. Четыре независимых метода обнаружения
-
-Метод          | Триггер                                              | Примечание
-Honeypot       | Любое изменение bait-файла                          | Мгновенно, без порога
-Entropy        | >7.2 бит/байт при IN_CLOSE_WRITE                   | Пропускает mp4/zip/jpg и <16KB файлы
-IOPS anomaly   | rate > median + 4×σ И rate > 50 ops/min            | Активен после 7-дневного обучения
-Extensions     | Файл создан/переименован в .locked/.encrypted/etc. | ~200 расширений в списке
-
-3. Три режима реагирования
-
-Monitor — только лог и уведомления, без блокировок
-Active — снапшот + блокировка IP через nftables + отключение SMB-соединений
-Super-Safe — снапшоты ВСЕХ томов → уведомление → стоп всех служб → poweroff через 30 сек
-
-4. Guard PIN
-— Bcrypt hash в /etc/rusnas-guard/guard.pin
-— Независим от пароля Cockpit-администратора
-— Требуется для: start/stop, смены режима, изменения настроек, acknowledge событий
-— Session token 30 минут (только в памяти daemon)
-— First-run wizard при первом открытии страницы без PIN
-
-5. Post-attack safe mode
-— После Super-Safe shutdown: флаг /etc/rusnas-guard/post_attack
-— На следующем старте: Monitor mode, предупреждение в UI
-— Снимается только PIN-подтверждением через "Подтвердить и восстановить режим"
-
-6. Cockpit UI (guard.html + guard.js)
-— Статус-бар: Running/Stopped + кнопки Start/Stop + режим
-— Dashboard: 6 плиток (события/день, IOPS, baseline, снапшот, путей, блокировок)
-— Журнал событий: последние 50, с acknowledge кнопкой
-— Настройки обнаружения: toggle + slider энтропии + dropdown чувствительности IOPS
-— Мониторируемые пути: таблица с per-path флагами
-— Снапшоты: local + remote SSH (с генерацией ed25519 ключа в UI)
-— Список расширений: textarea-редактор
-
-7. Деплой и инфраструктура
-— install-guard.sh: загружает daemon, ставит python3-inotify, регистрирует systemd service
-— systemd service: disabled by default, enable --now только через UI с PIN
-— manifest.json обновлён: Guard 🛡️ → order 4
-
-8. Проверка
-— python3 -m py_compile: все 6 модулей без ошибок
-— Файлы на VM: /usr/lib/rusnas-guard/ ✅, /etc/rusnas-guard/ ✅
-— Cockpit: guard.html + guard.js задеплоены с правами 644 ✅
-— systemctl status rusnas-guard: loaded (disabled) ✅
-
-Зависимости на VM
-python3-inotify (0.2.10-5) — установлен
-python3-bcrypt (4.2.0-2.1+b1) — был установлен
-btrfs-progs, nftables, openssh-client — были установлены
-
-Текущее состояние проекта после сессии 6
-Готово ✅
-
-Все предыдущие фичи (Storage, Disks&RAID, Users)
-rusNAS Guard daemon: установлен на VM, синтаксически валиден
-Cockpit Guard UI: доступен в браузере → Guard 🛡️
-Git: ветка feature/rusnas-guard, коммит b27cac4, запушен на GitHub
-
-Следующие шаги 🔜
-
-Протестировать Guard в реальных условиях:
-  — создать bait-файл и убедиться что honeypot срабатывает
-  — записать /dev/urandom → проверить entropy trigger
-  — переименовать файл в .locked → проверить extensions trigger
-Интеграция уведомлений: создать /usr/lib/rusnas/notify.sh (email + Telegram)
-Ansible роль для Guard (автоустановка на новых устройствах)
-PR: feature/rusnas-guard → main
-
-
-Сессия 7 — Guard PIN Reset
-Дата: 14 марта 2026
-Ветка: feature/rusnas-guard
-
-Что было сделано
-
-Реализован механизм сброса Guard PIN в соответствии с security model.
-
-Security model
-Сброс PIN НЕ должен быть доступен через Cockpit UI — иначе атакующий с доступом к Cockpit
-может нейтрализовать Guard. Сброс требует root/физический доступ к серверу (SSH или консоль).
-
-Реализация (3 файла)
-
-1. guard.py — CLI-аргумент --reset-pin
-Функция cmd_reset_pin():
-— Проверяет os.geteuid() == 0, иначе: "Ошибка: требуются права root"
-— Удаляет /etc/rusnas-guard/guard.pin
-— Выводит сообщение с инструкцией открыть Guard в Cockpit
-
-2. install-guard.sh — symlink для удобства
-ln -sf /usr/lib/rusnas-guard/guard.py /usr/local/sbin/rusnas-guard
-Итоговая команда: sudo rusnas-guard --reset-pin
-
-3. guard.html — подсказка в PIN-диалоге
-Под полем ввода PIN добавлена строка:
-"Забыли PIN? Выполните на сервере: sudo rusnas-guard --reset-pin"
-
-Что НЕ реализовано (намеренно)
-— Кнопка сброса в UI (нарушает security model)
-— Recovery codes (избыточно для SMB NAS)
-— Email-восстановление (нет привязки email к Guard PIN)
-
-
-Сессия 8 — Guard: исправление багов, тестирование, мёрж в main
-Дата: 14 марта 2026
-Ветка: feature/rusnas-guard → main
-
-Что было сделано
-
-1. Исправлены критические баги в detector.py
-
-Баг 1: IOPS counter всегда показывал 0
-InotifyTrees возвращает watch_path = поддиректорию события (/mnt/data/shares/public),
-а _iops_windows заполнен ключами root-путей (/mnt/data). При первом событии в любой
-поддиректории _iops_windows[watch_path] бросает KeyError — поток детектора падает
-молча, после чего никакие события не обрабатываются вообще.
-
-Исправление: добавлен _root_path(watch_path) → нормализует поддиректорию до
-конфигурированного root-пути перед любым обращением к _iops_windows и _baseline.
-
-Баг 2: current_iops не обновляется между событиями
-_update_state() в guard.py не вызывал get_iops() — счётчик обновлялся только при
-inotify-событии. Если активности нет >60 сек, окно уже пустое, но state.json хранит
-старое значение.
-
-Исправление: добавлен публичный метод get_iops() в Detector; _update_state()
-теперь вызывает его каждую секунду.
-
-2. Исправлены проблемы с правами доступа к сокету
-
-Проблема: Cockpit bridge подключается к сокету как не-root пользователь.
-socket_server.py делал chmod 0o660 (root:root) → permission denied.
-RuntimeDirectoryMode=0750 → директория непроходима.
-superuser: "require" в guard.js → polkit timeout в iframe-контексте.
-
-Исправления:
-— socket_server.py: chmod 0o660 → 0o666
-— rusnas-guard.service: RuntimeDirectory=rusnas-guard + RuntimeDirectoryMode=0755
-— guard.js: убрано superuser: "require" из cockpit.channel()
-— Безопасность не снижена: все sensitive команды требуют PIN/token
-
-3. Исправлены права директории /etc/rusnas-guard/
-
-chmod 700 → 755 при install-guard.sh (нужно Cockpit bridge для чтения ransom_extensions.txt).
-
-4. Полное E2E тестирование через Playwright MCP
-
-Все 18 тестов прошли:
-
-Тест                              | Результат
-T1  начальное состояние           | ✅ badge="Мониторинг выключен", stats=0
-T2  кнопка Start → PIN-модал      | ✅ заголовок модала корректен
-T3  неверный PIN → ошибка         | ✅ "Invalid PIN or session expired"
-T4  отмена PIN-модала             | ✅ модал закрывается
-T5  запуск Guard с PIN            | ✅ badge="Защита активна"
-T6  статистика путей              | ✅ paths=1
-T7  остановка Guard               | ✅ badge="Мониторинг выключен"
-T8  переключение режимов          | ✅ Активный / Мониторинг
-T9  предупреждение Супер-защита   | ✅ модал с подтверждением / отмена
-T10 список расширений             | ✅ 196 расширений загружено (был баг chmod 700)
-T11 модал добавления пути         | ✅
-T12 таблица путей                 | ✅ /mnt/data/shares/public
-T13 снять блокировки (PIN→успех)  | ✅ "🔵 Все блокировки IP сняты"
-T14 сохранить настройки обнаружения| ✅ "🔵 Настройки обнаружения сохранены"
-T15 сохранить настройки снапшотов | ✅ "🔵 Настройки снапшотов сохранены"
-IOPS-триггер                      | ✅ 777 ops/min при записи 50 файлов
-Entropy-триггер                   | ✅ 50 событий (random binary, entropy ~8.0 > 7.2)
-Honeypot-триггер                  | ✅ 🪤 Приманка — событие на !~rng_y6yx0nvv.doc
-
-5. Мёрж ветки в main
-
-feature/rusnas-guard → main
-
-Сводка принятых решений
-РешениеВыборПричинаФСBtrfs + mdadmZFS не поддерживает online RAID level migrationВеб-UICockpit + кастомный плагинСкорость разработкиsmb.conf редактированиеsed range patternPython regex ненадёжен для INI-блоковiSCSI в Cockpitявный sudo в spawn()superuser:require не покрывает subprocessПути шарfindmnt --real dropdownНе хардкодить, брать реальные точки монтированияNFS идемпотентностьsed delete перед appendИначе дублируются записиmdstat парсингresync + reshape обаТолько resync → reshape показывало "Active"Арбитр HARaspberry Pi (SBD + QNetd)$50, решает split-brain и зависания ядраGuard сокет правасокет 0o666, dir 0755, без superuser:requirePolkit escalation не propagates в iframe-контекстеGuard daemon жизненный циклСервис всегда запущен; Start/Stop = Detector threadUI всегда может подключиться к сокету и прочитать статусGuard IOPS InotifyTrees_root_path() нормализация перед lookup в _iops_windowsInotifyTrees даёт поддиректорию, не root-путь из конфигаGuard /etc/rusnas-guard права755 (не 700) — Cockpit bridge читает как не-rootCockpit bridge не запускается под root
+**4. Редизайн UI — dark mode + CSS custom properties**
+- CSS custom properties для всех цветов
+- `@media (prefers-color-scheme: dark)` — автоматическая тёмная тема
+- PatternFly v6 inspired дизайн-токены
+- Создан `ui.md` — UI guidelines
 
 ---
 
-Сессия 9 — rusNAS Snapshots: Btrfs snapshot manager
-Дата: 14 марта 2026
-Ветка: feature/snapshots
+## Сессия 6 — rusNAS Guard (Антишифровальщик)
+**Дата:** 13 марта 2026 | Ветка: `feature/rusnas-guard`
 
-Что было сделано
+### Архитектура daemon (Python 3)
+5 модулей в `/usr/lib/rusnas-guard/`: `guard.py`, `detector.py`, `entropy.py`, `honeypot.py`, `response.py`, `socket_server.py`
 
-Реализован полноценный менеджер Btrfs-снапшотов для rusNAS:
-CLI-инструмент rusnas-snap, systemd-таймер, Cockpit UI, apt pre-update hook.
+### Четыре метода обнаружения
 
-1. CLI: rusnas-snap
+| Метод | Триггер | Примечание |
+|-------|---------|-----------|
+| Honeypot | Любое изменение bait-файла | Мгновенно |
+| Entropy | >7.2 бит/байт при IN_CLOSE_WRITE | Пропускает mp4/zip/jpg и <16KB |
+| IOPS anomaly | rate > median + 4×σ И rate > 50 ops/min | Активен после 7-дневного обучения |
+| Extensions | ~200 расширений (.locked/.encrypted/etc.) | |
 
-Python 3 скрипт /usr/local/bin/rusnas-snap (~500 строк).
-SQLite БД /var/lib/rusnas/snaps.db (WAL-режим, retry при lock).
-Таблицы: snapshots, schedules, events.
+### Три режима реагирования
+- **Monitor** — только лог и уведомления
+- **Active** — снапшот + блокировка IP (nftables) + отключение SMB
+- **Super-Safe** — снапшоты всех томов → уведомление → стоп всех служб → poweroff через 30 сек
 
-Команды:
-  init-db           — инициализация БД
-  create            — создать снапшот (--label)
-  list              — список снапшотов (JSON stdout)
-  delete            — удалить снапшот
-  lock / unlock     — заблокировать от retention
-  label             — переименовать метку
-  retention         — применить политику удаления
-  restore           — полное восстановление субволюма
-  restore-file      — восстановить отдельный файл из снапшота
-  browse            — примонтировать снапшот read-only
-  browse-umount     — размонтировать снапшот
-  update-sizes      — обновить размеры снапшотов
-  scheduled-run     — выполнить все активные расписания (для таймера)
-  pre-update-all    — создать снапшоты всех субволюмов (для apt hook)
-  schedule set/list — управление расписаниями
-  events            — журнал событий
+### Guard PIN
+- Bcrypt hash в `/etc/rusnas-guard/guard.pin`
+- Независим от пароля Cockpit-администратора
+- Session token 30 минут (только в памяти daemon)
+- Сброс: `sudo rusnas-guard --reset-pin` (только root/SSH)
 
-Smart Retention (5 окон): last N, hourly, daily, weekly, monthly.
-Locked и manual снапшоты не удаляются retention.
+---
 
-Атомарный restore: tmp subvol → rename current → rename tmp → delete backup.
-Snapshot layout: /mnt/btrfspool/.snapshots/shares__public/@YYYY-MM-DD_HH-MM-SS_type
+## Сессия 7 — Guard PIN Reset
+**Дата:** 14 марта 2026 | Ветка: `feature/rusnas-guard`
 
-2. Systemd таймер
+Реализован механизм сброса Guard PIN. Сброс НЕ доступен через UI — требует root/SSH.
+- `guard.py --reset-pin`: проверяет `os.geteuid() == 0`, удаляет `guard.pin`
+- `ln -sf /usr/lib/rusnas-guard/guard.py /usr/local/sbin/rusnas-guard`
+- Подсказка в PIN-диалоге UI с командой сброса
 
-rusnas-snapd.timer — каждые 5 минут, запускает scheduled-run.
-rusnas-snapd.service — Type=oneshot.
+---
 
-3. Apt hook
+## Сессия 8 — Guard: исправление багов, тестирование, мёрж в main
+**Дата:** 14 марта 2026 | Ветка: `feature/rusnas-guard → main`
 
-/etc/apt/apt.conf.d/99rusnas-snapshot — автоснапшот перед apt upgrade.
+### Критические баги
 
-4. Cockpit UI
+**Баг 1: IOPS counter всегда показывал 0**
+`InotifyTrees` возвращает `watch_path` = поддиректорию, а `_iops_windows` заполнен ключами root-путей. При первом событии в поддиректории `_iops_windows[watch_path]` бросает `KeyError` — поток детектора падает молча.
+Исправление: `_root_path(watch_path)` нормализует поддиректорию до root-пути из конфига.
 
-cockpit/rusnas/snapshots.html + js/snapshots.js
-Три вкладки: Снапшоты / Расписание / Журнал событий.
-Subvol dropdown — автоматически из schedule list.
-Модальные окна: создать снапшот, подтверждение restore, добавить/изменить расписание, путь browse.
-Все кнопки: Просмотр, Восстановить, Метка, Заблокировать/Разблокировать, Удалить.
-Cron presets: каждый час / день / неделю / месяц.
-Locked снапшоты отображаются с 🔒 и кнопкой "Разблокировать".
+**Баг 2: Socket permissions**
+`chmod 0o660` (root:root) → permission denied для Cockpit bridge (не-root). `RuntimeDirectoryMode=0750` → директория непроходима. `superuser: "require"` в iframe → polkit timeout.
+Исправления: сокет `0o666`, `RuntimeDirectoryMode=0755`, убрано `superuser: "require"` из `guard.js`.
 
-5. Тестирование
+**Баг 3: `/etc/rusnas-guard/` chmod 700**
+Cockpit bridge не мог читать `ransom_extensions.txt`. Исправлено: `chmod 755`.
 
-14 автотестов (rusnas-snap-test.sh) — все пройдены:
-create, list, lock, label, retention (locked снапшоты выживают),
-restore-file, full restore, delete, events, schedule list,
-update-sizes, scheduled-run, unlock, verify on-disk layout.
+### Тестирование (18 тестов через Playwright MCP — все ✅)
+Включая: IOPS-триггер (777 ops/min), Entropy-триггер (entropy ~8.0 > 7.2), Honeypot-триггер.
 
-6. Btrfs окружение на VM
+---
 
-VM использует ext4; Btrfs создан через loop-image:
-  /var/lib/rusnas/btrfs-pool.img (5 GB)
-  mount -o loop → /mnt/btrfspool
-  Субволюмы: shares/public, shares/documents, shares/backups
-  Снапшоты: /mnt/btrfspool/.snapshots/shares__*/
+## Сессия 9 — rusNAS Snapshots: Btrfs snapshot manager
+**Дата:** 14 марта 2026 | Ветка: `feature/snapshots`
 
-7. Deploy
+### Что реализовано
 
-install-snapshots.sh — деплой всей системы на VM (с флагом --setup-btrfs).
-Sudoers: rusnas ALL=(ALL) NOPASSWD: /usr/local/bin/rusnas-snap
+**CLI `rusnas-snap`** (`/usr/local/bin/rusnas-snap`, ~500 строк Python 3):
+- SQLite БД `/var/lib/rusnas/snaps.db` (WAL-режим)
+- Команды: `create`, `list`, `delete`, `lock/unlock`, `label`, `retention`, `restore`, `restore-file`, `browse`, `browse-umount`, `update-sizes`, `scheduled-run`, `pre-update-all`, `schedule set/list`, `events`
+- Smart Retention (5 окон): last N, hourly, daily, weekly, monthly
 
-Баги и исправления в этой сессии
+**Systemd таймер:** `rusnas-snapd.timer` — каждые 5 минут
 
-Проблема                                     | Исправление
---json флаг у schedule list и events         | Эти команды не принимают --json (всегда JSON stdout); убран из runCmd
-loadSubvols всегда вызывал findBtrfsSubvols  | Упрощён: если есть пути из schedule list — используем их, bash-discovery пропускается
-findBtrfsSubvols: sudo -n bash -c            | bash не в sudoers NOPASSWD; исправлено — discovery не нужен при наличии расписаний
-err:"out" в cockpit.spawn                    | Заменено на err:"message" — иначе stderr смешивается с JSON stdout
-safeJson line-by-line поиск                  | Заменено на JSON.parse(str) напрямую
-Тест T6/T7: permission denied                | chmod 777 на субволюмах для тестов
-Тест: heredoc раскрывался на Mac-хосте      | Записали тест в файл и scp на VM
+**Apt hook:** `/etc/apt/apt.conf.d/99rusnas-snapshot` — автоснапшот перед `apt upgrade`
 
-Принятые решения
+**Cockpit UI** (`snapshots.html` + `js/snapshots.js`):
+- Три вкладки: Снапшоты / Расписание / Журнал событий
+- Browse снапшота: монтирует read-only bind mount + временная SMB-шара, показывает Windows/macOS путь
 
-Решение          | Выбор                            | Причина
-CLI вывод        | JSON всегда в stdout, лог в stderr| Cockpit spawn err:"message" разделяет их
-schedule list    | Без --json флага                  | Команда всегда выводит JSON
-Subvol discovery | Приоритет — schedule list paths   | bash не в sudoers; зачем bash если есть расписания
-Btrfs на VM      | Loop image 5GB                    | VM не имеет Btrfs раздела; loop — быстро и просто
-Retention locked | Locked снапшоты никогда не удаляются| Явная защита важных точек восстановления
+### Ключевые решения
+- `schedule list` и `events` не принимают `--json` (всегда JSON stdout) — флаг убран
+- `err: "message"` в cockpit.spawn (не `err: "out"`) — stderr отдельно от JSON
+- bash НЕ в sudoers NOPASSWD — discovery через `btrfs subvolume list` напрямую, не через bash
+
+---
+
+## Сессия 10 — Snapshot SMB Browse + Guard memory leak fix
+**Дата:** 14 марта 2026 | Коммит: `e63bfaf`
+
+### Snapshots — кнопка «Просмотр»
+- `rusnas-snap browse`: монтирует снапшот как read-only bind mount, добавляет временную SMB-шару `[snap-XXXXXXXX]`, планирует auto-umount через 30 мин (`systemd-run`)
+- `rusnas-snap browse-umount`: удаляет шару, размонтирует
+- Модал: Windows-путь (`\\rusNAS\snap-XXXXXXXX`) и macOS-путь (`smb://IP/snap-XXXXXXXX`) с кнопками «Копировать»
+
+### Guard — фикс утечки памяти cockpit-bridge
+- `_statusPending` lock: новый запрос не отправляется пока предыдущий в полёте (было 2 параллельных канала каждые 5с)
+- `get_events` теперь последовательный — только после ответа status
+- Интервал 5с → 10с
+- Таймер паузируется при скрытой вкладке (`visibilitychange`)
+
+---
+
+## Сессия 11 — RAID Full Lifecycle UI
+**Дата:** 14 марта 2026 | Коммит: после merge feature/snapshots
+
+### Реализовано в `disks.html` + `js/disks.js`
+
+| Feature | Детали |
+|---------|--------|
+| **+ Создать массив** | 2-step wizard: RAID level (0/1/5/6/10 с min-disk валидацией), чекбоксы дисков, mount point + FS label → progress log → `mdadm --create` + `mkfs.btrfs` + `mount` + `/etc/fstab` |
+| **Удалить массив** | Confirm modal со списком дисков → `umount` + fstab cleanup (по UUID) + `mdadm --stop` + `mdadm --zero-superblock` |
+| **Смонтировать** | `blkid` FS detection (кнопка неактивна без FS) → `mkdir -p` + `mount` + fstab |
+| **Размонтировать** | Confirm dialog → `umount` |
+| **Субтома Btrfs** | Кнопка только когда btrfs смонтирован; modal: список + create + delete |
+
+**Mount status на карточке массива:** `📂 /mnt/data (btrfs)` или `— не смонтирован`
+
+### Верификация на VM
+1. ✅ Удалён md127 через UI
+2. ✅ Создан RAID 5 (md0, 3 диска, 21.5 GB) → Btrfs → `/mnt/data`
+3. ✅ Созданы субтомы `homes`, `documents`
+4. ✅ Unmount → remount цикл
+
+---
+
+## Сессия 12 — Btrfs субтомы в Storage (Хранилище) + bugfixes
+**Дата:** 14 марта 2026
+
+### A. Интеграция субтомов в создание SMB/NFS шар (`js/app.js`, `index.html`)
+
+**Проблема:** dropdown в «Создать шару» показывал только mount points (`/mnt/data`), субтомы не видны.
+
+**Решение:**
+- `loadVolumeSelects()` переписан: `findmnt -rno` → для каждого btrfs-тома параллельно `btrfs subvolume list -o` через native Promise wrappers (не bash)
+- Btrfs тома с субтомами отображаются как `<optgroup>` с опциями «Весь том» + `📁 homes`, `📁 documents`
+- `change`-обработчик на `#share-volume`: при выборе субтома авто-заполняет имя шары и показывает hint `"Путь шары: /mnt/data/homes (Btrfs субтом)"`
+- `addShare()`: при выборе субтома путь = субтом напрямую (не `volume + "/" + name`)
+
+**Ключевой баг:** `cockpit.spawn().then().catch()` не возвращает нативный Promise → `Promise.all()` не работал. Исправлено: `spawnBtrfsSubvols()` оборачивает в `new Promise()` с `.stream()`.
+
+### B. Исправления `js/snapshots.js`
+
+- `findBtrfsSubvols()`: заменён `sudo -n bash -c "..."` (bash не в NOPASSWD sudoers) на `cockpit.spawn(findmnt)` + `cockpit.spawn(btrfs subvolume list, {superuser: "require"})`
+- `loadSubvols()`: теперь запускает schedule list + live discovery параллельно через `Promise.all`, merge с дедупликацией — свежие субтомы без расписаний сразу видны
+- `fmtSubvol()`: убрана зависимость от `/shares/` → все субтомы показываются как `📁 homes (/mnt/data/homes)`
+
+### C. Исправления `js/disks.js` (bugs.MD)
+
+**Баг: субтомы показывали снапшоты**
+`btrfs subvolume list /mnt/data` без фильтрации показывал `.snapshots/...`. Исправлено: фильтрация путей с `.snapshots` в JS.
+
+**Баг: кнопка «Удалить субтом» не работала**
+Строковая интерполяция пути с `/`, `@`, `.` в `data-subvol` атрибуте и `bash -c "sudo btrfs..."` вызывала проблемы. Исправлено:
+- `data-idx` вместо `data-subvol` (индекс в массиве, без спецсимволов)
+- `cockpit.spawn(["btrfs", "subvolume", "delete", fullPath], {superuser: "require"})` без bash
+
+### D. Исправление размеров снапшотов (`rusnas-snap`)
+
+**Проблема:** `cmd_create` не вычислял размер → `size_bytes = 0` в БД до ручного `update-sizes`.
+
+**Исправление:** `cmd_create` теперь вызывает `get_snap_size(snap_path)` сразу после создания и сохраняет в INSERT. Размер через `du -sb` (fallback когда qgroups не включены).
+
+Старые снапшоты обновлены: `rusnas-snap update-sizes` → все получили корректные размеры.
+
+---
+
+## Сессия 13 — Фикс загрузки больших файлов по SMB (macOS)
+**Дата:** 14 марта 2026
+
+### Проблема
+Загрузка больших файлов с macOS на SMB-шару `documents` завершалась «неожиданной ошибкой».
+
+### Диагностика
+Лог Samba (`/var/log/samba/log.dvls`):
+```
+sys_path_to_bdev() failed for path [.]!   (повторяется при каждой операции записи)
+```
+Samba при каждой записи пытается получить дисковую квоту через Linux quota API. Btrfs не поддерживает традиционные Linux-квоты → `sys_path_to_bdev(".")` падает → macOS Finder получает некорректный ответ о свободном месте → «неожиданная ошибка» на больших файлах. Запись 500MB напрямую на сервере работала нормально.
+
+### Исправление (`/etc/samba/smb.conf [global]`)
+```ini
+vfs objects = catia fruit streams_xattr
+fruit:metadata = stream
+fruit:model = MacSamba
+fruit:posix_rename = yes
+fruit:veto_appledouble = no
+fruit:wipe_intentionally_left_blank_rfork = yes
+fruit:delete_empty_adfiles = yes
+use sendfile = yes
+aio read size = 1
+aio write size = 1
+socket options = TCP_NODELAY IPTOS_LOWDELAY
+```
+Модуль `fruit` включает специальную обработку macOS-клиентов с корректным репортингом свободного пространства без quota API. `socket options` убирает задержки Nagle-алгоритма.
+
+---
+
+## Сводная таблица принятых решений
+
+| Решение | Выбор | Причина |
+|---------|-------|---------|
+| ФС | Btrfs + mdadm | ZFS не поддерживает online RAID level migration |
+| Веб-UI | Cockpit + кастомный плагин | Скорость разработки |
+| smb.conf редактирование | sed range pattern | Python regex ненадёжен для INI-блоков |
+| iSCSI в Cockpit | явный sudo в spawn() | superuser:require не покрывает subprocess |
+| Пути шар | findmnt --real dropdown | Не хардкодить, брать реальные точки монтирования |
+| NFS идемпотентность | sed delete перед append | Иначе дублируются записи |
+| mdstat парсинг | resync + reshape оба | Только resync → reshape показывало "Active" |
+| Арбитр HA | Raspberry Pi (SBD + QNetd) | $50, решает split-brain и зависания ядра |
+| Guard сокет права | 0o666, dir 0755, без superuser:require | Polkit не propagates в iframe-контексте |
+| Guard daemon жизненный цикл | Сервис всегда запущен; Start/Stop = Detector thread | UI всегда может подключиться к сокету |
+| Guard IOPS | `_root_path()` нормализация | InotifyTrees даёт поддиректорию, не root-путь |
+| Guard /etc/rusnas-guard | chmod 755 | Cockpit bridge читает как не-root |
+| CLI вывод rusnas-snap | JSON stdout, лог stderr | err:"message" разделяет их |
+| schedule list | Без --json флага | Команда всегда выводит JSON |
+| Subvol discovery | Promise.all(schedule+live) | bash не в sudoers; merge с дедупликацией |
+| Btrfs на VM | RAID 5 md0 → /mnt/data | Реальный mdadm-массив (не loop image) |
+| cockpit.spawn Promise | new Promise() wrapper | .then().catch() cockpit не совместим с Promise.all |
+| Snap размеры | get_snap_size() в cmd_create | du -sb fallback когда qgroups отключены |
+| SMB macOS large files | vfs objects = catia fruit streams_xattr | fruit корректно репортит свободное место без quota API |
+
+---
+
+## Сессия 14 — UX редизайн модуля снапшотов: сайдбар + глобальная статистика
+
+**Дата:** 2026-03-14
+
+### Задача
+Три проблемы с модулем снапшотов:
+1. Пользователь не видит, сколько ВСЕГО занимают снапшоты по всем папкам
+2. Выбор папки через dropdown неудобен при большом количестве папок (10+)
+3. Нет наглядного отображения состояния каждой папки (сколько снапшотов, сколько места)
+
+### Исследование
+Изучены UX-паттерны конкурентов: Synology (dropdown на 1 папку), TrueNAS SCALE (1 задача = 1 датасет), QNAP (левая панель + статистика по пулу). Вывод: left-panel + на каждом элементе счётчик снапшотов/размер — наиболее usable при 10+ папках.
+
+### Реализация
+
+**CLI (`rusnas-snap/rusnas-snap`):**
+- Добавлена команда `storage-info` → JSON: `{total_count, total_size_bytes, total_size_human, subvols: [{subvol_path, count, size_bytes, size_human}]}`
+- Запрос к SQLite: `GROUP BY subvol_path` + общие итоги
+- Зарегистрирован в `build_parser()` + `main()`
+
+**HTML (`snapshots.html`) — полный редизайн:**
+- Убран dropdown `#snap-object-select` и верхняя `.section` с кнопками
+- Добавлена `.snap-summary-strip` — строка с глобальными итогами (все субволюмы)
+- Новый двухколоночный layout: `.snap-layout` → `.snap-sidebar` + `.snap-main`
+- Сайдбар: список всех папок с иконкой 📁, именем, мета-строкой (N снапш. · X МБ), кнопка `+ Создать снапшот` внизу
+- Заголовок активной папки с полным путём перенесён в `.snap-main`
+- Tabs и контент остались без изменений
+
+**CSS (`style.css`):**
+- `.snap-summary-strip` — горизонтальная полоска с глобальными числами
+- `.snap-sidebar`, `.snap-sidebar-item` — левая панель с выделением активного элемента (синяя левая граница + `--info-light` фон)
+- `.snap-main` — правая область, `flex:1; min-width:0`
+- `.snap-folder-header` — заголовок текущей папки + кнопка ↻
+
+**JS (`snapshots.js`):**
+- `populateSelects()` — убран `snap-object-select`, теперь только modal-selects
+- `loadStorageInfo()` — вызывает `storage-info`, обновляет summary strip + рендерит сайдбар со статистикой
+- `renderSidebar(statsMap)` — рендерит элементы сайдбара, клик = `currentSubvol` + `loadSnapshots()`
+- `updateCurrentTitle()` — обновляет заголовок и путь в `.snap-folder-header`
+- `loadSubvols()` → после загрузки вызывает `loadStorageInfo()` + `updateCurrentTitle()`
+- `loadSnapshots()` → после загрузки снапшотов перезагружает `loadStorageInfo()` (обновляет счётчики)
+
+### Результат
+- Глобальный итог: "28 снапшотов · 1.1 ГБ занято · 5 папок" всегда виден вверху
+- Левая панель показывает все 5 папок с их статистикой без скролла
+- Клик по папке — мгновенное переключение без перезагрузки страницы
+- `storage-info` CLI работает корректно (проверено на VM)
+
+### Таблица решений
+| Решение | Причина |
+|---------|---------|
+| left-panel sidebar вместо dropdown | Лучший UX при 10+ папках (QNAP-паттерн) |
+| `storage-info` CLI → GROUP BY subvol_path | Агрегация прямо в SQLite, без лишних spawn |
+| `loadStorageInfo()` вызывается после каждого `loadSnapshots()` | Актуальные счётчики в сайдбаре |
+| `sticky; top:16px` для сайдбара | Остаётся виден при скролле длинного списка снапшотов |
+
+---
+
+## Сессия 15 — Tree view в сайдбаре: вложенные подпапки + офлайн-тома
+
+**Дата:** 2026-03-14
+
+### Задача
+Поддержка подпапок в сайдбаре снапшотов: нужно красиво отображать вложенность субволюмов при большом количестве папок.
+
+### Реализация
+
+**`findBtrfsSubvols()`** переписана:
+- Теперь возвращает `[{mountPoint, subvols, offline}]` вместо плоского массива
+- Фильтрует `/mnt/rusnas-browse/` из `findmnt` (это временные mount'ы для browse-снапшотов)
+
+**`loadSubvols()`** — новая логика orphan:
+- Schedule-only пути (том не смонтирован) группируются по инферированному mount point через `inferMountPoint(path)` → `/mnt/foo/bar/baz` → `/mnt/foo`
+- Создаётся группа с `offline: true` вместо единой группы `__orphan__`
+- State `subvolGroups: [{mountPoint, subvols, offline}]` хранится отдельно от плоского `subvolList`
+
+**`buildPathTree(mountPoint, paths)`** — новая функция:
+- Строит JS-дерево из списка путей: полный путь → относительный → сегменты → дерево
+- Узлы с `fullPath: null` = виртуальные директории (не субволюмы, просто группировка)
+- Узлы с `fullPath: str` = реальные субволюмы (кликабельны)
+
+**`renderSidebar(statsMap)` + `renderTreeNodeHtml(node, statsMap, depth)`**:
+- Каждая группа отображается с заголовком: `🖴 data` (online) или `📎 btrfspool (офлайн)` (offline)
+- Дерево рендерится рекурсивно с `padding-left: 10 + depth*14 px`
+- Реальные субволюмы (📁): кликабельны, показывают счётчик снапшотов/размер
+- Виртуальные директории (📂): grey, некликабельны, имя с `/` суффиксом
+- Expand/collapse: `▼`/`▶` кнопка; клик скрывает/показывает `.snap-tree-children` div
+
+**CSS** — новые классы:
+- `.snap-tree-group` — заголовок mount-point группы
+- `.snap-tree-node`, `.snap-tree-real`, `.snap-tree-virtual` — узлы дерева
+- `.snap-tree-toggle`, `.snap-tree-spacer` — toggle/отступ перед иконкой
+- `.snap-tree-virtual .snap-tree-name` — grey, font-weight 400
+
+### Поведение с разными конфигурациями
+| Ситуация | Отображение |
+|----------|-------------|
+| Один Btrfs том, плоские субволюмы | Заголовок `🖴 data`, список без дерева |
+| Один том, вложенные субволюмы (`shares/docs/archive`) | Заголовок + дерево с `shares/` виртуальной папкой |
+| Несколько томов | Два отдельных заголовка с деревьями |
+| Том в расписании, но не смонтирован | `📎 btrfspool (офлайн)` + его субволюмы |
+| Смешанный случай (VM: data + btrfspool офлайн) | Оба показываются правильно |
+
+---
+
+## Сессия 16 — Репликация btrfs send/receive + MCP/AI TZ
+
+**Дата:** 2026-03-15
+
+### Что сделано
+
+#### Документация: MCP Server + AI Agent
+- Создан файл `rusnas_mcp_ai.MD` — краткое ТЗ на будущую интеграцию:
+  - MCP-сервер на Python (инструменты: get_status, list_shares, snapshots, disks, users и др.)
+  - Встроенный AI-чат в Cockpit (Ollama / Claude API)
+  - HTTP-транспорт для внешних MCP-клиентов (Claude Desktop, Cursor)
+  - Безопасность: Bearer token, подтверждение опасных операций, логи в `ai-actions.jsonl`
+- Ссылка добавлена в шапку `CLAUDE.md` и в раздел Roadmap
+
+#### Репликация btrfs send/receive
+
+**CLI (`rusnas-snap replication`):**
+- Новая таблица `replication_tasks` в SQLite:
+  `id, subvol_path, remote_user, remote_host, remote_path, cron_expr, enabled, last_sent_snap, last_run_at, last_status, last_error, created_at, updated_at`
+- `replication set <subvol> --host HOST --user USER --path PATH [--cron CRON]` — upsert задачи
+- `replication list` — список задач (JSON)
+- `replication delete <subvol>` — удалить задачу
+- `replication run <subvol>` — выполнить репликацию (для UI), один JSON-ответ
+- `replication run-all` — все enabled задачи по cron (для systemd timer)
+- `replication check-ssh <subvol>` — проверить SSH-соединение (`{"ssh_ok": true/false}`)
+
+**Логика btrfs send/receive:**
+- `_do_btrfs_send_receive(task)` — ядро: `btrfs send [[-p parent]] snap | ssh user@host btrfs receive /path`
+- Инкрементально если `last_sent_snap` известен и parent-снапшот существует на диске
+- Полная копия при первой репликации или если parent потерян
+- Таймаут 2 часа; `StrictHostKeyChecking=accept-new`
+- Статусы: `running → ok / error`; ошибки логируются в events + `last_error`
+
+**UI (вкладка «Репликация»):**
+- Новая вкладка «Репликация» в tabs (между «Расписание» и «Журнал событий»)
+- Список задач: назначение (`user@host:/path`), расписание cron, статус-badge, дата последнего запуска, текст ошибки
+- Кнопки: `▶ Запустить`, `Изменить`, `Включить/Отключить`, `Удалить`
+- Пустое состояние: описание технологии + кнопка «+ Добавить репликацию»
+- Модал добавления/редактирования:
+  - Предупреждение о SSH-ключе с готовыми командами настройки
+  - Поля: субволюм, remote host, remote user (default: rusnas), remote path, cron с пресетами
+  - Кнопка «Проверить SSH» (проверяет уже сохранённую задачу через `check-ssh`)
+- `populateSelects()` теперь включает `modal-repl-subvol`
+
+**Автозапуск через таймер:**
+```bash
+# Добавить в rusnas-snapd.service ExecStart или создать отдельный timer:
+/usr/local/bin/rusnas-snap replication run-all
+```
+
+### Инструкция по настройке репликации
+
+1. **На источнике (rusNAS)** — настроить SSH-ключ:
+   ```bash
+   sudo ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_rusnas_repl
+   sudo ssh-copy-id -i /root/.ssh/id_rusnas_repl.pub rusnas@backup-host
+   # Проверить:
+   sudo ssh -o BatchMode=yes rusnas@backup-host echo OK
+   ```
+
+2. **На приёмнике (backup-host)** — подготовить Btrfs-путь:
+   ```bash
+   # Путь должен быть на Btrfs-разделе:
+   mkdir -p /backup/nas1
+   # btrfs receive требует прав root или member btrfs group
+   ```
+
+3. **В Cockpit** — вкладка «Снапшоты» → «Репликация» → «+ Добавить репликацию»
+
+4. **Первый запуск** — полная передача (может занять время):
+   ```bash
+   sudo rusnas-snap replication run /mnt/data/homes
+   ```
+
+5. **Последующие запуски** — только diff от предыдущего снапшота (инкрементально).
+
+### Файлы изменены
+- `rusnas-snap/rusnas-snap` — +~200 строк: replication_tasks table, 7 новых команд
+- `cockpit/rusnas/snapshots.html` — вкладка Репликация + модал
+- `cockpit/rusnas/js/snapshots.js` — replicationsData state + 8 новых функций
+- `cockpit/rusnas/css/style.css` — `.snap-sidebar-meta`
+- `rusnas_mcp_ai.MD` — новый файл ТЗ
+- `CLAUDE.md` — ссылка на MCP TZ, roadmap обновлён
+
+---
+
+## Сессия 17 — 2026-03-15
+
+### Задачи
+1. Исправить 3 бага из bugs.MD + провести комплексное тестирование всех страниц
+2. Написать отчёт по результатам тестирования в bugs.MD
+
+### Выполнено
+
+**BUG-01 (Снапшоты — schedule tab)** — исправлен в предыдущей сессии, верифицирован ✅
+- Клик на «documents» в sidebar при открытой вкладке «Расписание» мгновенно показывает «Расписания не настроены» (у documents нет расписания)
+
+**BUG-02 (SMB Изменить)** — исправлен в предыдущей сессии, верифицирован ✅
+- Кнопка «Изменить» открывает модал с правильными данными
+
+**BUG-03 (Guard --reset-pin)** — дополнительно исправлен
+- Root cause: на VM был задеплоен старый `guard.py` без обработчика `--reset-pin` (272 строки vs 292 локально)
+- Деплой через `scp` в `install-guard.sh` не работал из-за неизвестной причины — скопирован вручную
+- После деплоя: `sudo rusnas-guard --reset-pin` → «Guard PIN сброшен.» ✅
+
+**BUG-04 (NFS "Ошибка:")** — НОВЫЙ БАГ, исправлен
+- `grep` возвращает exit code 1 на пустом файле → `cockpit.spawn().fail()` срабатывал
+- Исправление: `|| true` + `{superuser: "require", err: "message"}`
+
+**BUG-05 (SMB путь захардкожен)** — НОВЫЙ БАГ, исправлен
+- `loadShares()` показывал `/mnt/data/shares/<name>` вместо реального пути из smb.conf
+- Исправление: `loadShares()` теперь использует `python3` + `testparm -s` для парсинга реальных путей
+
+**BUG-06 (Browse modal — click ghost)** — НОВЫЙ БАГ, задокументирован в bugs.MD
+- «Закрыть доступ» в модале SMB browse случайно активирует кнопку «Метка» за оверлеем
+
+### Новые UX проблемы задокументированы в bugs.MD
+- G-01..G-07: Guard page (кнопки, post-attack flow, журнал событий)
+- S-01..S-04: Snapshots page (счётчики, размеры, retention docs)
+- H-01..H-03: Storage page (статус сервисов, кнопка удалить)
+
+### Изменённые файлы
+- `cockpit/rusnas/js/app.js` — BUG-04 (NFS || true), BUG-05 (loadShares python3 paths)
+- `rusnas-guard/daemon/guard.py` — деплой на VM (guard.py с --reset-pin уже был правильным локально)
+- `install-guard.sh` — ранее исправлен порядок chmod (предыдущая сессия)
+- `bugs.MD` — полностью переписан: 5 исправленных багов + новые UX замечания + таблица покрытия
