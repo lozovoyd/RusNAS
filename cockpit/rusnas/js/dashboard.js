@@ -727,6 +727,7 @@ document.addEventListener("DOMContentLoaded", function() {
     loadIdentity();
     initMetricsBlock();
 
+
     // Initial loads
     tickFast();
     tickStorage();

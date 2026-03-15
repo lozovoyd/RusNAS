@@ -702,7 +702,7 @@ function loadWebdav() {
 
         var conf = parts[1] || "";
         var aliasM = conf.match(/^Alias\s+(\S+)/m);
-        var dirM   = conf.match(/<Directory\s+(\S+)/m);
+        var dirM   = conf.match(/<Directory\s+([^>]+?)>/m);
         document.getElementById("webdav-alias").value = aliasM ? aliasM[1] : "/webdav";
         document.getElementById("webdav-path").value  = dirM   ? dirM[1]   : "";
 

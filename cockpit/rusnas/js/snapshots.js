@@ -675,6 +675,7 @@
             sel.disabled = true;
         } else {
             sel.disabled = false;
+            if (currentSubvol) sel.value = currentSubvol;
         }
 
         var existing = schedulesData.filter(function (s) { return s.subvol_path === subvolPath; })[0];
@@ -754,7 +755,9 @@
 
     // ── Events tab ────────────────────────────────────────────────────────────
     function loadEvents() {
-        runCmd(["rusnas-snap", "events", "--limit", "50"])
+        var cmd = ["rusnas-snap", "events", "--limit", "50"];
+        if (currentSubvol) cmd = cmd.concat(["--subvol", currentSubvol]);
+        runCmd(cmd)
             .then(function (out) {
                 var data = safeJson(out);
                 var events = (data && data.events) || [];
@@ -799,7 +802,8 @@
         document.getElementById("modal-label-confirm").addEventListener("click", doLabelSave);
         document.getElementById("modal-delete-confirm").addEventListener("click", doDeleteExec);
         document.getElementById("modal-sched-save").addEventListener("click", saveSchedule);
-        document.getElementById("browse-umount-btn").addEventListener("click", doBrowseUmount);
+        document.getElementById("browse-umount-btn").addEventListener("click", function(e) { e.stopPropagation(); doBrowseUmount(); });
+        document.getElementById("browse-keep-btn").addEventListener("click", function(e) { e.stopPropagation(); closeModal("modal-browse"); });
         document.getElementById("browse-copy-win").addEventListener("click", function () {
             copyToClipboard(document.getElementById("browse-win-path").textContent);
             this.textContent = "✓";
