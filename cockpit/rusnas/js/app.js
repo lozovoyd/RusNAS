@@ -568,4 +568,212 @@ document.addEventListener("DOMContentLoaded", function() {
     loadShares();
     loadNFS();
     loadISCSI();
+
+    // FTP
+    loadFtp();
+    document.getElementById("btn-ftp-start").addEventListener("click", function() {
+        cockpit.spawn(["bash", "-c", "sudo systemctl start vsftpd"], {superuser: "require", err: "message"})
+            .done(function() { loadFtp(); });
+    });
+    document.getElementById("btn-ftp-stop").addEventListener("click", function() {
+        cockpit.spawn(["bash", "-c", "sudo systemctl stop vsftpd"], {superuser: "require", err: "message"})
+            .done(function() { loadFtp(); });
+    });
+    document.getElementById("btn-ftp-save").addEventListener("click", saveFtp);
+
+    // WebDAV
+    loadWebdav();
+    document.getElementById("btn-webdav-start").addEventListener("click", function() {
+        cockpit.spawn(["bash", "-c", "sudo systemctl start apache2"], {superuser: "require", err: "message"})
+            .done(function() { loadWebdav(); });
+    });
+    document.getElementById("btn-webdav-stop").addEventListener("click", function() {
+        cockpit.spawn(["bash", "-c", "sudo systemctl stop apache2"], {superuser: "require", err: "message"})
+            .done(function() { loadWebdav(); });
+    });
+    document.getElementById("btn-webdav-save").addEventListener("click", saveWebdav);
+    document.getElementById("btn-webdav-add-user").addEventListener("click", addWebdavUser);
 });
+
+// ─── FTP (vsftpd) ─────────────────────────────────────────────────────────────
+
+function loadFtp() {
+    cockpit.spawn(["bash", "-c",
+        "systemctl is-active vsftpd 2>/dev/null || true; echo '---'; " +
+        "cat /etc/vsftpd.conf 2>/dev/null | grep -E '^(anonymous_enable|write_enable|chroot_local_user|pasv_min_port|pasv_max_port)\\s*=' || true; echo '---'; " +
+        "cat /proc/net/tcp6 /proc/net/tcp 2>/dev/null | grep -c ' 00000000:7530 ' || echo 0"
+    ], {superuser: "require", err: "message"})
+    .done(function(out) {
+        var parts = out.split("---\n");
+        var active = (parts[0] || "").trim() === "active";
+        var badge = document.getElementById("ftp-status-badge");
+        badge.className = "badge " + (active ? "badge-success" : "badge-danger");
+        badge.textContent = active ? "✅ Активен" : "🔴 Остановлен";
+
+        var cfg = {};
+        (parts[1] || "").trim().split("\n").filter(Boolean).forEach(function(line) {
+            var m = line.match(/^(\w+)\s*=\s*(.+)/);
+            if (m) cfg[m[1].trim()] = m[2].trim().toUpperCase();
+        });
+        document.getElementById("ftp-anonymous").checked = cfg.anonymous_enable === "YES";
+        document.getElementById("ftp-write").checked = cfg.write_enable !== "NO";
+        document.getElementById("ftp-chroot").checked = cfg.chroot_local_user === "YES";
+        document.getElementById("ftp-pasv-min").value = cfg.pasv_min_port || "30000";
+        document.getElementById("ftp-pasv-max").value = cfg.pasv_max_port || "30100";
+
+        var conns = parseInt((parts[2] || "").trim()) || 0;
+        document.getElementById("ftp-connections").textContent =
+            conns > 0 ? conns + " активных соединений" : "Нет активных соединений";
+    });
+}
+
+function saveFtp() {
+    var anon  = document.getElementById("ftp-anonymous").checked ? "YES" : "NO";
+    var write = document.getElementById("ftp-write").checked      ? "YES" : "NO";
+    var chroot = document.getElementById("ftp-chroot").checked    ? "YES" : "NO";
+    var pasvMin = document.getElementById("ftp-pasv-min").value || "30000";
+    var pasvMax = document.getElementById("ftp-pasv-max").value || "30100";
+
+    var script = [
+        "python3 -c \"",
+        "import re",
+        "f = open('/etc/vsftpd.conf', 'r'); c = f.read(); f.close()",
+        "opts = {'anonymous_enable':'" + anon + "','write_enable':'" + write + "',",
+        "'chroot_local_user':'" + chroot + "','pasv_min_port':'" + pasvMin + "',",
+        "'pasv_max_port':'" + pasvMax + "','allow_writeable_chroot':'" + chroot + "'}",
+        "for k,v in opts.items():",
+        "    if re.search(r'^'+k+r'\\\\s*=',c,re.M): c=re.sub(r'^'+k+r'\\\\s*=.*$',k+'='+v,c,flags=re.M)",
+        "    else: c += k+'='+v+'\\\\n'",
+        "open('/etc/vsftpd.conf','w').write(c)",
+        "\"",
+        "&& systemctl restart vsftpd"
+    ].join("; ");
+
+    cockpit.spawn(["bash", "-c",
+        "python3 << 'PYEOF'\n" +
+        "import re\n" +
+        "f = open('/etc/vsftpd.conf'); c = f.read(); f.close()\n" +
+        "opts = {'anonymous_enable':'" + anon + "','write_enable':'" + write + "',\n" +
+        "        'chroot_local_user':'" + chroot + "','allow_writeable_chroot':'" + chroot + "',\n" +
+        "        'pasv_min_port':'" + pasvMin + "','pasv_max_port':'" + pasvMax + "'}\n" +
+        "for k,v in opts.items():\n" +
+        "    import re\n" +
+        "    if re.search(r'^' + k + r'\\s*=', c, re.M): c = re.sub(r'^' + k + r'\\s*=.*$', k+'='+v, c, flags=re.M)\n" +
+        "    else: c += k+'='+v+'\\n'\n" +
+        "open('/etc/vsftpd.conf','w').write(c)\n" +
+        "PYEOF\n" +
+        "systemctl restart vsftpd"
+    ], {superuser: "require", err: "message"})
+    .done(function() { loadFtp(); })
+    .fail(function(e) { alert("Ошибка сохранения FTP: " + e); });
+}
+
+// ─── WebDAV (Apache) ──────────────────────────────────────────────────────────
+
+var WEBDAV_CONF = "/etc/apache2/sites-enabled/webdav.conf";
+var WEBDAV_PASS = "/etc/apache2/webdav.passwords";
+
+function loadWebdav() {
+    cockpit.spawn(["bash", "-c",
+        "systemctl is-active apache2 2>/dev/null || true; echo '---'; " +
+        "cat " + WEBDAV_CONF + " 2>/dev/null; echo '---'; " +
+        "cat " + WEBDAV_PASS + " 2>/dev/null | cut -d: -f1 | sort -u || true"
+    ], {superuser: "require", err: "message"})
+    .done(function(out) {
+        var parts = out.split("---\n");
+        var active = (parts[0] || "").trim() === "active";
+        var badge = document.getElementById("webdav-status-badge");
+        badge.className = "badge " + (active ? "badge-success" : "badge-danger");
+        badge.textContent = active ? "✅ Активен" : "🔴 Остановлен";
+
+        var conf = parts[1] || "";
+        var aliasM = conf.match(/^Alias\s+(\S+)/m);
+        var dirM   = conf.match(/<Directory\s+(\S+)/m);
+        document.getElementById("webdav-alias").value = aliasM ? aliasM[1] : "/webdav";
+        document.getElementById("webdav-path").value  = dirM   ? dirM[1]   : "";
+
+        var users = (parts[2] || "").trim().split("\n").filter(Boolean);
+        var listEl = document.getElementById("webdav-users-list");
+        if (!users.length) {
+            listEl.innerHTML = '<span class="text-muted">Пользователей нет</span>';
+        } else {
+            listEl.innerHTML = users.map(function(u) {
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">' +
+                    '<span>' + u + '</span>' +
+                    '<button class="btn btn-danger btn-sm" onclick="removeWebdavUser(\'' + u.replace(/'/g,"") + '\')">✕</button>' +
+                    '</div>';
+            }).join("");
+        }
+    });
+}
+
+function saveWebdav() {
+    var alias = document.getElementById("webdav-alias").value.trim() || "/webdav";
+    var path  = document.getElementById("webdav-path").value.trim();
+    if (!path) { alert("Укажите путь к директории"); return; }
+
+    var conf = "Alias " + alias + " " + path + "\n\n" +
+        "<Directory " + path + ">\n" +
+        "    DAV On\n" +
+        "    Options Indexes\n" +
+        "    AuthType Digest\n" +
+        "    AuthName \"WebDAV\"\n" +
+        "    AuthUserFile " + WEBDAV_PASS + "\n" +
+        "    Require valid-user\n" +
+        "    AllowOverride None\n" +
+        "    Order allow,deny\n" +
+        "    Allow from all\n" +
+        "</Directory>\n";
+
+    cockpit.spawn(["bash", "-c",
+        "mkdir -p " + path + " && " +
+        "tee " + WEBDAV_CONF + " << 'CONFEOF'\n" + conf + "CONFEOF\n" +
+        "&& systemctl reload apache2"
+    ], {superuser: "require", err: "message"})
+    .done(function() { loadWebdav(); })
+    .fail(function(e) { alert("Ошибка сохранения WebDAV: " + e); });
+}
+
+function addWebdavUser() {
+    var user = document.getElementById("webdav-new-user").value.trim();
+    var pass = document.getElementById("webdav-new-pass").value;
+    if (!user || !pass) { alert("Укажите логин и пароль"); return; }
+
+    cockpit.spawn(["bash", "-c",
+        "htdigest -b " + WEBDAV_PASS + " WebDAV " + user + " " + pass +
+        " 2>/dev/null || htdigest " + WEBDAV_PASS + " WebDAV " + user
+    ], {superuser: "require", err: "message"})
+    .done(function() {
+        document.getElementById("webdav-new-user").value = "";
+        document.getElementById("webdav-new-pass").value = "";
+        loadWebdav();
+    })
+    .fail(function() {
+        // htdigest doesn't support -b on all versions, try python fallback
+        cockpit.spawn(["python3", "-c",
+            "import hashlib, os\n" +
+            "realm='WebDAV'\n" +
+            "user='" + user.replace(/'/g,"") + "'\n" +
+            "pw='" + pass.replace(/'/g,"") + "'\n" +
+            "h=hashlib.md5((user+':'+realm+':'+pw).encode()).hexdigest()\n" +
+            "line=user+':'+realm+':'+h+'\\n'\n" +
+            "f='" + WEBDAV_PASS + "'\n" +
+            "lines=[l for l in (open(f).readlines() if os.path.exists(f) else []) if not l.startswith(user+':')]\n" +
+            "lines.append(line)\n" +
+            "open(f,'w').writelines(lines)\n"
+        ], {superuser: "require", err: "message"})
+        .done(function() {
+            document.getElementById("webdav-new-user").value = "";
+            document.getElementById("webdav-new-pass").value = "";
+            loadWebdav();
+        });
+    });
+}
+
+function removeWebdavUser(user) {
+    if (!confirm("Удалить пользователя " + user + "?")) return;
+    cockpit.spawn(["bash", "-c",
+        "sed -i '/^" + user + ":/d' " + WEBDAV_PASS
+    ], {superuser: "require", err: "message"})
+    .done(function() { loadWebdav(); });
+}

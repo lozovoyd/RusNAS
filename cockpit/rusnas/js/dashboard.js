@@ -231,7 +231,7 @@ function parseMdstat(text) {
 // ── Section A3: Disk Health ───────────────────────────────────────────────
 function loadDiskHealth() {
     cockpit.spawn(["bash", "-c",
-        "ls /dev/sd? /dev/nvme?n? 2>/dev/null"
+        "ls /dev/sd? /dev/nvme?n? /dev/vd? 2>/dev/null; true"
     ], {err: "message"})
     .done(function(out) {
         var devs = out.trim().split("\n").filter(Boolean);
@@ -288,10 +288,11 @@ function renderDiskHealth(results) {
 
 // ── Section A4: Services ──────────────────────────────────────────────────
 var SERVICES = [
-    { id: "smbd",       label: "SMB",   countCmd: "testparm -s 2>/dev/null | grep -c '^\\[' | awk '{print $1-3}'" },
-    { id: "nfs-server", label: "NFS",   countCmd: "grep -cv '^#\\|^$' /etc/exports 2>/dev/null || echo 0" },
-    { id: "vsftpd",     label: "FTP",   countCmd: "" },
-    { id: "tgt",        label: "iSCSI", countCmd: "sudo targetcli ls /iscsi 2>/dev/null | grep -c 'iqn\\.' || echo 0" },
+    { id: "smbd",       label: "SMB" },
+    { id: "nfs-server", label: "NFS" },
+    { id: "vsftpd",     label: "FTP" },
+    { id: "apache2",    label: "WebDAV" },
+    { id: "tgt",        label: "iSCSI" },
 ];
 
 function loadServices() {

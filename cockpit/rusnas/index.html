@@ -255,6 +255,82 @@
         </div>
     </div>
 
+    <!-- FTP -->
+    <div class="section">
+        <div class="section-toolbar">
+            <h2>FTP (vsftpd)</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span id="ftp-status-badge" class="badge badge-secondary">Загрузка…</span>
+                <button class="btn btn-success btn-sm" id="btn-ftp-start">▶ Запустить</button>
+                <button class="btn btn-danger btn-sm"  id="btn-ftp-stop">■ Остановить</button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+            <div class="array-card">
+                <b>Настройки vsftpd</b>
+                <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+                    <label class="checkbox-label"><input type="checkbox" id="ftp-anonymous"> Анонимный доступ</label>
+                    <label class="checkbox-label"><input type="checkbox" id="ftp-write"> Разрешить запись</label>
+                    <label class="checkbox-label"><input type="checkbox" id="ftp-chroot"> Ограничить домашней директорией (chroot)</label>
+                    <div>
+                        <label style="font-size:13px;margin-bottom:4px;display:block;">Пассивный диапазон портов</label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="number" id="ftp-pasv-min" style="width:90px;" placeholder="30000">
+                            <span>—</span>
+                            <input type="number" id="ftp-pasv-max" style="width:90px;" placeholder="30100">
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:14px;">
+                    <button class="btn btn-primary" id="btn-ftp-save">Сохранить</button>
+                </div>
+            </div>
+            <div class="array-card">
+                <b>Активные подключения</b>
+                <div id="ftp-connections" class="text-muted" style="margin-top:8px;font-size:13px;">Нет данных</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebDAV -->
+    <div class="section">
+        <div class="section-toolbar">
+            <h2>WebDAV (Apache)</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span id="webdav-status-badge" class="badge badge-secondary">Загрузка…</span>
+                <button class="btn btn-success btn-sm" id="btn-webdav-start">▶ Запустить</button>
+                <button class="btn btn-danger btn-sm"  id="btn-webdav-stop">■ Остановить</button>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+            <div class="array-card">
+                <b>Конфигурация</b>
+                <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+                    <div>
+                        <label style="font-size:13px;margin-bottom:4px;display:block;">URL-алиас</label>
+                        <input type="text" id="webdav-alias" placeholder="/webdav" style="width:100%;">
+                    </div>
+                    <div>
+                        <label style="font-size:13px;margin-bottom:4px;display:block;">Путь к директории</label>
+                        <input type="text" id="webdav-path" placeholder="/mnt/data/shares/webdav" style="width:100%;">
+                    </div>
+                </div>
+                <div style="margin-top:14px;">
+                    <button class="btn btn-primary" id="btn-webdav-save">Сохранить</button>
+                </div>
+            </div>
+            <div class="array-card">
+                <b>Пользователи WebDAV</b>
+                <div id="webdav-users-list" style="margin-top:8px;margin-bottom:10px;font-size:13px;">Загрузка…</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <input type="text"     id="webdav-new-user" placeholder="Логин" style="width:110px;">
+                    <input type="password" id="webdav-new-pass" placeholder="Пароль" style="width:110px;">
+                    <button class="btn btn-success btn-sm" id="btn-webdav-add-user">+ Добавить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Add iSCSI Target -->
     <div class="modal-overlay hidden" id="add-iscsi-modal">
         <div class="modal-box">

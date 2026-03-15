@@ -362,6 +362,122 @@ function toggleRemoteFields(show) {
     document.getElementById("snap-remote-fields").classList.toggle("hidden", !show);
 }
 
+// ── Path discovery for add-path modal ────────────────────────────────────────
+
+function discoverAvailablePaths() {
+    var listEl = document.getElementById("available-paths-list");
+
+    // Get already configured paths to mark them
+    guardCmd("get_config", {}, function(err, resp) {
+        var configured = [];
+        if (!err && resp && resp.ok) {
+            configured = (resp.data.monitored_paths || []).map(function(p) { return p.path; });
+        }
+
+        // Run two discovery commands in parallel using cockpit.spawn
+        var mounts = null, shares = null;
+        var done = 0;
+
+        function tryRender() {
+            done++;
+            if (done < 2) return;
+            renderPathChoices(mounts || [], shares || [], configured);
+        }
+
+        // 1. All real non-system mounts (btrfs, ext4, xfs etc, excluding /, /boot, /efi, swap)
+        cockpit.spawn(["bash", "-c",
+            "findmnt --real -o TARGET,FSTYPE,SOURCE --noheadings 2>/dev/null | " +
+            "grep -v '^/ \\|/boot\\|/efi\\|swap\\|tmpfs\\|devtmpfs\\|squashfs'; true"
+        ], {err: "message"})
+        .done(function(out) {
+            mounts = [];
+            out.trim().split("\n").filter(Boolean).forEach(function(line) {
+                var p = line.trim().split(/\s+/);
+                if (p[0]) mounts.push({ path: p[0], fstype: p[1] || "", source: p[2] || "" });
+            });
+        })
+        .always(tryRender);
+
+        // 2. SMB share paths from smb.conf
+        cockpit.spawn(["bash", "-c",
+            "grep -i '^\\s*path\\s*=' /etc/samba/smb.conf 2>/dev/null | " +
+            "sed 's/.*=\\s*//' | sort -u; true"
+        ], {err: "message"})
+        .done(function(out) {
+            shares = out.trim().split("\n").filter(Boolean);
+        })
+        .always(tryRender);
+    });
+}
+
+function renderPathChoices(mounts, smbPaths, configured) {
+    var listEl = document.getElementById("available-paths-list");
+
+    // Build merged, deduped list
+    var seen = {};
+    var items = [];
+
+    mounts.forEach(function(m) {
+        if (!seen[m.path]) {
+            seen[m.path] = true;
+            items.push({ path: m.path, label: m.fstype + (m.source ? "  " + m.source : ""), group: "mount" });
+        }
+    });
+
+    smbPaths.forEach(function(p) {
+        if (!seen[p]) {
+            seen[p] = true;
+            items.push({ path: p, label: "SMB шара", group: "smb" });
+        } else {
+            // Mark existing mount item as also an SMB share
+            items.forEach(function(item) {
+                if (item.path === p) item.label += "  · SMB";
+            });
+        }
+    });
+
+    if (items.length === 0) {
+        listEl.innerHTML = '<div class="text-muted" style="padding:8px 10px;font-size:13px;">Доступных томов не найдено</div>';
+        return;
+    }
+
+    listEl.innerHTML = items.map(function(item) {
+        var isConfigured = configured.indexOf(item.path) !== -1;
+        var style = "padding:7px 10px;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--color-border);";
+        if (isConfigured) {
+            style += "opacity:0.5;cursor:default;";
+        }
+        var badge = isConfigured
+            ? '<span style="font-size:11px;color:var(--color-muted);margin-left:8px;">уже добавлен</span>'
+            : '<span style="font-size:11px;color:var(--color-muted);margin-left:8px;">' + (item.label || "") + '</span>';
+        var dataAttr = isConfigured ? "" : ' data-path="' + item.path.replace(/"/g, "&quot;") + '"';
+        var hoverClass = isConfigured ? "" : ' class="path-choice"';
+        return '<div' + hoverClass + dataAttr + ' style="' + style + '">' +
+            '<code style="font-size:13px;">' + item.path + '</code>' + badge + '</div>';
+    }).join("");
+
+    // Click to fill input
+    listEl.querySelectorAll(".path-choice").forEach(function(el) {
+        el.addEventListener("click", function() {
+            document.getElementById("add-path-input").value = el.dataset.path;
+            listEl.querySelectorAll(".path-choice").forEach(function(e) {
+                e.style.background = "";
+            });
+            el.style.background = "var(--color-highlight, rgba(34,170,68,0.15))";
+        });
+        el.addEventListener("mouseenter", function() {
+            if (!el.style.background || el.style.background === "") {
+                el.style.background = "var(--color-row-hover, rgba(255,255,255,0.05))";
+            }
+        });
+        el.addEventListener("mouseleave", function() {
+            if (el.style.background === "var(--color-row-hover, rgba(255,255,255,0.05))") {
+                el.style.background = "";
+            }
+        });
+    });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Init & event wiring
 // ─────────────────────────────────────────────────────────────────────────────
@@ -584,7 +700,10 @@ document.addEventListener("DOMContentLoaded", function() {
     // ── Monitored paths ───────────────────────────────────────────────────────
     document.getElementById("btn-add-path").addEventListener("click", function() {
         document.getElementById("add-path-input").value = "";
+        document.getElementById("available-paths-list").innerHTML =
+            '<div class="text-muted" style="padding:8px 10px;font-size:13px;">Сканирование…</div>';
         showModal("add-path-modal");
+        discoverAvailablePaths();
     });
     document.getElementById("btn-add-path-cancel").addEventListener("click", function() {
         closeModal("add-path-modal");

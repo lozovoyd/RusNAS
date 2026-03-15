@@ -302,10 +302,18 @@
 
 <!-- Add path modal -->
 <div class="modal-overlay hidden" id="add-path-modal">
-    <div class="modal-box" style="max-width:400px;">
+    <div class="modal-box" style="max-width:480px;">
         <h3>Добавить путь мониторинга</h3>
+        <p class="text-muted" style="font-size:13px;margin-bottom:8px;">Выберите из обнаруженных томов или введите путь вручную:</p>
+
+        <!-- Discovered paths list -->
+        <div id="available-paths-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--color-border);border-radius:4px;margin-bottom:12px;background:var(--bg-input,#1a1a1a);">
+            <div class="text-muted" style="padding:8px 10px;font-size:13px;">Сканирование…</div>
+        </div>
+
+        <!-- Manual input -->
         <div class="form-group">
-            <label>Путь</label>
+            <label>Или введите путь вручную</label>
             <input type="text" id="add-path-input" placeholder="/mnt/data">
         </div>
         <div class="modal-footer">
