@@ -1,0 +1,14 @@
+[Unit]
+Description=rusNAS Deduplication (duperemove)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rusnas-dedup-run.sh
+StandardOutput=append:/var/log/rusnas/dedup.log
+StandardError=append:/var/log/rusnas/dedup.log
+Nice=19
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target
