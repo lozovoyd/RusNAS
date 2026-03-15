@@ -71,6 +71,11 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("smb-all").addEventListener("change", function() {
         document.querySelectorAll(".smb-vfs-cb").forEach(function(cb) { cb.checked = this.checked; }, this);
     });
+    document.getElementById("sched-enabled").addEventListener("change", function() {
+        var dis = !this.checked;
+        document.getElementById("sched-time").disabled = dis;
+        document.querySelectorAll(".day-cb").forEach(function(cb) { cb.disabled = dis; });
+    });
 
     buildSchedTimeSelect();
     buildSchedDays();
@@ -89,7 +94,7 @@ function loadAll() {
 }
 
 function loadLastRun() {
-    cockpit.spawn(["cat", DEDUP_LAST], {err: "message"})
+    cockpit.spawn(["cat", DEDUP_LAST], {superuser: "try", err: "message"})
     .done(function(out) {
         _lastData = safeJson(out);
         renderStatusCards();
@@ -101,7 +106,7 @@ function loadLastRun() {
 }
 
 function loadHistory() {
-    cockpit.spawn(["cat", DEDUP_HISTORY], {err: "message"})
+    cockpit.spawn(["cat", DEDUP_HISTORY], {superuser: "try", err: "message"})
     .done(function(out) {
         _historyData = safeJson(out) || [];
         renderHistoryChart();
@@ -138,15 +143,36 @@ function loadVolumes() {
 }
 
 function loadSambaShares() {
-    cockpit.spawn(["bash", "-c",
-        "python3 -c \"\nimport configparser, sys\nc = configparser.ConfigParser()\nc.read('/etc/samba/smb.conf')\nfor s in c.sections():\n    if s.lower() == 'global': continue\n    vfs = c.get(s, 'vfs objects', fallback='')\n    path = c.get(s, 'path', fallback='')\n    has_btrfs = 'btrfs' in vfs.lower()\n    print(s + '|' + path + '|' + str(has_btrfs))\n\" 2>/dev/null; true"
-    ], {err: "message"})
-    .done(function(out) {
-        renderSambaTable(out);
+    // configparser не работает с smb.conf (нестандартный формат) — пишем скрипт во tmpfile
+    var py = [
+        "import re",
+        "content = open('/etc/samba/smb.conf').read()",
+        "sections = re.split(r'\\n(?=\\[)', content)",
+        "skip = ('global','homes','printers','print$')",
+        "for s in sections:",
+        "    m = re.match(r'\\[([^\\]]+)\\]', s)",
+        "    if not m: continue",
+        "    name = m.group(1).strip()",
+        "    if name.lower() in skip: continue",
+        "    pm = re.search(r'^\\s*path\\s*=\\s*(.+)', s, re.MULTILINE)",
+        "    vm = re.search(r'^\\s*vfs objects\\s*=\\s*(.+)', s, re.MULTILINE)",
+        "    path = pm.group(1).strip() if pm else ''",
+        "    has_btrfs = 'btrfs' in (vm.group(1).lower() if vm else '')",
+        "    print(name + '|' + path + '|' + str(has_btrfs))"
+    ].join("\n");  // реальные переносы строк в JS-строке
+
+    cockpit.file("/tmp/rusnas_parse_smb.py").replace(py)
+    .done(function() {
+        cockpit.spawn(["python3", "/tmp/rusnas_parse_smb.py"], {err: "message"})
+        .done(function(out) { renderSambaTable(out); })
+        .fail(function() {
+            document.getElementById("samba-tbody").innerHTML =
+                '<tr><td colspan="3" style="color:var(--color-muted);">SMB-шары не найдены</td></tr>';
+        });
     })
     .fail(function() {
         document.getElementById("samba-tbody").innerHTML =
-            '<tr><td colspan="3" style="color:var(--color-muted);">SMB-шары не найдены</td></tr>';
+            '<tr><td colspan="3" style="color:var(--color-muted);">Ошибка чтения smb.conf</td></tr>';
     });
 }
 
@@ -226,15 +252,25 @@ function renderTimeline() {
         var endH     = (new Date(endSec   * 1000)).getHours() + (new Date(endSec   * 1000)).getMinutes()/60;
         var x1 = PX + startH * stepPx;
         var x2 = PX + endH   * stepPx;
-        if (x2 < x1) x2 = x1 + 4;
+        var minBarW = 4;
+        if (x2 - x1 < minBarW) x2 = x1 + minBarW;
 
         // Прогресс-бар
         out.push('<rect x="' + x1 + '" y="' + (lineY-8) + '" width="' + (x2-x1) + '" height="16" rx="3" fill="#0891b2" opacity=".3"/>');
-        // Метки
-        out.push('<line x1="' + x1 + '" y1="' + (lineY-18) + '" x2="' + x1 + '" y2="' + (lineY-8) + '" stroke="#0891b2" stroke-width="1.5"/>');
-        out.push('<text x="' + x1 + '" y="' + (lineY-22) + '" text-anchor="middle" font-size="9" fill="#0891b2">Старт скана</text>');
-        out.push('<line x1="' + x2 + '" y1="' + (lineY-18) + '" x2="' + x2 + '" y2="' + (lineY-8) + '" stroke="#0891b2" stroke-width="1.5"/>');
-        out.push('<text x="' + x2 + '" y="' + (lineY-22) + '" text-anchor="middle" font-size="9" fill="#0891b2">Завершён</text>');
+
+        // Если метки слишком близко (менее 60px) — показываем одну объединённую метку по центру
+        var dur = _lastData.duration_sec || 0;
+        var durStr = dur < 60 ? dur + "с" : Math.round(dur/60) + "м";
+        if (x2 - x1 < 60) {
+            var cx = (x1 + x2) / 2;
+            out.push('<line x1="' + cx + '" y1="' + (lineY-18) + '" x2="' + cx + '" y2="' + (lineY-8) + '" stroke="#0891b2" stroke-width="1.5"/>');
+            out.push('<text x="' + cx + '" y="' + (lineY-22) + '" text-anchor="middle" font-size="9" fill="#0891b2">Выполнен (' + durStr + ')</text>');
+        } else {
+            out.push('<line x1="' + x1 + '" y1="' + (lineY-18) + '" x2="' + x1 + '" y2="' + (lineY-8) + '" stroke="#0891b2" stroke-width="1.5"/>');
+            out.push('<text x="' + x1 + '" y="' + (lineY-22) + '" text-anchor="middle" font-size="9" fill="#0891b2">Старт</text>');
+            out.push('<line x1="' + x2 + '" y1="' + (lineY-18) + '" x2="' + x2 + '" y2="' + (lineY-8) + '" stroke="#0891b2" stroke-width="1.5"/>');
+            out.push('<text x="' + x2 + '" y="' + (lineY-22) + '" text-anchor="middle" font-size="9" fill="#0891b2">Завершён (' + durStr + ')</text>');
+        }
     } else {
         // Показать плановое время запуска
         var px0 = PX + cronH * stepPx;
@@ -257,25 +293,30 @@ function renderHistoryChart() {
         return;
     }
 
-    var W = 660, H = 110, PAD = 20, BAR_GAP = 6;
+    var W = 660, H = 90, PAD = 20, BAR_GAP = 6;
+    var LABEL_TOP = 16; // зарезервировано сверху для value label
+    var LABEL_BOT = 20; // зарезервировано снизу для date label
     var n   = data.length;
-    var barW = (W - PAD*2 - BAR_GAP*(n-1)) / n;
+    var barW = Math.min(80, (W - PAD*2 - BAR_GAP*(n-1)) / n);
+    var totalW = n * barW + (n-1) * BAR_GAP;
+    var startX = (W - totalW) / 2;
     var maxB = Math.max.apply(null, data.map(function(e){ return e.saved_bytes||0; }));
     if (maxB === 0) maxB = 1;
 
     var out = [];
     for (var i = 0; i < n; i++) {
         var e = data[n-1-i]; // oldest left
-        var bh  = Math.max(4, ((e.saved_bytes||0) / maxB) * (H - 30));
-        var x   = PAD + i*(barW + BAR_GAP);
-        var y   = H - bh - 20;
+        var availH = H - LABEL_TOP - LABEL_BOT;
+        var bh  = Math.max(4, ((e.saved_bytes||0) / maxB) * availH);
+        var x   = startX + i*(barW + BAR_GAP);
+        var y   = H - bh - LABEL_BOT;
         out.push('<rect class="history-chart-bar" x="' + x + '" y="' + y + '" width="' + barW + '" height="' + bh + '" rx="3" fill="var(--primary)" opacity=".65"/>');
         out.push('<title>' + (e.date||"") + '\n' + fmtBytes(e.saved_bytes) + '</title>');
-        // Date label
+        // Date label (bottom)
         var dateLabel = (e.date||"").replace(/^\d{4}-/, "");
-        out.push('<text x="' + (x + barW/2) + '" y="' + (H-4) + '" text-anchor="middle" font-size="10" fill="var(--color-muted)">' + dateLabel + '</text>');
-        // Value label
-        out.push('<text x="' + (x + barW/2) + '" y="' + (y-4) + '" text-anchor="middle" font-size="10" fill="var(--color-muted)">' + fmtBytes(e.saved_bytes) + '</text>');
+        out.push('<text x="' + (x + barW/2) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="10" fill="var(--color-muted)">' + dateLabel + '</text>');
+        // Value label (above bar, guaranteed not clipped)
+        out.push('<text x="' + (x + barW/2) + '" y="' + (y - 3) + '" text-anchor="middle" font-size="10" fill="var(--color-muted)">' + fmtBytes(e.saved_bytes) + '</text>');
     }
     svg.innerHTML = out.join("");
 }
@@ -337,7 +378,9 @@ function renderSambaTable(raw) {
 
 function populateSettings() {
     // Расписание
-    document.getElementById("sched-enabled").checked = !!_config.schedule_enabled;
+    var schedEnabled = !!_config.schedule_enabled;
+    document.getElementById("sched-enabled").checked = schedEnabled;
+    document.getElementById("sched-time").disabled = !schedEnabled;
 
     var cron = (_config.schedule_cron || "0 3 * * 1-5").split(" ");
     // "M H * * days"
@@ -352,24 +395,11 @@ function populateSettings() {
     var activeDays = parseCronDays(daysStr);
     document.querySelectorAll(".day-cb").forEach(function(cb) {
         cb.checked = activeDays.indexOf(parseInt(cb.dataset.day)) >= 0;
+        cb.disabled = !schedEnabled;
     });
 
     // Advanced
     var args = _config.duperemove_args || "--dedupe-options=block";
-    // Пробуем распарсить min-size
-    var msMatch = args.match(/--min-size=(\d+)/);
-    if (msMatch) {
-        var bytes = parseInt(msMatch[1]);
-        if (bytes >= 1048576) {
-            document.getElementById("min-size-val").value  = bytes / 1048576;
-            document.getElementById("min-size-unit").value = "1048576";
-        } else {
-            document.getElementById("min-size-val").value  = bytes / 1024;
-            document.getElementById("min-size-unit").value = "1024";
-        }
-    }
-    var hashMatch = args.match(/--hash=(\w+)/);
-    if (hashMatch) document.getElementById("hash-algo").value = hashMatch[1];
 
     var useDb = args.indexOf("-h ") >= 0 || args.indexOf("-h\t") >= 0;
     document.getElementById("use-hashdb").checked = useDb;
@@ -379,8 +409,6 @@ function populateSettings() {
 
     // extra args: убрать известные флаги
     var extra = args
-        .replace(/--min-size=\d+/, "")
-        .replace(/--hash=\w+/, "")
         .replace(/-h\s+\S+/, "")
         .replace(/--dedupe-options=\w+/, "")
         .trim();
@@ -462,20 +490,15 @@ function saveSchedule() {
             cronExpr + " root /usr/local/bin/rusnas-dedup-run.sh >> /var/log/rusnas/dedup.log 2>&1\n";
     }
 
-    // Сохранить в dedup-config.json
-    var configStr = JSON.stringify(_config, null, 2);
-    cockpit.spawn(["bash", "-c",
-        "echo " + JSON.stringify(configStr) + " | sudo tee " + DEDUP_CONFIG + " > /dev/null"
-    ], {err: "message"})
+    // Сохранить конфиг, затем cron
+    cockpit.file(DEDUP_CONFIG, {superuser: "require"}).replace(JSON.stringify(_config, null, 2))
     .done(function() {
         if (enabled) {
-            cockpit.spawn(["bash", "-c",
-                "echo " + JSON.stringify(cronContent) + " | sudo tee " + CRON_FILE + " > /dev/null"
-            ], {err: "message"})
+            cockpit.file(CRON_FILE, {superuser: "require"}).replace(cronContent)
             .done(function() { showMsg("sched-saved-msg"); })
             .fail(function(e) { alert("Ошибка записи cron: " + e); });
         } else {
-            cockpit.spawn(["bash", "-c", "sudo rm -f " + CRON_FILE], {err: "message"})
+            cockpit.spawn(["rm", "-f", CRON_FILE], {superuser: "require", err: "message"})
             .always(function() { showMsg("sched-saved-msg"); });
         }
     })
@@ -505,18 +528,17 @@ function saveSambaConfig() {
 
     var cmds = [];
     toEnable.forEach(function(share) {
-        // Убрать старый vfs objects, добавить btrfs
-        cmds.push("sudo sed -i '/^\\[" + share + "\\]/,/^\\[/{/vfs objects/d}' /etc/samba/smb.conf");
-        cmds.push("sudo sed -i '/^\\[" + share + "\\]/a\\   vfs objects = btrfs' /etc/samba/smb.conf");
+        cmds.push("sed -i '/^\\[" + share + "\\]/,/^\\[/{/vfs objects/d}' /etc/samba/smb.conf");
+        cmds.push("sed -i '/^\\[" + share + "\\]/a\\   vfs objects = btrfs' /etc/samba/smb.conf");
     });
     toDisable.forEach(function(share) {
-        cmds.push("sudo sed -i '/^\\[" + share + "\\]/,/^\\[/{/vfs objects = btrfs/d}' /etc/samba/smb.conf");
+        cmds.push("sed -i '/^\\[" + share + "\\]/,/^\\[/{/vfs objects = btrfs/d}' /etc/samba/smb.conf");
     });
-    cmds.push("sudo systemctl reload smbd 2>/dev/null; true");
+    cmds.push("systemctl reload smbd 2>/dev/null; true");
 
     if (!cmds.length) { showMsg("smb-saved-msg"); return; }
 
-    cockpit.spawn(["bash", "-c", cmds.join(" && ")], {err: "message"})
+    cockpit.spawn(["bash", "-c", cmds.join(" && ")], {superuser: "require", err: "message"})
     .done(function() { showMsg("smb-saved-msg"); loadSambaShares(); })
     .fail(function(e) { alert("Ошибка изменения smb.conf: " + e); });
 }
@@ -524,15 +546,11 @@ function saveSambaConfig() {
 // ── Расширенные параметры ─────────────────────────────────────────────────────
 
 function saveAdvancedConfig() {
-    var minSizeVal  = parseInt(document.getElementById("min-size-val").value) || 128;
-    var minSizeUnit = parseInt(document.getElementById("min-size-unit").value) || 1024;
-    var minSizeBytes = minSizeVal * minSizeUnit;
-    var hashAlgo    = document.getElementById("hash-algo").value;
-    var useDb       = document.getElementById("use-hashdb").checked;
-    var dbPath      = document.getElementById("hashdb-path").value.trim() || "/var/lib/rusnas/dedup.db";
-    var extra       = document.getElementById("extra-args").value.trim();
+    var useDb  = document.getElementById("use-hashdb").checked;
+    var dbPath = document.getElementById("hashdb-path").value.trim() || "/var/lib/rusnas/dedup.db";
+    var extra  = document.getElementById("extra-args").value.trim();
 
-    var args = "--dedupe-options=block --min-size=" + minSizeBytes + " --hash=" + hashAlgo;
+    var args = "--dedupe-options=block";
     if (useDb) args += " -h " + dbPath;
     if (extra) args += " " + extra;
 
@@ -544,11 +562,12 @@ function saveAdvancedConfig() {
 
 function writeConfig(cb) {
     var configStr = JSON.stringify(_config, null, 2);
-    cockpit.spawn(["bash", "-c",
-        "sudo mkdir -p /etc/rusnas && echo " + JSON.stringify(configStr) + " | sudo tee " + DEDUP_CONFIG + " > /dev/null"
-    ], {err: "message"})
-    .done(function() { if (cb) cb(); })
-    .fail(function(e) { alert("Ошибка записи конфига: " + e); });
+    cockpit.spawn(["mkdir", "-p", "/etc/rusnas"], {superuser: "require", err: "message"})
+    .always(function() {
+        cockpit.file(DEDUP_CONFIG, {superuser: "require"}).replace(configStr)
+        .done(function() { if (cb) cb(); })
+        .fail(function(e) { alert("Ошибка записи конфига: " + e); });
+    });
 }
 
 // ── Запуск / Остановка ────────────────────────────────────────────────────────
@@ -557,7 +576,7 @@ function runDedup() {
     document.getElementById("btn-run").disabled = true;
     document.getElementById("run-spinner").classList.remove("hidden");
 
-    cockpit.spawn(["sudo", "systemctl", "start", "rusnas-dedup.service"], {err: "message"})
+    cockpit.spawn(["systemctl", "start", "rusnas-dedup.service"], {superuser: "require", err: "message"})
     .done(function() {
         setRunningState(true);
         startPolling();
@@ -570,7 +589,7 @@ function runDedup() {
 }
 
 function stopDedup() {
-    cockpit.spawn(["sudo", "systemctl", "stop", "rusnas-dedup.service"], {err: "message"})
+    cockpit.spawn(["systemctl", "stop", "rusnas-dedup.service"], {superuser: "require", err: "message"})
     .done(function() {
         setRunningState(false);
         stopPolling();
@@ -597,6 +616,9 @@ function setRunningState(running) {
     if (running) {
         statEl.textContent = "Выполняется";
         statEl.className   = "sv status-run pulsing";
+    } else if (statEl.textContent === "Выполняется") {
+        statEl.textContent = "—";
+        statEl.className   = "sv";
     }
 }
 
@@ -609,8 +631,7 @@ function startPolling() {
             if (!active) {
                 setRunningState(false);
                 stopPolling();
-                loadLastRun();
-                loadHistory();
+                setTimeout(function() { loadLastRun(); loadHistory(); }, 800);
             }
         })
         .fail(function() { stopPolling(); setRunningState(false); });
@@ -628,7 +649,7 @@ function showLog() {
     modal.classList.add("open");
     document.getElementById("log-content").textContent = "Загрузка…";
 
-    cockpit.spawn(["bash", "-c", "sudo tail -200 " + DEDUP_LOG + " 2>/dev/null || echo '(лог пуст)'"], {err: "message"})
+    cockpit.spawn(["bash", "-c", "tail -200 " + DEDUP_LOG + " 2>/dev/null || echo '(лог пуст)'"], {superuser: "require", err: "message"})
     .done(function(out) {
         document.getElementById("log-content").textContent = out || "(лог пуст)";
     })

@@ -575,6 +575,7 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btn-add-worm").addEventListener("click", openAddWormModal);
     document.getElementById("btn-worm-add-confirm").addEventListener("click", confirmAddWorm);
     document.getElementById("btn-worm-add-cancel").addEventListener("click", function() { closeModal("add-worm-modal"); });
+    document.getElementById("btn-worm-browse").addEventListener("click", wormBrowsePath);
     document.getElementById("worm-grace-select").addEventListener("change", function() {
         document.getElementById("worm-grace-custom-wrap").classList.toggle("hidden", this.value !== "custom");
     });
@@ -911,30 +912,101 @@ function openAddWormModal() {
     document.querySelectorAll("input[name='worm-mode']")[0].checked = true;
     document.getElementById("worm-samba-vfs").checked = true;
 
-    // Populate path suggestions from mounts
     var sugg = document.getElementById("worm-path-suggestions");
-    sugg.innerHTML = "";
+    sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Загрузка путей…</span>";
+
+    // Collect mount points + Samba share paths in parallel
+    var paths = {};
+    var pending = 2;
+    function done() {
+        if (--pending > 0) return;
+        sugg.innerHTML = "";
+        var sorted = Object.keys(paths).sort();
+        if (!sorted.length) {
+            sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Нет доступных путей</span>";
+            return;
+        }
+        sorted.forEach(function(p) {
+            var chip = document.createElement("button");
+            chip.className = "btn btn-secondary btn-sm";
+            chip.style.cssText = "font-size:11px;padding:2px 8px;";
+            chip.textContent = p + (paths[p] ? " (" + paths[p] + ")" : "");
+            chip.addEventListener("click", function() {
+                document.getElementById("worm-path-input").value = p;
+                checkWormSambaMatch(p);
+            });
+            sugg.appendChild(chip);
+        });
+    }
+
+    // Mount points
     cockpit.spawn(["bash", "-c",
-        "findmnt --real -o TARGET,FSTYPE --noheadings 2>/dev/null | grep -v '^\/ \\|/boot\\|/efi\\|tmpfs\\|swap'; true"
+        "findmnt --real -o TARGET,FSTYPE --noheadings 2>/dev/null | grep -vE '^/ |/boot|/efi|tmpfs|swap|/run|/sys|/proc|/dev'; true"
     ], {err: "message"})
     .done(function(out) {
         out.trim().split("\n").filter(Boolean).forEach(function(line) {
             var p = line.trim().split(/\s+/);
-            var target = p[0];
-            if (!target) return;
+            if (p[0]) paths[p[0]] = p[1] || "";
+        });
+    })
+    .always(done);
+
+    // Samba share paths
+    cockpit.spawn(["bash", "-c",
+        "grep -E '^\\s*path\\s*=' /etc/samba/smb.conf 2>/dev/null | sed 's/.*=\\s*//'; true"
+    ], {err: "message"})
+    .done(function(out) {
+        out.trim().split("\n").filter(Boolean).forEach(function(line) {
+            var p = line.trim();
+            if (p && !paths[p]) paths[p] = "SMB";
+        });
+    })
+    .always(done);
+
+    showModal("add-worm-modal");
+}
+
+// Browse subdirectories of current path
+function wormBrowsePath() {
+    var cur = document.getElementById("worm-path-input").value.trim() || "/mnt";
+    var sugg = document.getElementById("worm-path-suggestions");
+    sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Загрузка…</span>";
+
+    cockpit.spawn(["bash", "-c",
+        "find " + JSON.stringify(cur) + " -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort; true"
+    ], {err: "message"})
+    .done(function(out) {
+        sugg.innerHTML = "";
+        var dirs = out.trim().split("\n").filter(Boolean);
+        if (!dirs.length) {
+            sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Нет подпапок в " + cur + "</span>";
+            return;
+        }
+        // "up" button if not at root
+        if (cur !== "/") {
+            var up = document.createElement("button");
+            up.className = "btn btn-secondary btn-sm";
+            up.style.cssText = "font-size:11px;padding:2px 8px;";
+            up.textContent = "↑ ..";
+            up.addEventListener("click", function() {
+                document.getElementById("worm-path-input").value = cur.replace(/\/[^/]+$/, "") || "/";
+                wormBrowsePath();
+            });
+            sugg.appendChild(up);
+        }
+        dirs.forEach(function(d) {
             var chip = document.createElement("button");
             chip.className = "btn btn-secondary btn-sm";
             chip.style.cssText = "font-size:11px;padding:2px 8px;";
-            chip.textContent = target + " (" + (p[1] || "") + ")";
+            chip.textContent = d.split("/").pop() + "/";
             chip.addEventListener("click", function() {
-                document.getElementById("worm-path-input").value = target;
-                checkWormSambaMatch(target);
+                document.getElementById("worm-path-input").value = d;
+                checkWormSambaMatch(d);
+                wormBrowsePath();
             });
             sugg.appendChild(chip);
         });
     });
-
-    showModal("add-worm-modal");
 }
 
 function checkWormSambaMatch(path) {
