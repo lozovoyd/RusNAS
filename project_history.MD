@@ -627,3 +627,65 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 - `rusnas-guard/daemon/guard.py` — деплой на VM (guard.py с --reset-pin уже был правильным локально)
 - `install-guard.sh` — ранее исправлен порядок chmod (предыдущая сессия)
 - `bugs.MD` — полностью переписан: 5 исправленных багов + новые UX замечания + таблица покрытия
+
+---
+
+## Сессия 9 — Dashboard + Metrics Server (2026-03-15)
+
+### Задачи
+- Верификация ранее исправленных багов (BUG-01..BUG-05) — через Playwright browser automation
+- Создание ветки `feature/dashboard`
+- Реализация Dashboard по ТЗ `rusnas-dashboard-spec.md`
+- Реализация Metrics Server (Prometheus + JSON API)
+
+### Результат Dashboard
+
+Полный дашборд задеплоен и работает на `https://10.10.10.72:9090/rusnas/dashboard`.
+
+**Компоненты:**
+
+| Файл | Описание |
+|------|----------|
+| `cockpit/rusnas/dashboard.html` | Разметка: Identity Bar, секции A/B/C/D/E, блок мониторинга |
+| `cockpit/rusnas/css/dashboard.css` | Стили: карточки, прогресс-бары, sparklines, Guard status dots |
+| `cockpit/rusnas/js/dashboard.js` | ~500 строк: delta CPU/Net/IO, SMART cache 5мин, parseMdstat, Guard state machine |
+| `cockpit/rusnas/manifest.json` | Dashboard добавлен как order:1 в боковом меню |
+
+**Работающие секции:**
+- Identity Bar: hostname, IP, uptime, live clock ✅
+- A1 Storage: 37%, прогресс-бар, RAID теги ✅
+- A2 RAID: md0 raid5 active 4/4 дисков ✅
+- A3 Disks: показывает "—" без admin access (ожидаемое поведение) ✅
+- A4 Shares: SMB/NFS/FTP активны, iSCSI остановлен ✅
+- B CPU/RAM/Net: sparklines SVG, live метрики ✅
+- C Disk I/O: dual sparklines (read/write), per-disk статистика ✅
+- D Events: journalctl -n 12 ✅
+- D Snapshots: 4 субтома, 37 снапшотов, 1.1 ГБ ✅
+- E Guard: "Guard отключён" + ссылка на настройки ✅
+- Metrics endpoint: URL скопируется, "Сервис метрик: активен ✅" ✅
+
+### Metrics Server
+
+Задеплоен и запущен: `systemctl enable --now rusnas-metrics`
+
+| Файл | Описание |
+|------|----------|
+| `rusnas-metrics/metrics_server.py` | Python 3, порт 9100, `/metrics` + `/metrics.json` |
+| `rusnas-metrics/rusnas-metrics.service` | systemd unit |
+| `rusnas-metrics-install.sh` | Скрипт установки |
+
+Эндпоинты:
+- `http://10.10.10.72:9100/metrics` — Prometheus text format
+- `http://10.10.10.72:9100/metrics.json` — JSON API (для Zabbix)
+
+Метрики: CPU %, load avg, temp; RAM/Swap; сеть RX/TX по интерфейсу; диски R/W + SMART; RAID статус; тома; сервисы; Guard state.
+
+### Архитектурные решения
+- Delta-расчёт скоростей (CPU/Net/IO) через глобальные prev_ переменные с timestamp
+- SMART cache TTL 5мин (TICK_SMART=300000) — не нагружать диски
+- Guard state читается из `/run/rusnas-guard/state.json` (RuntimeDirectory)
+- Metrics server — warmup: 1 сек sleep после первых чтений для корректного delta
+
+### Git
+- Branch: `feature/dashboard`
+- Commit: `334d87c feat: add rusNAS Dashboard — main overview page + metrics server`
