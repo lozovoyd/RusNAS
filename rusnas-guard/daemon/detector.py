@@ -158,6 +158,15 @@ class Detector:
             logger.warning("No monitored paths configured — detector idle")
             return
 
+        # Filter out paths that don't exist — InotifyTrees raises FileNotFoundError otherwise
+        missing = [p for p in paths if not os.path.isdir(p)]
+        if missing:
+            logger.warning("Skipping non-existent monitored paths: %s", missing)
+        paths = [p for p in paths if os.path.isdir(p)]
+        if not paths:
+            logger.warning("No accessible monitored paths — detector idle")
+            return
+
         for p in paths:
             self._iops_windows[p] = IOPSWindow()
             mult = self._config.get("detection", {}).get("iops_multiplier", 4)
