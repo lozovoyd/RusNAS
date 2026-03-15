@@ -81,6 +81,166 @@
     </div>
 </div>
 
+
+<!-- ── How it works infographic ────────────────────────────────────── -->
+<div class="section">
+
+    <!-- Pipeline flow -->
+    <h2 style="margin-bottom:16px;">Как работает rusNAS Guard</h2>
+    <div class="gd-pipeline">
+        <div class="gd-step gd-step-blue">
+            <div class="gd-step-icon">📂</div>
+            <div class="gd-step-title">Файловая<br>система</div>
+            <div class="gd-step-sub">inotify следит за<br>каждым изменением</div>
+        </div>
+        <div class="gd-arrow">▶</div>
+        <div class="gd-step gd-step-purple">
+            <div class="gd-step-icon">🔍</div>
+            <div class="gd-step-title">Детектор</div>
+            <div class="gd-step-sub">4 метода анализа<br>параллельно</div>
+        </div>
+        <div class="gd-arrow">▶</div>
+        <div class="gd-step gd-step-orange">
+            <div class="gd-step-icon">⚠️</div>
+            <div class="gd-step-title">Тревога</div>
+            <div class="gd-step-sub">Событие в журнал<br>+ уведомление</div>
+        </div>
+        <div class="gd-arrow">▶</div>
+        <div class="gd-step gd-step-red">
+            <div class="gd-step-icon">🛡️</div>
+            <div class="gd-step-title">Реакция</div>
+            <div class="gd-step-sub">Снапшот, блокировка<br>IP, остановка</div>
+        </div>
+    </div>
+
+    <!-- Detection methods -->
+    <div class="gd-methods-grid">
+        <div class="gd-method">
+            <div class="gd-method-icon" style="background:rgba(34,170,68,0.12);color:#22aa44;">🪤</div>
+            <div class="gd-method-name">Файлы-приманки</div>
+            <div class="gd-method-desc">Скрытые «bait»-файлы в каждой папке. Любое прикосновение к ним — немедленная тревога. Шифровальщики обязательно затронут их при сканировании директории.</div>
+            <div class="gd-method-badge" style="background:rgba(34,170,68,0.15);color:#22aa44;">⚡ Мгновенно</div>
+        </div>
+        <div class="gd-method">
+            <div class="gd-method-icon" style="background:rgba(43,154,243,0.12);color:#2b9af3;">📊</div>
+            <div class="gd-method-name">Энтропия файлов</div>
+            <div class="gd-method-desc">Зашифрованный файл имеет максимальную случайность байт (энтропию &gt;7.2 бит/байт). Guard вычисляет её при каждом закрытии файла после записи.</div>
+            <div class="gd-method-badge" style="background:rgba(43,154,243,0.15);color:#2b9af3;">🔬 Точно</div>
+        </div>
+        <div class="gd-method">
+            <div class="gd-method-icon" style="background:rgba(230,138,0,0.12);color:#e68a00;">📈</div>
+            <div class="gd-method-name">Аномалия IOPS</div>
+            <div class="gd-method-desc">Guard обучается нормальному ритму файловых операций за 7 дней. Если активность резко превышает норму (4σ) — это признак массового шифрования.</div>
+            <div class="gd-method-badge" style="background:rgba(230,138,0,0.15);color:#e68a00;">📅 7 дней обучения</div>
+        </div>
+        <div class="gd-method">
+            <div class="gd-method-icon" style="background:rgba(204,34,0,0.12);color:#cc2200;">🔒</div>
+            <div class="gd-method-name">Расширения</div>
+            <div class="gd-method-desc">База из ~200 известных расширений файлов-вымогателей (.locky, .cerber, .wncry и др.). Файл с таким расширением = тревога без задержки.</div>
+            <div class="gd-method-badge" style="background:rgba(204,34,0,0.15);color:#cc2200;">📋 ~200 сигнатур</div>
+        </div>
+    </div>
+
+    <!-- Response modes -->
+    <h3 style="margin:24px 0 12px;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;color:var(--color-muted);">Режимы защиты</h3>
+    <div class="gd-modes-grid">
+        <div class="gd-mode gd-mode-monitor">
+            <div class="gd-mode-header">
+                <span class="gd-mode-dot" style="background:#2b9af3;box-shadow:0 0 6px #2b9af3;"></span>
+                <span class="gd-mode-name">Мониторинг</span>
+            </div>
+            <ul class="gd-mode-list">
+                <li>✅ Записывает все события</li>
+                <li>✅ Уведомления по email / Telegram</li>
+                <li>⬜ Не блокирует IP</li>
+                <li>⬜ Не создаёт снапшоты</li>
+                <li>⬜ Не останавливает сервисы</li>
+            </ul>
+            <div class="gd-mode-use">Для ознакомления и настройки</div>
+        </div>
+        <div class="gd-mode gd-mode-active">
+            <div class="gd-mode-header">
+                <span class="gd-mode-dot" style="background:#22aa44;box-shadow:0 0 6px #22aa44;"></span>
+                <span class="gd-mode-name">Активный</span>
+                <span class="gd-mode-rec">рекомендуется</span>
+            </div>
+            <ul class="gd-mode-list">
+                <li>✅ Записывает все события</li>
+                <li>✅ Уведомления</li>
+                <li>✅ Блокирует IP-атакующего</li>
+                <li>✅ Btrfs-снапшот тома при атаке</li>
+                <li>⬜ Сервисы продолжают работу</li>
+            </ul>
+            <div class="gd-mode-use">Для рабочего NAS с важными данными</div>
+        </div>
+        <div class="gd-mode gd-mode-super">
+            <div class="gd-mode-header">
+                <span class="gd-mode-dot" style="background:#cc2200;box-shadow:0 0 6px #cc2200;"></span>
+                <span class="gd-mode-name">Супер-защита</span>
+            </div>
+            <ul class="gd-mode-list">
+                <li>✅ Записывает все события</li>
+                <li>✅ Уведомления</li>
+                <li>✅ Блокирует IP</li>
+                <li>✅ Снапшоты ВСЕХ томов</li>
+                <li>🔴 Останавливает сервисы и выключает NAS</li>
+            </ul>
+            <div class="gd-mode-use">Когда данные важнее доступности</div>
+        </div>
+    </div>
+
+    <!-- Usage scenarios -->
+    <h3 style="margin:24px 0 12px;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;color:var(--color-muted);">Типичные сценарии</h3>
+    <div class="gd-scenarios">
+        <div class="gd-scenario">
+            <div class="gd-scenario-num">01</div>
+            <div>
+                <div class="gd-scenario-title">Офисный файловый сервер</div>
+                <div class="gd-scenario-desc">Сотрудник открыл вредоносное вложение в письме. Шифровальщик начал обходить SMB-шары. Guard обнаружит по приманкам или энтропии за секунды, заблокирует IP компьютера и создаст снапшот — данные можно восстановить за минуту.</div>
+            </div>
+        </div>
+        <div class="gd-scenario">
+            <div class="gd-scenario-num">02</div>
+            <div>
+                <div class="gd-scenario-title">Резервный NAS с критическими данными</div>
+                <div class="gd-scenario-desc">Злоумышленник получил доступ к сети и пытается зашифровать резервные копии. Режим Супер-защита немедленно создаст снапшоты и выключит сервер — гарантируя сохранность последней копии.</div>
+            </div>
+        </div>
+        <div class="gd-scenario">
+            <div class="gd-scenario-num">03</div>
+            <div>
+                <div class="gd-scenario-title">Тихий мониторинг</div>
+                <div class="gd-scenario-desc">Нет уверенности в угрозах, но нужна видимость. Режим Мониторинг пишет в журнал все подозрительные активности без вмешательства — можно спокойно анализировать статистику и настраивать пороги.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick start -->
+    <h3 style="margin:24px 0 12px;font-size:14px;letter-spacing:0.05em;text-transform:uppercase;color:var(--color-muted);">Быстрый старт</h3>
+    <div class="gd-quickstart">
+        <div class="gd-qs-step">
+            <div class="gd-qs-num">1</div>
+            <div class="gd-qs-text">Перейдите во вкладку <b>Настройки → Мониторируемые пути</b> и добавьте папки, которые хотите защитить</div>
+        </div>
+        <div class="gd-qs-arrow">→</div>
+        <div class="gd-qs-step">
+            <div class="gd-qs-num">2</div>
+            <div class="gd-qs-text">Нажмите <b>▶ Включить защиту</b>. Guard начнёт мониторинг и автоматически разместит файлы-приманки</div>
+        </div>
+        <div class="gd-qs-arrow">→</div>
+        <div class="gd-qs-step">
+            <div class="gd-qs-num">3</div>
+            <div class="gd-qs-text">Выберите <b>режим защиты</b>. Для начала рекомендуется «Мониторинг», затем переключитесь на «Активный»</div>
+        </div>
+        <div class="gd-qs-arrow">→</div>
+        <div class="gd-qs-step">
+            <div class="gd-qs-num">4</div>
+            <div class="gd-qs-text">Дождитесь завершения <b>периода обучения</b> (7 дней) — после этого IOPS-детектор будет откалиброван под вашу нагрузку</div>
+        </div>
+    </div>
+
+</div>
+
 </div><!-- /tab-overview -->
 
 <!-- ── Tab: Журнал событий ─────────────────────────────────────────── -->

@@ -689,3 +689,102 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 ### Git
 - Branch: `feature/dashboard`
 - Commit: `334d87c feat: add rusNAS Dashboard — main overview page + metrics server`
+
+---
+
+## Сессия 10 — Guard улучшения + Dashboard фиксы + FTP/WebDAV (2026-03-15)
+
+### Задачи сессии
+- Исправить два крэша демона Guard при включении защиты
+- Исправить PIN-диалог после `--reset-pin`
+- Добавить FTP и WebDAV разделы в страницу Хранилища
+- Починить блок "Диски" в Dashboard (не отображал данные)
+- Добавить выбор путей из доступных томов в Guard (modal с discovery)
+- Разбить Guard страницу на вкладки
+- Улучшить журнал событий Guard
+
+### Guard daemon: два критических краша
+
+**BUG: `AttributeError: 'Detector' object has no attribute 'get_iops'`**
+- `guard.py:_update_state()` вызывал `self._detector.get_iops()` — метода не существует
+- `Detector._record_iops()` уже пишет `current_iops` напрямую в shared state dict
+- Исправление: убрали вызов, добавили комментарий
+
+**BUG: `FileNotFoundError` в `InotifyTrees.__init__`**
+- `inotify.adapters.InotifyTrees(paths)` бросает исключение если путь не существует
+- Вся нить детектора падала молча; `/mnt/data/shares/public` не существует на тестовой VM
+- Исправление: фильтрация `os.path.isdir(p)` перед передачей в InotifyTrees
+
+### Dashboard: блок "Диски" не отображался
+- `ls /dev/sd? /dev/nvme?n? 2>/dev/null` возвращал exit code 1 если нет nvme-устройств
+- `cockpit.spawn().fail()` → ничего не рендерилось
+- Исправление: `ls /dev/sd? /dev/nvme?n? /dev/vd? 2>/dev/null; true`
+
+### FTP и WebDAV разделы (index.html + app.js)
+
+Добавлены два новых раздела в страницу Хранилища:
+
+**FTP (vsftpd):**
+- Статус-бейдж + старт/стоп сервиса
+- Настройки: анонимный доступ, запись, chroot, пассивные порты
+- Сохранение через Python-скрипт (`re.sub`) в `/etc/vsftpd.conf` + restart
+
+**WebDAV (Apache):**
+- Статус-бейдж + старт/стоп сервиса
+- Редактирование URL-алиаса и пути директории
+- Управление пользователями: список, добавить (htdigest / Python fallback), удалить (sed)
+- Конфиг записывается в `/etc/apache2/sites-enabled/webdav.conf`
+
+**Dashboard:** добавлен `apache2` (WebDAV) в список сервисов секции A4.
+
+### Guard: улучшение модала добавления пути
+
+Заменён простой текстовый input на discovery UI:
+- При открытии модала запускается `findmnt --real` и `grep smb.conf`
+- Показывает список доступных Btrfs/data томов и SMB-шар
+- Кликнуть на строку → заполняет поле ввода (с hover highlight)
+- Уже добавленные пути помечаются "уже добавлен" и блокируются
+
+### Guard: вкладки
+
+Страница разбита на 3 вкладки:
+- **Обзор** — статистика (IOPS, события, baseline, пути, blocked IPs)
+- **Журнал событий** — таблица с бейджем непросмотренных событий на вкладке
+- **Настройки** — методы обнаружения, мониторируемые пути, снапшоты
+
+Стили `.tabs / .tab-btn / .tab-panel` добавлены в `style.css`.
+
+### Guard: журнал событий — полная переработка
+
+**Backend (response.py, socket_server.py):**
+- `load_events()` — добавлены параметры: `offset`, `method`, `status`, `date_from`, `date_to`; возвращает `{events, total}` вместо `list`
+- Новая команда `clear_events` (auth required) — очищает `events.jsonl`
+
+**Frontend (guard.html, guard.js):**
+- Панель фильтров: тип события, статус, диапазон дат — применить/сбросить
+- Пагинация: 25 событий на страницу, ◀/▶, счётчик "X–Y из N"
+- Кнопка "⬇ CSV" — экспорт всех отфильтрованных событий с BOM для Excel
+- Кнопка "🗑 Очистить журнал" (PIN required)
+- Новые строки: непросмотренные события подсвечиваются красным фоном
+- Детали: полный список файлов, энтропия, IOPS в одной ячейке
+
+### Изменённые файлы
+
+| Файл | Изменение |
+|------|-----------|
+| `rusnas-guard/daemon/guard.py` | Убран вызов get_iops() |
+| `rusnas-guard/daemon/detector.py` | Фильтрация несуществующих путей перед InotifyTrees |
+| `rusnas-guard/daemon/response.py` | Фильтры в load_events(), clear_events() |
+| `rusnas-guard/daemon/socket_server.py` | Обновлён dispatch get_events, добавлен clear_events |
+| `cockpit/rusnas/guard.html` | Вкладки, новый журнал событий с фильтрами |
+| `cockpit/rusnas/js/guard.js` | Вкладки, discovery пути, фильтры/пагинация/экспорт |
+| `cockpit/rusnas/index.html` | Разделы FTP и WebDAV |
+| `cockpit/rusnas/js/app.js` | loadFtp, saveFtp, loadWebdav, saveWebdav, addWebdavUser |
+| `cockpit/rusnas/js/dashboard.js` | Добавлен apache2 в SERVICES, фикс disk health |
+| `cockpit/rusnas/css/style.css` | Стили .tabs/.tab-btn/.tab-panel |
+
+### Git commits
+- `d21b2a6` fix: Guard daemon crash on enable — remove get_iops() + filter missing paths
+- `b6e188d` feat: FTP/WebDAV settings sections + dashboard fixes + Guard path discovery
+- `b885a41` refactor: move Guard event log to separate tab
+- `3a026e3` feat: Guard event log — filters, pagination, CSV export, clear
