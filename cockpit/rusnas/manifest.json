@@ -28,6 +28,10 @@
     "snapshots": {
       "label": "Снапшоты 📸",
       "order": 6
+    },
+    "dedup": {
+      "label": "Дедупликация",
+      "order": 7
     }
   },
   "superuser": {
