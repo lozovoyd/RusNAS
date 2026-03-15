@@ -861,3 +861,47 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 ### Git commits
 - `git log --oneline feature/dedup` → реализация + фиксы тестирования
 - Ветка `feature/dedup` слита в `main` 2026-03-15
+
+---
+
+## Сессия 8 — Системное тестирование всех разделов UI
+**Дата:** 2026-03-16
+
+### Что было сделано
+
+Масштабное системное тестирование на предмет связанности компонентов:
+- Протестированы все 7 разделов rusNAS UI: Dashboard, Storage, Disks&RAID, Users, Guard, Snapshots, Dedup
+- Все найденные баги записаны в `bugs.MD`
+- 5 критических багов исправлены по ходу тестирования
+
+### Найденные и исправленные баги
+
+| ID | Раздел | Описание | Статус |
+|----|--------|----------|--------|
+| BUG-13 | Dashboard | `getElementById("card-snaps")` возвращал null — TypeError при каждой загрузке | ✅ Исправлено |
+| BUG-snap-modal | Снапшоты | Schedule modal не pre-fill currentSubvol при добавлении расписания | ✅ Исправлено |
+| BUG-events | Снапшоты | Events tab показывал все события, не фильтруя по currentSubvol | ✅ Исправлено |
+| BUG-browse | Снапшоты | Клик "Закрыть доступ" проваливался через modal overlay на кнопку "Метка" за ним | ✅ Исправлено |
+| BUG-webdav | Хранилище | WebDAV "Путь к директории" показывал `/mnt/data/shares/webdav>` — trailing `>` | ✅ Исправлено |
+
+### Root causes
+
+- **dashboard.js null ref**: предыдущая сессия добавила `addEventListener` для `card-snaps`, но элемента с таким ID нет в HTML. Карточки уже имели `onclick="cockpit.jump()"` — дублированный код удалён
+- **WebDAV regex**: `/<Directory\s+(\S+)/m` захватывал `>` из закрывающего тега Apache `<Directory /path>`. Исправлено: `/<Directory\s+([^>]+?)>/m`
+- **Snapshots schedule + events**: добавлены `currentSubvol` pre-fill и `--subvol` filter
+- **Browse modal click-through**: добавлен `e.stopPropagation()` + переименование кнопки
+
+### Состояние всех разделов после тестирования
+
+| Раздел | Статус | Замечания |
+|--------|--------|-----------|
+| Dashboard 🏠 | ✅ OK | Все карточки, метрики, Guard-виджет, снапшоты-виджет, мониторинг |
+| Хранилище | ✅ OK | SMB, NFS, iSCSI, FTP, WebDAV, WORM — всё корректно |
+| Диски и RAID | ✅ OK | md0 RAID5 active, 4 диска, бирки, кнопки действий |
+| Пользователи | ✅ OK | 2 пользователя, 4 группы, Samba-статус |
+| Guard 🛡️ | ✅ OK | Мониторинг активен, 3 вкладки, 4 метода обнаружения, настройки |
+| Снапшоты 📸 | ✅ OK | Sidebar, переключение папок, schedule, events filter |
+| Дедупликация | ✅ OK | Last run 1.2 ГБ, 21 файл, расписание, тома, SMB vfs_btrfs |
+
+### Git commits
+- `b7fe14f` — fix: system-wide integration testing — 5 bugs fixed
