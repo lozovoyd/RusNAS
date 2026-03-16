@@ -193,3 +193,70 @@
 | Guard 🛡️ | ✅ OK | — (UX замечания G-01..G-07 в bugs.md) |
 | Снапшоты 📸 | ✅ OK | BUG-02/03/04/05 (исправлены в предыдущей сессии) |
 | Дедупликация | ✅ OK | BUG-07..BUG-11 (исправлены) |
+
+---
+
+## Сессия 2026-03-17 — Storage Analyzer тестирование
+
+### QA: Storage Analyzer v1.0
+
+#### Бэкенд (Python)
+
+| Тест | Статус | Примечание |
+|------|--------|-----------|
+| `storage-collector.py --init-db` | ✅ OK | DB инициализирована |
+| `storage-collector.py` (полный сбор) | ✅ OK | 1 том, 1 шара, scan_duration=0 |
+| `storage-analyzer-api.py overview` | ✅ OK | JSON корректный, volumes/top_consumers |
+| `storage-analyzer-api.py shares 30` | ✅ OK | Шара documents найдена |
+| `storage-analyzer-api.py files /mnt/data size all 0` | ✅ OK | |
+| `storage-analyzer-api.py users` | ✅ OK | rusnas + dvl92 найдены |
+| `storage-analyzer-api.py filetypes` | ✅ OK | backup/other/photo/docs |
+| `storage-analyzer-api.py scan-status` | ✅ OK | idle, db_exists=true |
+| `sudo -n python3 ...` без пароля | ✅ OK | sudoers настроен корректно |
+| systemd timer | ✅ OK | rusnas-storage-collector.timer активен |
+
+#### Фронтенд (JS): найденные баги и замечания
+
+### SA-BUG-01 — Forecast data: 1 точка — нет прогноза
+**Статус:** ⚠️ Ожидаемо (design decision)
+**Описание:** После первого сканирования прогноза нет — только 1 точка истории. Прогноз появится после ≥2 сканирований.
+**Action:** Добавлено объяснение в UI в карточке forecast (показывает "нет данных").
+
+### SA-BUG-02 — DeprecationWarning в storage-collector.py:120
+**Статус:** ⚠️ Minor warning, не влияет на работу
+**Описание:** `re.split(r'\s*=\s*', line, 1)` передаёт maxsplit как positional argument (deprecated in Python 3.x).
+**Fix:** Заменить на `re.split(r'\s*=\s*', line, maxsplit=1)` в следующей сессии.
+
+### SA-BUG-03 — Volumes filter `/mnt /volume /data` — не найдены тома на нестандартных путях
+**Статус:** ℹ️ Design limitation
+**Описание:** API overview фильтрует df output по `/mnt`, `/volume`, `/data`. Тома на других путях не показываются.
+**Action:** Приемлемо для rusNAS (стандарт: /mnt/*).
+
+### SA-BUG-04 — Scan progress bar не анимирован реалистично
+**Статус:** ⚠️ Minor UX
+**Описание:** Progress bar растёт случайно до 90%, потом мгновенно исчезает после `scan-now` завершения.
+**Action:** Нормально для MVP. Улучшить в Фазе 2 с real-time status polling.
+
+### SA-BUG-05 — CSS class `.sa-scan-progress-fill` vs `.sa-scan-progress-bar`
+**Статус:** ✅ Исправлено (в CSS добавлен `.sa-scan-progress-bar`)
+**Описание:** В HTML/JS использован класс `.sa-scan-progress-bar`, в CSS был определён `.sa-scan-progress-fill`.
+**Fix:** Добавлен `.sa-scan-progress-bar` в дополнительный блок CSS.
+
+### SA-BUG-06 — Modal window использует Cockpit Bootstrap `.modal.fade` без jQuery
+**Статус:** ✅ Решено через CSS
+**Описание:** Cockpit не включает jQuery/Bootstrap JS. Модал управляется через CSS классов `.in` и `display:flex`.
+**Fix:** `#settingsModal { display:none; } #settingsModal.in { display:flex; }` — работает без jQuery.
+
+### SA-BUG-07 — squarify может выдавать NaN/Infinity при нулевых значениях
+**Статус:** ✅ Защита есть
+**Описание:** `guessColor()` не классифицирует файлы с нулевым размером (фильтр `e.bytes > 0` перед squarify).
+
+### SA-NOTE-01 — Прогнозы покажутся только через 2+ часа (после 2 тиков таймера)
+**Ожидаемо** — системный дизайн. Линейная регрессия требует ≥2 точек.
+
+### SA-NOTE-02 — Вкладка Users показывает только системных пользователей (UID 1000-60000 с home)
+**Ожидаемо** — фильтрация в storage-collector.py. Samba-пользователи без Unix home не показываются.
+
+### SA-NOTE-03 — dashboard.html: Storage card переключена с `/rusnas/disks` на `/rusnas/storage-analyzer`
+**Реализовано** — кнопка RAID на дашборде ведёт на /rusnas/disks (неизменна).
+

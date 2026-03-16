@@ -31,7 +31,7 @@
 <div class="db-grid-4" style="margin-bottom:14px">
 
   <!-- A1: Storage Usage -->
-  <div class="db-card" id="card-storage" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
+  <div class="db-card" id="card-storage" style="cursor:pointer" onclick="cockpit.jump('/rusnas/storage-analyzer')">
     <div class="db-card-icon">💾</div>
     <div class="db-card-title">STORAGE</div>
     <div class="db-card-metric" id="storage-used-pct">—</div>
@@ -126,8 +126,8 @@
   <div class="db-card-sub" id="io-per-disk" style="margin-top:8px;font-size:11px"></div>
 </div>
 
-<!-- ── Section D+E: Events, Snapshots, Guard ─────────────────────────────── -->
-<div class="db-grid-3" style="margin-bottom:14px">
+<!-- ── Section D+E: Events, Snapshots, Guard, UPS ────────────────────────── -->
+<div class="db-grid-4" style="margin-bottom:14px">
 
   <!-- D1: System Events -->
   <div class="db-card">
@@ -140,6 +140,38 @@
     <div class="db-card-title" style="margin-bottom:10px">📸 СНАПШОТЫ</div>
     <div id="snap-list" class="db-snap-list"><span class="text-muted">Загрузка…</span></div>
     <div class="db-card-sub" id="snap-total" style="margin-top:8px"></div>
+  </div>
+
+  <!-- D3: UPS Status -->
+  <div class="db-card" id="card-ups" style="cursor:pointer" onclick="cockpit.jump('/rusnas/ups')">
+    <div class="db-guard-header">
+      <div class="db-card-title">🔋 ИБП</div>
+      <div id="ups-status-dot" class="db-status-dot db-dot-gray"></div>
+    </div>
+    <div id="db-ups-status" class="db-ups-status"><span id="db-ups-icon">🔋</span> <span id="db-ups-label">Загрузка…</span></div>
+    <div id="db-ups-metrics" class="db-ups-metrics hidden">
+      <div class="db-ups-metric-item">
+        <div class="val" id="db-ups-charge">—</div>
+        <div class="lbl">Заряд</div>
+        <div class="db-ups-charge-bar"><div class="db-ups-charge-fill" id="db-ups-charge-bar" style="width:0%"></div></div>
+      </div>
+      <div class="db-ups-metric-item">
+        <div class="val" id="db-ups-runtime">—</div>
+        <div class="lbl">Запас хода</div>
+      </div>
+      <div class="db-ups-metric-item">
+        <div class="val" id="db-ups-load">—</div>
+        <div class="lbl">Нагрузка</div>
+      </div>
+      <div class="db-ups-metric-item" style="grid-column:1/-1">
+        <div class="val" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="db-ups-model">—</div>
+        <div class="lbl">Модель</div>
+      </div>
+    </div>
+    <div id="db-ups-nodev" class="db-ups-no-device">ИБП не настроен</div>
+    <div style="margin-top:8px">
+      <a href="/rusnas/ups" onclick="cockpit.jump('/rusnas/ups');return false;" class="btn btn-secondary btn-sm">Управление ИБП →</a>
+    </div>
   </div>
 
   <!-- E: Guard Status -->
@@ -178,14 +210,14 @@
     <div>
       <div class="db-card-sub" style="margin-bottom:4px">Prometheus / Zabbix endpoint:</div>
       <div style="display:flex;gap:6px;align-items:center">
-        <code id="metrics-url-prom" style="flex:1;padding:6px 8px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;font-size:12px"></code>
+        <code id="metrics-url-prom" style="flex:1;padding:6px 8px;background:var(--bg-th);border-radius:4px;font-size:12px"></code>
         <button class="btn btn-secondary btn-sm" onclick="copyMetricsUrl('prom')">📋</button>
       </div>
     </div>
     <div>
       <div class="db-card-sub" style="margin-bottom:4px">JSON API:</div>
       <div style="display:flex;gap:6px;align-items:center">
-        <code id="metrics-url-json" style="flex:1;padding:6px 8px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;font-size:12px"></code>
+        <code id="metrics-url-json" style="flex:1;padding:6px 8px;background:var(--bg-th);border-radius:4px;font-size:12px"></code>
         <button class="btn btn-secondary btn-sm" onclick="copyMetricsUrl('json')">📋</button>
       </div>
     </div>

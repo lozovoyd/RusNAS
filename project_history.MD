@@ -905,3 +905,129 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 
 ### Git commits
 - `b7fe14f` — fix: system-wide integration testing — 5 bugs fixed
+
+---
+
+## Сессия 9 — 2026-03-16
+
+### Задачи
+1. Написать ТЗ `rusnas-ups-nut_spec.md` по образцу существующих TZ-файлов
+2. Реализовать страницу ИБП / UPS (NUT: Network UPS Tools)
+3. Исправить Dark Mode в Dashboard (неправильные CSS-переменные)
+4. Добавить UPS-виджет на Dashboard
+5. Обновить документацию
+
+### Реализовано: ИБП / UPS (ветка main)
+
+**Новые файлы:**
+- `cockpit/rusnas/ups.html` — страница ИБП, 4 вкладки (Статус, Конфигурация, Защита, Журнал)
+- `cockpit/rusnas/js/ups.js` — UI-логика: upsc -j, fallback text mode, scan USB, сохранение конфигов
+- `rusnas-ups/rusnas-ups-notify.sh` — NOTIFYCMD hook (Telegram + email + syslog)
+- `install-ups.sh` — деплой NUT + sudoers + notify script на VM
+- `rusnas-ups-nut_spec.md` — полное ТЗ с паритетом Synology DSM
+
+**Изменённые файлы:**
+- `cockpit/rusnas/manifest.json` — добавлен пункт меню "ИБП 🔋" (order 8)
+- `CLAUDE.md` — ссылка на rusnas-ups-nut_spec.md
+
+**Ключевые технические решения:**
+- NUT установлен через `apt install nut` (Debian 13: nut 2.8.1)
+- `upsc -j` (JSON mode, NUT 2.8+) — основной метод опроса; fallback: text mode
+- Конфиги `/etc/nut/` записываются через `cockpit.file().replace()` — НЕ через sudo tee
+- `superuser:"require"` НЕ используется в spawn (polkit timeout в iframe) — sudoers покрывает
+- Пароль upsd: `rusnas_nut_2026` (harcoded в шаблоне, можно сменить через UI)
+- Судоерс: `/etc/sudoers.d/rusnas-nut` — upsc, nut-scanner, systemctl nut.target, journalctl
+
+### Исправлен Dark Mode в Dashboard
+
+**Причина:** `dashboard.css` использовал несуществующие CSS-переменные с fallback к светлым значениям:
+- `var(--color-bg-secondary, #f0f0f0)` → должно быть `var(--bg-th)`
+- `var(--color-card-bg, #fff)` → должно быть `var(--bg-card)`
+- `var(--color-text-muted, #888)` → должно быть `var(--color-muted)`
+
+В `dashboard.js` аналогичные inline-style строки тоже использовали неправильные переменные.
+
+**Файлы исправлены:**
+- `cockpit/rusnas/css/dashboard.css` — полная замена на правильные переменные из style.css
+- `cockpit/rusnas/js/dashboard.js` — замена `--color-text-muted` → `--color-muted`, `--color-bg-secondary` → `--bg-th`
+- `cockpit/rusnas/dashboard.html` — замена `var(--color-bg-secondary,#f5f5f5)` → `var(--bg-th)`
+
+### UPS виджет на Dashboard
+
+Добавлена карточка "🔋 ИБП" в grid (вместо grid-3 теперь grid-4 в нижней секции):
+- Статус-точка (цветная, как у Guard)
+- Текущий статус (OL/OB/LB/RB → цветной текст)
+- 4 метрики: заряд (с прогресс-баром), запас хода, нагрузка, модель
+- Кнопка "Управление ИБП →"
+- Обновление каждые 10 секунд
+
+### Деплой
+- NUT установлен на VM: `nut 2.8.1-5`
+- Sudoers `/etc/sudoers.d/rusnas-nut` настроены
+- Notify script установлен: `/usr/local/bin/rusnas-ups-notify`
+- Plugin задеплоен: `./deploy.sh`
+
+
+---
+
+## Сессия 12 — 2026-03-17: Storage Analyzer + Landing Page + Cockpit Branding
+
+### Обзор
+Три крупных задачи за одну сессию:
+1. Лендинг-страница — деплой и дополнение новыми фичами
+2. Редизайн окна логина Cockpit в стиле rusNAS
+3. Новая функция: Storage Analyzer (Анализатор пространства)
+
+### Лендинг-страница
+
+Файл `/Users/dvl92/Downloads/rusnas.html` помещён в `landing/index.html`.
+
+**Добавлены секции:**
+- Дедупликация (3 метода: duperemove, Btrfs reflinks, SMB vfs_btrfs)
+- Управление ИБП (виджет с зарядом 87%, 3 статуса, 140+ моделей)
+- Мониторинг (Prometheus + Grafana)
+- +4 строки в таблице сравнения с Synology
+
+**Инфраструктура:**
+- `landing/apache/rusnas-landing.conf` — Apache VirtualHost на порту 80
+- `deploy-landing.sh` — деплой на VM (замена дефолтной страницы Apache)
+- `http://10.10.10.72/` отдаёт лендинг (HTTP 200, 167539 байт)
+
+### Cockpit Login Branding
+
+`cockpit-branding/branding.css` — полный редизайн окна логина:
+- Тёмный фон (#0d0d0d), оранжево-красные акценты
+- SVG логотип rusNAS (rack-сервер с дисками) в блоке #badge
+- Шрифт Manrope через Google Fonts
+- CSS переменные совместимы с Cockpit login.css
+- Интегрирован в `deploy.sh` для автоматического деплоя
+
+### Storage Analyzer (Анализатор пространства)
+
+**Ветка:** `feature/storage-analyzer`
+
+**Файлы созданы:**
+- `rusnas-storage-analyzer/storage-collector.py` — фоновый коллектор (systemd таймер)
+- `rusnas-storage-analyzer/storage-analyzer-api.py` — 7 API команд (overview, shares, files, users, filetypes, scan-status, scan-now)
+- `rusnas-storage-analyzer/rusnas-storage-collector.service` — systemd oneshot, nice+ionice
+- `rusnas-storage-analyzer/rusnas-storage-collector.timer` — hourly, RandomizedDelaySec=300
+- `cockpit/rusnas/storage-analyzer.html` — 5 вкладок, модал настроек, заголовок с кнопкой сканирования
+- `cockpit/rusnas/js/storage-analyzer.js` — ~750 строк: squarified treemap, donut chart, SVG fill chart, sparklines
+- `cockpit/rusnas/css/storage-analyzer.css` — расширен, ~600 строк
+- `install-storage-analyzer.sh` — скрипт деплоя бэкенда
+
+**Дашборд:** клик на Storage карточку теперь → `storage-analyzer.html` (было: disks.html)
+
+**Деплой:** бэкенд установлен на VM, первое сканирование прошло успешно (1 том `/mnt/data`, 1 шара)
+
+**Что работает на VM:**
+- `storage-collector.py` — сбор данных в SQLite + JSON cache
+- `storage-analyzer-api.py overview/shares/files/users/filetypes/scan-status` — все команды отвечают JSON
+- `rusnas-storage-collector.timer` — включён, hourly
+
+**Алгоритмы в JS:**
+- Squarified Treemap: `squarify()` + `squarifyRow()` + `worstRatio()` — рекурсивный алгоритм (~80 строк)
+- Donut chart: SVG arc paths с gap между сегментами
+- Fill chart: SVG линейный с осями, прогнозной пунктирной линией, маркером "сейчас"
+- Sparkline: SVG polyline для inline-графиков в шарах
+

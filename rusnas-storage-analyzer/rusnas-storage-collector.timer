@@ -1,0 +1,10 @@
+[Unit]
+Description=rusNAS Storage Analyzer — hourly collector timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

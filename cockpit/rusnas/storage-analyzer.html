@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Анализ пространства — rusNAS</title>
+  <link rel="stylesheet" href="../base1/cockpit.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/storage-analyzer.css">
+  <script src="../base1/cockpit.js"></script>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="sa-page-header">
+  <div class="sa-page-header-left">
+    <h2>💾 Анализ пространства</h2>
+    <div class="sa-scan-info" id="scanInfo">
+      <span class="sa-scan-age" id="scanAge">Загрузка...</span>
+      <span class="sa-scan-dot">•</span>
+      <span id="scanDuration"></span>
+    </div>
+  </div>
+  <div class="sa-page-header-right">
+    <button class="btn btn-default" id="btnSettings" title="Настройки анализатора">
+      ⚙ Настройки
+    </button>
+    <button class="btn btn-primary" id="btnScanNow">
+      🔄 Сканировать сейчас
+    </button>
+  </div>
+</div>
+
+<!-- Scan progress bar (hidden by default) -->
+<div class="sa-scan-progress" id="scanProgress" style="display:none">
+  <div class="sa-scan-progress-bar" id="scanProgressBar"></div>
+  <span class="sa-scan-progress-label" id="scanProgressLabel">Сканирование...</span>
+</div>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs sa-tabs" id="saTabs">
+  <li class="active"><a href="#tab-overview"   data-tab="overview">Обзор</a></li>
+  <li>              <a href="#tab-shares"    data-tab="shares">Шары</a></li>
+  <li>              <a href="#tab-files"     data-tab="files">Папки и файлы</a></li>
+  <li>              <a href="#tab-users"     data-tab="users">Пользователи</a></li>
+  <li>              <a href="#tab-filetypes" data-tab="filetypes">Типы файлов</a></li>
+</ul>
+
+<!-- ========== TAB 1: OVERVIEW ========== -->
+<div class="sa-tab-content" id="tab-overview">
+
+  <!-- Summary Cards -->
+  <div class="sa-cards-row" id="overviewCards">
+    <div class="sa-card sa-card-stat" id="cardTotal">
+      <div class="sa-card-label">Всего</div>
+      <div class="sa-card-value" id="valTotal">—</div>
+      <div class="sa-card-sub" id="subTotal"></div>
+    </div>
+    <div class="sa-card sa-card-stat" id="cardUsed">
+      <div class="sa-card-label">Занято</div>
+      <div class="sa-card-value" id="valUsed">—</div>
+      <div class="sa-bar-wrap">
+        <div class="sa-bar-fill" id="barUsed" style="width:0%"></div>
+      </div>
+      <div class="sa-card-sub" id="subUsed"></div>
+    </div>
+    <div class="sa-card sa-card-stat" id="cardFree">
+      <div class="sa-card-label">Свободно</div>
+      <div class="sa-card-value" id="valFree">—</div>
+      <div class="sa-bar-wrap sa-bar-free">
+        <div class="sa-bar-fill" id="barFree" style="width:0%"></div>
+      </div>
+      <div class="sa-card-sub" id="subFree"></div>
+    </div>
+    <div class="sa-card sa-card-stat sa-card-forecast" id="cardForecast">
+      <div class="sa-card-label">Осталось ~</div>
+      <div class="sa-forecast-lines" id="forecastLines">
+        <div class="sa-forecast-row"><span class="sa-fl-label">24ч тренд:</span><span class="sa-fl-val" id="fc24h">нет данных</span></div>
+        <div class="sa-forecast-row sa-fl-main"><span class="sa-fl-label">7д тренд:</span><span class="sa-fl-val" id="fc7d">нет данных</span></div>
+        <div class="sa-forecast-row"><span class="sa-fl-label">30д тренд:</span><span class="sa-fl-val" id="fc30d">нет данных</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Volume Map -->
+  <div class="sa-section">
+    <div class="sa-section-title">Тома и массивы</div>
+    <div class="sa-volumes-grid" id="volumesGrid">
+      <div class="sa-loading"><div class="sa-spinner"></div> Загрузка томов...</div>
+    </div>
+  </div>
+
+  <!-- Fill Chart -->
+  <div class="sa-section">
+    <div class="sa-section-header">
+      <div class="sa-section-title">Динамика заполнения</div>
+      <div class="sa-period-btns">
+        <button class="sa-period-btn active" data-days="7">7д</button>
+        <button class="sa-period-btn" data-days="30">30д</button>
+        <button class="sa-period-btn" data-days="90">90д</button>
+      </div>
+    </div>
+    <div class="sa-chart-wrap" id="fillChartWrap">
+      <div class="sa-loading"><div class="sa-spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Top Consumers -->
+  <div class="sa-section">
+    <div class="sa-section-title">Топ потребителей</div>
+    <div id="topConsumers">
+      <div class="sa-loading"><div class="sa-spinner"></div> Загрузка...</div>
+    </div>
+  </div>
+
+</div><!-- /tab-overview -->
+
+<!-- ========== TAB 2: SHARES ========== -->
+<div class="sa-tab-content" id="tab-shares" style="display:none">
+
+  <div class="sa-toolbar">
+    <div class="sa-section-title" style="margin:0">Сетевые шары</div>
+    <div class="sa-toolbar-right">
+      <label class="sa-toolbar-label">Период:</label>
+      <select id="sharesPeriod" class="form-control sa-select-sm">
+        <option value="7">7 дней</option>
+        <option value="30" selected>30 дней</option>
+        <option value="90">90 дней</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Forecast alert -->
+  <div id="sharesForecastAlert" style="display:none" class="sa-alert sa-alert-warn"></div>
+
+  <table class="table sa-table" id="sharesTable">
+    <thead>
+      <tr>
+        <th>Шара</th>
+        <th>Путь</th>
+        <th class="sa-sortable" data-sort="used">Занято ↕</th>
+        <th>Изм. за период</th>
+        <th>Скорость роста</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="sharesTbody">
+      <tr><td colspan="6" class="sa-loading"><div class="sa-spinner"></div> Загрузка...</td></tr>
+    </tbody>
+  </table>
+
+</div><!-- /tab-shares -->
+
+<!-- ========== TAB 3: FILES ========== -->
+<div class="sa-tab-content" id="tab-files" style="display:none">
+
+  <div class="sa-toolbar">
+    <div class="sa-breadcrumb" id="fileBreadcrumb">
+      <span class="sa-bc-item sa-bc-root" data-path="/">/</span>
+    </div>
+    <div class="sa-toolbar-right">
+      <label class="sa-toolbar-label">Вид:</label>
+      <div class="btn-group">
+        <button class="btn btn-default btn-sm active" id="btnViewTreemap">Treemap</button>
+        <button class="btn btn-default btn-sm" id="btnViewList">Список</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="sa-filters">
+    <div class="sa-filter-group">
+      <label>Тип файлов:</label>
+      <select id="filterFiletype" class="form-control sa-select-sm">
+        <option value="all">Все типы</option>
+        <option value="video">🎬 Видео</option>
+        <option value="photo">📷 Фото</option>
+        <option value="docs">📄 Документы</option>
+        <option value="archive">📦 Архивы</option>
+        <option value="backup">💾 Бэкапы</option>
+        <option value="code">💻 Код</option>
+        <option value="other">❓ Прочее</option>
+      </select>
+    </div>
+    <div class="sa-filter-group">
+      <label>Не изменялись более:</label>
+      <select id="filterOlderThan" class="form-control sa-select-sm">
+        <option value="0">Все файлы</option>
+        <option value="90">3 месяцев</option>
+        <option value="180">6 месяцев</option>
+        <option value="365">1 года</option>
+        <option value="730">2 лет</option>
+      </select>
+    </div>
+    <div class="sa-filter-group">
+      <label>Сортировка:</label>
+      <select id="filterSort" class="form-control sa-select-sm">
+        <option value="size">По размеру</option>
+        <option value="mtime">По дате</option>
+        <option value="name">По имени</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Treemap -->
+  <div id="treemapView">
+    <div class="sa-treemap-wrap" id="treemapWrap">
+      <div class="sa-loading"><div class="sa-spinner"></div> Загрузка...</div>
+    </div>
+    <div class="sa-treemap-tooltip" id="treemapTooltip" style="display:none"></div>
+  </div>
+
+  <!-- List view -->
+  <div id="listView" style="display:none">
+    <table class="table sa-table" id="fileListTable">
+      <thead>
+        <tr>
+          <th>Имя</th>
+          <th>Тип</th>
+          <th>Размер</th>
+          <th>Файлов</th>
+          <th>Последнее изм.</th>
+        </tr>
+      </thead>
+      <tbody id="fileListTbody">
+        <tr><td colspan="5" class="sa-loading"><div class="sa-spinner"></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /tab-files -->
+
+<!-- ========== TAB 4: USERS ========== -->
+<div class="sa-tab-content" id="tab-users" style="display:none">
+
+  <div class="sa-toolbar">
+    <div class="sa-section-title" style="margin:0">Использование по пользователям</div>
+  </div>
+
+  <table class="table sa-table" id="usersTable">
+    <thead>
+      <tr>
+        <th>Пользователь</th>
+        <th>Домашняя папка</th>
+        <th class="sa-sortable">Занято ↓</th>
+        <th>Квота</th>
+        <th>% квоты</th>
+        <th>Изм. 7д</th>
+      </tr>
+    </thead>
+    <tbody id="usersTbody">
+      <tr><td colspan="6" class="sa-loading"><div class="sa-spinner"></div> Загрузка...</td></tr>
+    </tbody>
+  </table>
+
+</div><!-- /tab-users -->
+
+<!-- ========== TAB 5: FILE TYPES ========== -->
+<div class="sa-tab-content" id="tab-filetypes" style="display:none">
+
+  <div class="sa-filetypes-layout">
+    <!-- Donut Chart -->
+    <div class="sa-donut-wrap">
+      <svg id="donutSvg" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="sa-donut-center" id="donutCenter">
+        <div class="sa-donut-total" id="donutTotalVal">—</div>
+        <div class="sa-donut-label">всего</div>
+      </div>
+    </div>
+
+    <!-- File types legend + table -->
+    <div class="sa-filetypes-right">
+      <table class="table sa-table" id="filetypesTable">
+        <thead>
+          <tr>
+            <th>Тип</th>
+            <th>Файлов</th>
+            <th>Объём</th>
+            <th>%</th>
+            <th>Изм. 7д</th>
+          </tr>
+        </thead>
+        <tbody id="filetypesTbody">
+          <tr><td colspan="5" class="sa-loading"><div class="sa-spinner"></div> Загрузка...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /tab-filetypes -->
+
+<!-- ========== SETTINGS MODAL ========== -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">×</button>
+        <h4 class="modal-title">⚙ Настройки анализатора</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Расписание сканирования</label>
+          <select class="form-control" id="settingSchedule">
+            <option value="hourly">Каждый час</option>
+            <option value="6h">Каждые 6 часов</option>
+            <option value="daily">Ежедневно</option>
+            <option value="manual">Только вручную</option>
+          </select>
+        </div>
+        <div class="form-group" id="settingDailyTimeGroup" style="display:none">
+          <label>Время запуска</label>
+          <input type="time" class="form-control" id="settingDailyTime" value="03:00">
+        </div>
+        <div class="form-group">
+          <label>Исключить из сканирования</label>
+          <div id="excludeList"></div>
+          <button class="btn btn-default btn-sm" id="btnAddExclude">+ Добавить путь</button>
+        </div>
+        <div class="form-group">
+          <label>Уведомления</label>
+          <div class="checkbox">
+            <label><input type="checkbox" id="notifyFill" checked>
+              Уведомлять при заполнении &gt; <input type="number" id="notifyFillPct" value="85" min="50" max="99" style="width:55px;display:inline"> %
+            </label>
+          </div>
+          <div class="checkbox">
+            <label><input type="checkbox" id="notifyForecast" checked>
+              Уведомлять при прогнозе &lt; <input type="number" id="notifyForecastDays" value="14" min="1" max="90" style="width:55px;display:inline"> дней
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" data-dismiss="modal">Отмена</button>
+        <button class="btn btn-primary" id="btnSaveSettings">Сохранить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/storage-analyzer.js"></script>
+</body>
+</html>

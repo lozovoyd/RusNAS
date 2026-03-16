@@ -32,6 +32,14 @@
     "dedup": {
       "label": "Дедупликация",
       "order": 7
+    },
+    "ups": {
+      "label": "ИБП 🔋",
+      "order": 8
+    },
+    "storage-analyzer": {
+      "label": "Анализ 💾",
+      "order": 9
     }
   },
   "superuser": {
