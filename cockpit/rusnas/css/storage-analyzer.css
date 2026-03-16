@@ -57,11 +57,21 @@
 .sa-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 18px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px 0;
+  border-bottom: 2px solid var(--color-border);
   flex-wrap: wrap;
 }
+.sa-tabs li {
+  display: block;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sa-tabs li a,
 .sa-tab-btn {
+  display: block;
   padding: 10px 18px;
   font-size: 13px;
   font-weight: 600;
@@ -70,12 +80,15 @@
   background: none;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  margin-bottom: -2px;
   white-space: nowrap;
   font-family: inherit;
+  text-decoration: none;
   transition: color 0.15s, border-color 0.15s;
 }
-.sa-tab-btn:hover { color: var(--color-text); }
+.sa-tabs li a:hover,
+.sa-tab-btn:hover { color: var(--color-text); text-decoration: none; }
+.sa-tabs li.active a,
 .sa-tab-btn.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
