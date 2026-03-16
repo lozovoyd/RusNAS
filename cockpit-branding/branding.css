@@ -1,0 +1,236 @@
+/* ── rusNAS Login Page — Custom Branding ─────────────────────────────────
+   Overrides Cockpit default PatternFly/Debian branding with rusNAS dark theme
+   Deploy: sudo cp branding.css /usr/share/cockpit/branding/debian/branding.css
+   ──────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap');
+
+/* ── CSS Variables: full dark rusNAS palette ──────────────────── */
+:root {
+  --color-body-background: #0d0d0d;
+  --color-background:      #161616;
+  --color-text:            #e6e6e6;
+  --color-text-light:      #6b6b6b;
+  --color-text-lighter:    #555;
+  --color-secondary-text:  #e6e6e6;
+  --color-primary:         #d32f2f;
+  --color-primary-active:  #b71c1c;
+  --color-link:            #f5a623;
+  --color-link-active:     #e8703a;
+  --color-border:          rgba(255,255,255,0.10);
+  --color-border-light:    rgba(255,255,255,0.06);
+  --color-input-background:#1e1e1e;
+  --color-input:           #e6e6e6;
+  --color-disabled-background: #2a2a2a;
+  --color-disabled-text:   #555;
+  --color-error-background:#1a0a0a;
+  --color-error:           #ef5350;
+  --color-status-danger-background: #1a0a0a;
+  --color-status-danger-text:       #ef5350;
+  --color-status-danger-accent:     #d32f2f;
+  --color-status-warning-background:#1a1200;
+  --color-status-warning-text:      #f5a623;
+  --color-status-warning-accent:    #f5a623;
+  --color-status-info-background:   #0a1020;
+  --color-status-info-text:         #64b5f6;
+  --color-status-info-accent:       #2196f3;
+  --content-width: 420px;
+}
+
+/* ── Font ─────────────────────────────────────────────────────── */
+body.login-pf,
+body.login-pf input,
+body.login-pf button,
+body.login-pf label {
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Ubuntu', sans-serif !important;
+}
+
+/* ── Body: dark background + glow effects ─────────────────────── */
+html body.login-pf {
+  background: #0d0d0d !important;
+}
+
+body.login-pf::before {
+  content: '';
+  position: fixed;
+  top: -180px; right: -180px;
+  width: 550px; height: 550px;
+  background: radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body.login-pf::after {
+  content: '';
+  position: fixed;
+  bottom: -120px; left: -120px;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(211,47,47,0.06) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Login card ───────────────────────────────────────────────── */
+.login-pf .container {
+  background: #161616 !important;
+  border: 1px solid rgba(245,166,35,0.18) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 70px rgba(0,0,0,0.75) !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Brand header (hostname shown by Cockpit JS) ──────────────── */
+h1#brand {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #444 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.5px !important;
+  text-align: center !important;
+  padding-bottom: 20px !important;
+}
+
+/* Show "rusNAS" above the hostname */
+h1#brand.hide-before::before,
+h1#brand::before {
+  content: 'rusNAS' !important;
+  display: block !important;
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+  color: #ffffff !important;
+  text-transform: none !important;
+  letter-spacing: -0.5px !important;
+  margin-bottom: 4px !important;
+  padding-top: 4px !important;
+}
+
+h1#brand.hide-before::after,
+h1#brand::after {
+  content: 'Корпоративное хранилище данных';
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: #555 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+/* ── Inputs ───────────────────────────────────────────────────── */
+.form-control[type=text],
+.form-control[type=password] {
+  background: #1e1e1e !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 8px !important;
+  color: #e6e6e6 !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+.form-control[type=text]:focus,
+.form-control[type=password]:focus {
+  outline: none !important;
+  border-color: rgba(245,166,35,0.55) !important;
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.10) !important;
+  outline-offset: unset !important;
+}
+
+.form-control::placeholder {
+  color: #444 !important;
+  font-style: normal !important;
+}
+
+/* ── Labels ───────────────────────────────────────────────────── */
+.control-label {
+  color: #888 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.8px !important;
+}
+
+/* ── Primary button (Log in) ──────────────────────────────────── */
+.pf-v6-c-button.pf-m-primary,
+.login-button.pf-m-primary {
+  --button-color-background:       #d32f2f !important;
+  --button-color-border:           #d32f2f !important;
+  --button-color-text:             #ffffff !important;
+  --button-color-hover-background: #b71c1c !important;
+  --button-color-hover-border:     #b71c1c !important;
+  --button-color-hover-text:       #ffffff !important;
+  border-radius: 9px !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.2px !important;
+  height: 44px !important;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s !important;
+}
+
+.pf-v6-c-button.pf-m-primary:hover:not([disabled]) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(211,47,47,0.35) !important;
+}
+
+/* ── Password toggle button ───────────────────────────────────── */
+.pf-v6-c-button.pf-m-control {
+  background: #1e1e1e !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: #555 !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+.pf-v6-c-button.pf-m-control:hover {
+  color: #f5a623 !important;
+  border-color: rgba(245,166,35,0.35) !important;
+}
+
+/* ── Other options link ───────────────────────────────────────── */
+#show-other-login-options,
+a {
+  color: #f5a623 !important;
+}
+a:hover { color: #e8703a !important; text-decoration: underline; }
+
+/* ── Error / info alerts ──────────────────────────────────────── */
+.pf-v6-c-alert {
+  background: #1a1a1a !important;
+  border-color: var(--alert-border-color, rgba(211,47,47,0.4)) !important;
+  border-radius: 8px !important;
+}
+
+/* ── Details section (below card, shows server info) ─────────── */
+.login-pf .details {
+  background: #111 !important;
+  border-color: rgba(255,255,255,0.06) !important;
+  border-radius: 0 0 14px 14px !important;
+}
+
+/* ── Badge: rusNAS rack visual (right side / bottom) ─────────── */
+.login-pf #badge {
+  inline-size: 320px !important;
+  block-size: 360px !important;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMjAgMzYwIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZ2xvdyIgY3g9IjUwJSIgY3k9IjMwJSIgcj0iNjAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0icmdiYSgyNDUsMTY2LDM1LDAuMTIpIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0icmdiYSgwLDAsMCwwKSIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3Qgd2lkdGg9IjMyMCIgaGVpZ2h0PSIzNjAiIGZpbGw9InVybCgjZ2xvdykiLz4KICA8dGV4dCB4PSIxNjAiIHk9IjgyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwgQmxhY2ssQXJpYWwsc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI1OCIgbGV0dGVyLXNwYWNpbmc9Ii0yIj4KICAgIDx0c3BhbiBmaWxsPSIjZmZmZmZmIj5ydXM8L3RzcGFuPjx0c3BhbiBmaWxsPSIjZjVhNjIzIj5OQVM8L3RzcGFuPgogIDwvdGV4dD4KICA8dGV4dCB4PSIxNjAiIHk9IjEwOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEuNSIgZmlsbD0iIzU1NSIgbGV0dGVyLXNwYWNpbmc9IjMiIGZvbnQtd2VpZ2h0PSI2MDAiPtCa0J7QoNCf0J7QoNCQ0KLQmNCS0J3QntCVINCl0KDQkNCd0JjQm9CY0KnQlTwvdGV4dD4KICA8IS0tIHNlcGFyYXRvciAtLT4KICA8bGluZSB4MT0iNDAiIHkxPSIxMjYiIHgyPSIyODAiIHkyPSIxMjYiIHN0cm9rZT0icmdiYSgyNDUsMTY2LDM1LDAuMTUpIiBzdHJva2Utd2lkdGg9IjEiLz4KICA8IS0tIHJhY2sgdW5pdHMgLS0+CiAgPHJlY3QgeD0iMzIiIHk9IjE0NCIgd2lkdGg9IjI1NiIgaGVpZ2h0PSIzNCIgcng9IjYiIGZpbGw9IiMxNDE0MTQiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA3KSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPGNpcmNsZSBjeD0iNTIiIGN5PSIxNjEiIHI9IjUiIGZpbGw9IiM0Y2FmNTAiIG9wYWNpdHk9IjAuOSIvPgogIDxyZWN0IHg9IjY2IiB5PSIxNTMiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxNiIgcng9IjIiIGZpbGw9IiMxZTFlMWUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICA8cmVjdCB4PSI2NiIgeT0iMTY1IiB3aWR0aD0iMTAiIGhlaWdodD0iNCIgcng9IjEiIGZpbGw9IiNmNWE2MjMiIG9wYWNpdHk9IjAuNyIvPgogIDxyZWN0IHg9Ijc5IiB5PSIxNTMiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxNiIgcng9IjIiIGZpbGw9IiMxZTFlMWUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICA8cmVjdCB4PSI3OSIgeT0iMTY1IiB3aWR0aD0iMTAiIGhlaWdodD0iNCIgcng9IjEiIGZpbGw9IiNmNWE2MjMiIG9wYWNpdHk9IjAuNSIvPgogIDxyZWN0IHg9IjkyIiB5PSIxNTMiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxNiIgcng9IjIiIGZpbGw9IiMxZTFlMWUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICA8cmVjdCB4PSI5MiIgeT0iMTY1IiB3aWR0aD0iMTAiIGhlaWdodD0iNCIgcng9IjEiIGZpbGw9IiNmNWE2MjMiIG9wYWNpdHk9IjAuOCIvPgogIDxyZWN0IHg9IjEwNSIgeT0iMTUzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iMTA1IiB5PSIxNjUiIHdpZHRoPSIxMCIgaGVpZ2h0PSI0IiByeD0iMSIgZmlsbD0iIzRjYWY1MCIgb3BhY2l0eT0iMC42Ii8+CiAgPHRleHQgeD0iMjMwIiB5PSIxNjUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI5IiBmaWxsPSIjNTU1IiBmb250LXdlaWdodD0iNzAwIiBsZXR0ZXItc3BhY2luZz0iMC41Ij5WT0wtMTwvdGV4dD4KICA8dGV4dCB4PSIyMzAiIHk9IjE3NCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjgiIGZpbGw9IiM0NDQiPlJBSUQgNiDCtyBPbmxpbmU8L3RleHQ+CiAgPHJlY3QgeD0iMjY1IiB5PSIxNTQiIHdpZHRoPSIxNCIgaGVpZ2h0PSIxNCIgcng9IjMiIGZpbGw9InJnYmEoNzYsMTc1LDgwLDAuMSkiIHN0cm9rZT0icmdiYSg3NiwxNzUsODAsMC4zKSIgc3Ryb2tlLXdpZHRoPSIwLjgiLz4KICA8dGV4dCB4PSIyNzIiIHk9IjE2NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjYuNSIgZmlsbD0iIzRjYWY1MCIgZm9udC13ZWlnaHQ9IjcwMCI+T0s8L3RleHQ+CgogIDxyZWN0IHg9IjMyIiB5PSIxODQiIHdpZHRoPSIyNTYiIGhlaWdodD0iMzQiIHJ4PSI2IiBmaWxsPSIjMTQxNDE0IiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiIHN0cm9rZS13aWR0aD0iMSIvPgogIDxjaXJjbGUgY3g9IjUyIiBjeT0iMjAxIiByPSI1IiBmaWxsPSIjZjVhNjIzIiBvcGFjaXR5PSIwLjkiLz4KICA8cmVjdCB4PSI2NiIgeT0iMTkzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iNjYiIHk9IjIwNSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjZjVhNjIzIiBvcGFjaXR5PSIwLjkiLz4KICA8cmVjdCB4PSI3OSIgeT0iMTkzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iNzkiIHk9IjIwNSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjZjVhNjIzIiBvcGFjaXR5PSIwLjUiLz4KICA8cmVjdCB4PSI5MiIgeT0iMTkzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iMTA1IiB5PSIxOTMiIHdpZHRoPSIxMCIgaGVpZ2h0PSIxNiIgcng9IjIiIGZpbGw9IiMxZTFlMWUiIHN0cm9rZT0iIzMzMyIgc3Ryb2tlLXdpZHRoPSIwLjUiLz4KICA8cmVjdCB4PSIxMDUiIHk9IjIwNSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjZjVhNjIzIiBvcGFjaXR5PSIwLjQiLz4KICA8dGV4dCB4PSIyMzAiIHk9IjIwNSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjkiIGZpbGw9IiM1NTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGxldHRlci1zcGFjaW5nPSIwLjUiPlJBSUQgNeKGkjY8L3RleHQ+CiAgPHRleHQgeD0iMjMwIiB5PSIyMTQiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI4IiBmaWxsPSIjZjVhNjIzIj5SZXNoYXBlIDY0JTwvdGV4dD4KICA8cmVjdCB4PSIyNjUiIHk9IjE5NCIgd2lkdGg9IjE0IiBoZWlnaHQ9IjE0IiByeD0iMyIgZmlsbD0icmdiYSgyNDUsMTY2LDM1LDAuMSkiIHN0cm9rZT0icmdiYSgyNDUsMTY2LDM1LDAuMykiIHN0cm9rZS13aWR0aD0iMC44Ii8+CiAgPHRleHQgeD0iMjcyIiB5PSIyMDQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI1LjUiIGZpbGw9IiNmNWE2MjMiIGZvbnQtd2VpZ2h0PSI3MDAiPlNZTkM8L3RleHQ+CgogIDxyZWN0IHg9IjMyIiB5PSIyMjQiIHdpZHRoPSIyNTYiIGhlaWdodD0iMzQiIHJ4PSI2IiBmaWxsPSIjMTQxNDE0IiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4wNykiIHN0cm9rZS13aWR0aD0iMSIvPgogIDxjaXJjbGUgY3g9IjUyIiBjeT0iMjQxIiByPSI1IiBmaWxsPSIjNGNhZjUwIiBvcGFjaXR5PSIwLjkiLz4KICA8cmVjdCB4PSI2NiIgeT0iMjMzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iNjYiIHk9IjI0NSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjNGNhZjUwIiBvcGFjaXR5PSIwLjgiLz4KICA8cmVjdCB4PSI3OSIgeT0iMjMzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iNzkiIHk9IjI0NSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjNGNhZjUwIiBvcGFjaXR5PSIwLjYiLz4KICA8cmVjdCB4PSI5MiIgeT0iMjMzIiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIHJ4PSIyIiBmaWxsPSIjMWUxZTFlIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMC41Ii8+CiAgPHJlY3QgeD0iOTIiIHk9IjI0NSIgd2lkdGg9IjEwIiBoZWlnaHQ9IjQiIHJ4PSIxIiBmaWxsPSIjNGNhZjUwIiBvcGFjaXR5PSIwLjkiLz4KICA8dGV4dCB4PSIyMzAiIHk9IjI0MSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjkiIGZpbGw9IiM1NTUiIGZvbnQtd2VpZ2h0PSI3MDAiIGxldHRlci1zcGFjaW5nPSIwLjUiPmlTQ1NJPC90ZXh0PgogIDx0ZXh0IHg9IjIzMCIgeT0iMjUwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iOCIgZmlsbD0iIzQ0NCI+NjQgdGFyZ2V0cyDCtyBWTXdhcmU8L3RleHQ+CiAgPHJlY3QgeD0iMjY1IiB5PSIyMzQiIHdpZHRoPSIxNCIgaGVpZ2h0PSIxNCIgcng9IjMiIGZpbGw9InJnYmEoNzYsMTc1LDgwLDAuMSkiIHN0cm9rZT0icmdiYSg3NiwxNzUsODAsMC4zKSIgc3Ryb2tlLXdpZHRoPSIwLjgiLz4KICA8dGV4dCB4PSIyNzIiIHk9IjI0NCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjYuNSIgZmlsbD0iIzRjYWY1MCIgZm9udC13ZWlnaHQ9IjcwMCI+T0s8L3RleHQ+CgogIDwhLS0gYm90dG9tIHN0YXRzIHJvdyAtLT4KICA8bGluZSB4MT0iNDAiIHkxPSIyNzQiIHgyPSIyODAiIHkyPSIyNzQiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPHRleHQgeD0iNjAiIHk9IjI5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE4IiBmaWxsPSIjNGNhZjUwIiBmb250LXdlaWdodD0iOTAwIj4zPC90ZXh0PgogIDx0ZXh0IHg9IjYwIiB5PSIzMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI5IiBmaWxsPSIjNDQ0IiBsZXR0ZXItc3BhY2luZz0iMC41Ij5WT0xVTUVTPC90ZXh0PgogIDx0ZXh0IHg9IjE2MCIgeT0iMjk2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiNmNWE2MjMiIGZvbnQtd2VpZ2h0PSI5MDAiPjQwOTY8L3RleHQ+CiAgPHRleHQgeD0iMTYwIiB5PSIzMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI5IiBmaWxsPSIjNDQ0IiBsZXR0ZXItc3BhY2luZz0iMC41Ij5TTkFQU0hPVFM8L3RleHQ+CiAgPHRleHQgeD0iMjYwIiB5PSIyOTYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzY0YjVmNiIgZm9udC13ZWlnaHQ9IjkwMCI+MjA0ODwvdGV4dD4KICA8dGV4dCB4PSIyNjAiIHk9IjMxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjkiIGZpbGw9IiM0NDQiIGxldHRlci1zcGFjaW5nPSIwLjUiPlVTRVJTPC90ZXh0PgogIDxsaW5lIHgxPSIxMTAiIHkxPSIyODAiIHgyPSIxMTAiIHkyPSIzMTYiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjA1KSIgc3Ryb2tlLXdpZHRoPSIxIi8+CiAgPGxpbmUgeDE9IjIxMCIgeTE9IjI4MCIgeDI9IjIxMCIgeTI9IjMxNiIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIiBzdHJva2Utd2lkdGg9IjEiLz4KPC9zdmc+") !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  margin: 2rem auto !important;
+  opacity: 0.9;
+}
+
+@media (max-width: 900px) {
+  .login-pf #badge {
+    inline-size: 260px !important;
+    block-size: 294px !important;
+    margin: 1.5rem auto !important;
+  }
+}
+
+/* ── Login note / login-again ─────────────────────────────────── */
+#login-note, .help-block { color: #555 !important; }
+#get-out-link { color: #555 !important; }
+#get-out-link:hover { color: #888 !important; }
+
+/* ── Spinner ──────────────────────────────────────────────────── */
+.spinner {
+  border-color: rgba(255,255,255,0.15) rgba(255,255,255,0.15) rgba(255,255,255,0.15) rgba(255,255,255,0.8) !important;
+}

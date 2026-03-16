@@ -244,3 +244,139 @@ From `manifest.json`:
 - `onclick="..."` in dynamically generated innerHTML **is allowed** (unsafe-inline covers it)
 - Static HTML elements must use `addEventListener` — inline handlers on static elements are a bad practice even when allowed
 - Inline `style="width: X%"` on elements (e.g. progress bar) is allowed
+
+## Storage Analyzer — UI Components
+
+### Squarified Treemap
+Interactive SVG treemap for file/folder visualization.
+
+```html
+<!-- Container -->
+<div class="sa-treemap-wrap" id="treemapWrap"></div>
+<div class="sa-treemap-tooltip" id="treemapTooltip" style="display:none"></div>
+```
+
+```javascript
+// Data format: [{name, type, bytes, files?, mtime}]
+// squarify(items, x, y, w, h) → [{label, value, entry, color, x, y, w, h}]
+// guessColor(entry) → hex color based on file extension
+renderTreemap(entries, containerElement);
+```
+
+**Behavior:**
+- Rectangles colored by file type (video=red, photo=orange, docs=blue, archive=purple, backup=teal, code=green, other=gray)
+- Hover → tooltip with name, size, file count, last modified
+- Click on dir → navigates into it (`navigateTo(path)`)
+- Breadcrumb navigation at top
+- Labels shown only when rect is wide enough (w>60 && h>30)
+
+### Donut Chart
+SVG arc-based donut for file type distribution.
+
+```javascript
+// breakdown: [{type, bytes, color, label, count, change_7d}]
+renderDonut(svgElement, breakdown, totalBytes);
+```
+
+**Structure:** SVG arc paths with 0.02 rad gap; click → filter Files tab by type.
+
+### SVG Fill Chart
+Line chart showing volume usage over time with forecast.
+
+```javascript
+// Called with overviewData (from API 'overview' command)
+// chartPeriod global (7/30/90 days) controls X range
+renderFillChart(overviewData);
+```
+
+**Features:** X/Y axes with labels, 95% danger threshold line (red dashed), forecast dashed line (orange), "сейчас" vertical marker.
+
+### Sparkline
+Mini inline line chart for share/user history.
+
+```javascript
+// values: array of numbers
+buildSparkline(values, width, height) → SVG string
+```
+
+### SA Page Header
+```html
+<div class="sa-page-header">
+  <div class="sa-page-header-left">
+    <h2>💾 Анализ пространства</h2>
+    <div class="sa-scan-info">...</div>
+  </div>
+  <div class="sa-page-header-right">
+    <button class="btn btn-primary" id="btnScanNow">🔄 Сканировать сейчас</button>
+  </div>
+</div>
+<div class="sa-scan-progress" id="scanProgress" style="display:none">
+  <div class="sa-scan-progress-bar"></div>
+</div>
+```
+
+### SA Summary Cards
+```html
+<div class="sa-cards-row">  <!-- CSS grid 4 columns -->
+  <div class="sa-card sa-card-stat">
+    <div class="sa-card-label">LABEL</div>
+    <div class="sa-card-value">VALUE</div>
+    <div class="sa-bar-wrap"><div class="sa-bar-fill" style="width:X%;background:COLOR"></div></div>
+    <div class="sa-card-sub">subtitle</div>
+  </div>
+</div>
+```
+
+Bar color logic: `barColor(pct)` → `--success` (<70%), `--warning` (<85%), `#FF6F00` (<95%), `--danger` (≥95%).
+
+### Forecast Display
+```html
+<div class="sa-forecast-lines">
+  <div class="sa-forecast-row"><span class="sa-fl-label">24ч:</span><span class="sa-fl-val sa-fc-ok|warn|critical|nodata">N дн.</span></div>
+  <div class="sa-forecast-row sa-fl-main"><!-- 7d trend, larger font --></div>
+  <div class="sa-forecast-row"><!-- 30d trend --></div>
+</div>
+```
+
+### Volume Cards
+```html
+<div class="sa-volumes-grid">  <!-- auto-fill minmax(280px,1fr) -->
+  <div class="sa-vol-card">  <!-- cursor:pointer, click → files tab -->
+    <div class="sa-vol-name">/mnt/data</div>
+    <div class="sa-vol-meta">/dev/md0 • btrfs</div>
+    <div class="sa-vol-bar-wrap"><div class="sa-vol-bar" style="width:X%;background:COLOR"></div></div>
+    <div class="sa-vol-sizes"><span>used / total</span><span class="sa-vol-pct">X%</span></div>
+  </div>
+</div>
+```
+
+### SA Table
+```html
+<table class="table sa-table">
+  <thead><tr><th>Col</th></tr></thead>
+  <tbody>
+    <tr class="sa-share-row"><td class="sa-path-cell">path</td>
+      <td class="sa-delta-up">+5 ГБ</td>   <!-- positive growth = danger color -->
+      <td class="sa-delta-down">-2 ГБ</td> <!-- negative = success color -->
+    </tr>
+  </tbody>
+</table>
+```
+
+### SA Filters Bar
+```html
+<div class="sa-filters">
+  <div class="sa-filter-group">
+    <label>Label</label>
+    <select class="form-control sa-select-sm">...</select>
+  </div>
+</div>
+```
+
+### Quota Bar
+```html
+<div class="sa-quota-bar-wrap">
+  <div class="sa-quota-bar sa-quota-warn" style="width:X%"></div>
+</div>
+```
+Classes: `.sa-quota-warn` (warning color), `.sa-quota-critical` (danger color).

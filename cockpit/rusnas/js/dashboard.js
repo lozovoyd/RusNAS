@@ -8,6 +8,7 @@ var TICK_SMART   = 300000; // smartctl cache TTL
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
 var TICK_GUARD   = 5000;   // guard status
+var TICK_UPS     = 10000;  // ups status
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -180,16 +181,16 @@ function loadRaid() {
             var color = a.status === "active" ? "db-ok" : (a.status === "degraded" ? "db-warn" : "db-crit");
             html += '<div class="db-raid-row">' +
                 '<span class="db-raid-name">' + a.name + '</span>' +
-                '<span style="font-size:11px;color:var(--color-text-muted)">' + (a.level || "?") + '</span>' +
+                '<span style="font-size:11px;color:var(--color-muted)">' + (a.level || "?") + '</span>' +
                 '<span class="' + color + '">' + ico + ' ' + a.status + '</span>' +
                 '<span style="font-size:11px">' + a.activeDevices + '/' + a.totalDevices + ' дисков</span>' +
                 '</div>';
             if (a.syncPct !== null) {
                 html += '<div class="db-raid-progress" style="margin-bottom:4px">' +
                     '<div class="db-raid-progress-fill" style="width:' + a.syncPct + '%"></div></div>' +
-                    '<div style="font-size:10px;color:var(--color-text-muted);margin-bottom:4px">Sync: ' + a.syncPct.toFixed(1) + '% ' + (a.syncSpeed || '') + '</div>';
+                    '<div style="font-size:10px;color:var(--color-muted);margin-bottom:4px">Sync: ' + a.syncPct.toFixed(1) + '% ' + (a.syncSpeed || '') + '</div>';
             }
-            tagHtml += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:var(--color-bg-secondary)">' +
+            tagHtml += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:var(--bg-th)">' +
                 a.name + ' ' + ico + '</span>';
         });
         listEl.innerHTML = html;
@@ -648,6 +649,102 @@ function isRecentEvent(ts, maxAgeSec) {
     } catch(e) { return false; }
 }
 
+// ── UPS Status ────────────────────────────────────────────────────────────
+
+function loadUpsStatus() {
+    // Read UPS name from config first
+    cockpit.file("/etc/nut/ups.conf").read()
+    .done(function(content) {
+        var upsName = "myups";
+        if (content) {
+            var m = content.match(/^\[(\w+)\]/m);
+            if (m) upsName = m[1];
+        }
+        fetchDashUpsStatus(upsName);
+    })
+    .fail(function() {
+        renderUpsNoDevice();
+    });
+}
+
+function fetchDashUpsStatus(upsName) {
+    cockpit.spawn(["sudo", "-n", "upsc", "-j", upsName + "@localhost"],
+        {err: "message"})
+    .done(function(out) {
+        var data = null;
+        try { data = JSON.parse(out.trim()); } catch(e) {}
+        if (!data) {
+            // Fallback: text mode
+            var obj = {};
+            (out || "").split("\n").forEach(function(line) {
+                var idx = line.indexOf(": ");
+                if (idx > 0) obj[line.substring(0, idx).trim()] = line.substring(idx + 2).trim();
+            });
+            data = obj;
+        }
+        renderDashUps(data);
+    })
+    .fail(function() {
+        renderUpsNoDevice();
+    });
+}
+
+function renderDashUps(data) {
+    var status = data["ups.status"] || "";
+    var flags = status.split(" ");
+
+    var icon, label, dotCls, cardCls;
+    if (flags.indexOf("LB") >= 0) {
+        icon = "🔴"; label = "Критический заряд"; dotCls = "db-dot-red"; cardCls = "db-card-crit";
+    } else if (flags.indexOf("OB") >= 0) {
+        icon = "🟡"; label = "На батарее"; dotCls = "db-dot-orange"; cardCls = "db-card-warn";
+    } else if (flags.indexOf("RB") >= 0) {
+        icon = "🟠"; label = "Замените батарею"; dotCls = "db-dot-orange"; cardCls = "db-card-warn";
+    } else if (flags.indexOf("CHRG") >= 0) {
+        icon = "🔵"; label = "Зарядка"; dotCls = "db-dot-blue"; cardCls = "db-card-blue";
+    } else if (flags.indexOf("OL") >= 0) {
+        icon = "🟢"; label = "Питание от сети"; dotCls = "db-dot-green"; cardCls = "db-card-ok";
+    } else if (status === "" || !status) {
+        renderUpsNoDevice();
+        return;
+    } else {
+        icon = "⚫"; label = status; dotCls = "db-dot-gray"; cardCls = "";
+    }
+
+    el("card-ups").className = "db-card " + cardCls;
+    el("card-ups").style.cursor = "pointer";
+    el("ups-status-dot").className = "db-status-dot " + dotCls;
+    el("db-ups-icon").textContent = icon;
+    el("db-ups-label").textContent = label;
+
+    var charge = parseInt(data["battery.charge"]) || 0;
+    var runtime = parseInt(data["battery.runtime"]) || 0;
+    var load = parseInt(data["ups.load"]) || 0;
+    var model = [data["device.mfr"], data["device.model"]].filter(Boolean).join(" ") || data["ups.model"] || "—";
+
+    el("db-ups-charge").textContent = charge ? charge + "%" : "—";
+    var fill = el("db-ups-charge-bar");
+    fill.style.width = charge + "%";
+    fill.style.background = charge > 50 ? "var(--success)" : charge > 20 ? "var(--warning)" : "var(--danger)";
+
+    var rMin = Math.floor(runtime / 60);
+    el("db-ups-runtime").textContent = runtime ? (rMin + " мин") : "—";
+    el("db-ups-load").textContent = load ? load + "%" : "—";
+    el("db-ups-model").textContent = model;
+
+    el("db-ups-metrics").classList.remove("hidden");
+    el("db-ups-nodev").classList.add("hidden");
+}
+
+function renderUpsNoDevice() {
+    el("card-ups").className = "db-card";
+    el("ups-status-dot").className = "db-status-dot db-dot-gray";
+    el("db-ups-icon").textContent = "🔋";
+    el("db-ups-label").textContent = "ИБП не настроен";
+    el("db-ups-metrics").classList.add("hidden");
+    el("db-ups-nodev").classList.remove("hidden");
+}
+
 // ── Alert Banner ──────────────────────────────────────────────────────────
 function showAlertBanner(msg, cls) {
     var b = el("db-alert-banner");
@@ -735,6 +832,7 @@ document.addEventListener("DOMContentLoaded", function() {
     tickEvents();
     tickSnaps();
     tickGuard();
+    loadUpsStatus();
 
     // Recurring ticks
     setInterval(tickFast,    TICK_FAST);
@@ -743,5 +841,6 @@ document.addEventListener("DOMContentLoaded", function() {
     setInterval(tickEvents,  TICK_EVENTS);
     setInterval(tickSnaps,   TICK_SNAPS);
     setInterval(tickGuard,   TICK_GUARD);
+    setInterval(loadUpsStatus, TICK_UPS);
     setInterval(loadIdentity, 30000);
 });

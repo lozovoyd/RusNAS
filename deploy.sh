@@ -17,4 +17,12 @@ $SSH ${VM_USER}@${VM_HOST} "mkdir -p /tmp/rusnas-deploy/js /tmp/rusnas-deploy/cs
 $SCP -r "${LOCAL_PATH}/"* "${VM_USER}@${VM_HOST}:/tmp/rusnas-deploy/"
 $SSH ${VM_USER}@${VM_HOST} "echo '${VM_PASS}' | sudo -S cp -r /tmp/rusnas-deploy/* ${REMOTE_PATH}/ && echo '${VM_PASS}' | sudo -S chown -R root:root ${REMOTE_PATH}/ && echo '${VM_PASS}' | sudo -S find ${REMOTE_PATH} -type f -exec chmod 644 {} + && echo '${VM_PASS}' | sudo -S find ${REMOTE_PATH} -type d -exec chmod 755 {} + && rm -rf /tmp/rusnas-deploy/"
 
+# Deploy Cockpit login branding
+BRANDING_SRC="$(dirname "$0")/cockpit-branding/branding.css"
+if [ -f "${BRANDING_SRC}" ]; then
+  echo "Deploying login branding..."
+  $SCP "${BRANDING_SRC}" "${VM_USER}@${VM_HOST}:/tmp/rusnas-branding.css"
+  $SSH ${VM_USER}@${VM_HOST} "echo '${VM_PASS}' | sudo -S cp /tmp/rusnas-branding.css /usr/share/cockpit/branding/debian/branding.css && echo '${VM_PASS}' | sudo -S chmod 644 /usr/share/cockpit/branding/debian/branding.css"
+fi
+
 echo "Done. Refresh Cockpit in the browser (http://${VM_HOST}:9090) to see changes."
