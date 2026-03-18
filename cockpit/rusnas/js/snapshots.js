@@ -36,7 +36,7 @@
                     b.classList.remove("active");
                 });
                 this.classList.add("active");
-                ["snapshots", "schedule", "replication", "events"].forEach(function (t) {
+                ["snapshots", "schedule", "replication", "events", "guide"].forEach(function (t) {
                     var el = document.getElementById("tab-" + t);
                     if (el) el.classList.toggle("hidden", t !== tab);
                 });
