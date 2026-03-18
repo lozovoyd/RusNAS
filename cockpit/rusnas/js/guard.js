@@ -376,6 +376,8 @@ function loadConfig() {
         document.getElementById("det-iops").checked        = det.iops     !== false;
         document.getElementById("det-extensions").checked  = det.extensions !== false;
 
+        document.getElementById("det-hide-smb").checked = !!(det.hide_smb_baits);
+
         var threshold = det.entropy_threshold || 7.2;
         document.getElementById("det-entropy-threshold").value = threshold;
         document.getElementById("entropy-threshold-val").textContent = threshold;
@@ -486,7 +488,7 @@ function discoverAvailablePaths() {
 
         // 1. All real non-system mounts (btrfs, ext4, xfs etc, excluding /, /boot, /efi, swap)
         cockpit.spawn(["bash", "-c",
-            "findmnt --real -o TARGET,FSTYPE,SOURCE --noheadings 2>/dev/null | " +
+            "findmnt --real --list -o TARGET,FSTYPE,SOURCE --noheadings 2>/dev/null | " +
             "grep -v '^/ \\|/boot\\|/efi\\|swap\\|tmpfs\\|devtmpfs\\|squashfs'; true"
         ], {err: "message"})
         .done(function(out) {
@@ -802,6 +804,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 cfg.detection.iops              = document.getElementById("det-iops").checked;
                 cfg.detection.iops_multiplier   = parseInt(document.getElementById("det-iops-mult").value, 10);
                 cfg.detection.extensions        = document.getElementById("det-extensions").checked;
+                cfg.detection.hide_smb_baits    = document.getElementById("det-hide-smb").checked;
 
                 guardCmd("set_config", { config: cfg }, function(e2, r2) {
                     if (!e2 && r2 && r2.ok) showAlert("info", "Настройки обнаружения сохранены");

@@ -287,6 +287,54 @@ function renderDiskHealth(results) {
     card.style.cursor = "pointer";
 }
 
+// ── SSD-кеш статус в карточке ДИСКИ ──────────────────────────────────────
+function loadSsdCacheStatus() {
+    var statusEl = el("ssd-cache-status");
+    if (!statusEl) return;
+    cockpit.file("/etc/rusnas/ssd-tiers.json").read()
+    .done(function(content) {
+        var data;
+        try { data = JSON.parse(content || '{"tiers":[]}'); } catch(e) { data = {tiers:[]}; }
+        var tiers = data.tiers || [];
+        if (tiers.length === 0) { statusEl.textContent = ""; return; }
+        // For each tier get hit_rate from lvs
+        var done = 0;
+        var parts = [];
+        tiers.forEach(function(t, i) {
+            cockpit.spawn(["bash", "-c",
+                "sudo -n lvs --noheadings --units g " +
+                "-o lv_name,cache_read_hits,cache_read_misses,cache_used_blocks,cache_total_blocks,cache_mode " +
+                t.vg_name + " 2>/dev/null || true"
+            ], {err:"message"})
+            .done(function(out) {
+                var hitRate = 0, cachePct = 0, mode = t.mode || "writethrough";
+                out.split("\n").forEach(function(line) {
+                    var p = line.trim().split(/\s+/);
+                    if (p.length >= 6 && p[0] === t.lv_name) {
+                        var rh = parseFloat(p[1])||0, rm = parseFloat(p[2])||0;
+                        hitRate = rh+rm > 0 ? Math.round(rh/(rh+rm)*100) : 0;
+                        var used = parseFloat(p[3])||0, tot = parseFloat(p[4])||1;
+                        cachePct = tot > 0 ? Math.round(used/tot*100) : 0;
+                        mode = (p[5]||mode).trim();
+                    }
+                });
+                var modeIcon = mode === "writeback" ? "⚡WB" : "✓WT";
+                parts[i] = "⚡ SSD-кеш " + t.backing_device + ": эф. " + hitRate + "% | занято " + cachePct + "% | " + modeIcon;
+            })
+            .fail(function() {
+                parts[i] = "⚡ SSD-кеш " + t.backing_device + ": нет данных";
+            })
+            .always(function() {
+                done++;
+                if (done === tiers.length) {
+                    statusEl.innerHTML = parts.filter(Boolean).join("<br>");
+                }
+            });
+        });
+    })
+    .fail(function() { if (statusEl) statusEl.textContent = ""; });
+}
+
 // ── Section A4: Services ──────────────────────────────────────────────────
 var SERVICES = [
     { id: "smbd",       label: "SMB" },
@@ -833,6 +881,7 @@ document.addEventListener("DOMContentLoaded", function() {
     tickSnaps();
     tickGuard();
     loadUpsStatus();
+    loadSsdCacheStatus();
 
     // Recurring ticks
     setInterval(tickFast,    TICK_FAST);
@@ -842,5 +891,6 @@ document.addEventListener("DOMContentLoaded", function() {
     setInterval(tickSnaps,   TICK_SNAPS);
     setInterval(tickGuard,   TICK_GUARD);
     setInterval(loadUpsStatus, TICK_UPS);
+    setInterval(loadSsdCacheStatus, TICK_STORAGE);
     setInterval(loadIdentity, 30000);
 });

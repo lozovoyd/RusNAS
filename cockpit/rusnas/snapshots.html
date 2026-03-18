@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>rusNAS — Снапшоты</title>
   <link rel="stylesheet" href="css/style.css">
@@ -74,6 +75,7 @@
       <button class="advisor-tab-btn" data-tab="schedule">Расписание</button>
       <button class="advisor-tab-btn" data-tab="replication">Репликация</button>
       <button class="advisor-tab-btn" data-tab="events">Журнал событий</button>
+      <button class="advisor-tab-btn" data-tab="guide">📖 Руководство</button>
     </div>
 
     <!-- ── Tab: Snapshots ──────────────────────────────────────────────────────── -->
@@ -126,6 +128,408 @@
         </table>
       </div>
     </div>
+
+    <!-- ── Tab: Guide ─────────────────────────────────────────────────────────── -->
+    <div id="tab-guide" class="hidden">
+<style>
+.sg{font-family:inherit;color:var(--color);max-width:860px}
+.sg h2{font-size:18px;font-weight:800;margin:32px 0 6px;display:flex;align-items:center;gap:8px}
+.sg h2:first-child{margin-top:0}
+.sg h3{font-size:14px;font-weight:700;margin:20px 0 8px;color:var(--primary)}
+.sg p{font-size:13px;line-height:1.65;color:var(--color-muted);margin:0 0 10px}
+.sg .note{background:var(--info-light,#e7f4fe);border-left:3px solid var(--info-border,#2b9af3);border-radius:0 6px 6px 0;padding:10px 14px;font-size:12.5px;margin:10px 0;color:var(--color)}
+.sg .warn{background:var(--warning-light,#fff8e7);border-left:3px solid var(--warning,#f0ab00);border-radius:0 6px 6px 0;padding:10px 14px;font-size:12.5px;margin:10px 0;color:var(--color)}
+.sg .danger{background:var(--danger-light,#fde8e8);border-left:3px solid var(--danger,#c9190b);border-radius:0 6px 6px 0;padding:10px 14px;font-size:12.5px;margin:10px 0;color:var(--color)}
+/* Compare cards */
+.sg-cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.sg-cmp-card{border-radius:10px;padding:16px;font-size:13px}
+.sg-cmp-snap{background:rgba(0,102,204,0.06);border:1px solid rgba(0,102,204,0.2)}
+.sg-cmp-bak{background:rgba(62,134,53,0.06);border:1px solid rgba(62,134,53,0.2)}
+.sg-cmp-title{font-weight:800;font-size:14px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sg-cmp-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:5px;font-size:12.5px;line-height:1.5}
+.sg-chk{color:var(--success,#3e8635);font-weight:700;flex-shrink:0}
+.sg-x{color:var(--danger,#c9190b);font-weight:700;flex-shrink:0}
+/* CoW diagram */
+.sg-cow{background:var(--bg-th,#f0f0f0);border-radius:10px;padding:16px;margin:14px 0}
+.sg-cow-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.sg-cow-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--color-muted);width:100px;flex-shrink:0}
+.sg-block{border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;text-align:center;min-width:50px;border:1.5px solid transparent}
+.sg-bl-orig{background:#dbeafe;border-color:#3b82f6;color:#1e40af}
+.sg-bl-shared{background:#dbeafe;border-color:#3b82f6;color:#1e40af;opacity:.6}
+.sg-bl-new{background:#dcfce7;border-color:#22c55e;color:#15803d}
+.sg-bl-del{background:#fee2e2;border-color:#ef4444;color:#b91c1c;text-decoration:line-through;opacity:.5}
+.sg-arrow{font-size:16px;color:var(--color-muted)}
+.sg-cow-note{font-size:11.5px;color:var(--color-muted);margin-top:4px;font-style:italic}
+/* Timeline / retention */
+.sg-tl{margin:14px 0}
+.sg-tl-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.sg-tl-lbl{font-size:11px;font-weight:700;width:90px;flex-shrink:0;color:var(--color-muted);text-transform:uppercase}
+.sg-dot{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+.sg-dot-keep{background:rgba(0,102,204,0.15);border:1.5px solid rgba(0,102,204,0.4);color:var(--primary)}
+.sg-dot-drop{background:var(--bg-th,#f0f0f0);border:1.5px dashed var(--color-border);color:var(--color-muted)}
+.sg-dot-lock{background:rgba(245,166,0,0.15);border:1.5px solid rgba(245,166,0,0.5);color:#a06800}
+/* Strategy cards */
+.sg-strategies{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:14px 0}
+.sg-strat{border-radius:10px;padding:14px;border:1px solid var(--color-border)}
+.sg-strat-icon{font-size:22px;margin-bottom:8px}
+.sg-strat-title{font-size:13px;font-weight:700;margin-bottom:6px}
+.sg-strat-rows{font-size:12px;color:var(--color-muted);line-height:1.7}
+.sg-strat-rows b{color:var(--color);font-weight:600}
+/* Replication flow */
+.sg-repl-flow{display:grid;grid-template-columns:1fr 40px 1fr;gap:0;margin:14px 0;align-items:center}
+.sg-repl-box{border-radius:10px;padding:14px;font-size:12.5px;border:1px solid var(--color-border)}
+.sg-repl-nas{border-color:rgba(0,102,204,0.3);background:rgba(0,102,204,0.04)}
+.sg-repl-remote{border-color:rgba(62,134,53,0.3);background:rgba(62,134,53,0.04)}
+.sg-repl-arrow{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--color-muted);text-align:center}
+.sg-repl-title{font-weight:800;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sg-repl-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;font-size:12px;color:var(--color-muted)}
+/* Steps */
+.sg-steps{counter-reset:sg-step;margin:14px 0}
+.sg-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.sg-step-num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.sg-step-body{flex:1}
+.sg-step-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.sg-step-desc{font-size:12.5px;color:var(--color-muted);line-height:1.55}
+.sg-step-code{font-family:monospace;font-size:11.5px;background:var(--bg-th,#f0f0f0);border-radius:4px;padding:6px 10px;margin-top:6px;word-break:break-all}
+/* Checklist */
+.sg-check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.sg-check-item{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5;padding:10px;border-radius:8px;border:1px solid var(--color-border)}
+.sg-check-ico{font-size:16px;flex-shrink:0;margin-top:1px}
+/* Divider */
+.sg-div{border:none;border-top:1px solid var(--color-border);margin:28px 0}
+@media(max-width:640px){
+  .sg-cmp,.sg-repl-flow,.sg-check-grid{grid-template-columns:1fr}
+  .sg-repl-arrow{transform:rotate(90deg)}
+}
+</style>
+
+<div class="sg" style="padding:4px 0 32px">
+
+<!-- ═══ 1. Снапшот ≠ Бэкап ═══════════════════════════════════════════════════ -->
+<h2>📸 Снапшот — это не бэкап</h2>
+<p>Снапшот и бэкап решают разные задачи. Понимание разницы — основа правильной стратегии защиты данных.</p>
+
+<div class="sg-cmp">
+  <div class="sg-cmp-card sg-cmp-snap">
+    <div class="sg-cmp-title">📸 Снапшот Btrfs</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Создаётся мгновенно (секунды)</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Почти не занимает места сразу</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Откат в несколько кликов</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Хранится прямо на томе, быстрый доступ</div>
+    <div class="sg-cmp-row"><span class="sg-x">✗</span> <b>На том же диске</b> — если диск умер, снапшоты тоже</div>
+    <div class="sg-cmp-row"><span class="sg-x">✗</span> Не защищает от удаления файлов операционной системой</div>
+    <div class="sg-cmp-row"><span class="sg-x">✗</span> Не защищает от физической катастрофы</div>
+  </div>
+  <div class="sg-cmp-card sg-cmp-bak">
+    <div class="sg-cmp-title">💾 Бэкап (резервная копия)</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Хранится на <b>другом устройстве</b></div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Защищает от отказа оборудования</div>
+    <div class="sg-cmp-row"><span class="sg-chk">✓</span> Защищает от пожара, кражи (если offsite)</div>
+    <div class="sg-cmp-row"><span class="sg-x">✗</span> Требует места на втором устройстве</div>
+    <div class="sg-cmp-row"><span class="sg-x">✗</span> Создаётся дольше, восстановление — тоже</div>
+  </div>
+</div>
+
+<div class="sg-danger">
+  <b>Правило 3-2-1:</b> 3 копии данных, 2 разных носителя, 1 — вне помещения.<br>
+  Снапшоты — часть «3 копий», но заменить бэкап на отдельном устройстве они <b>не могут</b>.
+</div>
+<div class="sg-note">
+  <b>Правильная схема:</b> Снапшоты (быстрый откат на месте) + Репликация на второй NAS или сервер (бэкап).
+</div>
+
+<hr class="sg-div">
+
+<!-- ═══ 2. Как работает CoW ══════════════════════════════════════════════════ -->
+<h2>⚙️ Как работает снапшот внутри (CoW)</h2>
+<p>Btrfs использует <b>Copy-on-Write</b>: при создании снапшота новые данные не копируются — снапшот просто «указывает» на те же блоки данных, что и оригинал.</p>
+
+<div class="sg-cow">
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">Субволюм</div>
+    <div class="sg-block sg-bl-orig">A.docx<br>1 ГБ</div>
+    <div class="sg-block sg-bl-orig">video.mp4<br>3 ГБ</div>
+    <div class="sg-block sg-bl-orig">backup.zip<br>500 МБ</div>
+  </div>
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">Снапшот<br>(сразу после)</div>
+    <div class="sg-block sg-bl-shared">A.docx ↑<br>0 Б</div>
+    <div class="sg-block sg-bl-shared">video ↑<br>0 Б</div>
+    <div class="sg-block sg-bl-shared">backup ↑<br>0 Б</div>
+    <span style="font-size:12px;color:var(--color-muted);margin-left:8px">← Exclusive size = 0 Б. Только ссылки.</span>
+  </div>
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">После<br>изменений</div>
+    <div class="sg-block sg-bl-new">A.docx<br>(новая ver)</div>
+    <div class="sg-block sg-bl-shared">video ↑<br>0 Б</div>
+    <div class="sg-block sg-bl-del">deleted.tmp</div>
+    <span style="font-size:12px;color:var(--color-muted);margin-left:8px">← Снапшот хранит <b>старый</b> A.docx. Новая версия записана рядом.</span>
+  </div>
+  <div class="sg-cow-note">Размер снапшота в таблице = только уникальные блоки (Exclusive). Свежий снапшот без изменений = 0 Б. Чем дольше живёт снапшот и чем больше изменений — тем больше он «весит».</div>
+</div>
+
+<div class="sg-note">
+  <b>Из этого следует:</b> удаление снапшота не освобождает место сразу «на всю папку» — Btrfs удаляет только блоки, уникальные для этого снапшота. Блоки, на которые ещё ссылается живой субволюм или другой снапшот — остаются.
+</div>
+
+<hr class="sg-div">
+
+<!-- ═══ 3. Retention Policy ══════════════════════════════════════════════════ -->
+<h2>🗓️ Retention Policy — что оставить, что удалить</h2>
+<p>Снапшоты накапливаются. Retention Policy автоматически удаляет старые по правилам. В rusNAS настраивается отдельно для каждого расписания.</p>
+
+<div class="sg-tl">
+  <div class="sg-tl-row">
+    <div class="sg-tl-lbl">Hourly<br>сегодня</div>
+    <div class="sg-dot sg-dot-keep">01:00</div>
+    <div class="sg-dot sg-dot-keep">02:00</div>
+    <div class="sg-dot sg-dot-keep">…</div>
+    <div class="sg-dot sg-dot-keep">23:00</div>
+    <span style="font-size:11.5px;color:var(--color-muted);margin-left:8px">← Хранится 24 ч</span>
+  </div>
+  <div class="sg-tl-row">
+    <div class="sg-tl-lbl">Daily<br>эта неделя</div>
+    <div class="sg-dot sg-dot-keep">Пн</div>
+    <div class="sg-dot sg-dot-keep">Вт</div>
+    <div class="sg-dot sg-dot-keep">Ср</div>
+    <div class="sg-dot sg-dot-drop">Чт</div>
+    <div class="sg-dot sg-dot-keep">Пт</div>
+    <div class="sg-dot sg-dot-drop">Сб</div>
+    <div class="sg-dot sg-dot-keep">Вс</div>
+    <span style="font-size:11.5px;color:var(--color-muted);margin-left:8px">← Один снапшот в день за 14 дней</span>
+  </div>
+  <div class="sg-tl-row">
+    <div class="sg-tl-lbl">Weekly<br>месяцы</div>
+    <div class="sg-dot sg-dot-keep">W1</div>
+    <div class="sg-dot sg-dot-drop">W2</div>
+    <div class="sg-dot sg-dot-keep">W3</div>
+    <div class="sg-dot sg-dot-drop">W4</div>
+    <div class="sg-dot sg-dot-keep">W5</div>
+    <div class="sg-dot sg-dot-drop">W6</div>
+    <div class="sg-dot sg-dot-keep">W7</div>
+    <div class="sg-dot sg-dot-keep">W8</div>
+    <span style="font-size:11.5px;color:var(--color-muted);margin-left:8px">← Один за неделю, 8 недель</span>
+  </div>
+  <div class="sg-tl-row">
+    <div class="sg-tl-lbl">Locked<br>вручную</div>
+    <div class="sg-dot sg-dot-lock">🔒</div>
+    <div class="sg-dot sg-dot-lock">🔒</div>
+    <span style="font-size:11.5px;color:var(--color-muted);margin-left:8px">← Не удаляются никогда, пока не разблокировать</span>
+  </div>
+</div>
+
+<div class="sg-warn">
+  <b>Как выбрать значения:</b> Думайте не о количестве снапшотов, а о временно́м охвате. Вопрос: «На сколько назад я должен уметь откатиться?»<br>
+  Типичные ответы: ошибку замечают в течение дня → hourly 24, в течение недели → daily 14, кварталы → monthly 3–6.
+</div>
+
+<hr class="sg-div">
+
+<!-- ═══ 4. Рекомендуемые стратегии ══════════════════════════════════════════ -->
+<h2>🎯 Стратегии для разных сценариев</h2>
+
+<div class="sg-strategies">
+  <div class="sg-strat">
+    <div class="sg-strat-icon">🏢</div>
+    <div class="sg-strat-title">Офисные документы</div>
+    <div class="sg-strat-rows">
+      <b>Расписание:</b> каждый час<br>
+      <b>Hourly:</b> 24 (сутки)<br>
+      <b>Daily:</b> 30 (месяц)<br>
+      <b>Weekly:</b> 12 (квартал)<br>
+      <b>Почему:</b> правки случаются часто, важен откат на «вчера»
+    </div>
+  </div>
+  <div class="sg-strat">
+    <div class="sg-strat-icon">🖥️</div>
+    <div class="sg-strat-title">Виртуальные машины</div>
+    <div class="sg-strat-rows">
+      <b>Расписание:</b> ежедневно (ночью)<br>
+      <b>Daily:</b> 14<br>
+      <b>Weekly:</b> 8<br>
+      <b>Monthly:</b> 3<br>
+      <b>Почему:</b> образы большие — частые снапшоты дороги
+    </div>
+  </div>
+  <div class="sg-strat">
+    <div class="sg-strat-icon">📦</div>
+    <div class="sg-strat-title">Архивные данные</div>
+    <div class="sg-strat-rows">
+      <b>Расписание:</b> еженедельно<br>
+      <b>Weekly:</b> 52 (год)<br>
+      <b>Monthly:</b> 24<br>
+      <b>Почему:</b> данные меняются редко, важна долгосрочная история
+    </div>
+  </div>
+  <div class="sg-strat">
+    <div class="sg-strat-icon">🔧</div>
+    <div class="sg-strat-title">Перед обслуживанием</div>
+    <div class="sg-strat-rows">
+      <b>Действие:</b> создать вручную<br>
+      <b>Метка:</b> «перед_обновлением»<br>
+      <b>Заблокировать:</b> да (🔒)<br>
+      <b>Почему:</b> автоматический откат если что-то сломалось
+    </div>
+  </div>
+</div>
+
+<hr class="sg-div">
+
+<!-- ═══ 5. Репликация ════════════════════════════════════════════════════════ -->
+<h2>🔁 Репликация — снапшоты на удалённый сервер</h2>
+<p>Репликация копирует снапшоты на второй NAS или сервер по SSH. Первая передача — полный снапшот. Каждая следующая — только изменения (<b>инкрементально</b>). Это и есть настоящий бэкап за пределами основного устройства.</p>
+
+<div class="sg-repl-flow">
+  <div class="sg-repl-box sg-repl-nas">
+    <div class="sg-repl-title">🖥️ rusNAS (источник)</div>
+    <div class="sg-repl-row">📁 /mnt/data/documents</div>
+    <div class="sg-repl-row">📸 @2026-03-17 (снапшот)</div>
+    <div class="sg-repl-row">📸 @2026-03-16 (предыдущий)</div>
+    <div class="sg-repl-row" style="margin-top:8px;color:var(--primary);font-weight:600">
+      btrfs send -p @prev @new<br>
+      <span style="font-weight:400;font-size:11px">→ передаёт только diff</span>
+    </div>
+  </div>
+  <div class="sg-repl-arrow">
+    <svg width="36" height="36" viewBox="0 0 36 36"><path d="M8 18 L28 18 M22 12 L28 18 L22 24" stroke="var(--primary)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>SSH</span>
+  </div>
+  <div class="sg-repl-box sg-repl-remote">
+    <div class="sg-repl-title">🖥️ Удалённый сервер</div>
+    <div class="sg-repl-row">📁 /backup/nas1/documents</div>
+    <div class="sg-repl-row">📸 @2026-03-17 ← получен</div>
+    <div class="sg-repl-row">📸 @2026-03-16 ← получен</div>
+    <div class="sg-repl-row" style="margin-top:8px;color:var(--success,#3e8635);font-weight:600">
+      btrfs receive /backup/nas1<br>
+      <span style="font-weight:400;font-size:11px">← принимает diff, применяет</span>
+    </div>
+  </div>
+</div>
+
+<h3>Как работает инкрементальность</h3>
+<div class="sg-cow">
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">День 1<br>(первый раз)</div>
+    <span style="font-size:12.5px">Передаётся <b>полный снапшот</b>: 1.7 ГБ → SSH → удалённый сервер</span>
+  </div>
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">День 2<br>(следующий)</div>
+    <span style="font-size:12.5px">Изменилось 50 МБ → передаётся <b>только diff 50 МБ</b>. Предыдущий снапшот как «база».</span>
+  </div>
+  <div class="sg-cow-row">
+    <div class="sg-cow-label">День 3+</div>
+    <span style="font-size:12.5px">Аналогично: только новые изменения. Трафик → минимальный.</span>
+  </div>
+</div>
+
+<div class="sg-note">
+  <b>Что хранится на удалённом сервере?</b> Полноценные read-only Btrfs-снапшоты. Восстановление: подключиться по SSH, примонтировать папку, скопировать файлы.
+</div>
+
+<h3>Настройка — пошагово</h3>
+<div class="sg-steps">
+  <div class="sg-step">
+    <div class="sg-step-num">1</div>
+    <div class="sg-step-body">
+      <div class="sg-step-title">Подготовить SSH-ключ на NAS</div>
+      <div class="sg-step-desc">Репликация работает без пароля — через SSH-ключ. Выполните на NAS от root:</div>
+      <div class="sg-step-code">ssh-keygen -t ed25519 -N "" -f /root/.ssh/id_rusnas_repl</div>
+    </div>
+  </div>
+  <div class="sg-step">
+    <div class="sg-step-num">2</div>
+    <div class="sg-step-body">
+      <div class="sg-step-title">Скопировать ключ на удалённый сервер</div>
+      <div class="sg-step-desc">Заменить <code>user@remote</code> на вашего пользователя и адрес:</div>
+      <div class="sg-step-code">ssh-copy-id -i /root/.ssh/id_rusnas_repl.pub user@remote-host</div>
+    </div>
+  </div>
+  <div class="sg-step">
+    <div class="sg-step-num">3</div>
+    <div class="sg-step-body">
+      <div class="sg-step-title">Создать папку назначения на удалённом сервере</div>
+      <div class="sg-step-desc">Папка должна находиться на Btrfs-разделе:</div>
+      <div class="sg-step-code">mkdir -p /backup/nas1/documents</div>
+    </div>
+  </div>
+  <div class="sg-step">
+    <div class="sg-step-num">4</div>
+    <div class="sg-step-body">
+      <div class="sg-step-title">Создать задачу репликации в UI</div>
+      <div class="sg-step-desc">Вкладка «Репликация» → кнопка «+ Добавить». Выбрать субволюм, указать host/user/path, выбрать расписание.</div>
+    </div>
+  </div>
+  <div class="sg-step">
+    <div class="sg-step-num">5</div>
+    <div class="sg-step-body">
+      <div class="sg-step-title">Нажать «Проверить SSH» и «Запустить сейчас»</div>
+      <div class="sg-step-desc">Первый запуск — полная передача снапшота. Следите за прогрессом в журнале. Последующие — только изменения.</div>
+    </div>
+  </div>
+</div>
+
+<div class="sg-warn">
+  <b>Важно:</b> на удалённом сервере папка назначения должна быть на Btrfs. <code>btrfs receive</code> не работает на ext4, xfs или NTFS.
+</div>
+
+<hr class="sg-div">
+
+<!-- ═══ 6. Чеклист для нового админа ════════════════════════════════════════ -->
+<h2>✅ Чеклист: что настроить при первом запуске</h2>
+
+<div class="sg-check-grid">
+  <div class="sg-check-item">
+    <span class="sg-check-ico">1️⃣</span>
+    <div>
+      <b>Создать расписание для каждого субволюма</b><br>
+      <span style="color:var(--color-muted);font-size:12px">Вкладка «Расписание» → «+ Добавить». Минимум: daily каждую ночь.</span>
+    </div>
+  </div>
+  <div class="sg-check-item">
+    <span class="sg-check-ico">2️⃣</span>
+    <div>
+      <b>Настроить Retention Policy</b><br>
+      <span style="color:var(--color-muted);font-size:12px">Без неё снапшоты будут накапливаться и займут всё место на диске.</span>
+    </div>
+  </div>
+  <div class="sg-check-item">
+    <span class="sg-check-ico">3️⃣</span>
+    <div>
+      <b>Проверить, что снапшоты создаются</b><br>
+      <span style="color:var(--color-muted);font-size:12px">На следующий день откройте список — снапшоты должны появиться.</span>
+    </div>
+  </div>
+  <div class="sg-check-item">
+    <span class="sg-check-ico">4️⃣</span>
+    <div>
+      <b>Сделать пробное восстановление</b><br>
+      <span style="color:var(--color-muted);font-size:12px">Создайте тестовый файл, создайте снапшот, удалите файл, восстановите через «Просмотр».</span>
+    </div>
+  </div>
+  <div class="sg-check-item">
+    <span class="sg-check-ico">5️⃣</span>
+    <div>
+      <b>Настроить репликацию (если есть второй сервер)</b><br>
+      <span style="color:var(--color-muted);font-size:12px">Только так снапшоты станут полноценным бэкапом. SSH-ключ + задача репликации.</span>
+    </div>
+  </div>
+  <div class="sg-check-item">
+    <span class="sg-check-ico">6️⃣</span>
+    <div>
+      <b>Заблокировать важные снапшоты</b><br>
+      <span style="color:var(--color-muted);font-size:12px">Например, снапшот «перед обновлением» — нажмите «Заблокировать». Retention не удалит его.</span>
+    </div>
+  </div>
+</div>
+
+<hr class="sg-div">
+
+<div class="sg-note" style="text-align:center">
+  <b>Золотое правило:</b> снапшот — это откат за секунды. Репликация — это безопасность. Используйте оба.
+</div>
+
+</div><!-- .sg -->
+    </div><!-- #tab-guide -->
 
   </div><!-- .snap-main -->
 </div><!-- .snap-layout -->

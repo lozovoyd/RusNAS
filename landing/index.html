@@ -189,6 +189,66 @@ section{padding:88px 48px;position:relative;z-index:1;}
 }
 
 
+/* ── STORAGE ANALYZER SECTION ──────────────────────────────────────────── */
+.sa-section{background:#060609;padding:88px 48px;position:relative;overflow:hidden;border-top:1px solid rgba(99,102,241,0.1);border-bottom:1px solid rgba(99,102,241,0.1);}
+.sa-glow{position:absolute;top:-180px;right:-80px;width:520px;height:520px;background:radial-gradient(circle,rgba(99,102,241,0.07) 0%,transparent 65%);pointer-events:none;}
+.sa-glow2{position:absolute;bottom:-120px;left:-60px;width:380px;height:380px;background:radial-gradient(circle,rgba(168,85,247,0.05) 0%,transparent 65%);pointer-events:none;}
+.sa-inner{max-width:1200px;margin:0 auto;position:relative;z-index:1;}
+.sa-label{font-size:11px;font-weight:700;letter-spacing:2.5px;color:#818cf8;text-transform:uppercase;margin-bottom:10px;}
+.sa-title{font-size:clamp(24px,3vw,40px);font-weight:900;letter-spacing:-1px;line-height:1.1;margin-bottom:12px;}
+.sa-accent{background:linear-gradient(135deg,#6366f1,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sa-sub{font-size:15px;color:var(--gray);line-height:1.7;margin-bottom:28px;max-width:560px;}
+.sa-top{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:start;margin-bottom:52px;}
+/* Feature list */
+.sa-feats{display:flex;flex-direction:column;gap:16px;}
+.sa-feat{display:flex;gap:14px;align-items:flex-start;}
+.sa-feat-icon{width:36px;height:36px;border-radius:9px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;margin-top:1px;}
+.sa-feat-name{font-size:14px;font-weight:700;color:var(--white);margin-bottom:3px;}
+.sa-feat-desc{font-size:13px;color:var(--gray);line-height:1.55;}
+/* Mock UI panel */
+.sa-mock{background:#0b0b10;border:1px solid rgba(99,102,241,0.18);border-radius:16px;overflow:hidden;position:relative;}
+.sa-mock::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#6366f1,#a78bfa,#6366f1);}
+.sa-mock-bar{background:#0f0f16;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(99,102,241,0.12);}
+.sa-mock-dot{width:8px;height:8px;border-radius:50%;}
+.sa-mock-title{font-size:11px;color:var(--gray2);font-weight:700;margin-left:6px;text-transform:uppercase;letter-spacing:1px;}
+.sa-mock-tabs{display:flex;gap:1px;background:#0f0f16;padding:0 16px;border-bottom:1px solid rgba(99,102,241,0.12);}
+.sa-tab{padding:8px 14px;font-size:11.5px;font-weight:600;color:var(--gray2);cursor:default;}
+.sa-tab.active{color:#818cf8;border-bottom:2px solid #6366f1;}
+.sa-mock-body{padding:16px;}
+/* Treemap mockup */
+.sa-treemap{display:grid;grid-template-columns:2fr 1.2fr 1fr;grid-template-rows:70px 50px 40px;gap:3px;margin-bottom:14px;height:164px;}
+.sa-tm-cell{border-radius:4px;display:flex;align-items:flex-end;padding:6px 8px;position:relative;overflow:hidden;}
+.sa-tm-cell span{font-size:10px;font-weight:700;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sa-tm-c1{grid-column:1;grid-row:1/3;background:rgba(99,102,241,0.3);border:1px solid rgba(99,102,241,0.4);}
+.sa-tm-c2{grid-column:2;grid-row:1;background:rgba(168,85,247,0.25);border:1px solid rgba(168,85,247,0.35);}
+.sa-tm-c3{grid-column:3;grid-row:1;background:rgba(245,166,35,0.2);border:1px solid rgba(245,166,35,0.3);}
+.sa-tm-c4{grid-column:2/4;grid-row:2;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.3);}
+.sa-tm-c5{grid-column:1/3;grid-row:3;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.25);}
+.sa-tm-c6{grid-column:3;grid-row:3;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.25);}
+/* Bottom stats row */
+.sa-stats-row{display:flex;gap:10px;}
+.sa-stat-mini{flex:1;background:#0f0f18;border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:10px 12px;text-align:center;}
+.sa-stat-mini-val{font-size:15px;font-weight:800;color:#818cf8;}
+.sa-stat-mini-lbl{font-size:10px;color:var(--gray2);font-weight:600;text-transform:uppercase;letter-spacing:0.3px;margin-top:2px;}
+/* Forecast bar */
+.sa-forecast{background:#0f0f18;border:1px solid rgba(99,102,241,0.1);border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;}
+.sa-forecast-lbl{font-size:11px;color:var(--gray2);flex-shrink:0;}
+.sa-forecast-bar{flex:1;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;position:relative;}
+.sa-forecast-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#6366f1 68%,rgba(239,68,68,0.7) 68%,rgba(239,68,68,0.7) 100%);}
+.sa-forecast-val{font-size:11px;font-weight:700;color:#f87171;flex-shrink:0;}
+/* Tabs strip at bottom */
+.sa-tabs-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.sa-ts-card{background:#0f0f18;border:1px solid rgba(99,102,241,0.1);border-radius:12px;padding:16px 14px;text-align:center;transition:border-color 0.2s,transform 0.2s;}
+.sa-ts-card:hover{border-color:rgba(99,102,241,0.35);transform:translateY(-2px);}
+.sa-ts-icon{font-size:22px;margin-bottom:7px;}
+.sa-ts-name{font-size:12.5px;font-weight:700;color:var(--white);margin-bottom:4px;}
+.sa-ts-desc{font-size:11px;color:var(--gray2);line-height:1.5;}
+@media(max-width:1024px){
+  .sa-top{grid-template-columns:1fr;gap:32px;}
+  .sa-tabs-strip{grid-template-columns:1fr 1fr;}
+  .sa-section{padding-left:22px;padding-right:22px;}
+}
+
 /* SSD TIER SECTION */
 .ssd-tier-section { background:#070707; padding:88px 48px; position:relative; overflow:hidden; border-top:1px solid rgba(76,175,80,0.1); border-bottom:1px solid rgba(76,175,80,0.1); }
 .ssd-tier-glow { position:absolute; top:-200px; left:-100px; width:500px; height:500px; background:radial-gradient(circle,rgba(76,175,80,0.05) 0%,transparent 65%); pointer-events:none; }
@@ -618,6 +678,7 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
     <a href="#guard">Guard</a>
     <a href="#dedup">Дедупликация</a>
     <a href="#ups">ИБП</a>
+    <a href="#storage-analyzer">Анализатор</a>
     <a href="#specs">Характеристики</a>
     <a href="#compare">Сравнение</a>
     <a href="#cta">Контакты</a>
@@ -673,6 +734,8 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
       <div class="feat-card" style="cursor:pointer;" onclick="document.getElementById('dedup').scrollIntoView({behavior:'smooth'})"><div class="feat-icon" style="background:rgba(76,175,80,0.1);border-color:rgba(76,175,80,0.2);">🗜️</div><div class="feat-title">Дедупликация данных</div><div class="feat-desc">duperemove + Btrfs reflinks + SMB vfs_btrfs. Экономия до 40% дискового пространства за счёт устранения дублирующихся блоков. Расписание, история и статистика в UI.</div></div>
       <div class="feat-card" style="cursor:pointer;" onclick="document.getElementById('ups').scrollIntoView({behavior:'smooth'})"><div class="feat-icon" style="background:rgba(33,150,243,0.1);border-color:rgba(33,150,243,0.2);">🔋</div><div class="feat-title">Управление ИБП</div><div class="feat-desc">Интеграция с NUT 2.8 (Network UPS Tools). Мониторинг заряда, нагрузки, запаса хода. USB, SNMP, сетевой клиент. Безопасное завершение работы при разряде батареи.</div></div>
       <div class="feat-card"><div class="feat-icon">📡</div><div class="feat-title">Мониторинг и алёрты</div><div class="feat-desc">Встроенный Prometheus-endpoint и JSON API (порт 9100). Готово для Zabbix и Grafana. Метрики CPU, RAM, дискового I/O, сети, SMART и ИБП в реальном времени.</div></div>
+      <div class="feat-card" style="border-color:rgba(156,39,176,0.2);"><div class="feat-icon" style="background:rgba(156,39,176,0.1);border-color:rgba(156,39,176,0.2);">🔍</div><div class="feat-title">Анализатор пространства</div><div class="feat-desc">Визуализация занятости дисков: интерактивная тримап, прогноз заполнения, разбивка по шарам, пользователям и типам файлов. История роста за 30 дней.</div></div>
+      <div class="feat-card" style="border-color:rgba(255,152,0,0.2);"><div class="feat-icon" style="background:rgba(255,152,0,0.1);border-color:rgba(255,152,0,0.2);">⚡</div><div class="feat-title">SSD-кеширование</div><div class="feat-desc">Ускорение HDD RAID через LVM dm-cache. SSD действует как кеш горячих данных перед массивом. Безопасный и быстрый режимы, мониторинг hit-rate в реальном времени.</div></div>
     </div>
   </div>
 </section>
@@ -2182,6 +2245,123 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
 
 <div class="sep"></div>
 
+<!-- ═══════════ STORAGE ANALYZER ═══════════ -->
+<section id="storage-analyzer" class="sa-section">
+  <div class="sa-glow"></div>
+  <div class="sa-glow2"></div>
+  <div class="sa-inner">
+    <div class="sa-label">🔍 Анализатор пространства</div>
+    <h2 class="sa-title">Видите каждый гигабайт.<br><span class="sa-accent">Прогноз заполнения и точки роста.</span></h2>
+    <p class="sa-sub">Встроенный анализатор собирает данные почасово и строит полную картину занятости дисков — по шарам, папкам, пользователям и типам файлов. История роста за 30 дней, линейный прогноз до заполнения.</p>
+
+    <div class="sa-top">
+      <!-- Features -->
+      <div>
+        <div class="sa-feats">
+          <div class="sa-feat">
+            <div class="sa-feat-icon">🗺️</div>
+            <div>
+              <div class="sa-feat-name">Интерактивная тримап</div>
+              <div class="sa-feat-desc">Squarified treemap с навигацией по папкам. Каждый прямоугольник — файл или директория. Кликните — провалитесь внутрь. Цвет — тип файла.</div>
+            </div>
+          </div>
+          <div class="sa-feat">
+            <div class="sa-feat-icon">📈</div>
+            <div>
+              <div class="sa-feat-name">Прогноз заполнения</div>
+              <div class="sa-feat-desc">Линейная регрессия по истории сканирований. Показывает, через сколько дней закончится место — с момента последнего сканирования.</div>
+            </div>
+          </div>
+          <div class="sa-feat">
+            <div class="sa-feat-icon">👤</div>
+            <div>
+              <div class="sa-feat-name">Потребление по пользователям</div>
+              <div class="sa-feat-desc">Разбивка по UID 1000–60000: сколько занимает каждый пользователь, динамика роста, отклонение от нормы.</div>
+            </div>
+          </div>
+          <div class="sa-feat">
+            <div class="sa-feat-icon">🎯</div>
+            <div>
+              <div class="sa-feat-name">Разбивка по типам файлов</div>
+              <div class="sa-feat-desc">Donut-диаграмма: документы, видео, образы, архивы, прочее. Клик на тип — переход в файловый браузер с фильтром.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mock UI -->
+      <div class="sa-mock">
+        <div class="sa-mock-bar">
+          <div class="sa-mock-dot" style="background:#ef4444"></div>
+          <div class="sa-mock-dot" style="background:#f59e0b"></div>
+          <div class="sa-mock-dot" style="background:#22c55e"></div>
+          <span class="sa-mock-title">Анализатор пространства</span>
+        </div>
+        <div class="sa-mock-tabs">
+          <div class="sa-tab active">Обзор</div>
+          <div class="sa-tab">Шары</div>
+          <div class="sa-tab">Папки и файлы</div>
+          <div class="sa-tab">Пользователи</div>
+          <div class="sa-tab">Типы</div>
+        </div>
+        <div class="sa-mock-body">
+          <div class="sa-forecast">
+            <span class="sa-forecast-lbl">Заполнение /mnt/data</span>
+            <div class="sa-forecast-bar"><div class="sa-forecast-fill"></div></div>
+            <span class="sa-forecast-val">⚠ ~47 дн до 100%</span>
+          </div>
+          <div class="sa-treemap">
+            <div class="sa-tm-cell sa-tm-c1"><span>📁 documents  6.2 ГБ</span></div>
+            <div class="sa-tm-cell sa-tm-c2"><span>📁 backups  3.1 ГБ</span></div>
+            <div class="sa-tm-cell sa-tm-c3"><span>🎥 video  2.4 ГБ</span></div>
+            <div class="sa-tm-cell sa-tm-c4"><span>📁 projects  1.8 ГБ</span></div>
+            <div class="sa-tm-cell sa-tm-c5"><span>📁 archive  1.1 ГБ</span></div>
+            <div class="sa-tm-cell sa-tm-c6"><span>💾 iso  0.9 ГБ</span></div>
+          </div>
+          <div class="sa-stats-row">
+            <div class="sa-stat-mini"><div class="sa-stat-mini-val">15.5 ГБ</div><div class="sa-stat-mini-lbl">Занято</div></div>
+            <div class="sa-stat-mini"><div class="sa-stat-mini-val" style="color:#22c55e">6.8 ГБ</div><div class="sa-stat-mini-lbl">Свободно</div></div>
+            <div class="sa-stat-mini"><div class="sa-stat-mini-val" style="color:#f59e0b">69%</div><div class="sa-stat-mini-lbl">Заполнено</div></div>
+            <div class="sa-stat-mini"><div class="sa-stat-mini-val" style="color:#a78bfa">+320 МБ</div><div class="sa-stat-mini-lbl">За неделю</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 tabs strip -->
+    <div class="section-label" style="margin-bottom:14px;">Пять режимов анализа</div>
+    <div class="sa-tabs-strip">
+      <div class="sa-ts-card">
+        <div class="sa-ts-icon">📊</div>
+        <div class="sa-ts-name">Обзор</div>
+        <div class="sa-ts-desc">Карточки объёма, карта тома, SVG-график заполнения с прогнозом, топ-потребители.</div>
+      </div>
+      <div class="sa-ts-card">
+        <div class="sa-ts-icon">📁</div>
+        <div class="sa-ts-name">Шары</div>
+        <div class="sa-ts-desc">Таблица SMB-шар: размер, рост, спарклайн динамики, прогноз заполнения на шару.</div>
+      </div>
+      <div class="sa-ts-card">
+        <div class="sa-ts-icon">🗺️</div>
+        <div class="sa-ts-name">Папки и файлы</div>
+        <div class="sa-ts-desc">Squarified treemap + табличный вид. Фильтр по типу файла. Навигация кликом по папке.</div>
+      </div>
+      <div class="sa-ts-card">
+        <div class="sa-ts-icon">👤</div>
+        <div class="sa-ts-name">Пользователи</div>
+        <div class="sa-ts-desc">Потребление по UID. Динамика роста. Отображение квоты если настроена.</div>
+      </div>
+      <div class="sa-ts-card">
+        <div class="sa-ts-icon">🎯</div>
+        <div class="sa-ts-name">Типы файлов</div>
+        <div class="sa-ts-desc">Donut-диаграмма + таблица. Клик на тип — переход в файловый браузер с фильтром.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
 <!-- AUDIENCE -->
 <section id="audience" style="padding:88px 48px;">
   <div class="container">
@@ -2279,6 +2459,7 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
       <a href="#guard">Guard</a>
       <a href="#dedup">Дедупликация</a>
       <a href="#ups">ИБП</a>
+      <a href="#storage-analyzer">Анализатор</a>
       <a href="#specs">Характеристики</a>
       <a href="#compare">Сравнение</a>
       <a href="#cta">Контакты</a>

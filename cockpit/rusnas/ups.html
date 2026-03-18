@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>rusNAS — ИБП</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Статус-карточки */
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 16px 18px;
+        }
+        .stat-card .sv { font-size: 22px; font-weight: 600; margin: 4px 0 2px; }
+        .stat-card .sl { font-size: 12px; color: var(--color-muted); }
+
+        /* Большой статус */
+        .ups-status-banner {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 22px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid var(--color-border);
+            background: var(--bg-card);
+        }
+        .ups-status-icon { font-size: 36px; line-height: 1; }
+        .ups-status-label { font-size: 20px; font-weight: 600; }
+        .ups-status-sub { font-size: 13px; color: var(--color-muted); margin-top: 2px; }
+        .ups-banner-ol  { border-color: #3e8635; background: rgba(62,134,53,.07); }
+        .ups-banner-ob  { border-color: #f0ab00; background: rgba(240,171,0,.07); }
+        .ups-banner-lb  { border-color: #c9190b; background: rgba(201,25,11,.07); }
+        .ups-banner-rb  { border-color: #f0ab00; background: rgba(240,171,0,.07); }
+        .ups-banner-off { border-color: var(--color-border); }
+
+        /* Прогресс-бар батареи */
+        .battery-bar-wrap { margin-top: 6px; background: var(--color-border); border-radius: 4px; height: 6px; width: 100%; }
+        .battery-bar { height: 6px; border-radius: 4px; transition: width .4s; }
+        .bar-ok      { background: #3e8635; }
+        .bar-warn    { background: #f0ab00; }
+        .bar-crit    { background: #c9190b; }
+
+        /* Вкладки */
+        .tabs { display: flex; border-bottom: 2px solid var(--color-border); margin-bottom: 20px; }
+        .tab-btn {
+            padding: 9px 20px;
+            border: none; background: none;
+            cursor: pointer; font-size: 14px;
+            color: var(--color-muted);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab-btn.tab-active { color: var(--color); border-bottom-color: var(--primary); font-weight: 500; }
+
+        /* Секции */
+        .ups-section { background: var(--bg-card); border: 1px solid var(--color-border); border-radius: 6px; padding: 20px; margin-bottom: 16px; }
+        .ups-section h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+
+        /* Форма */
+        .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-row label { font-size: 13px; color: var(--color-muted); min-width: 160px; }
+        .form-row input[type="text"],
+        .form-row input[type="number"],
+        .form-row select { padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--bg-input); color: var(--color); font-size: 13px; min-width: 220px; }
+
+        /* Toggle switch */
+        .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .toggle-row label { font-size: 14px; font-weight: 500; }
+        .toggle-row small { font-size: 12px; color: var(--color-muted); }
+
+        /* Журнал событий */
+        .event-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .event-table th { text-align: left; font-weight: 500; font-size: 12px; color: var(--color-muted); padding: 8px 10px; border-bottom: 1px solid var(--color-border); background: var(--bg-th); }
+        .event-table td { padding: 9px 10px; border-bottom: 1px solid var(--color-border); }
+        .event-table tr:last-child td { border-bottom: none; }
+        .ev-online  { color: #3e8635; font-weight: 500; }
+        .ev-onbatt  { color: #f0ab00; font-weight: 500; }
+        .ev-lowbatt { color: #c9190b; font-weight: 500; }
+        .ev-shutdown { color: #c9190b; font-weight: 500; }
+        .ev-replbatt { color: #f0ab00; font-weight: 500; }
+        .ev-commlost { color: var(--color-muted); font-weight: 500; }
+
+        /* No UPS banner */
+        .no-ups-banner {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .no-ups-banner svg { margin-bottom: 16px; opacity: .5; }
+        .no-ups-banner h2 { margin: 0 0 8px; font-size: 20px; }
+        .no-ups-banner p { color: var(--color-muted); margin: 0 0 20px; }
+
+        .action-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+
+        @media (max-width: 800px) {
+            .stat-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<h1>ИБП <span style="font-size:16px;font-weight:400;color:var(--color-muted);">Источник бесперебойного питания</span></h1>
+
+<!-- Баннер: NUT не установлен -->
+<div id="no-nut-banner" class="hidden no-ups-banner">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <rect x="8" y="20" width="48" height="28" rx="4" stroke="currentColor" stroke-width="2.5"/>
+        <rect x="52" y="27" width="6" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+        <line x1="20" y1="34" x2="44" y2="34" stroke="currentColor" stroke-width="2.5"/>
+        <line x1="32" y1="26" x2="32" y2="42" stroke="currentColor" stroke-width="2.5"/>
+    </svg>
+    <h2>NUT не установлен</h2>
+    <p>Для управления ИБП требуется пакет <code>nut</code> (Network UPS Tools)</p>
+    <button class="btn btn-primary" id="btn-install-nut">Установить NUT</button>
+    <div id="install-log" class="hidden" style="margin-top:16px;text-align:left;max-width:500px;margin-left:auto;margin-right:auto;background:#1a1a1a;color:#d4d4d4;padding:14px;border-radius:4px;font-size:12px;font-family:monospace;white-space:pre-wrap;max-height:200px;overflow:auto;"></div>
+</div>
+
+<!-- Основной контент -->
+<div id="ups-content" class="hidden">
+
+<!-- Статус-баннер -->
+<div id="ups-banner" class="ups-status-banner ups-banner-off">
+    <div class="ups-status-icon" id="banner-icon">🔋</div>
+    <div>
+        <div class="ups-status-label" id="banner-label">Загрузка…</div>
+        <div class="ups-status-sub" id="banner-sub">Ожидание данных</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-secondary" id="btn-refresh-status">⟳ Обновить</button>
+    </div>
+</div>
+
+<!-- Статус-карточки -->
+<div class="stat-cards">
+    <div class="stat-card">
+        <div class="sl">Заряд батареи</div>
+        <div class="sv" id="stat-charge">—</div>
+        <div class="battery-bar-wrap"><div class="battery-bar bar-ok" id="stat-charge-bar" style="width:0%"></div></div>
+    </div>
+    <div class="stat-card">
+        <div class="sl">Запас хода</div>
+        <div class="sv" id="stat-runtime">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="sl">Нагрузка</div>
+        <div class="sv" id="stat-load">—</div>
+        <div class="battery-bar-wrap"><div class="battery-bar bar-ok" id="stat-load-bar" style="width:0%;background:#2563eb"></div></div>
+    </div>
+    <div class="stat-card">
+        <div class="sl">Входное напряжение</div>
+        <div class="sv" id="stat-voltage">—</div>
+    </div>
+    <div class="stat-card">
+        <div class="sl">Модель</div>
+        <div class="sv" style="font-size:14px;" id="stat-model">—</div>
+    </div>
+</div>
+
+<!-- Вкладки -->
+<div class="tabs">
+    <button class="tab-btn tab-active" data-tab="tab-status">Статус</button>
+    <button class="tab-btn" data-tab="tab-config">Конфигурация</button>
+    <button class="tab-btn" data-tab="tab-protection">Защита</button>
+    <button class="tab-btn" data-tab="tab-events">Журнал событий</button>
+</div>
+
+<!-- ══ Вкладка: Статус ══ -->
+<div id="tab-status" class="tab-panel">
+    <div class="ups-section">
+        <h3>Переменные ИБП</h3>
+        <table class="event-table">
+            <thead><tr><th>Параметр</th><th>Значение</th><th>Описание</th></tr></thead>
+            <tbody id="vars-tbody">
+                <tr><td colspan="3" style="color:var(--color-muted);">Загрузка…</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="action-bar">
+        <button class="btn btn-secondary" id="btn-scan-usb">🔍 Определить USB-ИБП</button>
+        <span id="scan-result" style="font-size:13px;color:var(--color-muted);"></span>
+    </div>
+</div>
+
+<!-- ══ Вкладка: Конфигурация ══ -->
+<div id="tab-config" class="tab-panel hidden">
+
+    <div class="ups-section">
+        <h3>Общие настройки</h3>
+        <div class="toggle-row">
+            <input type="checkbox" id="ups-enabled">
+            <label for="ups-enabled">ИБП включён</label>
+            <small>Запускает службы NUT (upsd + upsmon)</small>
+        </div>
+        <div class="form-row">
+            <label>Имя ИБП</label>
+            <input type="text" id="ups-name" value="myups" placeholder="myups">
+            <small style="font-size:12px;color:var(--color-muted);">Идентификатор в NUT (латиница, без пробелов)</small>
+        </div>
+        <div class="form-row">
+            <label>Описание</label>
+            <input type="text" id="ups-desc" placeholder="APC Back-UPS 700">
+        </div>
+    </div>
+
+    <div class="ups-section">
+        <h3>Тип подключения</h3>
+        <div class="form-row">
+            <label>Интерфейс</label>
+            <select id="ups-conn-type">
+                <option value="usb">USB (автоматически)</option>
+                <option value="snmp">SNMP (сетевой)</option>
+                <option value="netclient">Сетевой клиент (другой хост)</option>
+            </select>
+        </div>
+
+        <!-- USB -->
+        <div id="conn-usb">
+            <div class="form-row">
+                <label>Драйвер</label>
+                <input type="text" id="ups-driver" value="usbhid-ups" readonly style="color:var(--color-muted);">
+                <button class="btn btn-secondary" id="btn-scan-usb2">🔍 Определить автоматически</button>
+            </div>
+            <p style="font-size:12px;color:var(--color-muted);">Поддерживаются: APC, Eaton, CyberPower, Powercom, MGE и большинство USB UPS</p>
+        </div>
+
+        <!-- SNMP -->
+        <div id="conn-snmp" class="hidden">
+            <div class="form-row">
+                <label>IP-адрес</label>
+                <input type="text" id="snmp-host" placeholder="192.168.1.50">
+            </div>
+            <div class="form-row">
+                <label>Community</label>
+                <input type="text" id="snmp-community" value="public">
+            </div>
+        </div>
+
+        <!-- Net client -->
+        <div id="conn-netclient" class="hidden">
+            <div class="form-row">
+                <label>Хост:порт</label>
+                <input type="text" id="net-host" placeholder="192.168.1.10:3493">
+            </div>
+            <div class="form-row">
+                <label>Пользователь</label>
+                <input type="text" id="net-user" value="upsmon">
+            </div>
+            <div class="form-row">
+                <label>Пароль</label>
+                <input type="text" id="net-pass" placeholder="пароль upsd">
+            </div>
+        </div>
+    </div>
+
+    <div class="ups-section">
+        <h3>Сетевой UPS-сервер</h3>
+        <div class="toggle-row">
+            <input type="checkbox" id="net-server-enabled">
+            <label for="net-server-enabled">Предоставить ИБП другим устройствам в сети</label>
+        </div>
+        <div id="net-server-info" class="hidden" style="background:var(--bg-th);padding:12px;border-radius:4px;font-size:13px;">
+            <p style="margin:0 0 6px;">Другие устройства могут подключиться к этому ИБП:</p>
+            <code id="net-server-addr" style="font-size:13px;"></code>
+            <p style="margin:8px 0 0;color:var(--color-muted);">В upsmon.conf на клиенте: <code>MONITOR myups@&lt;этот-IP&gt; 1 upsmon &lt;пароль&gt; secondary</code></p>
+        </div>
+    </div>
+
+    <div class="action-bar">
+        <button class="btn btn-primary" id="btn-save-config">Сохранить конфигурацию</button>
+        <button class="btn btn-secondary" id="btn-restart-nut">↺ Перезапустить NUT</button>
+        <span id="config-saved-msg" class="hidden" style="font-size:13px;color:#3e8635;">✓ Сохранено</span>
+    </div>
+
+    <div id="config-error" class="alert alert-danger hidden" style="font-size:13px;"></div>
+</div>
+
+<!-- ══ Вкладка: Защита ══ -->
+<div id="tab-protection" class="tab-panel hidden">
+
+    <div class="ups-section">
+        <h3>Безопасное выключение</h3>
+        <p style="font-size:13px;color:var(--color-muted);margin-bottom:16px;">
+            При срабатывании порога rusNAS выполнит корректное завершение работы: сохранит данные, размонтирует файловые системы и выключится.
+        </p>
+        <div class="toggle-row">
+            <input type="checkbox" id="shutdown-enabled" checked>
+            <label for="shutdown-enabled">Выключать при потере питания</label>
+        </div>
+
+        <div id="shutdown-settings">
+            <div class="form-row" style="margin-top:12px;">
+                <label>Выключить при заряде ≤</label>
+                <input type="number" id="shutdown-charge" value="20" min="5" max="80" style="min-width:80px;">
+                <span style="font-size:13px;">%</span>
+            </div>
+            <div class="form-row">
+                <label>Выключить при запасе ≤</label>
+                <input type="number" id="shutdown-runtime" value="300" min="60" max="3600" style="min-width:100px;">
+                <span style="font-size:13px;">сек (≈ <span id="runtime-min">5</span> мин)</span>
+            </div>
+            <div class="form-row">
+                <label>Задержка выключения</label>
+                <input type="number" id="shutdown-delay" value="0" min="0" max="600" style="min-width:80px;">
+                <span style="font-size:13px;">сек после перехода на батарею</span>
+            </div>
+        </div>
+
+        <div style="margin-top:14px;">
+            <button class="btn btn-primary" id="btn-save-protection">Сохранить</button>
+            <span id="prot-saved-msg" class="hidden" style="margin-left:10px;font-size:13px;color:#3e8635;">✓ Сохранено</span>
+        </div>
+    </div>
+
+    <div class="ups-section">
+        <h3>Уведомления</h3>
+        <table class="event-table">
+            <thead><tr><th>Событие</th><th>Описание</th><th>Уведомлять</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td class="ev-onbatt">ONBATT</td>
+                    <td>Переход на батарею (отключение питания)</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="ONBATT" checked></td>
+                </tr>
+                <tr>
+                    <td class="ev-online">ONLINE</td>
+                    <td>Восстановление питания от сети</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="ONLINE" checked></td>
+                </tr>
+                <tr>
+                    <td class="ev-lowbatt">LOWBATT</td>
+                    <td>Критически низкий заряд батареи</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="LOWBATT" checked></td>
+                </tr>
+                <tr>
+                    <td class="ev-replbatt">REPLBATT</td>
+                    <td>Требуется замена батареи</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="REPLBATT" checked></td>
+                </tr>
+                <tr>
+                    <td class="ev-shutdown">SHUTDOWN</td>
+                    <td>Инициировано выключение системы</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="SHUTDOWN" checked></td>
+                </tr>
+                <tr>
+                    <td class="ev-commlost">COMMLOST</td>
+                    <td>Потеряна связь с ИБП</td>
+                    <td><input type="checkbox" class="notif-cb" data-event="COMMLOST"></td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="margin-top:14px;">
+            <button class="btn btn-secondary" id="btn-save-notif">Сохранить уведомления</button>
+            <span id="notif-saved-msg" class="hidden" style="margin-left:10px;font-size:13px;color:#3e8635;">✓ Сохранено</span>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Вкладка: Журнал событий ══ -->
+<div id="tab-events" class="tab-panel hidden">
+    <div class="ups-section">
+        <h3>Последние события ИБП</h3>
+        <div class="action-bar">
+            <button class="btn btn-secondary" id="btn-refresh-events">⟳ Обновить</button>
+        </div>
+        <table class="event-table">
+            <thead><tr><th>Время</th><th>Событие</th><th>Описание</th></tr></thead>
+            <tbody id="events-tbody">
+                <tr><td colspan="3" style="color:var(--color-muted);">Загрузка…</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div><!-- /ups-content -->
+
+<!-- Алерт -->
+<div id="global-alert" class="alert hidden" style="position:fixed;bottom:20px;right:20px;min-width:300px;z-index:9999;"></div>
+
+<script src="../base1/cockpit.js"></script>
+<script src="js/ups.js"></script>
+</body>
+</html>

@@ -5,6 +5,8 @@ var physicalDiskCount = 0;   // non-system disks, set in renderDisks
 var currentArrays     = [];  // last parsed mdstat, used by RAID advisor
 var currentDisks      = [];  // free disks cache, populated in renderDisks
 var currentMountMap   = {};  // md device name → {target, fstype}
+var currentSsdTiers   = [];  // SSD-tier entries from ssd-tiers.json
+var ssdTierTimer      = null;
 
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
@@ -1209,6 +1211,519 @@ function deleteSubvolume(mountPoint, name) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
+// ─── SSD-кеширование (dm-cache / LVM) ─────────────────────────────────────────
+
+var SSD_TIERS_JSON = "/etc/rusnas/ssd-tiers.json";
+
+// Returns Promise<string[]> of SSD candidate device paths
+function getSsdCandidates() {
+    return new Promise(function(resolve) {
+        cockpit.spawn(["bash", "-c",
+            "lsblk -d -o NAME,SIZE,ROTA,TYPE --json 2>/dev/null"
+        ], { err: "message" })
+        .done(function(out) {
+            var allSsds = [];
+            try {
+                var data = JSON.parse(out);
+                (data.blockdevices || []).forEach(function(d) {
+                    if (d.type === "disk" && (d.rota === false || d.rota === "0" || d.rota === 0)) {
+                        allSsds.push({ dev: "/dev/" + d.name, size: d.size });
+                    }
+                });
+            } catch(e) { /* ignore */ }
+
+            // Filter out disks already in any mdadm array
+            cockpit.spawn(["bash", "-c", "cat /proc/mdstat 2>/dev/null || true"], { err: "message" })
+            .done(function(mdstat) {
+                var usedDisks = [];
+                var lines = mdstat.split("\n");
+                lines.forEach(function(line) {
+                    var m = line.match(/sd[a-z]+\[\d+\]/g);
+                    if (m) m.forEach(function(x) {
+                        usedDisks.push("/dev/" + x.replace(/\[\d+\]/, ""));
+                    });
+                });
+                var candidates = allSsds.filter(function(d) {
+                    return usedDisks.indexOf(d.dev) === -1;
+                });
+                resolve(candidates);
+            })
+            .fail(function() { resolve(allSsds); });
+        })
+        .fail(function() { resolve([]); });
+    });
+}
+
+// Returns Promise<{hit_rate, cache_pct, mode}> for a given VG/LV
+function getSsdTierStatus(vgName, lvName) {
+    return new Promise(function(resolve) {
+        cockpit.spawn(["bash", "-c",
+            "sudo -n lvs --noheadings --units g " +
+            "-o lv_name,cache_read_hits,cache_read_misses,cache_write_hits,cache_write_misses,cache_used_blocks,cache_total_blocks,cache_mode " +
+            vgName + " 2>/dev/null || true"
+        ], { err: "message" })
+        .done(function(out) {
+            var result = { hit_rate: 0, cache_pct: 0, mode: "writethrough" };
+            out.split("\n").forEach(function(line) {
+                var parts = line.trim().split(/\s+/);
+                // lv_name r_hits r_misses w_hits w_misses used_blocks total_blocks mode
+                if (parts.length >= 8 && parts[0] === lvName) {
+                    var rHits   = parseFloat(parts[1]) || 0;
+                    var rMisses = parseFloat(parts[2]) || 0;
+                    var total   = rHits + rMisses;
+                    result.hit_rate   = total > 0 ? Math.round(rHits / total * 100) : 0;
+                    var used  = parseFloat(parts[5]) || 0;
+                    var tot   = parseFloat(parts[6]) || 1;
+                    result.cache_pct  = tot > 0 ? Math.round(used / tot * 100) : 0;
+                    result.mode       = (parts[7] || "writethrough").replace(/\s/g, "");
+                }
+            });
+            resolve(result);
+        })
+        .fail(function() { resolve({ hit_rate: 0, cache_pct: 0, mode: "writethrough" }); });
+    });
+}
+
+function renderSsdTiers(tiers) {
+    var tbody = document.getElementById("ssd-tiers-body");
+    if (!tiers || tiers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--color-muted)">' +
+            'SSD-кеш не настроен. Нажмите <b>+ Добавить SSD-кеш</b> для ускорения HDD-массива.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = tiers.map(function(t) {
+        var modeHtml = t.mode === "writeback"
+            ? '<span class="ssd-mode-wb">Быстрый (writeback) ⚠</span>'
+            : '<span class="ssd-mode-wt">Безопасный (writethrough) ✓</span>';
+
+        var hitRate  = t._status ? t._status.hit_rate  : 0;
+        var cachePct = t._status ? t._status.cache_pct : 0;
+
+        var hitClass  = hitRate  < 50 ? "warn" : "";
+        var cacheClass = cachePct > 90 ? "crit" : cachePct > 70 ? "warn" : "";
+
+        var hitBar = '<span class="ssd-bar-wrap"><span class="ssd-bar-fill ' + hitClass + '" style="width:' + hitRate + '%"></span></span> ' + hitRate + '%';
+        var cacheBar = '<span class="ssd-bar-wrap"><span class="ssd-bar-fill ' + cacheClass + '" style="width:' + cachePct + '%"></span></span> ' + cachePct + '%';
+
+        return '<tr style="border-bottom:1px solid var(--color-border)">' +
+            '<td style="padding:8px 12px">' + (t.backing_device || '—') + '</td>' +
+            '<td style="padding:8px 12px">' + (t.cache_device || '—') + '</td>' +
+            '<td style="padding:8px 12px">' + modeHtml + '</td>' +
+            '<td style="padding:8px 12px">' + hitBar + '</td>' +
+            '<td style="padding:8px 12px">' + cacheBar + '</td>' +
+            '<td style="padding:8px 12px;text-align:right">' +
+                '<button class="btn btn-secondary" style="font-size:12px;padding:3px 8px;margin-right:4px" ' +
+                    'data-action="change-mode" data-vg="' + t.vg_name + '" data-lv="' + t.lv_name + '" data-mode="' + (t.mode || "writethrough") + '">' +
+                    'Режим</button>' +
+                '<button class="btn btn-danger" style="font-size:12px;padding:3px 8px" ' +
+                    'data-action="remove-tier" data-vg="' + t.vg_name + '" data-lv="' + t.lv_name + '" data-backing="' + (t.backing_device || '') + '">' +
+                    'Отключить</button>' +
+            '</td></tr>';
+    }).join("");
+}
+
+function loadSsdTiers() {
+    cockpit.file(SSD_TIERS_JSON).read()
+    .done(function(content) {
+        var data;
+        try { data = JSON.parse(content || '{"tiers":[]}'); }
+        catch(e) { data = { tiers: [] }; }
+
+        currentSsdTiers = data.tiers || [];
+
+        if (currentSsdTiers.length === 0) {
+            renderSsdTiers([]);
+            return;
+        }
+
+        var statusPromises = currentSsdTiers.map(function(t) {
+            return getSsdTierStatus(t.vg_name, t.lv_name);
+        });
+
+        Promise.all(statusPromises).then(function(statuses) {
+            var merged = currentSsdTiers.map(function(t, i) {
+                return Object.assign({}, t, { _status: statuses[i] });
+            });
+            renderSsdTiers(merged);
+        });
+    })
+    .fail(function() {
+        currentSsdTiers = [];
+        renderSsdTiers([]);
+    });
+}
+
+function openAddSsdTierModal() {
+    // Check lvm2 is installed
+    cockpit.spawn(["bash", "-c", "which lvconvert && which pvs 2>/dev/null; echo $?"], { err: "message" })
+    .done(function(out) {
+        var exitCode = parseInt((out.trim().split("\n").pop()) || "1");
+        if (exitCode !== 0) {
+            document.getElementById("ssd-tier-alert").textContent =
+                "Требуется пакет lvm2. Установите: sudo apt-get install lvm2 thin-provisioning-tools";
+            document.getElementById("ssd-tier-alert").classList.remove("hidden");
+            return;
+        }
+        document.getElementById("ssd-tier-alert").classList.add("hidden");
+
+        // Populate backing device list from currentArrays
+        var backingSelect = document.getElementById("ssd-backing-dev");
+        backingSelect.innerHTML = "";
+        if (currentArrays.length === 0) {
+            backingSelect.innerHTML = '<option value="">— нет RAID массивов —</option>';
+        } else {
+            currentArrays.forEach(function(arr) {
+                var opt = document.createElement("option");
+                opt.value = "/dev/" + arr.name;
+                opt.textContent = "/dev/" + arr.name +
+                    " — RAID" + arr.level + ", " + arr.total + " дисков";
+                backingSelect.appendChild(opt);
+            });
+        }
+
+        // Populate SSD list
+        var cacheSelect = document.getElementById("ssd-cache-dev");
+        cacheSelect.innerHTML = '<option value="">Сканирование…</option>';
+
+        getSsdCandidates().then(function(ssds) {
+            cacheSelect.innerHTML = "";
+            if (ssds.length === 0) {
+                cacheSelect.innerHTML = '<option value="">— нет доступных SSD —</option>';
+            } else {
+                ssds.forEach(function(s) {
+                    var opt = document.createElement("option");
+                    opt.value = s.dev;
+                    opt.textContent = s.dev + " (" + s.size + ")";
+                    cacheSelect.appendChild(opt);
+                });
+            }
+        });
+
+        // Reset form state
+        document.getElementById("ssd-mode-wt").checked = true;
+        document.getElementById("ssd-writeback-warn").classList.add("hidden");
+        document.getElementById("ssd-writeback-confirm").checked = false;
+        document.getElementById("ssd-backup-confirm").checked = false;
+        document.getElementById("ssd-add-log").classList.add("hidden");
+        document.getElementById("ssd-add-log").textContent = "";
+        document.getElementById("btn-confirm-add-tier").disabled = false;
+        document.getElementById("btn-confirm-add-tier").textContent = "Добавить";
+        showModal("modal-add-ssd-tier");
+    })
+    .fail(function() {
+        document.getElementById("ssd-tier-alert").textContent =
+            "Не удалось проверить наличие lvm2. Установите: sudo apt-get install lvm2";
+        document.getElementById("ssd-tier-alert").classList.remove("hidden");
+    });
+}
+
+function appendSsdLog(logId, msg) {
+    var el = document.getElementById(logId);
+    el.classList.remove("hidden");
+    el.textContent += msg + "\n";
+    el.scrollTop = el.scrollHeight;
+}
+
+function doCreateSsdTier() {
+    var backingDev = document.getElementById("ssd-backing-dev").value;
+    var cacheDev   = document.getElementById("ssd-cache-dev").value;
+    var mode       = document.querySelector('input[name="ssd-mode"]:checked').value;
+    var backupOk   = document.getElementById("ssd-backup-confirm").checked;
+
+    if (!backingDev || !cacheDev) { alert("Выберите массив и SSD-диск"); return; }
+    if (!backupOk) { alert("Подтвердите наличие резервной копии"); return; }
+    if (mode === "writeback" && !document.getElementById("ssd-writeback-confirm").checked) {
+        alert("Подтвердите использование ИБП для режима writeback"); return;
+    }
+
+    var btn = document.getElementById("btn-confirm-add-tier");
+    btn.disabled = true;
+    btn.textContent = "Выполняется…";
+    document.getElementById("btn-cancel-add-tier").disabled = true;
+
+    var logId = "ssd-add-log";
+    document.getElementById(logId).textContent = "";
+
+    // Determine VG name: rusnas_vg<N>
+    cockpit.spawn(["bash", "-c",
+        "sudo -n vgs --noheadings -o vg_name 2>/dev/null | grep -c rusnas_vg || echo 0"
+    ], { err: "message" })
+    .done(function(countOut) {
+        var n = parseInt(countOut.trim()) || 0;
+        var vgName = "rusnas_vg" + n;
+
+        appendSsdLog(logId, "[1/8] Создание PV на " + backingDev + "...");
+        cockpit.spawn(["sudo", "-n", "pvcreate", "-f", backingDev], { err: "message" })
+        .done(function() {
+            appendSsdLog(logId, "[2/8] Создание PV на " + cacheDev + "...");
+            cockpit.spawn(["sudo", "-n", "pvcreate", "-f", cacheDev], { err: "message" })
+            .done(function() {
+                appendSsdLog(logId, "[3/8] Создание VG " + vgName + "...");
+                cockpit.spawn(["sudo", "-n", "vgcreate", vgName, backingDev, cacheDev], { err: "message" })
+                .done(function() {
+                    appendSsdLog(logId, "[4/8] Создание основного LV (data_lv) на " + backingDev + "...");
+                    cockpit.spawn(["sudo", "-n", "lvcreate", "-l", "100%PVS", "-n", "data_lv", vgName, backingDev], { err: "message" })
+                    .done(function() {
+                        appendSsdLog(logId, "[5/8] Создание cache_meta LV (512M) на " + cacheDev + "...");
+                        cockpit.spawn(["sudo", "-n", "lvcreate", "-L", "512M", "-n", "cache_meta", vgName, cacheDev], { err: "message" })
+                        .done(function() {
+                            appendSsdLog(logId, "[6/8] Создание cache_data LV на " + cacheDev + "...");
+                            cockpit.spawn(["sudo", "-n", "lvcreate", "-l", "100%FREE", "-n", "cache_data", vgName, cacheDev], { err: "message" })
+                            .done(function() {
+                                appendSsdLog(logId, "[7/8] Создание cache-pool...");
+                                cockpit.spawn(["sudo", "-n", "lvconvert", "--yes", "--type", "cache-pool",
+                                    "--poolmetadata", vgName + "/cache_meta",
+                                    vgName + "/cache_data"
+                                ], { err: "message" })
+                                .done(function() {
+                                    appendSsdLog(logId, "[8/8] Применение кеша к data_lv (режим " + mode + ")...");
+                                    cockpit.spawn(["sudo", "-n", "lvconvert", "--yes", "--type", "cache",
+                                        "--cachepool", vgName + "/cache_data",
+                                        "--cachemode", mode,
+                                        vgName + "/data_lv"
+                                    ], { err: "message" })
+                                    .done(function() {
+                                        appendSsdLog(logId, "✓ SSD-кеш настроен успешно!");
+                                        // Save to ssd-tiers.json
+                                        var tier = {
+                                            vg_name:        vgName,
+                                            lv_name:        "data_lv",
+                                            cache_device:   cacheDev,
+                                            backing_device: backingDev,
+                                            mode:           mode,
+                                            created_at:     new Date().toISOString()
+                                        };
+                                        saveSsdTier(tier, function() {
+                                            btn.textContent = "Готово ✓";
+                                            document.getElementById("btn-cancel-add-tier").disabled = false;
+                                            document.getElementById("btn-cancel-add-tier").textContent = "Закрыть";
+                                            loadSsdTiers();
+                                        });
+                                    })
+                                    .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[8/8] Ошибка lvconvert cache: " + err); });
+                                })
+                                .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[7/8] Ошибка lvconvert cache-pool: " + err); });
+                            })
+                            .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[6/8] Ошибка lvcreate cache_data: " + err); });
+                        })
+                        .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[5/8] Ошибка lvcreate cache_meta: " + err); });
+                    })
+                    .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[4/8] Ошибка lvcreate data_lv: " + err); });
+                })
+                .fail(function(err) { ssdCreateFail(logId, btn, vgName, "[3/8] Ошибка vgcreate: " + err); });
+            })
+            .fail(function(err) { ssdCreateFail(logId, btn, null, "[2/8] Ошибка pvcreate SSD: " + err); });
+        })
+        .fail(function(err) { ssdCreateFail(logId, btn, null, "[1/8] Ошибка pvcreate HDD: " + err); });
+    })
+    .fail(function(err) {
+        btn.disabled = false;
+        btn.textContent = "Добавить";
+        document.getElementById("btn-cancel-add-tier").disabled = false;
+        appendSsdLog(logId, "Ошибка: " + err);
+    });
+}
+
+function ssdCreateFail(logId, btn, vgName, errMsg) {
+    appendSsdLog(logId, "✗ " + errMsg);
+    appendSsdLog(logId, "Выполняется откат...");
+    btn.disabled = false;
+    btn.textContent = "Добавить";
+    document.getElementById("btn-cancel-add-tier").disabled = false;
+    if (vgName) {
+        cockpit.spawn(["sudo", "-n", "vgremove", "-f", vgName], { err: "message" })
+        .done(function()  { appendSsdLog(logId, "Откат выполнен: VG удалена."); })
+        .fail(function()  { appendSsdLog(logId, "Откат не выполнен — удалите VG вручную: sudo vgremove -f " + vgName); });
+    }
+}
+
+function saveSsdTier(newTier, cb) {
+    cockpit.file(SSD_TIERS_JSON).read()
+    .done(function(content) {
+        var data;
+        try { data = JSON.parse(content || '{"tiers":[]}'); }
+        catch(e) { data = { tiers: [] }; }
+        data.tiers.push(newTier);
+        cockpit.file(SSD_TIERS_JSON, { superuser: "require" })
+            .replace(JSON.stringify(data, null, 2))
+            .done(cb)
+            .fail(function(err) { alert("Ошибка сохранения конфигурации: " + err); });
+    })
+    .fail(function() {
+        var data = { tiers: [newTier] };
+        cockpit.file(SSD_TIERS_JSON, { superuser: "require" })
+            .replace(JSON.stringify(data, null, 2))
+            .done(cb)
+            .fail(function(err) { alert("Ошибка сохранения конфигурации: " + err); });
+    });
+}
+
+function removeSsdTierFromJson(vgName, cb) {
+    cockpit.file(SSD_TIERS_JSON).read()
+    .done(function(content) {
+        var data;
+        try { data = JSON.parse(content || '{"tiers":[]}'); }
+        catch(e) { data = { tiers: [] }; }
+        data.tiers = data.tiers.filter(function(t) { return t.vg_name !== vgName; });
+        cockpit.file(SSD_TIERS_JSON, { superuser: "require" })
+            .replace(JSON.stringify(data, null, 2))
+            .done(cb)
+            .fail(function(err) { alert("Ошибка сохранения конфигурации: " + err); });
+    })
+    .fail(function() { cb(); });
+}
+
+function openChangeModeModal(vgName, lvName, currentMode) {
+    document.getElementById("change-mode-vg").value = vgName;
+    document.getElementById("change-mode-lv").value = lvName;
+    document.getElementById("change-mode-array-label").value = vgName + "/" + lvName;
+
+    if (currentMode === "writeback") {
+        document.getElementById("change-mode-wb").checked = true;
+        document.getElementById("change-mode-wb-warn").classList.remove("hidden");
+    } else {
+        document.getElementById("change-mode-wt").checked = true;
+        document.getElementById("change-mode-wb-warn").classList.add("hidden");
+    }
+    document.getElementById("btn-confirm-change-mode").disabled = false;
+    document.getElementById("btn-confirm-change-mode").textContent = "Применить";
+    showModal("modal-change-mode");
+}
+
+function doChangeCacheMode() {
+    var vgName  = document.getElementById("change-mode-vg").value;
+    var lvName  = document.getElementById("change-mode-lv").value;
+    var newMode = document.querySelector('input[name="change-mode-radio"]:checked').value;
+
+    var btn = document.getElementById("btn-confirm-change-mode");
+    btn.disabled = true;
+    btn.textContent = "Применяется…";
+
+    cockpit.spawn(["sudo", "-n", "lvchange", "--cachemode", newMode, vgName + "/" + lvName], { err: "message" })
+    .done(function() {
+        // Update mode in JSON
+        cockpit.file(SSD_TIERS_JSON).read()
+        .done(function(content) {
+            var data;
+            try { data = JSON.parse(content || '{"tiers":[]}'); }
+            catch(e) { data = { tiers: [] }; }
+            data.tiers.forEach(function(t) {
+                if (t.vg_name === vgName && t.lv_name === lvName) t.mode = newMode;
+            });
+            cockpit.file(SSD_TIERS_JSON, { superuser: "require" })
+                .replace(JSON.stringify(data, null, 2))
+                .done(function() {
+                    closeModal("modal-change-mode");
+                    loadSsdTiers();
+                })
+                .fail(function() {
+                    closeModal("modal-change-mode");
+                    loadSsdTiers();
+                });
+        })
+        .fail(function() {
+            closeModal("modal-change-mode");
+            loadSsdTiers();
+        });
+    })
+    .fail(function(err) {
+        btn.disabled = false;
+        btn.textContent = "Применить";
+        alert("Ошибка смены режима: " + err);
+    });
+}
+
+function openRemoveTierModal(vgName, lvName, backingDev) {
+    document.getElementById("remove-tier-vg").value = vgName;
+    document.getElementById("remove-tier-lv").value = lvName;
+    document.getElementById("remove-tier-array-label").value = (backingDev || vgName) + " (" + vgName + "/" + lvName + ")";
+    document.getElementById("remove-tier-log").classList.add("hidden");
+    document.getElementById("remove-tier-log").textContent = "";
+    document.getElementById("btn-confirm-remove-tier").disabled = false;
+    document.getElementById("btn-confirm-remove-tier").textContent = "Отключить";
+    document.getElementById("btn-cancel-remove-tier").disabled = false;
+    showModal("modal-remove-ssd-tier");
+}
+
+function doRemoveSsdTier() {
+    var vgName = document.getElementById("remove-tier-vg").value;
+    var lvName = document.getElementById("remove-tier-lv").value;
+    var logId  = "remove-tier-log";
+    var btn    = document.getElementById("btn-confirm-remove-tier");
+
+    btn.disabled = true;
+    btn.textContent = "Отключается…";
+    document.getElementById("btn-cancel-remove-tier").disabled = true;
+
+    appendSsdLog(logId, "[1/3] Сброс dirty-блоков на HDD...");
+    cockpit.spawn(["sudo", "-n", "lvchange", "--syncaction", "check", vgName + "/" + lvName], { err: "message" })
+    .done(function() {
+        appendSsdLog(logId, "[2/3] Отключение кеша (lvconvert --uncache)...");
+        cockpit.spawn(["sudo", "-n", "lvconvert", "--yes", "--uncache", vgName + "/" + lvName], { err: "message" })
+        .done(function() {
+            appendSsdLog(logId, "[3/3] Удаление VG " + vgName + "...");
+            cockpit.spawn(["sudo", "-n", "vgremove", "-f", vgName], { err: "message" })
+            .done(function() {
+                appendSsdLog(logId, "✓ SSD-кеш отключён.");
+                removeSsdTierFromJson(vgName, function() {
+                    btn.textContent = "Готово ✓";
+                    document.getElementById("btn-cancel-remove-tier").disabled = false;
+                    document.getElementById("btn-cancel-remove-tier").textContent = "Закрыть";
+                    loadSsdTiers();
+                });
+            })
+            .fail(function(err) {
+                appendSsdLog(logId, "⚠ vgremove не удалось: " + err + ". Запустите вручную: sudo vgremove -f " + vgName);
+                removeSsdTierFromJson(vgName, function() {
+                    btn.disabled = false;
+                    btn.textContent = "Отключить";
+                    document.getElementById("btn-cancel-remove-tier").disabled = false;
+                    loadSsdTiers();
+                });
+            });
+        })
+        .fail(function(err) {
+            appendSsdLog(logId, "✗ Ошибка lvconvert --uncache: " + err);
+            btn.disabled = false;
+            btn.textContent = "Отключить";
+            document.getElementById("btn-cancel-remove-tier").disabled = false;
+        });
+    })
+    .fail(function(err) {
+        // syncaction may not be supported in some LVM versions — try uncache anyway
+        appendSsdLog(logId, "⚠ syncaction: " + err + " — продолжаем...");
+        appendSsdLog(logId, "[2/3] Отключение кеша...");
+        cockpit.spawn(["sudo", "-n", "lvconvert", "--yes", "--uncache", vgName + "/" + lvName], { err: "message" })
+        .done(function() {
+            appendSsdLog(logId, "[3/3] Удаление VG " + vgName + "...");
+            cockpit.spawn(["sudo", "-n", "vgremove", "-f", vgName], { err: "message" })
+            .done(function() {
+                appendSsdLog(logId, "✓ SSD-кеш отключён.");
+                removeSsdTierFromJson(vgName, function() {
+                    btn.textContent = "Готово ✓";
+                    document.getElementById("btn-cancel-remove-tier").disabled = false;
+                    document.getElementById("btn-cancel-remove-tier").textContent = "Закрыть";
+                    loadSsdTiers();
+                });
+            })
+            .fail(function(err2) {
+                appendSsdLog(logId, "✗ vgremove: " + err2);
+                btn.disabled = false;
+                btn.textContent = "Отключить";
+                document.getElementById("btn-cancel-remove-tier").disabled = false;
+            });
+        })
+        .fail(function(err2) {
+            appendSsdLog(logId, "✗ lvconvert --uncache: " + err2);
+            btn.disabled = false;
+            btn.textContent = "Отключить";
+            document.getElementById("btn-cancel-remove-tier").disabled = false;
+        });
+    });
+}
+
+// ─── END SSD-кеширование ──────────────────────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btn-refresh-disks").addEventListener("click", loadDisksAndArrays);
     document.getElementById("btn-rescan-disks").addEventListener("click", rescanDisks);
@@ -1253,7 +1768,41 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("subvol-create-btn").addEventListener("click", createSubvolume);
     document.getElementById("subvol-close-btn").addEventListener("click", function() { closeModal("modal-subvolumes"); });
 
+    // SSD-tier
+    document.getElementById("btn-add-ssd-tier").addEventListener("click", openAddSsdTierModal);
+    document.getElementById("btn-refresh-ssd").addEventListener("click", loadSsdTiers);
+    document.getElementById("btn-confirm-add-tier").addEventListener("click", doCreateSsdTier);
+    document.getElementById("btn-cancel-add-tier").addEventListener("click", function() { closeModal("modal-add-ssd-tier"); });
+    document.getElementById("btn-confirm-change-mode").addEventListener("click", doChangeCacheMode);
+    document.getElementById("btn-cancel-change-mode").addEventListener("click", function() { closeModal("modal-change-mode"); });
+    document.getElementById("btn-confirm-remove-tier").addEventListener("click", doRemoveSsdTier);
+    document.getElementById("btn-cancel-remove-tier").addEventListener("click", function() { closeModal("modal-remove-ssd-tier"); });
+
+    document.getElementById("ssd-mode-wb").addEventListener("change", function() {
+        document.getElementById("ssd-writeback-warn").classList.toggle("hidden", !this.checked);
+    });
+    document.getElementById("ssd-mode-wt").addEventListener("change", function() {
+        document.getElementById("ssd-writeback-warn").classList.toggle("hidden", !document.getElementById("ssd-mode-wb").checked);
+    });
+    document.getElementById("change-mode-wb").addEventListener("change", function() {
+        document.getElementById("change-mode-wb-warn").classList.toggle("hidden", !this.checked);
+    });
+    document.getElementById("change-mode-wt").addEventListener("change", function() {
+        document.getElementById("change-mode-wb-warn").classList.add("hidden");
+    });
+
+    document.getElementById("ssd-tiers-body").addEventListener("click", function(e) {
+        var btn = e.target.closest("[data-action]");
+        if (!btn) return;
+        if (btn.dataset.action === "change-mode")
+            openChangeModeModal(btn.dataset.vg, btn.dataset.lv, btn.dataset.mode);
+        if (btn.dataset.action === "remove-tier")
+            openRemoveTierModal(btn.dataset.vg, btn.dataset.lv, btn.dataset.backing);
+    });
+
     loadDisksAndArrays();
+    loadSsdTiers();
+    ssdTierTimer = setInterval(loadSsdTiers, 10000);
 });
 
 function confirmAddDisk() {

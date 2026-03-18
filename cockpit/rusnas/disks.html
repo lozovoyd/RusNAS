@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>rusNAS — Диски и RAID</title>
     <script src="../base1/cockpit.js"></script>
@@ -56,6 +57,33 @@
             Сверьте <b>серийный номер</b> из таблицы с наклейкой на диске в корпусе.
             Перед извлечением нажмите <b>«⏏ Извлечь»</b> — система безопасно отключит диск от массива.
         </p>
+    </div>
+
+    <!-- ── SSD-кеширование ───────────────────────────────────── -->
+    <div class="section" id="ssd-tier-section">
+        <div class="section-toolbar">
+            <h2>⚡ SSD-кеширование</h2>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-primary" id="btn-add-ssd-tier">+ Добавить SSD-кеш</button>
+                <button class="btn btn-secondary" id="btn-refresh-ssd">↺</button>
+            </div>
+        </div>
+        <div id="ssd-tier-alert" class="alert alert-danger hidden"></div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+                <tr style="background:var(--bg-th);color:var(--color-muted);font-size:11px;text-transform:uppercase">
+                    <th style="padding:8px 12px;text-align:left">Массив</th>
+                    <th style="padding:8px 12px;text-align:left">SSD-диск</th>
+                    <th style="padding:8px 12px;text-align:left">Режим</th>
+                    <th style="padding:8px 12px;text-align:left">Эффективность</th>
+                    <th style="padding:8px 12px;text-align:left">Кеш занят</th>
+                    <th style="padding:8px 12px;text-align:right">Действия</th>
+                </tr>
+            </thead>
+            <tbody id="ssd-tiers-body">
+                <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--color-muted)">Загрузка…</td></tr>
+            </tbody>
+        </table>
     </div>
 
     <!-- Modal: Add/Replace/Expand disk -->
@@ -225,6 +253,122 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-default" id="subvol-close-btn">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add SSD tier -->
+    <div class="modal-overlay hidden" id="modal-add-ssd-tier">
+        <div class="modal-box" style="width:520px">
+            <h3>+ Добавить SSD-кеш</h3>
+            <div class="form-group">
+                <label>Основной массив (HDD)</label>
+                <select id="ssd-backing-dev"></select>
+            </div>
+            <div class="form-group">
+                <label>Быстрый диск (SSD)</label>
+                <select id="ssd-cache-dev"></select>
+                <div style="margin-top:6px;font-size:12px;color:var(--color-muted);line-height:1.5">
+                    💡 <b>Рекомендуемый размер SSD:</b> 10–20% от ёмкости HDD-массива.
+                    При типичном RAID 5 на 4×4 TB (≈12 TB полезных) — SSD на <b>250 GB–1 TB</b>.
+                    Меньше 64 GB не имеет смысла: кеш вытесняется слишком часто.
+                    Тип: любой SATA или NVMe SSD; U.2/NVMe предпочтительнее для высоконагруженных сценариев.
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Режим кеширования</label>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="radio" name="ssd-mode" value="writethrough" id="ssd-mode-wt" checked style="margin-top:3px">
+                        <span><b>Безопасный (writethrough)</b><br>
+                        <span style="font-size:12px;color:var(--color-muted)">Запись одновременно на SSD и HDD. Защита от потери данных. <i>Рекомендуется.</i></span></span>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="radio" name="ssd-mode" value="writeback" id="ssd-mode-wb" style="margin-top:3px">
+                        <span><b>Быстрый (writeback) ⚠</b><br>
+                        <span style="font-size:12px;color:var(--color-muted)">Запись сначала на SSD, потом переносится на HDD. Максимальная скорость. <i>Только с ИБП.</i></span></span>
+                    </label>
+                </div>
+            </div>
+            <div id="ssd-writeback-warn" class="hidden" style="background:var(--warning-light);border:1px solid var(--warning-border);border-radius:4px;padding:10px;margin-bottom:12px;font-size:13px;color:var(--warning-text-on-light)">
+                ⚠ <b>Режим writeback требует надёжного ИБП.</b> При внезапном отключении питания возможна потеря несинхронизированных данных.
+                <div style="margin-top:8px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="checkbox" id="ssd-writeback-confirm">
+                        Я понимаю риск и использую ИБП
+                    </label>
+                </div>
+            </div>
+            <div class="alert alert-warning" style="font-size:13px;margin-bottom:12px">
+                ⚠ Добавление SSD-уровня к массиву с данными требует пересоздания тома Btrfs. <b>Сделайте резервную копию данных перед продолжением.</b>
+            </div>
+            <div style="margin-bottom:12px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+                    <input type="checkbox" id="ssd-backup-confirm">
+                    Я создал резервную копию данных
+                </label>
+            </div>
+            <div id="ssd-add-log" class="hidden" style="font-family:monospace;font-size:12px;background:var(--bg-th);border-radius:4px;padding:10px;max-height:180px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px"></div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-confirm-add-tier">Добавить</button>
+                <button class="btn btn-default" id="btn-cancel-add-tier">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Change cache mode -->
+    <div class="modal-overlay hidden" id="modal-change-mode">
+        <div class="modal-box">
+            <h3>Изменить режим кеша</h3>
+            <input type="hidden" id="change-mode-vg">
+            <input type="hidden" id="change-mode-lv">
+            <div class="form-group">
+                <label>Массив</label>
+                <input type="text" id="change-mode-array-label" disabled>
+            </div>
+            <div class="form-group">
+                <label>Режим кеширования</label>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="radio" name="change-mode-radio" value="writethrough" id="change-mode-wt" style="margin-top:3px">
+                        <span><b>Безопасный (writethrough)</b><br>
+                        <span style="font-size:12px;color:var(--color-muted)">Запись на SSD и HDD одновременно.</span></span>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="radio" name="change-mode-radio" value="writeback" id="change-mode-wb" style="margin-top:3px">
+                        <span><b>Быстрый (writeback) ⚠</b><br>
+                        <span style="font-size:12px;color:var(--color-muted)">Только с ИБП. Возможна потеря данных при отключении питания.</span></span>
+                    </label>
+                </div>
+            </div>
+            <div id="change-mode-wb-warn" class="hidden" style="background:var(--warning-light);border:1px solid var(--warning-border);border-radius:4px;padding:10px;margin-bottom:12px;font-size:13px;color:var(--warning-text-on-light)">
+                ⚠ <b>Режим writeback требует ИБП.</b> Убедитесь, что ИБП подключён и работает.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-confirm-change-mode">Применить</button>
+                <button class="btn btn-default" id="btn-cancel-change-mode">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Remove SSD tier -->
+    <div class="modal-overlay hidden" id="modal-remove-ssd-tier">
+        <div class="modal-box">
+            <h3>Отключить SSD-кеш</h3>
+            <input type="hidden" id="remove-tier-vg">
+            <input type="hidden" id="remove-tier-lv">
+            <div class="form-group">
+                <label>Массив</label>
+                <input type="text" id="remove-tier-array-label" disabled>
+            </div>
+            <div class="alert alert-warning" style="font-size:13px;margin-bottom:12px">
+                Данные на основном массиве сохранятся. SSD-диск будет освобождён.<br>
+                <b>В режиме «Быстрый»:</b> перед отключением все данные будут сброшены с SSD на HDD (это может занять несколько минут).
+            </div>
+            <div id="remove-tier-log" class="hidden" style="font-family:monospace;font-size:12px;background:var(--bg-th);border-radius:4px;padding:10px;max-height:160px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px"></div>
+            <div class="modal-footer" id="remove-tier-footer">
+                <button class="btn btn-danger" id="btn-confirm-remove-tier">Отключить</button>
+                <button class="btn btn-default" id="btn-cancel-remove-tier">Отмена</button>
             </div>
         </div>
     </div>

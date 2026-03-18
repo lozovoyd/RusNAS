@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>rusNAS — Guard</title>
     <link rel="stylesheet" href="css/style.css">
@@ -31,7 +32,7 @@
                 <button class="btn btn-success" id="btn-start-guard">▶ Включить защиту</button>
                 <button class="btn btn-danger"  id="btn-stop-guard">■ Выключить защиту</button>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span style="font-size:13px;color:var(--color-muted);">Режим:</span>
                 <button class="btn btn-secondary btn-sm mode-btn" id="mode-monitor"    data-mode="monitor">Мониторинг</button>
                 <button class="btn btn-secondary btn-sm mode-btn" id="mode-active"     data-mode="active">Активный</button>
@@ -335,9 +336,17 @@
                     <input type="checkbox" id="det-honeypot"> Вкл
                 </label>
             </div>
-            <p class="text-muted" style="font-size:12px;margin:8px 0 0;">
+            <p class="text-muted" style="font-size:12px;margin:8px 0 4px;">
                 Скрытые файлы-приманки в каждой папке. Любое изменение = немедленная тревога.
             </p>
+            <div style="padding:6px 0 2px 28px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+                    <input type="checkbox" id="det-hide-smb" style="width:14px;height:14px">
+                    <span>Скрывать приманки от SMB-клиентов
+                        <span style="color:var(--color-muted);font-size:12px">(не видны в проводнике, но доступны программам)</span>
+                    </span>
+                </label>
+            </div>
         </div>
 
         <div class="array-card">

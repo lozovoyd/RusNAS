@@ -129,33 +129,52 @@ def snap_dir_name(subvol_path: str, vol_root: str) -> str:
 
 
 def get_snap_size(snap_path: str) -> int:
-    """Get exclusive size of snapshot using btrfs qgroup (best effort)."""
+    """Get exclusive size of snapshot (bytes actually unique to this snapshot).
+
+    Priority:
+    1. btrfs filesystem du -s  → Exclusive column  (correct, works without qgroups)
+    2. btrfs subvolume show    → Exclusive size     (requires qgroups enabled)
+    3. Fallback: 0             (du -sb is intentionally NOT used — it returns the
+                                full logical/referenced size which is misleading:
+                                a fresh snapshot shows the same size as the original
+                                even though it uses 0 extra bytes on disk)
+    """
+    # Method 1: btrfs filesystem du -s (most reliable, no qgroups needed)
+    try:
+        r = subprocess.run(
+            ["btrfs", "filesystem", "du", "-s", snap_path],
+            capture_output=True, text=True
+        )
+        for line in r.stdout.splitlines():
+            parts = line.split()
+            # Output: "   Total   Exclusive  Set shared  Filename"
+            #         " 1.69GiB     0.00B     1.69GiB   /path"
+            if len(parts) >= 4 and parts[-1] == snap_path:
+                return parse_btrfs_size(parts[1])  # Exclusive column
+    except Exception:
+        pass
+    # Method 2: btrfs subvolume show (only works when qgroups are enabled)
     try:
         r = subprocess.run(
             ["btrfs", "subvolume", "show", snap_path],
             capture_output=True, text=True
         )
-        # Try to parse 'Exclusive size' from output
         for line in r.stdout.splitlines():
             if "Exclusive size" in line:
                 parts = line.split()
                 # format: "Exclusive size: 142.00MiB"
-                size_str = parts[-1]
-                return parse_btrfs_size(size_str)
+                return parse_btrfs_size(parts[-1])
     except Exception:
         pass
-    # Fallback: du
-    try:
-        r = subprocess.run(["du", "-sb", snap_path], capture_output=True, text=True)
-        return int(r.stdout.split()[0])
-    except Exception:
-        return 0
+    return 0
 
 
 def parse_btrfs_size(s: str) -> int:
     s = s.strip()
-    multipliers = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3, "TiB": 1024**4}
-    for suffix, mult in multipliers.items():
+    # Longer suffixes must come before shorter ones to avoid "B" matching "MiB"
+    multipliers = [("TiB", 1024**4), ("GiB", 1024**3), ("MiB", 1024**2),
+                   ("KiB", 1024), ("B", 1)]
+    for suffix, mult in multipliers:
         if s.endswith(suffix):
             try:
                 return int(float(s[:-len(suffix)]) * mult)

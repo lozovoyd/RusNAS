@@ -1031,3 +1031,146 @@ socket options = TCP_NODELAY IPTOS_LOWDELAY
 - Fill chart: SVG линейный с осями, прогнозной пунктирной линией, маркером "сейчас"
 - Sparkline: SVG polyline для inline-графиков в шарах
 
+
+---
+
+## Сессия 2026-03-17 — SSD-кеширование (dm-cache / LVM)
+
+**Задача:** Реализовать SSD-кеширование HDD RAID-массивов через LVM dm-cache с управлением из Cockpit UI.
+
+**ТЗ:** [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md)
+
+### Что реализовано
+
+**Backend:**
+- `install-ssd-tier.sh` — деплой: apt install lvm2 + thin-provisioning-tools, sudoers `/etc/sudoers.d/rusnas-ssd-tier`, создание `/etc/rusnas/ssd-tiers.json`
+- Конфигурация: `/etc/rusnas/ssd-tiers.json` — JSON-файл со списком активных SSD-тиров (644, readable by Cockpit)
+- Судоерс NOPASSWD: pvcreate, pvremove, pvs, vgcreate, vgremove, vgs, lvcreate, lvremove, lvs, lvconvert, lvchange, lvdisplay, dmsetup (`/sbin/` и `/usr/sbin/`)
+
+**Frontend:**
+- Секция "⚡ SSD-кеширование" в `disks.html` — после таблицы физических дисков
+- 3 новых модала: Add SSD tier, Change mode, Remove tier
+- `disks.js` — ~350 строк новых функций:
+  - `getSsdCandidates()` — список SSD через lsblk JSON, фильтрация по rota=0, исключение дисков из mdstat
+  - `getSsdTierStatus(vgName, lvName)` — парсинг lvs cache-метрик (hit_rate, cache_pct, mode)
+  - `renderSsdTiers(tiers)` — таблица с прогрессбарами, бейджами режима, кнопками действий
+  - `loadSsdTiers()` — читает ssd-tiers.json + Promise.all статусов
+  - `openAddSsdTierModal()` — проверка lvm2, заполнение selects, показ модала
+  - `doCreateSsdTier()` — 8-шаговый wizard (pvcreate×2 → vgcreate → lvcreate×3 → lvconvert cache-pool → lvconvert cache)
+  - `doChangeCacheMode()` — lvchange --cachemode + обновление JSON
+  - `doRemoveSsdTier()` — syncaction check → lvconvert --uncache → vgremove
+  - `ssdCreateFail()` — откат при ошибке: vgremove -f
+- CSS: `ssd-bar-wrap`, `ssd-bar-fill(.warn/.crit)`, `ssd-mode-wt`, `ssd-mode-wb`
+
+**Архитектура:**
+```
+Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (HDD RAID) + /dev/sdY (SSD)
+```
+
+**Деплой на VM:** файлы задеплоены, lvm2 установлен, sudoers создан, ssd-tiers.json создан.
+
+**Тестирование:**
+- Секция SSD-кеширования видна на странице Диски и RAID ✓
+- Пустое состояние "SSD-кеш не настроен" отображается ✓
+- Модал "+ Добавить SSD-кеш" открывается, RAID-массив в select `/dev/md0 — RAIDraid5, 4 дисков` ✓
+- "— нет доступных SSD —" корректно (VM без свободных SSD) ✓
+- Writeback warning block скрыт при writethrough, показывается при выборе writeback ✓
+- Кнопка "Отмена" закрывает модал ✓
+- sudo -n pvs/vgs/lvs работает через NOPASSWD ✓
+- `/etc/rusnas/ssd-tiers.json` создан и содержит `{"tiers": []}` ✓
+
+**Файлы изменены:**
+- `cockpit/rusnas/disks.html` — секция SSD + 3 модала
+- `cockpit/rusnas/js/disks.js` — глобальные переменные + ~350 строк SSD-функций
+- `cockpit/rusnas/css/style.css` — 9 строк CSS для прогрессбаров и бейджей
+- `install-ssd-tier.sh` — новый скрипт деплоя
+
+---
+
+## Сессия 2026-03-17 — Guard: скрытие файлов-приманок от SMB-клиентов
+
+**Задача:** Файлы-приманки Guard (`!~rng_*.docx` и т.п.) были видны в Windows Explorer и Mac Finder. Пользователи замечали посторонние файлы и могли их случайно удалить. Решение: Samba `hide files` — файлы скрыты в проводнике, но **доступны программам** (в т.ч. шифровальщикам).
+
+### Как работает
+
+```ini
+[global]
+  hide files = /!~rng_*/
+```
+
+Файлы не показываются в проводнике (атрибут DOS Hidden), но ransomware обходит этот атрибут и видит файлы — приманка по-прежнему срабатывает.
+
+### Реализация
+
+**`rusnas-guard/daemon/guard.py`:**
+- Новый метод `_apply_smb_hide(enabled)` в классе `GuardDaemon`:
+  - Читает `/etc/samba/smb.conf`
+  - Удаляет существующую строку `hide files = /!~rng_*/` если есть
+  - При `enabled=True` — вставляет строку сразу после `[global]`
+  - Атомарная запись через `.guard.tmp` + `os.replace()`
+  - Вызывает `systemctl reload smbd`
+- `update_config()` — определяет изменение `detection.hide_smb_baits`, вызывает `_apply_smb_hide()`
+- `run()` — при старте применяет сохранённое состояние `hide_smb_baits`
+
+**`cockpit/rusnas/guard.html`:**
+- Checkbox `#det-hide-smb` внутри карточки "🪤 Файлы-приманки (Honeypot)" как sub-row
+
+**`cockpit/rusnas/js/guard.js`:**
+- `loadConfig()` — читает `det.hide_smb_baits` и устанавливает состояние checkbox
+- Обработчик сохранения "Методы обнаружения" — включает `hide_smb_baits` в объект конфига
+
+### Ветка
+`feature/mobile-ui` (совмещена с задачей мобильного UI)
+
+---
+
+## Сессия 2026-03-18 — Мобильный UI: тестирование и исправление адаптивности
+
+**Задача:** Проверить все страницы rusNAS Cockpit plugin на мобильном viewport (390×844px, iPhone 14 Pro) и исправить найденные проблемы.
+
+### Тестирование (Playwright, 5 страниц, 31 проблема)
+
+Агент провёл полное тестирование. Ключевые находки:
+
+**Корневая причина большинства проблем:** Ни в одной HTML-странице не было `<meta name="viewport">`. Браузер рендерил страницы как desktop (980px) и масштабировал вниз → все `@media (max-width: ...)` не срабатывали вообще.
+
+### Исправления
+
+**Критические:**
+| Файл | Изменение |
+|------|-----------|
+| Все 9 HTML (`dashboard`, `guard`, `snapshots`, `disks`, `index`, `storage-analyzer`, `dedup`, `ups`, `users`) | Добавлен `<meta name="viewport" content="width=device-width, initial-scale=1">` |
+| `css/style.css` | Добавлен блок `@media (max-width: 768px)`: таблицы scroll, snap-layout стек, advisor-tabs scroll, snap-main btn-group 2-per-row, section-toolbar стек |
+| `css/style.css` | Добавлен блок `@media (max-width: 480px)`: body padding, h1 размер, кнопки полная ширина, модалы, iOS zoom fix, snap-summary стек, tabs scroll |
+| `css/dashboard.css` | `@media (max-width: 700px)`: guard-stats 2 колонки, metrics-grid 1 колонка |
+| `css/storage-analyzer.css` | `@media (max-width: 480px)`: sa-tabs scroll, page-header стек |
+
+**Специфические:**
+- `guard.html`: добавлен `flex-wrap:wrap` на контейнер кнопок режима
+- `dashboard.html`: metrics grid перенесён из inline style в CSS-класс `.db-metrics-grid`
+- `style.css`: `input[type="checkbox"]` увеличен до 20×20px, `select` min-height 38px
+- `style.css`: `.gd-mode-rec` 10px → 11px
+
+### Архитектура mobile CSS
+```
+style.css:
+  @media (max-width: 768px)  — планшет и ниже: таблицы, snap-layout, advisor-tabs, чекбоксы, selects
+  @media (max-width: 480px)  — мобильный: padding, кнопки, модалы, iOS zoom, tabs
+
+dashboard.css:
+  @media (max-width: 700px)  — guard-stats 2col, metrics-grid 1col
+  @media (max-width: 480px)  — identity-bar, db-identity-sep hidden
+
+storage-analyzer.css:
+  @media (max-width: 900px)  — уже существовал
+  @media (max-width: 600px)  — уже существовал
+  @media (max-width: 480px)  — sa-tabs scroll, page-header stack (добавлено)
+```
+
+### Файлы изменены
+- 9× `.html` — viewport meta
+- `css/style.css` — ~120 строк mobile breakpoints
+- `css/dashboard.css` — 30 строк + `.db-metrics-grid` класс
+- `css/storage-analyzer.css` — 25 строк
+- `cockpit/rusnas/guard.html` — flex-wrap на mode buttons
+- `cockpit/rusnas/dashboard.html` — db-metrics-grid class

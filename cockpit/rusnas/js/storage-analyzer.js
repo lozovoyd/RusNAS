@@ -177,7 +177,7 @@ function switchTab(tab) {
 
     if (tab === 'overview' && !overviewData) loadOverview();
     if (tab === 'shares')                    loadShares();
-    if (tab === 'files')                     loadFiles();
+    if (tab === 'files')                     { autoSetFilePath(); loadFiles(); }
     if (tab === 'users'  && !usersData)      loadUsers();
     if (tab === 'filetypes' && !filetypesData) loadFiletypes();
 }
@@ -569,6 +569,25 @@ function forecastDate(days) {
 }
 
 // ─── TAB 3: FILES ─────────────────────────────────────────────────────────────
+// If filePath is still '/', replace it with the first known volume mount point.
+// Uses overviewData if already loaded, otherwise falls back to a quick API call.
+function autoSetFilePath() {
+    if (filePath !== '/') return;
+    const vols = overviewData && overviewData.volumes;
+    if (vols && vols.length > 0) {
+        filePath = vols[0].path;
+        return;
+    }
+    // overviewData not yet loaded — fetch volumes synchronously-ish
+    saApi(['overview']).then(data => {
+        overviewData = data;
+        if (data.volumes && data.volumes.length > 0 && filePath === '/') {
+            filePath = data.volumes[0].path;
+            loadFiles();
+        }
+    }).catch(() => {});
+}
+
 function loadFiles() {
     const ftype   = document.getElementById('filterFiletype').value;
     const older   = document.getElementById('filterOlderThan').value;
