@@ -87,6 +87,10 @@ class GuardDaemon:
             self._state["post_attack_warning"] = True
             logger.warning("Post-attack flag found — starting in Monitor mode only")
 
+        # Apply smb hide state on start
+        if self._config.get("detection", {}).get("hide_smb_baits", False):
+            self._apply_smb_hide(True)
+
         # Auto-discover Btrfs paths if none configured
         if not self._config.get("monitored_paths"):
             self._discover_paths()
@@ -95,10 +99,16 @@ class GuardDaemon:
         write_state(self._state)
 
         # Main loop — daemon stays alive; detector starts/stops on demand
+        _bait_refresh_counter = 0
         try:
             while True:
                 time.sleep(1)
                 self._update_state()
+                # Refresh baits every 30 seconds to catch newly created subdirectories
+                _bait_refresh_counter += 1
+                if _bait_refresh_counter >= 30 and self._running:
+                    _bait_refresh_counter = 0
+                    self._refresh_baits()
         except KeyboardInterrupt:
             pass
         finally:
@@ -149,11 +159,43 @@ class GuardDaemon:
         write_state(self._state)
 
     def update_config(self, partial: dict):
+        old_hide = self._config.get("detection", {}).get("hide_smb_baits", False)
         self._config.update(partial)
         self._save_config()
+        new_hide = self._config.get("detection", {}).get("hide_smb_baits", False)
+        if old_hide != new_hide:
+            self._apply_smb_hide(new_hide)
         if self._detector:
             self._detector.reload_config(self._config)
         self._refresh_baits()
+
+    def _apply_smb_hide(self, enabled: bool):
+        """Add or remove 'hide files = /!~rng_*/' from [global] in smb.conf."""
+        import subprocess
+        smb_conf = "/etc/samba/smb.conf"
+        hide_line = "    hide files = /!~rng_*/\n"
+        marker = "hide files = /!~rng_"
+        try:
+            with open(smb_conf) as f:
+                lines = f.readlines()
+            # Remove existing entry if present
+            lines = [l for l in lines if marker not in l]
+            if enabled:
+                # Insert after [global] line
+                result = []
+                for line in lines:
+                    result.append(line)
+                    if line.strip() == "[global]":
+                        result.append(hide_line)
+                lines = result
+            tmp = smb_conf + ".guard.tmp"
+            with open(tmp, "w") as f:
+                f.writelines(lines)
+            os.replace(tmp, smb_conf)
+            subprocess.run(["systemctl", "reload", "smbd"], check=False)
+            logger.info("SMB hide files %s", "enabled" if enabled else "disabled")
+        except Exception as e:
+            logger.error("Failed to modify smb.conf: %s", e)
 
     def get_status(self) -> dict:
         return {
@@ -186,13 +228,29 @@ class GuardDaemon:
         for pconf in self._config.get("monitored_paths", []):
             if not pconf.get("enabled", True) or not pconf.get("honeypot", True):
                 continue
-            path     = pconf["path"]
-            if not os.path.isdir(path):
+            root = pconf["path"]
+            if not os.path.isdir(root):
                 continue
-            new_list = ensure_baits(path, registry)
-            if new_list != registry.get(path):
-                registry[path] = new_list
-                changed         = True
+            # Collect root + all subdirectories up to depth 3
+            dirs_to_bait = []
+            try:
+                for dirpath, dirnames, _ in os.walk(root):
+                    # Calculate depth relative to root
+                    depth = dirpath[len(root):].count(os.sep)
+                    if depth > 3:
+                        dirnames[:] = []
+                        continue
+                    # Skip hidden directories
+                    dirnames[:] = [d for d in dirnames if not d.startswith('.')]
+                    dirs_to_bait.append(dirpath)
+            except OSError as e:
+                logger.warning("os.walk error on %s: %s", root, e)
+                dirs_to_bait = [root]
+            for path in dirs_to_bait:
+                new_list = ensure_baits(path, registry)
+                if new_list != registry.get(path):
+                    registry[path] = new_list
+                    changed         = True
         if changed:
             self._save_config()
 

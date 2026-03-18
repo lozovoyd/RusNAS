@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>rusNAS — Dashboard</title>
   <link rel="stylesheet" href="css/style.css">
@@ -55,6 +56,7 @@
     <div class="db-card-title">ДИСКИ</div>
     <div class="db-card-metric" id="disk-summary">—</div>
     <div class="db-card-tags" id="disk-tags"></div>
+    <div id="ssd-cache-status" style="margin-top:6px;font-size:11px;color:var(--db-muted)"></div>
   </div>
 
   <!-- A4: Shares & Protocols -->
@@ -206,7 +208,7 @@
 <!-- ── Metrics Endpoint Block ─────────────────────────────────────────────── -->
 <div class="db-card" style="margin-bottom:14px">
   <div class="db-card-title" style="margin-bottom:10px">🔗 ВНЕШНИЙ МОНИТОРИНГ</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div class="db-metrics-grid">
     <div>
       <div class="db-card-sub" style="margin-bottom:4px">Prometheus / Zabbix endpoint:</div>
       <div style="display:flex;gap:6px;align-items:center">

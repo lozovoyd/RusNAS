@@ -974,9 +974,9 @@ tbody tr:last-child td { border-bottom: none; }
 .gd-mode-dot     { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .gd-mode-name    { font-size: 13px; font-weight: 700; }
 .gd-mode-rec     {
-    font-size: 10px; font-weight: 600;
+    font-size: 11px; font-weight: 600;
     background: rgba(34,170,68,0.2); color: #22aa44;
-    padding: 1px 7px; border-radius: 10px;
+    padding: 2px 7px; border-radius: 10px;
     margin-left: auto;
 }
 .gd-mode-list    { list-style: none; padding: 0; margin: 0 0 10px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
@@ -1028,3 +1028,213 @@ tbody tr:last-child td { border-bottom: none; }
 .gd-qs-text  { font-size: 12px; line-height: 1.5; color: var(--color-muted); }
 .gd-qs-text b { color: var(--color); }
 .gd-qs-arrow { font-size: 18px; color: var(--color-muted); padding-top: 8px; flex-shrink: 0; }
+
+/* ─── SSD-кеширование ───────────────────────────────────────────────────────── */
+.ssd-bar-wrap  { background:var(--color-border); border-radius:3px; height:8px; width:120px; display:inline-block; vertical-align:middle; }
+.ssd-bar-fill  { height:100%; border-radius:3px; background:var(--primary); }
+.ssd-bar-fill.warn { background:var(--warning); }
+.ssd-bar-fill.crit { background:var(--danger); }
+.ssd-mode-wt   { color:var(--success); font-weight:600; font-size:12px; }
+.ssd-mode-wb   { color:var(--warning); font-weight:600; font-size:12px; }
+
+/* ─── Responsive / Mobile ───────────────────────────────────────────────────── */
+
+/* Tablet and below (≤ 768px) */
+@media (max-width: 768px) {
+    body {
+        padding: 10px 12px;
+    }
+
+    /* Tables: horizontal scroll instead of overflow */
+    .section table,
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Section toolbars: stack title + buttons */
+    .section-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    /* Wide modal (RAID advisor, extensions): full width */
+    .modal-box-wide {
+        width: calc(100vw - 24px);
+    }
+
+    /* Snapshots sidebar: stack vertically, sidebar first */
+    .snap-layout {
+        flex-direction: column;
+    }
+    .snap-sidebar {
+        width: 100%;
+        position: static;
+        max-height: none;
+    }
+    #snap-sidebar-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    /* Snapshots advisor-tabs: horizontal scroll on mobile */
+    .advisor-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+    }
+    .advisor-tab-btn {
+        flex-shrink: 0;
+    }
+
+    /* Snapshots folder header: stack title + refresh */
+    .snap-folder-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    /* Snapshot action btn-group: wrap onto multiple lines */
+    .snap-main .btn-group {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .snap-main .btn-group .btn {
+        flex: 1 1 calc(50% - 3px);
+        justify-content: center;
+        min-width: 0;
+    }
+
+    /* Touch targets: checkboxes and radio buttons */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        cursor: pointer;
+    }
+    .checkbox-label {
+        min-height: 44px;
+        gap: 10px;
+    }
+
+    /* Select touch height */
+    select {
+        min-height: 38px;
+        padding: 6px 10px;
+    }
+
+    /* Guard infographic: hide arrow separators between wrapped steps */
+    .gd-arrow {
+        display: none;
+    }
+    .gd-pipeline {
+        gap: 6px;
+    }
+
+    /* Guard quickstart: stack steps */
+    .gd-quickstart {
+        flex-direction: column;
+    }
+    .gd-qs-arrow {
+        display: none;
+    }
+
+    /* SSD bar: smaller on narrow screens */
+    .ssd-bar-wrap {
+        width: 80px;
+    }
+}
+
+/* Mobile (≤ 480px) */
+@media (max-width: 480px) {
+    body {
+        padding: 8px 8px;
+    }
+
+    h1 {
+        font-size: 17px;
+        margin-bottom: 14px;
+    }
+
+    .section {
+        padding: 12px 10px;
+    }
+
+    /* Touch-friendly button sizing */
+    .btn {
+        min-height: 40px;
+    }
+    .btn-sm {
+        min-height: 36px;
+        padding: 5px 12px;
+    }
+
+    /* Button groups: stack on narrow screens */
+    .section-toolbar .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    .section-toolbar .btn-group .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Modal: full-width, reduced padding */
+    .modal-overlay {
+        padding-top: 16px;
+    }
+    .modal-box {
+        padding: 16px 14px;
+        width: calc(100vw - 16px);
+    }
+
+    /* iOS: prevent auto-zoom on input focus (requires font-size ≥ 16px).
+       !important to override inline font-size:13px on filter selects/inputs. */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* Snapshot summary strip: stack stats */
+    .snap-summary-strip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+    .snap-summary-sep {
+        display: none;
+    }
+
+    /* Tabs: horizontal scroll instead of wrapping */
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap;
+    }
+    .tab-btn {
+        flex-shrink: 0;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    /* Array card actions: wrap buttons */
+    .array-actions {
+        flex-direction: column;
+    }
+    .array-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Modal footer: stack buttons */
+    .modal-footer {
+        flex-direction: column-reverse;
+    }
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
