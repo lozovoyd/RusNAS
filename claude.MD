@@ -10,6 +10,7 @@
 > Storage Page (редизайн): [rusnas-storage-task.md](./rusnas-storage-task.md) — ТЗ и заметки по реализации редизайна страницы Хранилище
 > SSD-кеширование: [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md) — ТЗ и архитектура SSD-кеша (dm-cache/LVM)
 > MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ (планируется)
+> FileBrowser: [rusnas-filebrowser-task.md](./rusnas-filebrowser-task.md) — ТЗ и архитектура
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -679,6 +680,45 @@ Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (mdadm RAID HDD) + 
 - `loadSsdTiers()` reads `/etc/rusnas/ssd-tiers.json` via `cockpit.file().read()` (no superuser needed — file is 644)
 - `saveSsdTier()` / `removeSsdTierFromJson()` write via `cockpit.file(path, {superuser:"require"}).replace()`
 - Progress log via `appendSsdLog(logId, msg)` — separate from RAID's `appendCreateLog`
+
+### ✅ FileBrowser Quantum (реализовано 2026-03-19, ветка feature/filebrowser)
+
+Веб-файловый менеджер для просмотра файлов шар через браузер. Открывается в новой вкладке по `/files/`.
+
+**Архитектура:**
+```
+Браузер → Apache :80 → /files/ → FileBrowser :8088 (127.0.0.1)
+```
+
+**Компоненты:**
+- Бинарник: `/usr/local/bin/filebrowser` (v2.31.2, Go)
+- Конфиг: `/etc/rusnas/filebrowser/settings.json` (port 8088, baseURL="/files", root="/")
+- БД: `/var/lib/rusnas/filebrowser/users.db` (BoltDB)
+- Сервис: `rusnas-filebrowser.service` (user: rusnas-fb)
+- Apache proxy: `/etc/apache2/sites-enabled/rusnas-filebrowser.conf`
+- Admin pass: `rusnas_admin_2026`, пользователи: `rusnas_<user>_2026`
+
+**Скрипты:**
+- `install-filebrowser.sh` — деплой (бинарник на Mac → scp → VM)
+- `cockpit/rusnas/scripts/fb-init.sh` — инициализация (admin + sync пользователей)
+- `cockpit/rusnas/scripts/fb-sync-user.py` — sync одного пользователя (CLI stop/start)
+- `cockpit/rusnas/scripts/fb-sync-all-users.py` — первичная синхронизация
+- `cockpit/rusnas/cgi/fb-users-list.py` — список пользователей → JSON (GET API)
+- `cockpit/rusnas/cgi/fb-set-user-access.py` — изменение scope (CLI stop/start)
+
+**Критические заметки:**
+- FileBrowser v2.31.2 API POST `/api/users` возвращает "invalid data type" (баг) — только GET работает
+- Все write-операции (создание/обновление/удаление пользователей) через CLI с кратким `systemctl stop/start`
+- API URL с baseURL prefix: `http://127.0.0.1:8088/files/api/...` (не `/api/...`)
+- Apache вместо nginx: порт 80 занят Apache (лендинг)
+- Token файл: `/etc/rusnas/filebrowser/admin_token` (chmod 600)
+- Sudoers: `/etc/sudoers.d/rusnas-filebrowser`
+
+**Cockpit UI:**
+- Storage страница: 5-я вкладка «📁 Файловый менеджер» — управление сервисом + таблица пользователей
+- Таблица шар: кнопка «📂 Файлы» → FileBrowser с path параметром
+- Storage Analyzer: кнопки «Открыть» → FileBrowser deep-links
+- Dashboard: карточка статуса FileBrowser в grid-4
 
 ### MCP Server + AI Agent (после репликации)
 Полное ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)

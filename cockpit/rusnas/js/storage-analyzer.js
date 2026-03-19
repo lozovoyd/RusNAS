@@ -4,6 +4,16 @@
  */
 'use strict';
 
+// ─── FileBrowser URL helper ───────────────────────────────────────────────────
+function getFileBrowserUrl(path, options) {
+    const base = window.location.protocol + '//' + window.location.hostname + '/files/';
+    const params = new URLSearchParams();
+    if (path) params.set('path', path);
+    if (options && options.sort)  params.set('sort', options.sort);
+    if (options && options.order) params.set('order', options.order);
+    return base + (params.toString() ? '?' + params.toString() : '');
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SA_API = '/usr/share/cockpit/rusnas/scripts/storage-analyzer-api.py';
 
@@ -438,18 +448,12 @@ function renderTopConsumers(consumers) {
                 <span class="sa-top-path">${c.path || ''}</span>
             </div>
             <span class="sa-top-size">${fmtBytes(c.used_bytes)}</span>
-            <button class="btn btn-default btn-xs sa-top-btn" data-path="${c.path || '/'}">Открыть</button>
+            <a class="btn btn-default btn-xs" href="${getFileBrowserUrl(c.path || '/', {sort:'size', order:'desc'})}" target="_blank">📂 Открыть</a>
         </div>`;
     });
     html += '</div>';
     wrap.innerHTML = html;
 
-    wrap.querySelectorAll('.sa-top-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            filePath = btn.dataset.path;
-            switchTab('files');
-        });
-    });
 }
 
 // ─── TAB 2: SHARES ───────────────────────────────────────────────────────────
@@ -554,13 +558,9 @@ function toggleShareDetail(name, btn) {
         <div class="sa-detail-chart">${sparkHtml || '<span class="sa-empty">Нет истории</span>'}</div>
         <div class="sa-detail-forecast">${fcStr}</div>
         <div class="sa-detail-actions">
-            <button class="btn btn-default btn-sm" data-path="${share.path}">📂 Открыть в файлах</button>
+            <a class="btn btn-default btn-sm" href="${getFileBrowserUrl(share.path)}" target="_blank">📂 Открыть в FileBrowser</a>
         </div>`;
 
-    el.querySelector('[data-path]').addEventListener('click', e => {
-        filePath = e.target.dataset.path;
-        switchTab('files');
-    });
 }
 
 function forecastDate(days) {

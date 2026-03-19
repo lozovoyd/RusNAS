@@ -1,0 +1,167 @@
+{
+  "dashboard": {
+    "overflow": [
+      {
+        "element": "div",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:\n      \n        http://10.10.10.72:9100/m"
+      },
+      {
+        "element": "div.db-card-sub",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:"
+      },
+      {
+        "element": "code#metrics-url-json",
+        "right": 603,
+        "overflow": 213,
+        "text": "http://10.10.10.72:9100/metrics.json"
+      },
+      {
+        "element": "button.btn.btn-secondary.btn-sm",
+        "right": 650,
+        "overflow": 260,
+        "text": "📋"
+      }
+    ],
+    "scroll": {
+      "scrollWidth": 650,
+      "bodyScrollWidth": 650,
+      "viewportWidth": 390
+    }
+  },
+  "guard": {
+    "overflow": [
+      {
+        "element": "div",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:\n      \n        http://10.10.10.72:9100/m"
+      },
+      {
+        "element": "div.db-card-sub",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:"
+      },
+      {
+        "element": "code#metrics-url-json",
+        "right": 603,
+        "overflow": 213,
+        "text": "http://10.10.10.72:9100/metrics.json"
+      },
+      {
+        "element": "button.btn.btn-secondary.btn-sm",
+        "right": 650,
+        "overflow": 260,
+        "text": "📋"
+      }
+    ],
+    "scroll": {
+      "scrollWidth": 650,
+      "bodyScrollWidth": 650,
+      "viewportWidth": 390
+    }
+  },
+  "snapshots": {
+    "overflow": [
+      {
+        "element": "div",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:\n      \n        http://10.10.10.72:9100/m"
+      },
+      {
+        "element": "div.db-card-sub",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:"
+      },
+      {
+        "element": "code#metrics-url-json",
+        "right": 603,
+        "overflow": 213,
+        "text": "http://10.10.10.72:9100/metrics.json"
+      },
+      {
+        "element": "button.btn.btn-secondary.btn-sm",
+        "right": 650,
+        "overflow": 260,
+        "text": "📋"
+      }
+    ],
+    "scroll": {
+      "scrollWidth": 650,
+      "bodyScrollWidth": 650,
+      "viewportWidth": 390
+    }
+  },
+  "disks": {
+    "overflow": [
+      {
+        "element": "div",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:\n      \n        http://10.10.10.72:9100/m"
+      },
+      {
+        "element": "div.db-card-sub",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:"
+      },
+      {
+        "element": "code#metrics-url-json",
+        "right": 603,
+        "overflow": 213,
+        "text": "http://10.10.10.72:9100/metrics.json"
+      },
+      {
+        "element": "button.btn.btn-secondary.btn-sm",
+        "right": 650,
+        "overflow": 260,
+        "text": "📋"
+      }
+    ],
+    "scroll": {
+      "scrollWidth": 650,
+      "bodyScrollWidth": 650,
+      "viewportWidth": 390
+    }
+  },
+  "storage": {
+    "overflow": [
+      {
+        "element": "div",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:\n      \n        http://10.10.10.72:9100/m"
+      },
+      {
+        "element": "div.db-card-sub",
+        "right": 650,
+        "overflow": 260,
+        "text": "JSON API:"
+      },
+      {
+        "element": "code#metrics-url-json",
+        "right": 603,
+        "overflow": 213,
+        "text": "http://10.10.10.72:9100/metrics.json"
+      },
+      {
+        "element": "button.btn.btn-secondary.btn-sm",
+        "right": 650,
+        "overflow": 260,
+        "text": "📋"
+      }
+    ],
+    "scroll": {
+      "scrollWidth": 650,
+      "bodyScrollWidth": 650,
+      "viewportWidth": 390
+    }
+  }
+}

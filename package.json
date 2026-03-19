@@ -1,0 +1,27 @@
+{
+  "name": "rusnas",
+  "version": "1.0.0",
+  "description": "> Коммерческая NAS-платформа на базе Debian Linux — альтернатива Synology DSM для SMB-клиентов.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lozovoyd/RusNAS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lozovoyd/RusNAS/issues"
+  },
+  "homepage": "https://github.com/lozovoyd/RusNAS#readme",
+  "dependencies": {
+    "playwright": "^1.58.2"
+  }
+}

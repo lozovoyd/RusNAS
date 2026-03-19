@@ -1,0 +1,37 @@
+{
+  "dashboard": {
+    "overflow": [],
+    "fonts": [],
+    "overlaps": [],
+    "scrollWidth": 390,
+    "viewportWidth": 390
+  },
+  "guard": {
+    "overflow": [],
+    "fonts": [],
+    "overlaps": [],
+    "scrollWidth": 390,
+    "viewportWidth": 390
+  },
+  "snapshots": {
+    "overflow": [],
+    "fonts": [],
+    "overlaps": [],
+    "scrollWidth": 390,
+    "viewportWidth": 390
+  },
+  "disks": {
+    "overflow": [],
+    "fonts": [],
+    "overlaps": [],
+    "scrollWidth": 390,
+    "viewportWidth": 390
+  },
+  "storage-index": {
+    "overflow": [],
+    "fonts": [],
+    "overlaps": [],
+    "scrollWidth": 390,
+    "viewportWidth": 390
+  }
+}

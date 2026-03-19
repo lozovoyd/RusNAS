@@ -1,0 +1,3 @@
+[    1819ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[    5874ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[    8291ms] [ERROR] Refused to apply style from 'https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ https://10.10.10.72:9090/cockpit/@localhost/rusnas/snapshots.html#/:0

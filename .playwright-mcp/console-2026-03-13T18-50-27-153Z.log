@@ -1,0 +1,5 @@
+[   69013ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[  139368ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[  144578ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[  150971ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[  161472ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0

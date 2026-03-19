@@ -1,0 +1,12 @@
+[     654ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[    3551ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[   13850ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[  272386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  282386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  292388ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  402388ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  412417ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  422389ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  442393ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  452393ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  462395ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5

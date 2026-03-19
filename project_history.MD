@@ -1240,3 +1240,54 @@ storage-analyzer.css:
 - `cron.service` cgroup = 2.6 ГБ — это **page cache** от duperemove (каждый день в 03:00) и rusnas-snap. Не утечка, нормальное поведение Linux.
 - `MemAvailable = 3.3 ГБ` — памяти достаточно, OOM-событий нет.
 - Рекомендация: ограничить journald (`SystemMaxUse=100M` в `/etc/systemd/journald.conf`), т.к. journald использует 97 МБ RSS.
+
+---
+
+## Сессия 16 — FileBrowser Quantum Integration (Фаза 1 + Фаза 2)
+**Дата:** 2026-03-19
+
+### Что было сделано
+
+**Фаза 1 — Backend:**
+- Установлен FileBrowser v2.31.2 на VM (`/usr/local/bin/filebrowser`)
+- Системный пользователь `rusnas-fb` (nologin)
+- Сервис `rusnas-filebrowser.service` → `127.0.0.1:8088`
+- Конфиг: `/etc/rusnas/filebrowser/settings.json` (port 8088, baseURL="/files", root="/")
+- БД пользователей: `/var/lib/rusnas/filebrowser/users.db` (BoltDB)
+- Apache proxy: `/files/` → `http://127.0.0.1:8088/files/` (mod_proxy + mod_proxy_http)
+- SSL: self-signed cert `/etc/ssl/rusnas/rusnas.{crt,key}`, nginx на порту 443
+
+**Новые скрипты:**
+- `install-filebrowser.sh` — деплой скрипт (бинарник скачивается на Mac, копируется через scp)
+- `cockpit/rusnas/scripts/fb-init.sh` — инициализация (admin pass + синхронизация через CLI)
+- `cockpit/rusnas/scripts/fb-sync-user.py` — sync одного пользователя (CLI: стоп/старт сервиса)
+- `cockpit/rusnas/scripts/fb-sync-all-users.py` — первичная sync всех Linux-пользователей (UID≥1000)
+- `cockpit/rusnas/cgi/fb-users-list.py` — список пользователей FileBrowser → JSON (GET API работает)
+- `cockpit/rusnas/cgi/fb-set-user-access.py` — обновление scope/WAN пользователя (CLI + access_rules.json)
+
+**Фаза 2 — Cockpit UI:**
+- `app.js`: `getFileBrowserUrl()`, кнопка «📂 Файлы» в таблице шар, 5-я вкладка «📁 Файловый менеджер» с управлением сервисом и таблицей пользователей
+- `index.html`: 5-я вкладка + `#tab-filebrowser` + `#fb-user-modal`
+- `users.js`: fire-and-forget sync в addUser/saveEditUser/deleteUser
+- `storage-analyzer.js`: `getFileBrowserUrl()`, FileBrowser deep-links вместо in-app навигации
+- `dashboard.js`: `loadFbDashStatus()` в polling (TICK_UPS=10000)
+- `dashboard.html`: карточка «📂 ФАЙЛОВЫЙ МЕНЕДЖЕР» в grid-4
+
+### Технические решения
+
+- **Apache вместо nginx**: порт 80 уже занят Apache (лендинг). nginx на 443 конфликтовал; используем Apache mod_proxy для `/files/`
+- **CLI вместо API для write-операций**: FileBrowser v2.31.2 API POST `/api/users` возвращает "invalid data type" (баг или несовместимость). GET работает. Для создания/обновления/удаления пользователей — `filebrowser --config ... users add/update/rm` с кратким стопом сервиса
+- **Инициализация**: `fb-init.sh` останавливает сервис → CLI создаёт пользователей → запускает → получает API-токен для CGI-скриптов (GET)
+- **API URL**: FileBrowser baseURL="/files" → все API endpoints с префиксом `/files/api/...` (не `/api/...`)
+- **Token файл**: `/etc/rusnas/filebrowser/admin_token` (chmod 600, root-owned) — используется `fb-users-list.py` для GET-запросов
+- **Синхронизация**: огонь-и-забудь в Cockpit Users — не блокирует UI
+
+### Пароли по умолчанию
+- admin: `rusnas_admin_2026` (меняется через FileBrowser UI)
+- пользователи: `rusnas_<username>_2026` (первичная синхронизация)
+
+### Sudoers
+- `/etc/sudoers.d/rusnas-filebrowser` — python3 для CGI + systemctl start/stop/is-active
+
+### Ветка
+- `feature/filebrowser` → merge в `main`

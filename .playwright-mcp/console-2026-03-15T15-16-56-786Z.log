@@ -1,0 +1,20 @@
+[    6113ms] [WARNING] Failed to execute 'postMessage' on 'DOMWindow': The target origin provided ('https://www.youtube.com') does not match the recipient window's origin ('https://www.google.com'). @ https://www.youtube.com/s/player/74edf1a3/www-widgetapi.vflset/www-widgetapi.js:209
+[   10704ms] [WARNING] [GSI_LOGGER]: google.accounts.id.initialize() is called multiple times. This could cause unexpected behavior and only the last initialized instance will be used. @ https://files.manuscdn.com/webapp/_next/static/chunks/923-f2ab0f9b2a1bac57.js:12
+[   10791ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.manus.im/user.v1.UserService/UserInfo:0
+[   10792ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.manus.im/user.v1.UserService/GetUserClientConfig:0
+[   10792ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://api.manus.im/user.v1.UserService/GetAvailableCredits:0
+[   10889ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://files.manuscdn.com/webapp/_next/static/chunks/923-f2ab0f9b2a1bac57.js:12
+[   10926ms] [ERROR] fetch user client config error ConnectError: [unauthenticated] missing authorization header
+    at D (https://files.manuscdn.com/webapp/_next/static/chunks/22901-df81f2f0afc2f311.js:1:21214)
+    at next (https://files.manuscdn.com/webapp/_next/static/chunks/22901-df81f2f0afc2f311.js:1:24235)
+    at async https://files.manuscdn.com/webapp/_next/static/chunks/10358-80871abff2ef47bb.js:1:688721
+    at async Object.unary (https://files.manuscdn.com/webapp/_next/static/chunks/22901-df81f2f0afc2f311.js:1:22929)
+    at async Object.d [as getUserClientConfig] (https://files.manuscdn.com/webapp/_next/static/chunks/22901-df81f2f0afc2f311.js:1:4165)
+    at async https://files.manuscdn.com/webapp/_next/static/chunks/45335-cd7db665c30d33db.js:1:874053
+    at async Promise.all (index 2) @ https://files.manuscdn.com/webapp/_next/static/chunks/923-f2ab0f9b2a1bac57.js:12
+[   11669ms] [ERROR] Not signed in with the identity provider. @ https://manus.im/:0
+[   11680ms] Uncaught (in promise) Error: Invalid Token
+    at onpacket (https://files.manuscdn.com/webapp/_next/static/chunks/34257-be6f44633e68bfdd.js:0:84000)
+    at C.emit (https://files.manuscdn.com/webapp/_next/static/chunks/34257-be6f44633e68bfdd.js:0:54929)
+    at <anonymous> (https://files.manuscdn.com/webapp/_next/static/chunks/34257-be6f44633e68bfdd.js:0:89779)
+[   13365ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with NetworkError: Error retrieving a token. @ https://files.manuscdn.com/webapp/_next/static/chunks/923-f2ab0f9b2a1bac57.js:12
