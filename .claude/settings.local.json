@@ -22,7 +22,12 @@
       "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"journalctl -u cockpit --since '10 minutes ago' --no-pager 2>/dev/null | tail -20\" 2>&1)",
       "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/ /usr/share/cockpit/rusnas/js/ /usr/share/cockpit/rusnas/css/\" 2>&1 | grep -E '^-|^d')",
       "Bash(bash deploy.sh)",
-      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/css/style.css /usr/share/cockpit/rusnas/js/disks.js\")"
+      "Bash(sshpass -p kl4389qd ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"ls -la /usr/share/cockpit/rusnas/css/style.css /usr/share/cockpit/rusnas/js/disks.js\")",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_fill_form",
+      "Bash(sshpass -p 'kl4389qd' ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"sudo btrfs subvolume list -o /mnt/btrfspool 2>&1 | head -10\")",
+      "Bash(sshpass -p 'ieDah1oo' ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no admin@10.10.10.254 '/ip address print')"
     ]
   }
 }

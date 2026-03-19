@@ -1,0 +1,141 @@
+[     841ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[    3878ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[   12053ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[25593405ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25596193ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[25605581ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[25861102ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25863813ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[25873300ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[25907801ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., GiB, [object Object]) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25907992ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[25907997ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25907997ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatMono/RedHatMonoVF.woff2:0
+[25930720ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[25930762ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25934054ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF-Italic.woff2:0
+[26009595ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26012132ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26022990ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26054290ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26056695ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26067300ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26098737ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26101237ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26111484ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26141561ms] [ERROR] FormSelect requires either an id or aria-label to be specified @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:16
+[26141614ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26141615ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-F0eMgzg/9KDZDnYmAjaV1/2SVRvtQav/R/mGbug/9vw='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26141616ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26141617ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-O2Y5Ih8BpnN4463uju8IulPDq+oymW5Nwjl5seTQCxE='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26141671ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26149764ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26151063ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26161221ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26163991ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26166600ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26174185ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26246385ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., GiB, [object Object]) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26246571ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26246622ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[26246623ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatMono/RedHatMonoVF.woff2:0
+[26251942ms] [WARNING] Failed to run lastlog: not-found @ https://10.10.10.72:9090/cockpit/@localhost/users/users.js:100
+[26251998ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/users/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26251998ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/users/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[26258708ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[26258725ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26306735ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26309163ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26317789ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26340638ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26342988ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26346029ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26360601ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26378037ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26678560ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26681040ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26689850ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[28866128ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[28868624ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[28877074ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[29001528ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29001841ms] [WARNING] Can't enable storaged iscsi module Error initializing module 'iscsi': /usr/lib/x86_64-linux-gnu/udisks2/modules/libudisks2_iscsi.so: cannot open shared object file: No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/storage/storaged.js:1228
+[29002492ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., 1024, true) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29002573ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29002573ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29002575ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/storage/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[29002577ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/storage/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29003490ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29003493ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[29020161ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[29020183ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29023230ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF-Italic.woff2:0
+[29372312ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29375055ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29385836ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[29417259ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29419842ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29430817ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[29443266ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29444421ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29461481ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29463896ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29472021ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[29506016ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29508512ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29517768ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[29665131ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[29667416ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[29676022ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[46121789ms] [WARNING] Shell jump with hash and no frame change. Please use "/" as the hash to jump to the top sub-page. @ https://10.10.10.72:9090/cockpit/@localhost/shell/shell.js:107
+[46122585ms] [WARNING] Shell jump with hash and no frame change. Please use "/" as the hash to jump to the top sub-page. @ https://10.10.10.72:9090/cockpit/@localhost/shell/shell.js:107
+[46544960ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[46547415ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[46557456ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[46770195ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[46772651ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[46781433ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[46797306ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[46799702ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[46810144ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[47002379ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., GiB, [object Object]) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[47002549ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatMono/RedHatMonoVF.woff2:0
+[47002562ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[47002563ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[47093617ms] [WARNING] Shell jump with hash and no frame change. Please use "/" as the hash to jump to the top sub-page. @ https://10.10.10.72:9090/cockpit/@localhost/shell/shell.js:107
+[47964536ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[47966686ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[47976639ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48029698ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[48055465ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48057918ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48066137ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48245667ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48248481ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48261509ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48367111ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48369480ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48371043ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48386863ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48403106ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48427625ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48430704ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48446666ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48514715ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48517067ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48529279ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48597686ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48600021ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48608485ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48617285ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48619598ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48626953ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[48735443ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[48737833ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[48746904ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[49006247ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[49008670ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[49019391ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[49213102ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[49215470ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[49224738ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161

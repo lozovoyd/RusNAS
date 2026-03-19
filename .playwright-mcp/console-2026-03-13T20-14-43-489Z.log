@@ -1,0 +1,1 @@
+[     148ms] [ERROR] Refused to apply style from 'https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ https://10.10.10.72:9090/cockpit/@localhost/rusnas/snapshots.html:0

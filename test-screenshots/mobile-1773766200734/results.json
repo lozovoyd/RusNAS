@@ -1,0 +1,52 @@
+{
+  "dashboard": {
+    "overflow": [],
+    "scroll": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "viewportWidth": 390
+    },
+    "overlaps": []
+  },
+  "guard": {
+    "overflow": [],
+    "scroll": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "viewportWidth": 390
+    },
+    "overlaps": []
+  },
+  "snapshots": {
+    "overflow": [],
+    "scroll": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "viewportWidth": 390
+    },
+    "overlaps": []
+  },
+  "disks": {
+    "overflow": [],
+    "scroll": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "viewportWidth": 390
+    },
+    "overlaps": []
+  },
+  "storage-index": {
+    "overflow": [],
+    "scroll": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "bodyScrollWidth": 390,
+      "viewportWidth": 390
+    },
+    "overlaps": []
+  }
+}

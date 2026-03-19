@@ -17,6 +17,7 @@
         <button class="advisor-tab-btn" data-tab="iscsi">🎯 iSCSI</button>
         <button class="advisor-tab-btn" data-tab="worm">🔒 WORM</button>
         <button class="advisor-tab-btn" data-tab="services">⚙️ Сервисы</button>
+        <button class="advisor-tab-btn" data-tab="filebrowser">📁 Файловый менеджер</button>
     </div>
 
     <!-- ── Tab: Шары ─────────────────────────────────────────────────────────── -->
@@ -169,6 +170,42 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- ── Tab: Файловый менеджер ──────────────────────────────────────────────── -->
+    <div id="tab-filebrowser" class="hidden">
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>FileBrowser — Веб-файловый менеджер</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span id="fb-status-badge" class="badge badge-secondary">Загрузка…</span>
+                    <button class="btn btn-success btn-sm" id="btn-fb-start">▶ Запустить</button>
+                    <button class="btn btn-danger  btn-sm" id="btn-fb-stop">■ Остановить</button>
+                    <a id="fb-open-link" class="btn btn-primary btn-sm"
+                       href="/files/" target="_blank" style="display:none;">Открыть FileBrowser ↗</a>
+                </div>
+            </div>
+            <p class="table-hint">
+                FileBrowser позволяет просматривать, загружать и скачивать файлы шар через браузер
+                без установки SMB/NFS клиента. Открывается в новой вкладке по <code>/files/</code>.
+            </p>
+
+            <h3 style="margin-top:16px;margin-bottom:8px;">Пользователи</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Пользователь</th>
+                        <th>Scope (корневая папка)</th>
+                        <th>Доступ из сети</th>
+                        <th>Права</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="fb-users-wrap">
+                    <tr><td colspan="5" class="text-muted">Нажмите на вкладку для загрузки</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════
@@ -368,6 +405,39 @@
             <div class="modal-footer">
                 <button class="btn btn-primary" id="btn-worm-add-confirm">Добавить</button>
                 <button class="btn btn-default" id="btn-worm-add-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: FileBrowser user settings -->
+    <div class="modal-overlay hidden" id="fb-user-modal">
+        <div class="modal-box" style="max-width:440px;">
+            <h3>Настройки FileBrowser: <span id="fb-modal-username"></span></h3>
+            <div class="form-group">
+                <label>Корневая папка (scope)</label>
+                <input type="text" id="fb-modal-scope" placeholder="/mnt/data/shares/documents">
+                <small class="text-muted">Пользователь видит только эту папку и её содержимое</small>
+            </div>
+            <div class="form-group">
+                <label>Права доступа</label>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+                    <label class="checkbox-label"><input type="checkbox" id="fb-modal-dl" checked> Скачивать файлы</label>
+                    <label class="checkbox-label"><input type="checkbox" id="fb-modal-ul" checked> Загружать файлы</label>
+                    <label class="checkbox-label"><input type="checkbox" id="fb-modal-del" checked> Удалять файлы</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="fb-modal-wan">
+                    Разрешить доступ из внешней сети (WAN)
+                </label>
+                <small class="text-muted" style="display:block;margin-top:4px;">
+                    Только информационная метка — фактическая фильтрация настраивается в nftables/nginx
+                </small>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-fb-user-save">Сохранить</button>
+                <button class="btn btn-default" id="btn-fb-user-cancel">Отмена</button>
             </div>
         </div>
     </div>

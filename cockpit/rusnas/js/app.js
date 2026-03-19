@@ -8,6 +8,17 @@ function closeModal(id) {
     document.getElementById(id).classList.add("hidden");
 }
 
+// ─── FileBrowser URL helper ───────────────────────────────────────────────────
+
+function getFileBrowserUrl(path, options) {
+    var base = window.location.protocol + '//' + window.location.hostname + '/files/';
+    var params = new URLSearchParams();
+    if (path) params.set('path', path);
+    if (options && options.sort)  params.set('sort', options.sort);
+    if (options && options.order) params.set('order', options.order);
+    return base + (params.toString() ? '?' + params.toString() : '');
+}
+
 // ─── Volumes (mounted non-system) ────────────────────────────────────────────
 
 var SKIP_TARGETS = /^(\/boot|\/sys|\/proc|\/dev|\/run|\/snap|\/efi)(\/|$)/;
@@ -151,7 +162,7 @@ function populateUserCheckboxes(containerId, selectedUsers) {
 var _tabsLoaded = {};
 
 function setupStorageTabs() {
-    var tabPanels = ["shares", "iscsi", "worm", "services"];
+    var tabPanels = ["shares", "iscsi", "worm", "services", "filebrowser"];
     document.querySelectorAll("#storage-tabs .advisor-tab-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
             document.querySelectorAll("#storage-tabs .advisor-tab-btn").forEach(function(b) {
@@ -170,6 +181,11 @@ function setupStorageTabs() {
                 _tabsLoaded.services = true;
                 loadFtp();
                 loadWebdav();
+            }
+            if (tab === "filebrowser" && !_tabsLoaded.filebrowser) {
+                _tabsLoaded.filebrowser = true;
+                loadFbStatus();
+                loadFileBrowserUsers();
             }
         });
     });
@@ -354,6 +370,7 @@ function renderSharesTable(shares) {
             "<td><div class='share-proto-badges'>" + badges + "</div></td>" +
             "<td>" + access + "</td>" +
             "<td>" +
+              "<a class='btn btn-secondary btn-sm fb-share-link' href='" + getFileBrowserUrl(share.path) + "' target='_blank' style='margin-right:4px;'>📂 Файлы</a>" +
               "<button class='btn btn-secondary btn-sm edit-share-btn' data-idx='" + idx + "' style='margin-right:4px;'>✏️ Изменить</button>" +
               "<button class='btn btn-danger btn-sm delete-share-btn' data-idx='" + idx + "'>🗑️ Удалить</button>" +
             "</td>" +
@@ -660,6 +677,151 @@ function deleteISCSI(iqn) {
     .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+// ─── FileBrowser Management ───────────────────────────────────────────────────
+
+var FB_SCRIPTS = "/usr/share/cockpit/rusnas";
+var _fbUserModalData = null;
+
+function loadFbStatus() {
+    var badge = document.getElementById("fb-status-badge");
+    var btnStart = document.getElementById("btn-fb-start");
+    var btnStop  = document.getElementById("btn-fb-stop");
+    var openLink = document.getElementById("fb-open-link");
+    if (!badge) return;
+
+    cockpit.spawn(["sudo", "-n", "systemctl", "is-active", "rusnas-filebrowser"],
+        { err: "message" })
+    .done(function(out) {
+        var active = out.trim() === "active";
+        badge.className = "badge " + (active ? "badge-success" : "badge-danger");
+        badge.textContent = active ? "● Работает" : "● Остановлен";
+        if (btnStart) btnStart.disabled = active;
+        if (btnStop)  btnStop.disabled  = !active;
+        if (openLink) openLink.style.display = active ? "" : "none";
+    })
+    .fail(function() {
+        badge.className = "badge badge-secondary";
+        badge.textContent = "● Неизвестно";
+    });
+}
+
+function startStopFb(action) {
+    cockpit.spawn(["sudo", "-n", "systemctl", action, "rusnas-filebrowser"],
+        { err: "message" })
+    .done(function() {
+        setTimeout(function() { loadFbStatus(); loadFileBrowserUsers(); }, 1500);
+    })
+    .fail(function(err) { alert("Ошибка: " + err); });
+}
+
+function loadFileBrowserUsers() {
+    var wrap = document.getElementById("fb-users-wrap");
+    if (!wrap) return;
+    wrap.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
+
+    cockpit.spawn(["sudo", "-n", "python3", FB_SCRIPTS + "/cgi/fb-users-list.py"],
+        { err: "message" })
+    .done(function(out) {
+        try {
+            var data = JSON.parse(out);
+            if (!data.ok) {
+                wrap.innerHTML = "<tr><td colspan='5' class='text-muted'>" +
+                    (data.error || "Сервис недоступен") + "</td></tr>";
+                return;
+            }
+            renderFbUsersTable(data.users || []);
+        } catch(e) {
+            wrap.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка разбора ответа</td></tr>";
+        }
+    })
+    .fail(function(err) {
+        wrap.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка: " + err + "</td></tr>";
+    });
+}
+
+function renderFbUsersTable(users) {
+    var wrap = document.getElementById("fb-users-wrap");
+    if (!wrap) return;
+    if (!users.length) {
+        wrap.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет пользователей</td></tr>";
+        return;
+    }
+    wrap.innerHTML = users.map(function(u) {
+        var scope = u.scope || "/";
+        var wanBadge = u.wan_enabled
+            ? "<span class='badge badge-success'>Да</span>"
+            : "<span class='badge badge-secondary'>Нет</span>";
+        var adminBadge = u.is_admin ? " <span class='badge badge-warning'>admin</span>" : "";
+        return "<tr>" +
+            "<td><b>" + u.username + "</b>" + adminBadge + "</td>" +
+            "<td><code style='font-size:11px;'>" + scope + "</code></td>" +
+            "<td>" + wanBadge + "</td>" +
+            "<td>" +
+                (u.can_download ? "⬇" : "") +
+                (u.can_upload   ? " ⬆" : "") +
+                (u.can_delete   ? " 🗑" : "") +
+            "</td>" +
+            "<td>" +
+                "<button class='btn btn-secondary btn-sm fb-edit-user-btn' " +
+                    "data-username='" + u.username + "' " +
+                    "data-scope='" + scope + "' " +
+                    "data-wan='"  + (u.wan_enabled   ? "1" : "0") + "' " +
+                    "data-dl='"   + (u.can_download  ? "1" : "0") + "' " +
+                    "data-ul='"   + (u.can_upload    ? "1" : "0") + "' " +
+                    "data-del='"  + (u.can_delete    ? "1" : "0") + "'>Настройки</button>" +
+            "</td>" +
+            "</tr>";
+    }).join("");
+
+    wrap.querySelectorAll(".fb-edit-user-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            openFbUserModal(this.dataset.username, {
+                scope:       this.dataset.scope,
+                wan_enabled: this.dataset.wan  === "1",
+                can_download:this.dataset.dl   === "1",
+                can_upload:  this.dataset.ul   === "1",
+                can_delete:  this.dataset.del  === "1"
+            });
+        });
+    });
+}
+
+function openFbUserModal(username, data) {
+    _fbUserModalData = { username: username, data: data };
+    document.getElementById("fb-modal-username").textContent = username;
+    document.getElementById("fb-modal-scope").value    = data.scope || "/";
+    document.getElementById("fb-modal-wan").checked    = !!data.wan_enabled;
+    document.getElementById("fb-modal-dl").checked     = data.can_download !== false;
+    document.getElementById("fb-modal-ul").checked     = data.can_upload   !== false;
+    document.getElementById("fb-modal-del").checked    = data.can_delete   !== false;
+    showModal("fb-user-modal");
+}
+
+function saveFbUserAccess() {
+    if (!_fbUserModalData) return;
+    var username = _fbUserModalData.username;
+    var scope    = document.getElementById("fb-modal-scope").value.trim() || "/";
+    var wan      = document.getElementById("fb-modal-wan").checked ? "1" : "0";
+    var dl       = document.getElementById("fb-modal-dl").checked  ? "1" : "0";
+    var ul       = document.getElementById("fb-modal-ul").checked  ? "1" : "0";
+    var del      = document.getElementById("fb-modal-del").checked ? "1" : "0";
+
+    cockpit.spawn(
+        ["sudo", "-n", "python3", FB_SCRIPTS + "/cgi/fb-set-user-access.py",
+         username, scope, wan, dl, ul, del],
+        { err: "message" }
+    )
+    .done(function(out) {
+        try {
+            var r = JSON.parse(out);
+            if (!r.ok) { alert("Ошибка: " + (r.error || "неизвестно")); return; }
+        } catch(e) {}
+        closeModal("fb-user-modal");
+        loadFileBrowserUsers();
+    })
+    .fail(function(err) { alert("Ошибка: " + err); });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -721,6 +883,16 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     document.getElementById("btn-webdav-save").addEventListener("click", saveWebdav);
     document.getElementById("btn-webdav-add-user").addEventListener("click", addWebdavUser);
+
+    // FileBrowser tab
+    var btnFbStart = document.getElementById("btn-fb-start");
+    var btnFbStop  = document.getElementById("btn-fb-stop");
+    var btnFbSave  = document.getElementById("btn-fb-user-save");
+    var btnFbCancel= document.getElementById("btn-fb-user-cancel");
+    if (btnFbStart)  btnFbStart.addEventListener("click", function() { startStopFb("start"); });
+    if (btnFbStop)   btnFbStop.addEventListener("click",  function() { startStopFb("stop"); });
+    if (btnFbSave)   btnFbSave.addEventListener("click",  saveFbUserAccess);
+    if (btnFbCancel) btnFbCancel.addEventListener("click", function() { closeModal("fb-user-modal"); });
 
     // Initial load
     loadAllShares();

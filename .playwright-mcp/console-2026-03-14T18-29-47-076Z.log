@@ -1,0 +1,147 @@
+[     801ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[    3614ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[   12044ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[25518922ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25521296ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[25532626ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[25538883ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25538885ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25538886ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25548865ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25558803ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[25558810ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatMono/RedHatMonoVF.woff2:0
+[25558813ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., GiB, [object Object]) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25558814ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[25558921ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25568852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25578854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25588853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25598852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25608854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25618852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25628854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25638853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25648853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25658853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25668853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25678852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25688853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25698853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25708853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25718853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25728853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25738853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25748853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25758854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25768854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25778852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25788854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25798853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25808853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25818853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25828852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25838854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25848853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25858856ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25868856ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25878854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25888855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25898853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25908855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25918855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25928855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25938852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25948853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25958852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25968853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25978855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25988855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[25998855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26008855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26018854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26028854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26038863ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26048853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26058853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26068854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26078852ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26088854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26098853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26108854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26118854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26128853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26138854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26148853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26158856ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26168853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26178855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26188854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26198855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26208853ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26218854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26228854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26238855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26248854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26258855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26268855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26278855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26288855ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26298854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26299122ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26305440ms] [ERROR] FormSelect requires either an id or aria-label to be specified @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:16
+[26305485ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26305496ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26305496ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-F0eMgzg/9KDZDnYmAjaV1/2SVRvtQav/R/mGbug/9vw='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26305497ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26305498ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-O2Y5Ih8BpnN4463uju8IulPDq+oymW5Nwjl5seTQCxE='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26308854ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26316319ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26317963ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26317968ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26317968ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26319075ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26327933ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26332060ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26337934ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26343989ms] [ERROR] FormSelect requires either an id or aria-label to be specified @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:16
+[26344021ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26344100ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26344101ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-F0eMgzg/9KDZDnYmAjaV1/2SVRvtQav/R/mGbug/9vw='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26344101ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26344103ms] [ERROR] Applying inline style violates the following Content Security Policy directive 'default-src 'self''. Either the 'unsafe-inline' keyword, a hash ('sha256-O2Y5Ih8BpnN4463uju8IulPDq+oymW5Nwjl5seTQCxE='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'style-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked. @ https://10.10.10.72:9090/cockpit/@localhost/system/terminal.js:11
+[26347934ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26357934ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26367934ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26377933ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26387933ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26395858ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/apps/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26397953ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26404537ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26405821ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26406385ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26406390ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26406393ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26407135ms] [WARNING] Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: <button.pf-v6-c-button pf-m-link ct-unlocked>
+Ancestor with aria-hidden: <div#shell> @ https://10.10.10.72:9090/rusnas/guard:0
+[26407171ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[26419839ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[26421422ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26421423ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26421427ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26422465ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[26428746ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[26431384ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26441387ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26451386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26461390ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26471404ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26481385ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26491386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26501385ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26511386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26521386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26531386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26541385ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26551386ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[26561389ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5

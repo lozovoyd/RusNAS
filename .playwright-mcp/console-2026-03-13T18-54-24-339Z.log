@@ -1,0 +1,7 @@
+[ 2298418ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[ 2301463ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[ 2329034ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Authentication failed) @ https://10.10.10.72:9090/cockpit/login:0
+[ 2335664ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[ 2338913ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[ 2560246ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[ 2560251ms] [WARNING] [Errno 2] No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5

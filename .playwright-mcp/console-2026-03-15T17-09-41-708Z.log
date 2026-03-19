@@ -1,0 +1,19 @@
+[  811178ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/shell/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[  812543ms] [WARNING] Failed to get current crypto policy: not-found ; falling back to /etc/crypto-policies/config @ https://10.10.10.72:9090/cockpit/@localhost/system/overview.js:143
+[  825245ms] [WARNING] Mismatching update: linux-image-6.12.74+deb13+1-amd64;6.12.74-2;amd64;debian-stable-security-main @ https://10.10.10.72:9090/cockpit/@localhost/updates/updates.js:161
+[  978215ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., GiB, [object Object]) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  978310ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[  978315ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatMono/RedHatMonoVF.woff2:0
+[  978317ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[  980015ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[  980017ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/system/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[  982366ms] [WARNING] Shell jump with hash and no frame change. Please use "/" as the hash to jump to the top sub-page. @ https://10.10.10.72:9090/cockpit/@localhost/shell/shell.js:107
+[  982935ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  983152ms] [WARNING] Can't enable storaged iscsi module Error initializing module 'iscsi': /usr/lib/x86_64-linux-gnu/udisks2/modules/libudisks2_iscsi.so: cannot open shared object file: No such file or directory @ https://10.10.10.72:9090/cockpit/@localhost/storage/storaged.js:1228
+[  983473ms] [WARNING] cockpit.format_{bytes,bits}[_per_sec](..., 1024, true) is deprecated. @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  983549ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/storage/assets/fonts/RedHatText/RedHatTextVF.woff2:0
+[  983550ms] [ERROR] Failed to load resource: the server responded with a status of 404 (ERROR) @ https://10.10.10.72:9090/cockpit/@localhost/storage/assets/fonts/RedHatDisplay/RedHatDisplayVF.woff2:0
+[  983575ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  983577ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  984473ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5
+[  984476ms] [WARNING] python3-pcp not installed @ https://10.10.10.72:9090/cockpit/@localhost/base1/cockpit.js:5

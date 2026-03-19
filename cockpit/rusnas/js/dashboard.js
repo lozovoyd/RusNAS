@@ -793,6 +793,29 @@ function renderUpsNoDevice() {
     el("db-ups-nodev").classList.remove("hidden");
 }
 
+// ── FileBrowser Status ────────────────────────────────────────────────────
+function loadFbDashStatus() {
+    cockpit.spawn(["bash", "-c", "systemctl is-active rusnas-filebrowser 2>/dev/null || echo inactive"],
+        { err: "message" })
+    .done(function(out) {
+        var active = out.trim() === "active";
+        var dot   = el("fb-status-dot");
+        var label = el("fb-dash-status");
+        if (dot) {
+            dot.className = "db-status-dot " + (active ? "db-dot-green" : "db-dot-gray");
+        }
+        if (label) {
+            label.innerHTML = active
+                ? '<span class="db-ok">Сервис работает ✅</span>'
+                : '<span class="text-muted">Сервис остановлен</span>';
+        }
+    })
+    .fail(function() {
+        var label = el("fb-dash-status");
+        if (label) label.innerHTML = '<span class="text-muted">Не установлен</span>';
+    });
+}
+
 // ── Alert Banner ──────────────────────────────────────────────────────────
 function showAlertBanner(msg, cls) {
     var b = el("db-alert-banner");
@@ -882,6 +905,7 @@ document.addEventListener("DOMContentLoaded", function() {
     tickGuard();
     loadUpsStatus();
     loadSsdCacheStatus();
+    loadFbDashStatus();
 
     // Recurring ticks
     setInterval(tickFast,    TICK_FAST);
@@ -891,6 +915,7 @@ document.addEventListener("DOMContentLoaded", function() {
     setInterval(tickSnaps,   TICK_SNAPS);
     setInterval(tickGuard,   TICK_GUARD);
     setInterval(loadUpsStatus, TICK_UPS);
+    setInterval(loadFbDashStatus, TICK_UPS);
     setInterval(loadSsdCacheStatus, TICK_STORAGE);
     setInterval(loadIdentity, 30000);
 });
