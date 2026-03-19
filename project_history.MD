@@ -1174,3 +1174,69 @@ storage-analyzer.css:
 - `css/storage-analyzer.css` — 25 строк
 - `cockpit/rusnas/guard.html` — flex-wrap на mode buttons
 - `cockpit/rusnas/dashboard.html` — db-metrics-grid class
+
+---
+
+## Сессия 2026-03-19 — Редизайн страницы Storage (Хранилище)
+
+**Задача:** Привести раздел «Хранилище» (`/rusnas`, `index.html` + `app.js`) в порядок с точки зрения удобства использования. На одной странице было 6 вертикальных секций (SMB, NFS, iSCSI, FTP, WebDAV, WORM), при большом количестве шар страница становилась нечитаемой. Прототип решения — Synology DSM (Control Panel → Shared Folder + File Services).
+
+**Ветка:** `feature/storage-redesign` → влита в `main`.
+
+**ТЗ:** [rusnas-storage-task.md](./rusnas-storage-task.md)
+
+### Что сделано
+
+#### Новая структура страницы — 4 вкладки (`advisor-tabs`)
+
+| Вкладка | Загрузка | Содержимое |
+|---------|----------|-----------|
+| `📂 Шары` | при открытии страницы | Единая таблица SMB+NFS + status bar |
+| `🎯 iSCSI` | lazy (первый клик) | Таблица targets (без изменений) |
+| `🔒 WORM` | lazy (первый клик) | WriteOnce paths (без изменений) |
+| `⚙️ Сервисы` | lazy (первый клик) | FTP + WebDAV карточки (без изменений) |
+
+#### Вкладка «Шары» (главное нововведение)
+
+- **Service status bar** над таблицей: `SMB ● Активен | NFS ● Активен`
+- **Единая таблица** объединяет SMB-шары и NFS-экспорты по path. Колонки: Имя | Путь | **Протоколы** (badges) | Доступ | Действия
+- **Unified Share Modal** (`#share-modal`) с внутренними вкладками `Основные / SMB / NFS` заменяет 4 старых modal (#add-share, #edit-share, #add-nfs, #edit-nfs)
+- Create mode: tom select + name → настройки SMB и/или NFS в одном диалоге
+- Edit mode: volume select disabled, показывает текущий путь; все поля предзаполнены
+- Удаление: убирает только конфигурации, директорию не трогает
+
+#### Рефактор app.js
+
+| Было | Стало |
+|------|-------|
+| `loadShares()` (рендерит таблицу) | `parseSmbConf()` — Promise, только парсинг |
+| `loadNFS()` (рендерит таблицу) | `parseNfsExports()` — Promise, только парсинг |
+| `openEditShare()`, `addShare()` | `openShareModal(shareData\|null)` |
+| `saveEditShare()`, `addShare()` | `saveShareModal()` |
+| `deleteShare(name)`, `deleteNFS(path)` | `deleteShareEntry(shareData)` |
+| `openEditNFS()`, `addNFS()` | объединено в `openShareModal()` |
+
+Новые функции: `setupStorageTabs()`, `setupShareModalTabs()`, `loadAllShares()`, `renderSharesTable()`, `loadServiceStatus()`
+
+#### Статистика изменений
+
+| Файл | Строк было | Строк стало | Δ |
+|------|-----------|------------|---|
+| `index.html` | 445 | 297 | −148 |
+| `js/app.js` | 1132 | 873 | −259 |
+| `css/style.css` | 1240 | 1266 | +26 |
+
+### Технические решения
+
+- `window._sharesData[]` — глобальный массив для event handlers динамически генерируемых строк таблицы
+- `_shareModalMode` + `_shareModalData` — переменные состояния modal (create vs edit)
+- `loadVolumeSelects(callback, targetId)` — добавлен второй параметр `targetId` вместо хардкода старых ID
+- `_tabsLoaded.worm` / `_tabsLoaded.services` — guard против повторной загрузки при каждом клике вкладки
+- SMB reload через `systemctl reload smbd` (не restart) — не рвёт активные соединения
+
+### Диагностика памяти VM (попутно в той же сессии)
+
+Пользователь заметил высокое потребление памяти. Диагностика показала:
+- `cron.service` cgroup = 2.6 ГБ — это **page cache** от duperemove (каждый день в 03:00) и rusnas-snap. Не утечка, нормальное поведение Linux.
+- `MemAvailable = 3.3 ГБ` — памяти достаточно, OOM-событий нет.
+- Рекомендация: ограничить journald (`SystemMaxUse=100M` в `/etc/systemd/journald.conf`), т.к. journald использует 97 МБ RSS.

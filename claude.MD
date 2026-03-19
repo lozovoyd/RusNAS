@@ -7,6 +7,7 @@
 > Дедупликация: [rusnas-dedup-spec.md](./rusnas-dedup-spec.md) — ТЗ и архитектура Dedup
 > ИБП / UPS: [rusnas-ups-nut_spec.md](./rusnas-ups-nut_spec.md) — ТЗ и архитектура UPS/NUT
 > Storage Analyzer: [rusnas-storage-analyzer-task.md](./rusnas-storage-analyzer-task.md) — ТЗ и архитектура Анализатора пространства
+> Storage Page (редизайн): [rusnas-storage-task.md](./rusnas-storage-task.md) — ТЗ и заметки по реализации редизайна страницы Хранилище
 > SSD-кеширование: [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md) — ТЗ и архитектура SSD-кеша (dm-cache/LVM)
 > MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ (планируется)
 
@@ -331,10 +332,40 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 
 ### Key Implementation Details
 
-**app.js (Storage page):**
-- Mount path dropdown from `findmnt --real`, filtered to `/dev/md|sd[b-z]|nvme`
-- Edit `smb.conf` via `sed` range pattern `/^\[name\]/,/^\[/` (not Python regex — unreliable)
-- NFS: delete old entry before adding: `sed -i '\|^/path |d'` before append (prevents duplication)
+**app.js (Storage page) — после редизайна 2026-03-19:**
+
+Страница `/rusnas` переработана по принципу Synology DSM. Полное ТЗ: [rusnas-storage-task.md](./rusnas-storage-task.md)
+
+**Структура страницы (4 вкладки, `advisor-tabs`):**
+- `📂 Шары` — единая таблица SMB+NFS, загружается сразу при открытии страницы
+- `🎯 iSCSI` — таблица targets, lazy load при первом клике
+- `🔒 WORM` — WriteOnce paths, lazy load при первом клике (`_tabsLoaded.worm` guard)
+- `⚙️ Сервисы` — FTP + WebDAV карточки, lazy load при первом клике
+
+**Unified Share Modal (`#share-modal`):**
+- Один modal с внутренними `.tab-btn` вкладками: `Основные | SMB | NFS`
+- `openShareModal(null)` — create mode; `openShareModal(shareData)` — edit mode
+- В edit mode volume `<select>` disabled, показывает только текущий путь
+- `_shareModalMode` + `_shareModalData` — переменные состояния modal
+
+**Ключевые функции:**
+- `parseSmbConf()` — возвращает `Promise<SmbShare[]>` через `testparm -s` + python3 inline
+- `parseNfsExports()` — возвращает `Promise<NfsShare[]>` из `/etc/exports`
+- `loadAllShares()` — `Promise.all([parseSmbConf(), parseNfsExports()])`, merge по path, вызывает `renderSharesTable()`
+- `renderSharesTable(shares)` — рендерит объединённую таблицу, хранит данные в `window._sharesData[]`
+- `saveShareModal()` — mkdir + chmod + chown, затем SMB (sed+printf) и/или NFS (sed+echo) по состоянию toggles
+- `deleteShareEntry(shareData)` — удаляет секции из smb.conf и/или /etc/exports, директорию НЕ удаляет
+- `loadServiceStatus()` — badges `SMB ● / NFS ●` через `systemctl is-active smbd nfs-kernel-server`
+- `loadVolumeSelects(callback, targetId)` — теперь принимает `targetId` (по умолчанию `"sm-volume"`)
+
+**Паттерны smb.conf (без изменений):**
+- Edit/delete: `sed -i '/^\[name\]/,/^\[/{/^\[name\]/d;/^\[/!d}'`
+- Add: `printf '\n[name]\npath = ...\n...\n' >> /etc/samba/smb.conf`
+- Reload: `systemctl reload smbd` (не restart — не рвёт соединения)
+
+**NFS (без изменений):**
+- Delete old entry before adding: `sed -i '\|^/path |d'` before append (prevents duplication)
+- `exportfs -ra` после каждого изменения
 
 **disks.js:**
 - Parse `/proc/mdstat` with states: `active` / `degraded` / `inactive` / `resyncing` / `reshaping`
