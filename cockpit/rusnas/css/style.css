@@ -1238,3 +1238,27 @@ tbody tr:last-child td { border-bottom: none; }
         justify-content: center;
     }
 }
+
+/* ─── Storage page specific ─────────────────────────────────────────────────── */
+
+/* Service status bar above the shares table */
+.service-status-bar {
+    display: flex;
+    gap: 24px;
+    padding: 6px 0 14px;
+    font-size: 13px;
+    align-items: center;
+}
+
+/* Protocol badges in the Protocols column */
+.share-proto-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* Inner tabs inside a modal */
+.modal-tabs {
+    margin-top: -4px;
+    margin-bottom: 16px;
+}

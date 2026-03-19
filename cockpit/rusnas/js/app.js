@@ -34,7 +34,9 @@ function spawnBtrfsSubvols(mountPoint) {
     });
 }
 
-function loadVolumeSelects(callback) {
+// Populate volume <select> element(s). targetId — optional specific select ID to populate.
+function loadVolumeSelects(callback, targetId) {
+    var selIds = targetId ? [targetId] : ["sm-volume"];
     var proc = cockpit.spawn(["findmnt", "-rno", "TARGET,SOURCE,FSTYPE,SIZE"], { err: "message" });
     var out = "";
     proc.stream(function(data) { out += data; });
@@ -51,7 +53,7 @@ function loadVolumeSelects(callback) {
             });
 
         if (volumes.length === 0) {
-            ["share-volume", "nfs-volume"].forEach(function(id) {
+            selIds.forEach(function(id) {
                 var sel = document.getElementById(id);
                 if (sel) sel.innerHTML = "<option value=''>— нет смонтированных томов —</option>";
             });
@@ -80,14 +82,14 @@ function loadVolumeSelects(callback) {
                 return "<option value='" + v.target + "' data-is-subvol='false'>" + label + "</option>";
             }).join("");
 
-            ["share-volume", "nfs-volume"].forEach(function(id) {
+            selIds.forEach(function(id) {
                 var sel = document.getElementById(id);
                 if (sel) sel.innerHTML = html;
             });
             if (callback) callback(volumes[0].target);
         });
     }).catch(function() {
-        ["share-volume", "nfs-volume"].forEach(function(id) {
+        selIds.forEach(function(id) {
             var sel = document.getElementById(id);
             if (sel) sel.innerHTML = "<option value=''>— ошибка загрузки томов —</option>";
         });
@@ -100,7 +102,7 @@ function loadVolumeSelects(callback) {
 function populateOwnerSelects(userSelId, groupSelId, currentUser, currentGroup) {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 && $1!=\"nobody\" {print $1}' /etc/passwd"],
-        
+
     ).done(function(out) {
         var users = out.trim().split("\n").filter(Boolean);
         var sel = document.getElementById(userSelId);
@@ -113,7 +115,7 @@ function populateOwnerSelects(userSelId, groupSelId, currentUser, currentGroup) 
 
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 {print $1}' /etc/group"],
-        
+
     ).done(function(out) {
         var groups = out.trim().split("\n").filter(Boolean);
         var sel = document.getElementById(groupSelId);
@@ -128,7 +130,7 @@ function populateOwnerSelects(userSelId, groupSelId, currentUser, currentGroup) 
 function populateUserCheckboxes(containerId, selectedUsers) {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 && $1!=\"nobody\" {print $1}' /etc/passwd"],
-        
+
     ).done(function(out) {
         var users = out.trim().split("\n").filter(Boolean);
         var container = document.getElementById(containerId);
@@ -144,325 +146,459 @@ function populateUserCheckboxes(containerId, selectedUsers) {
     });
 }
 
-// ─── SMB Shares ──────────────────────────────────────────────────────────────
+// ─── Storage Tabs ─────────────────────────────────────────────────────────────
 
-function loadShares() {
+var _tabsLoaded = {};
+
+function setupStorageTabs() {
+    var tabPanels = ["shares", "iscsi", "worm", "services"];
+    document.querySelectorAll("#storage-tabs .advisor-tab-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            document.querySelectorAll("#storage-tabs .advisor-tab-btn").forEach(function(b) {
+                b.classList.remove("active");
+            });
+            tabPanels.forEach(function(t) {
+                var el = document.getElementById("tab-" + t);
+                if (el) el.classList.toggle("hidden", t !== btn.dataset.tab);
+            });
+            btn.classList.add("active");
+
+            var tab = btn.dataset.tab;
+            if (tab === "iscsi") { loadISCSI(); }
+            if (tab === "worm" && !_tabsLoaded.worm) { _tabsLoaded.worm = true; loadWorm(); }
+            if (tab === "services" && !_tabsLoaded.services) {
+                _tabsLoaded.services = true;
+                loadFtp();
+                loadWebdav();
+            }
+        });
+    });
+}
+
+// ─── Unified Share Modal Tabs ─────────────────────────────────────────────────
+
+function setupShareModalTabs() {
+    document.querySelectorAll("#share-modal .tab-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            document.querySelectorAll("#share-modal .tab-btn").forEach(function(b) {
+                b.classList.remove("tab-active");
+            });
+            document.querySelectorAll("#share-modal .tab-panel").forEach(function(p) {
+                p.classList.add("hidden");
+            });
+            btn.classList.add("tab-active");
+            document.getElementById(btn.dataset.tab).classList.remove("hidden");
+        });
+    });
+
+    // SMB toggle shows/hides settings
+    document.getElementById("sm-smb-enabled").addEventListener("change", function() {
+        document.getElementById("sm-smb-settings").classList.toggle("hidden", !this.checked);
+    });
+
+    // NFS toggle shows/hides settings
+    document.getElementById("sm-nfs-enabled").addEventListener("change", function() {
+        document.getElementById("sm-nfs-settings").classList.toggle("hidden", !this.checked);
+    });
+
+    // Volume select: auto-fill name from subvol, show path hint
+    document.getElementById("sm-volume").addEventListener("change", function() {
+        var opt = this.options[this.selectedIndex];
+        var isSubvol = opt && opt.dataset.isSubvol === "true";
+        var nameInput = document.getElementById("sm-name");
+        var hint = document.getElementById("sm-path-hint");
+        if (isSubvol) {
+            if (!nameInput.value || nameInput.dataset.autoFilled === "true") {
+                nameInput.value = opt.dataset.subvolName;
+                nameInput.dataset.autoFilled = "true";
+            }
+            hint.textContent = "Путь шары: " + opt.value + " (Btrfs субтом)";
+        } else {
+            nameInput.dataset.autoFilled = "";
+            hint.textContent = "";
+        }
+    });
+    document.getElementById("sm-name").addEventListener("input", function() {
+        this.dataset.autoFilled = "";
+    });
+}
+
+// ─── Service Status Bar ───────────────────────────────────────────────────────
+
+function loadServiceStatus() {
+    cockpit.spawn(["bash", "-c",
+        "systemctl is-active smbd 2>/dev/null || echo inactive; echo '---';" +
+        "systemctl is-active nfs-kernel-server 2>/dev/null || echo inactive"
+    ], { err: "message" })
+    .done(function(out) {
+        var parts = out.split("---\n");
+        var smbActive = (parts[0] || "").trim() === "active";
+        var nfsActive = (parts[1] || "").trim() === "active";
+        document.getElementById("smb-status-dot").innerHTML =
+            "<span class='badge " + (smbActive ? "badge-success'>● Активен" : "badge-danger'>● Остановлен") + "</span>";
+        document.getElementById("nfs-status-dot").innerHTML =
+            "<span class='badge " + (nfsActive ? "badge-success'>● Активен" : "badge-danger'>● Остановлен") + "</span>";
+    });
+}
+
+// ─── Parse SMB config (returns Promise<SmbShare[]>) ──────────────────────────
+
+function parseSmbConf() {
+    return new Promise(function(resolve) {
+        var cmd = "python3 -c \"\nimport subprocess\nout=subprocess.check_output(['testparm','-s'],stderr=subprocess.DEVNULL,text=True)\nshare=None\nskip={'global','homes','printers','print$'}\ndata={}\nfor line in out.splitlines():\n  line=line.strip()\n  if line.startswith('['):\n    name=line.strip('[]')\n    share=name if name not in skip else None\n    if share: data[share]={'name':share}\n  elif share and '=' in line:\n    k,v=line.split('=',1)\n    data[share][k.strip().replace(' ','_')]=v.strip()\nfor n,s in data.items():\n  print(n+'\\\\t'+s.get('path','')+'\\\\t'+s.get('guest_ok','no')+'\\\\t'+s.get('browseable','yes')+'\\\\t'+s.get('writable','yes')+'\\\\t'+s.get('valid_users',''))\n\"";
+        cockpit.spawn(["bash", "-c", cmd], { superuser: "require", err: "message" })
+        .done(function(out) {
+            var shares = out.trim().split("\n").filter(Boolean).map(function(line) {
+                var p = line.split("\t");
+                return {
+                    name:       p[0] || "",
+                    path:       p[1] || ("/mnt/data/shares/" + p[0]),
+                    guestOk:    p[2] || "no",
+                    browseable: p[3] || "yes",
+                    writable:   p[4] || "yes",
+                    validUsers: p[5] || ""
+                };
+            }).filter(function(s) { return s.name && s.path; });
+            resolve(shares);
+        })
+        .fail(function() { resolve([]); });
+    });
+}
+
+// ─── Parse NFS exports (returns Promise<NfsShare[]>) ─────────────────────────
+
+function parseNfsExports() {
+    return new Promise(function(resolve) {
+        cockpit.spawn(
+            ["bash", "-c", "cat /etc/exports 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$' || true"],
+            { superuser: "require", err: "message" }
+        )
+        .done(function(out) {
+            var shares = out.trim().split("\n").filter(Boolean).map(function(line) {
+                var parts      = line.trim().split(/\s+/);
+                var path       = parts[0];
+                var clientPart = parts[1] || "*(rw,sync,no_subtree_check,no_root_squash,insecure)";
+                var client     = clientPart.split("(")[0] || "*";
+                var optsMatch  = clientPart.match(/\(([^)]+)\)/);
+                var opts       = optsMatch ? optsMatch[1].split(",") : [];
+                var rw         = opts.indexOf("ro") === -1;
+                var rootSquash = opts.indexOf("root_squash") !== -1 && opts.indexOf("no_root_squash") === -1;
+                return { path: path, clients: client, rw: rw, rootSquash: rootSquash };
+            }).filter(function(s) { return s.path; });
+            resolve(shares);
+        })
+        .fail(function() { resolve([]); });
+    });
+}
+
+// ─── Load + Render unified Shares table ──────────────────────────────────────
+
+function loadAllShares() {
     var tbody = document.getElementById("shares-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
-    var cmd = "python3 -c \"\nimport subprocess\nout=subprocess.check_output(['testparm','-s'],stderr=subprocess.DEVNULL,text=True)\nshare=None\nskip={'global','homes','printers','print\$'}\nfor line in out.splitlines():\n  line=line.strip()\n  if line.startswith('['):\n    name=line.strip('[]')\n    share=name if name not in skip else None\n  elif share and line.startswith('path ='):\n    print(share+'\\\\t'+line.split('=',1)[1].strip())\n\"";
-    cockpit.spawn(
-        ["bash", "-c", cmd],
-        {superuser: "require", err: "message"}
-    )
-    .done(function(output) {
-        var lines = output.trim().split("\n").filter(Boolean);
-        if (lines.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='5'>Нет шар</td></tr>";
-            return;
-        }
-        tbody.innerHTML = lines.map(function(line) {
-            var parts = line.split("\t");
-            var name = parts[0];
-            var path = parts[1] || ("/mnt/data/shares/" + name);
-            return "<tr>" +
-                "<td>" + name + "</td>" +
-                "<td>" + path + "</td>" +
-                "<td>SMB</td>" +
-                "<td class='status-active'>Активна</td>" +
-                "<td>" +
-                  "<button class='btn btn-secondary btn-sm edit-share' data-name='" + name + "'>Изменить</button> " +
-                  "<button class='btn btn-danger btn-sm delete-share' data-name='" + name + "'>Удалить</button>" +
-                "</td>" +
-                "</tr>";
-        }).join("");
-        document.querySelectorAll(".delete-share").forEach(function(btn) {
-            btn.addEventListener("click", function() { deleteShare(this.dataset.name); });
-        });
-        document.querySelectorAll(".edit-share").forEach(function(btn) {
-            btn.addEventListener("click", function() { openEditShare(this.dataset.name); });
-        });
-    })
-    .fail(function(err) {
-        tbody.innerHTML = "<tr><td colspan='5'>Ошибка: " + err + "</td></tr>";
+
+    var p1 = new Promise(function(resolve, reject) {
+        parseSmbConf().then(resolve).catch(reject);
     });
-}
+    var p2 = new Promise(function(resolve, reject) {
+        parseNfsExports().then(resolve).catch(reject);
+    });
 
-function openEditShare(name) {
-    var defaultPath = "/mnt/data/shares/" + name;
+    Promise.all([p1, p2]).then(function(results) {
+        var smbShares = results[0];
+        var nfsShares = results[1];
 
-    function _showEditModal(sharePath, guestOk, browseable, writable, validUsers, chmod, owner, group) {
-        document.getElementById("edit-share-name").value = name;
-        document.getElementById("edit-share-path").value = sharePath;
-        document.getElementById("edit-share-access").value = (guestOk === "yes") ? "public" : "private";
-        document.getElementById("edit-share-browseable").value = (browseable === "no") ? "no" : "yes";
-        document.getElementById("edit-share-writable").value = (writable === "no") ? "no" : "yes";
-        document.getElementById("edit-share-chmod").value = chmod || "755";
-        populateOwnerSelects("edit-share-owner", "edit-share-group", owner || "root", group || "root");
-        populateUserCheckboxes("edit-share-users",
-            validUsers ? validUsers.trim().split(/[\s,]+/).filter(Boolean) : []);
-        showModal("edit-share-modal");
-    }
+        var byPath = {};
 
-    var cmd = "grep -A20 '^\\[" + name + "\\]' /etc/samba/smb.conf | grep -v '^\\[' | head -20";
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require", err: "message"})
-        .done(function(output) {
-            var lines = (output || "").split("\n");
-            function getVal(key, def) {
-                var re = new RegExp("^\\s*" + key + "\\s*=\\s*(.+)", "i");
-                for (var i = 0; i < lines.length; i++) {
-                    var m = lines[i].match(re);
-                    if (m) return m[1].trim();
-                }
-                return def;
+        smbShares.forEach(function(s) {
+            byPath[s.path] = { name: s.name, path: s.path, smb: s, nfs: null };
+        });
+
+        nfsShares.forEach(function(n) {
+            if (byPath[n.path]) {
+                byPath[n.path].nfs = n;
+            } else {
+                var name = n.path.split("/").pop() || n.path;
+                byPath[n.path] = { name: name, path: n.path, smb: null, nfs: n };
             }
-            var sharePath  = getVal("path", defaultPath);
-            var guestOk    = getVal("guest ok", "no");
-            var browseable = getVal("browseable", "yes");
-            var writable   = getVal("writable", "yes");
-            var validUsers = getVal("valid users", "");
-
-            cockpit.spawn(["bash", "-c",
-                "stat -c '%a %U %G' " + sharePath + " 2>/dev/null || echo '755 root root'"
-            ], {superuser: "require", err: "message"})
-            .done(function(statOut) {
-                var parts = (statOut || "755 root root").trim().split(" ");
-                _showEditModal(sharePath, guestOk, browseable, writable, validUsers,
-                    parts[0], parts[1], parts[2]);
-            })
-            .fail(function() {
-                _showEditModal(sharePath, guestOk, browseable, writable, validUsers,
-                    "755", "root", "root");
-            });
-        })
-        .fail(function() {
-            // If we can't read smb.conf, show modal with defaults so user can still edit
-            _showEditModal(defaultPath, "no", "yes", "yes", "", "755", "root", "root");
         });
-}
 
-function saveEditShare() {
-    var name       = document.getElementById("edit-share-name").value.trim();
-    var path       = document.getElementById("edit-share-path").value.trim();
-    var access     = document.getElementById("edit-share-access").value;
-    var browseable = document.getElementById("edit-share-browseable").value;
-    var writable   = document.getElementById("edit-share-writable").value;
-    var chmod      = document.getElementById("edit-share-chmod").value;
-    var owner      = document.getElementById("edit-share-owner").value;
-    var group      = document.getElementById("edit-share-group").value;
-    var guestOk    = access === "public" ? "yes" : "no";
-
-    var checkedUsers = document.querySelectorAll("#edit-share-users input:checked");
-    var validUsers   = Array.from(checkedUsers).map(function(cb) { return cb.value; }).join(" ");
-    var validLine    = validUsers ? "\nvalid users = " + validUsers : "";
-
-    // Build the new section as a shell variable to avoid quoting issues
-    var cmd = "sed -i '/^\\[" + name + "\\]/,/^\\[/{/^\\[" + name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf" +
-        " && printf '\\n[" + name + "]\\npath = " + path +
-        "\\nbrowseable = " + browseable +
-        "\\nwritable = " + writable +
-        "\\nguest ok = " + guestOk +
-        (validUsers ? "\\nvalid users = " + validUsers : "") +
-        "\\n' >> /etc/samba/smb.conf" +
-        " && mkdir -p " + path +
-        " && chmod " + chmod + " " + path +
-        " && chown " + owner + ":" + group + " " + path +
-        " && systemctl restart smbd";
-
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() {
-            closeModal("edit-share-modal");
-            loadShares();
-        })
-        .fail(function(err) { alert("Ошибка сохранения: " + err); });
-}
-function addShare() {
-    var name   = document.getElementById("share-name").value.trim();
-    var access = document.getElementById("share-access").value;
-    var chmod  = document.getElementById("share-chmod").value;
-    var shareVolumeEl = document.getElementById("share-volume");
-    var volume = shareVolumeEl.value;
-    if (!name)   { alert("Введите имя шары"); return; }
-    if (!volume) { alert("Выберите том"); return; }
-
-    var opt      = shareVolumeEl.options[shareVolumeEl.selectedIndex];
-    var isSubvol = opt && opt.dataset.isSubvol === "true";
-    var path     = isSubvol ? volume : (volume.replace(/\/$/, "") + "/" + name);
-    var guestOk = access === "public" ? "Yes" : "No";
-    // Remove existing section first (idempotent), then append clean block
-    var cmd = "mkdir -p " + path +
-        " && chmod " + chmod + " " + path +
-        " && sed -i '/^\\[" + name + "\\]/,/^\\[/{/^\\[" + name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf" +
-        " && printf '\\n[" + name + "]\\npath = " + path +
-        "\\nbrowseable = yes\\nwritable = yes\\nguest ok = " + guestOk +
-        "\\n' >> /etc/samba/smb.conf && systemctl restart smbd";
-
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() {
-            closeModal("add-share-modal");
-            document.getElementById("share-name").value = "";
-            loadShares();
-        })
-        .fail(function(err) { alert("Ошибка: " + err); });
-}
-
-function deleteShare(name) {
-    if (!confirm("Удалить шару " + name + "?")) return;
-    // sed: delete from [name] line up to (not including) the next [ section or EOF
-    var cmd = "sed -i '/^\\[" + name + "\\]/,/^\\[/{/^\\[" + name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf" +
-        " && systemctl restart smbd";
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() { loadShares(); })
-        .fail(function(err) { alert("Ошибка: " + err); });
-}
-
-// ─── NFS Shares ──────────────────────────────────────────────────────────────
-
-function loadNFS() {
-    var tbody = document.getElementById("nfs-body");
-    tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
-
-    cockpit.spawn(
-        ["bash", "-c", "cat /etc/exports 2>/dev/null | grep -v '^#' | grep -v '^[[:space:]]*$' || true"],
-        {superuser: "require", err: "message"}
-    )
-    .done(function(output) {
-        var lines = output.trim().split("\n").filter(Boolean);
-        if (lines.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='5'>Нет NFS экспортов</td></tr>";
-            return;
-        }
-        tbody.innerHTML = lines.map(function(line) {
-            var parts   = line.trim().split(/\s+/);
-            var path    = parts[0];
-            var clients = parts.slice(1).map(function(p) { return p.split("(")[0]; }).join(", ");
-            var options = parts.slice(1).map(function(p) {
-                var m = p.match(/\(([^)]+)\)/);
-                return m ? m[1] : "";
-            }).join("; ");
-            return "<tr>" +
-                "<td>" + path + "</td>" +
-                "<td>" + (clients || "*") + "</td>" +
-                "<td><small>" + (options || "—") + "</small></td>" +
-                "<td class='status-active'>Активна</td>" +
-                "<td>" +
-                  "<button class='btn btn-secondary btn-sm edit-nfs' data-path='" + path + "' data-line='" + encodeURIComponent(line.trim()) + "'>Изменить</button> " +
-                  "<button class='btn btn-danger btn-sm delete-nfs' data-path='" + path + "'>Удалить</button>" +
-                "</td>" +
-                "</tr>";
-        }).join("");
-        document.querySelectorAll(".delete-nfs").forEach(function(btn) {
-            btn.addEventListener("click", function() { deleteNFS(this.dataset.path); });
-        });
-        document.querySelectorAll(".edit-nfs").forEach(function(btn) {
-            btn.addEventListener("click", function() {
-                openEditNFS(this.dataset.path, decodeURIComponent(this.dataset.line));
-            });
-        });
-    })
-    .fail(function(err) {
-        tbody.innerHTML = "<tr><td colspan='5'>Ошибка: " + err + "</td></tr>";
+        renderSharesTable(Object.values(byPath));
+    }).catch(function() {
+        tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка загрузки шар</td></tr>";
     });
 }
 
-function openEditNFS(path, line) {
-    var parts      = line.trim().split(/\s+/);
-    var clientPart = parts[1] || "*(rw,sync,no_subtree_check,no_root_squash,insecure)";
-    var client     = clientPart.split("(")[0] || "*";
-    var optsMatch  = clientPart.match(/\(([^)]+)\)/);
-    var opts       = optsMatch ? optsMatch[1].split(",") : [];
-    var access     = opts.indexOf("ro") !== -1 ? "ro" : "rw";
-    var squash     = (opts.indexOf("root_squash") !== -1 && opts.indexOf("no_root_squash") === -1)
-        ? "root_squash" : "no_root_squash";
+function renderSharesTable(shares) {
+    var tbody = document.getElementById("shares-body");
+    window._sharesData = shares;
 
-    document.getElementById("edit-nfs-path").value    = path;
-    document.getElementById("edit-nfs-clients").value = client;
-    document.getElementById("edit-nfs-access").value  = access;
-    document.getElementById("edit-nfs-squash").value  = squash;
-
-    // Get current chmod/owner
-    cockpit.spawn(["bash", "-c",
-        "stat -c '%a %U %G' " + path + " 2>/dev/null || echo '755 root root'"
-    ])
-    .done(function(statOut) {
-        var parts  = (statOut || "755 root root").trim().split(" ");
-        var chmod  = parts[0] || "755";
-        var owner  = parts[1] || "root";
-        var group  = parts[2] || "root";
-        document.getElementById("edit-nfs-chmod").value = chmod;
-        populateOwnerSelects("edit-nfs-owner", "edit-nfs-group", owner, group);
-        showModal("edit-nfs-modal");
-    });
-}
-
-function saveEditNFS() {
-    var path    = document.getElementById("edit-nfs-path").value.trim();
-    var clients = document.getElementById("edit-nfs-clients").value.trim() || "*";
-    var access  = document.getElementById("edit-nfs-access").value;
-    var squash  = document.getElementById("edit-nfs-squash").value;
-    var chmod   = document.getElementById("edit-nfs-chmod").value;
-    var owner   = document.getElementById("edit-nfs-owner").value;
-    var group   = document.getElementById("edit-nfs-group").value;
-
-    var opts    = access + ",sync,no_subtree_check," + squash + ",insecure";
-    var newLine = path + " " + clients + "(" + opts + ")";
-
-    var cmd = "sed -i '\\|^" + path + " |d' /etc/exports" +
-        " && echo '" + newLine + "' >> /etc/exports" +
-        " && chmod " + chmod + " " + path +
-        " && chown " + owner + ":" + group + " " + path +
-        " && exportfs -ra";
-
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() {
-            closeModal("edit-nfs-modal");
-            loadNFS();
-        })
-        .fail(function(err) { alert("Ошибка сохранения: " + err); });
-}
-
-function addNFS() {
-    var name    = document.getElementById("nfs-name").value.trim();
-    var clients = document.getElementById("nfs-clients").value.trim() || "*";
-    var access  = document.getElementById("nfs-access").value;
-    var squash  = document.getElementById("nfs-squash").value;
-    var chmod   = document.getElementById("nfs-chmod").value;
-
-    if (!name) { alert("Введите имя директории"); return; }
-    if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
-        alert("Имя может содержать только буквы, цифры, - и _");
+    if (!shares.length) {
+        tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет шар. Нажмите «+ Создать шару».</td></tr>";
         return;
     }
 
-    var volume     = document.getElementById("nfs-volume").value;
-    if (!volume) { alert("Выберите том"); return; }
-    var path       = volume.replace(/\/$/, "") + "/" + name;
-    var opts       = access + ",sync,no_subtree_check," + squash + ",insecure";
-    var exportLine = path + " " + clients + "(" + opts + ")";
+    tbody.innerHTML = shares.map(function(share, idx) {
+        var badges = "";
+        if (share.smb) badges += "<span class='badge badge-info'>SMB</span> ";
+        if (share.nfs) badges += "<span class='badge badge-info'>NFS</span>";
+        if (!share.smb && !share.nfs) badges = "<span class='badge badge-secondary'>нет протоколов</span>";
 
-    // Remove existing entry first (idempotent), then append
-    var cmd = "mkdir -p " + path +
-        " && chmod " + chmod + " " + path +
-        " && sed -i '\\|^" + path + " |d' /etc/exports" +
-        " && echo '" + exportLine + "' >> /etc/exports" +
-        " && exportfs -ra" +
-        " && systemctl enable --now nfs-server 2>/dev/null || true";
+        var access = share.smb
+            ? (share.smb.guestOk === "yes" ? "Публичный" : "Приватный")
+            : "—";
 
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() {
-            closeModal("add-nfs-modal");
-            document.getElementById("nfs-name").value = "";
-            document.getElementById("nfs-clients").value = "*";
-            loadNFS();
-        })
-        .fail(function(err) { alert("Ошибка: " + err); });
+        return "<tr>" +
+            "<td><b>" + share.name + "</b></td>" +
+            "<td><code style='font-size:12px;'>" + share.path + "</code></td>" +
+            "<td><div class='share-proto-badges'>" + badges + "</div></td>" +
+            "<td>" + access + "</td>" +
+            "<td>" +
+              "<button class='btn btn-secondary btn-sm edit-share-btn' data-idx='" + idx + "' style='margin-right:4px;'>✏️ Изменить</button>" +
+              "<button class='btn btn-danger btn-sm delete-share-btn' data-idx='" + idx + "'>🗑️ Удалить</button>" +
+            "</td>" +
+            "</tr>";
+    }).join("");
+
+    document.querySelectorAll(".edit-share-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            openShareModal(window._sharesData[parseInt(this.dataset.idx)]);
+        });
+    });
+    document.querySelectorAll(".delete-share-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            deleteShareEntry(window._sharesData[parseInt(this.dataset.idx)]);
+        });
+    });
 }
 
-function deleteNFS(path) {
-    if (!confirm("Удалить NFS экспорт " + path + "?")) return;
-    var cmd = "sed -i '\\|^" + path + " |d' /etc/exports && exportfs -ra";
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() { loadNFS(); })
-        .fail(function(err) { alert("Ошибка: " + err); });
+// ─── Open unified Share modal ─────────────────────────────────────────────────
+
+var _shareModalMode = "create";
+var _shareModalData = null;
+
+function openShareModal(shareData) {
+    _shareModalMode = shareData ? "edit" : "create";
+    _shareModalData = shareData || null;
+
+    // Reset inner tabs to "Основные"
+    document.querySelectorAll("#share-modal .tab-btn").forEach(function(b) { b.classList.remove("tab-active"); });
+    document.querySelectorAll("#share-modal .tab-panel").forEach(function(p) { p.classList.add("hidden"); });
+    document.querySelector("#share-modal .tab-btn[data-tab='share-tab-general']").classList.add("tab-active");
+    document.getElementById("share-tab-general").classList.remove("hidden");
+
+    var title     = document.getElementById("share-modal-title");
+    var nameInput = document.getElementById("sm-name");
+    var volSel    = document.getElementById("sm-volume");
+    var volLabel  = document.getElementById("sm-volume-label");
+    var pathHint  = document.getElementById("sm-path-hint");
+
+    if (!shareData) {
+        // ── Create mode ──
+        title.textContent = "Новая шара";
+        nameInput.value    = "";
+        nameInput.disabled = false;
+        nameInput.dataset.autoFilled = "";
+        pathHint.textContent = "";
+        volLabel.textContent = "Том (точка монтирования)";
+        volSel.disabled = false;
+
+        document.getElementById("sm-chmod").value = "755";
+        populateOwnerSelects("sm-owner", "sm-group", "root", "root");
+        populateUserCheckboxes("sm-smb-users", []);
+
+        document.getElementById("sm-smb-enabled").checked = true;
+        document.getElementById("sm-smb-settings").classList.remove("hidden");
+        document.getElementById("sm-smb-access").value     = "public";
+        document.getElementById("sm-smb-browseable").value = "yes";
+        document.getElementById("sm-smb-writable").value   = "yes";
+
+        document.getElementById("sm-nfs-enabled").checked = false;
+        document.getElementById("sm-nfs-settings").classList.add("hidden");
+        document.getElementById("sm-nfs-clients").value = "*";
+        document.getElementById("sm-nfs-access").value  = "rw";
+        document.getElementById("sm-nfs-squash").value  = "no_root_squash";
+
+        loadVolumeSelects(null, "sm-volume");
+
+    } else {
+        // ── Edit mode ──
+        title.textContent = "Редактировать: " + shareData.name;
+        nameInput.value    = shareData.name;
+        nameInput.disabled = true;
+        pathHint.textContent = "";
+        volLabel.textContent = "Путь";
+        volSel.innerHTML = "<option value='" + shareData.path + "'>" + shareData.path + "</option>";
+        volSel.disabled = true;
+
+        // SMB
+        var smb = shareData.smb;
+        document.getElementById("sm-smb-enabled").checked = !!smb;
+        document.getElementById("sm-smb-settings").classList.toggle("hidden", !smb);
+        if (smb) {
+            document.getElementById("sm-smb-access").value     = smb.guestOk === "yes" ? "public" : "private";
+            document.getElementById("sm-smb-browseable").value = smb.browseable || "yes";
+            document.getElementById("sm-smb-writable").value   = smb.writable   || "yes";
+            populateUserCheckboxes("sm-smb-users",
+                smb.validUsers ? smb.validUsers.trim().split(/[\s,]+/).filter(Boolean) : []);
+        } else {
+            populateUserCheckboxes("sm-smb-users", []);
+        }
+
+        // NFS
+        var nfs = shareData.nfs;
+        document.getElementById("sm-nfs-enabled").checked = !!nfs;
+        document.getElementById("sm-nfs-settings").classList.toggle("hidden", !nfs);
+        if (nfs) {
+            document.getElementById("sm-nfs-clients").value = nfs.clients || "*";
+            document.getElementById("sm-nfs-access").value  = nfs.rw ? "rw" : "ro";
+            document.getElementById("sm-nfs-squash").value  = nfs.rootSquash ? "root_squash" : "no_root_squash";
+        } else {
+            document.getElementById("sm-nfs-clients").value = "*";
+            document.getElementById("sm-nfs-access").value  = "rw";
+            document.getElementById("sm-nfs-squash").value  = "no_root_squash";
+        }
+
+        // chmod / owner from filesystem
+        cockpit.spawn(["bash", "-c",
+            "stat -c '%a %U %G' " + shareData.path + " 2>/dev/null || echo '755 root root'"
+        ], { superuser: "require", err: "message" })
+        .done(function(statOut) {
+            var parts = (statOut || "755 root root").trim().split(" ");
+            document.getElementById("sm-chmod").value = parts[0] || "755";
+            populateOwnerSelects("sm-owner", "sm-group", parts[1] || "root", parts[2] || "root");
+        })
+        .fail(function() {
+            document.getElementById("sm-chmod").value = "755";
+            populateOwnerSelects("sm-owner", "sm-group", "root", "root");
+        });
+    }
+
+    showModal("share-modal");
+}
+
+// ─── Save unified Share modal ─────────────────────────────────────────────────
+
+function saveShareModal() {
+    var name = _shareModalMode === "edit" ? _shareModalData.name : document.getElementById("sm-name").value.trim();
+    if (!name) { alert("Введите имя шары"); return; }
+
+    // Determine path
+    var path;
+    if (_shareModalMode === "create") {
+        var volSel = document.getElementById("sm-volume");
+        var volume = volSel.value;
+        if (!volume) { alert("Выберите том"); return; }
+        var opt      = volSel.options[volSel.selectedIndex];
+        var isSubvol = opt && opt.dataset.isSubvol === "true";
+        path = isSubvol ? volume : (volume.replace(/\/$/, "") + "/" + name);
+    } else {
+        path = _shareModalData.path;
+    }
+
+    var chmod = document.getElementById("sm-chmod").value;
+    var owner = document.getElementById("sm-owner").value || "root";
+    var group = document.getElementById("sm-group").value || "root";
+
+    var smbEnabled    = document.getElementById("sm-smb-enabled").checked;
+    var nfsEnabled    = document.getElementById("sm-nfs-enabled").checked;
+    var wasSmbEnabled = _shareModalData && !!_shareModalData.smb;
+    var wasNfsEnabled = _shareModalData && !!_shareModalData.nfs;
+
+    var cmds = [];
+
+    // 1. Ensure directory exists with correct permissions
+    cmds.push(
+        "mkdir -p " + path +
+        " && chmod " + chmod + " " + path +
+        " && chown " + owner + ":" + group + " " + path
+    );
+
+    // 2. SMB
+    if (smbEnabled) {
+        var access     = document.getElementById("sm-smb-access").value;
+        var guestOk    = access === "public" ? "yes" : "no";
+        var browseable = document.getElementById("sm-smb-browseable").value;
+        var writable   = document.getElementById("sm-smb-writable").value;
+        var checkedUsers  = document.querySelectorAll("#sm-smb-users input:checked");
+        var validUsers    = Array.from(checkedUsers).map(function(cb) { return cb.value; }).join(" ");
+
+        // Delete old section (idempotent), then append fresh block
+        cmds.push(
+            "sed -i '/^\\[" + name + "\\]/,/^\\[/{/^\\[" + name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf"
+        );
+        cmds.push(
+            "printf '\\n[" + name + "]\\n" +
+            "path = " + path + "\\n" +
+            "browseable = " + browseable + "\\n" +
+            "writable = " + writable + "\\n" +
+            "guest ok = " + guestOk +
+            (validUsers ? "\\nvalid users = " + validUsers : "") +
+            "\\n' >> /etc/samba/smb.conf"
+        );
+        cmds.push("systemctl reload smbd");
+    } else if (wasSmbEnabled) {
+        // Remove section
+        cmds.push(
+            "sed -i '/^\\[" + name + "\\]/,/^\\[/{/^\\[" + name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf" +
+            " && systemctl reload smbd"
+        );
+    }
+
+    // 3. NFS
+    if (nfsEnabled) {
+        var clients   = document.getElementById("sm-nfs-clients").value.trim() || "*";
+        var nfsAccess = document.getElementById("sm-nfs-access").value;
+        var squash    = document.getElementById("sm-nfs-squash").value;
+        var opts      = nfsAccess + ",sync,no_subtree_check," + squash + ",insecure";
+        var exportLine = path + " " + clients + "(" + opts + ")";
+
+        cmds.push("sed -i '\\|^" + path + " |d' /etc/exports");
+        cmds.push("echo '" + exportLine + "' >> /etc/exports");
+        cmds.push("exportfs -ra");
+        if (!wasNfsEnabled) {
+            cmds.push("systemctl enable --now nfs-server 2>/dev/null || true");
+        }
+    } else if (wasNfsEnabled) {
+        cmds.push("sed -i '\\|^" + path + " |d' /etc/exports && exportfs -ra");
+    }
+
+    cockpit.spawn(["bash", "-c", cmds.join(" && ")], { superuser: "require", err: "message" })
+    .done(function() {
+        closeModal("share-modal");
+        loadAllShares();
+    })
+    .fail(function(err) { alert("Ошибка сохранения: " + err); });
+}
+
+// ─── Delete share entry ───────────────────────────────────────────────────────
+
+function deleteShareEntry(shareData) {
+    var protocols = [];
+    if (shareData.smb) protocols.push("SMB");
+    if (shareData.nfs) protocols.push("NFS");
+
+    var msg = "Удалить шару «" + shareData.name + "»" +
+        (protocols.length ? " (" + protocols.join(", ") + ")" : "") +
+        "?\n\nДиректория НЕ будет удалена, только конфигурация протоколов.";
+    if (!confirm(msg)) return;
+
+    var cmds = [];
+    if (shareData.smb) {
+        cmds.push(
+            "sed -i '/^\\[" + shareData.name + "\\]/,/^\\[/{/^\\[" + shareData.name + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf" +
+            " && systemctl reload smbd"
+        );
+    }
+    if (shareData.nfs) {
+        cmds.push("sed -i '\\|^" + shareData.path + " |d' /etc/exports && exportfs -ra");
+    }
+
+    if (!cmds.length) { loadAllShares(); return; }
+
+    cockpit.spawn(["bash", "-c", cmds.join(" && ")], { superuser: "require", err: "message" })
+    .done(function() { loadAllShares(); })
+    .fail(function(err) { alert("Ошибка удаления: " + err); });
 }
 
 // ─── iSCSI Targets ───────────────────────────────────────────────────────────
@@ -508,18 +644,18 @@ function addISCSI() {
         "sudo targetcli /iscsi/" + iqn + "/tpg1 set attribute authentication=0 && " +
         "sudo targetcli saveconfig";
 
-    cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
-        .done(function() {
-            closeModal("add-iscsi-modal");
-            document.getElementById("iscsi-name").value = "";
-            loadISCSI();
-        })
-        .fail(function(err) { alert("Ошибка: " + err); });
+    cockpit.spawn(["bash", "-c", cmd], { superuser: "require" })
+    .done(function() {
+        closeModal("add-iscsi-modal");
+        document.getElementById("iscsi-name").value = "";
+        loadISCSI();
+    })
+    .fail(function(err) { alert("Ошибка: " + err); });
 }
 
 function deleteISCSI(iqn) {
     if (!confirm("Удалить target " + iqn + "?")) return;
-    cockpit.spawn(["bash", "-c", "sudo targetcli /iscsi delete " + iqn + " && sudo targetcli saveconfig"], {superuser: "require"})
+    cockpit.spawn(["bash", "-c", "sudo targetcli /iscsi delete " + iqn + " && sudo targetcli saveconfig"], { superuser: "require" })
     .done(function() { loadISCSI(); })
     .fail(function(err) { alert("Ошибка: " + err); });
 }
@@ -527,54 +663,35 @@ function deleteISCSI(iqn) {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
-    // SMB
-    document.getElementById("btn-add-share").addEventListener("click", function() { loadVolumeSelects(); showModal("add-share-modal"); });
-    document.getElementById("share-volume").addEventListener("change", function() {
-        var opt = this.options[this.selectedIndex];
-        var isSubvol = opt && opt.dataset.isSubvol === "true";
-        var nameInput = document.getElementById("share-name");
-        var hint = document.getElementById("share-path-hint");
-        if (isSubvol) {
-            if (!nameInput.value || nameInput.dataset.autoFilled === "true") {
-                nameInput.value = opt.dataset.subvolName;
-                nameInput.dataset.autoFilled = "true";
-            }
-            hint.textContent = "Путь шары: " + opt.value + " (Btrfs субтом)";
-        } else {
-            nameInput.dataset.autoFilled = "";
-            hint.textContent = "";
-        }
-    });
-    document.getElementById("share-name").addEventListener("input", function() {
-        this.dataset.autoFilled = "";
-    });
-    document.getElementById("btn-share-create").addEventListener("click", addShare);
-    document.getElementById("btn-share-cancel").addEventListener("click", function() { closeModal("add-share-modal"); });
-    document.getElementById("btn-share-save").addEventListener("click", saveEditShare);
-    document.getElementById("btn-share-edit-cancel").addEventListener("click", function() { closeModal("edit-share-modal"); });
 
-    // NFS
-    document.getElementById("btn-add-nfs").addEventListener("click", function() { loadVolumeSelects(); showModal("add-nfs-modal"); });
-    document.getElementById("btn-nfs-create").addEventListener("click", addNFS);
-    document.getElementById("btn-nfs-cancel").addEventListener("click", function() { closeModal("add-nfs-modal"); });
-    document.getElementById("btn-nfs-save").addEventListener("click", saveEditNFS);
-    document.getElementById("btn-nfs-edit-cancel").addEventListener("click", function() { closeModal("edit-nfs-modal"); });
+    setupStorageTabs();
+    setupShareModalTabs();
 
-    // iSCSI
-    document.getElementById("btn-add-iscsi").addEventListener("click", function() { showModal("add-iscsi-modal"); });
+    // Shares tab
+    document.getElementById("btn-add-share").addEventListener("click", function() {
+        openShareModal(null);
+    });
+    document.getElementById("btn-sm-save").addEventListener("click", saveShareModal);
+    document.getElementById("btn-sm-cancel").addEventListener("click", function() {
+        closeModal("share-modal");
+    });
+
+    // iSCSI tab
+    document.getElementById("btn-add-iscsi").addEventListener("click", function() {
+        showModal("add-iscsi-modal");
+    });
     document.getElementById("btn-iscsi-create").addEventListener("click", addISCSI);
-    document.getElementById("btn-iscsi-cancel").addEventListener("click", function() { closeModal("add-iscsi-modal"); });
+    document.getElementById("btn-iscsi-cancel").addEventListener("click", function() {
+        closeModal("add-iscsi-modal");
+    });
 
-    loadShares();
-    loadNFS();
-    loadISCSI();
-
-    // WORM
-    loadWorm();
+    // WORM tab
     document.getElementById("btn-worm-refresh").addEventListener("click", loadWormStatus);
     document.getElementById("btn-add-worm").addEventListener("click", openAddWormModal);
     document.getElementById("btn-worm-add-confirm").addEventListener("click", confirmAddWorm);
-    document.getElementById("btn-worm-add-cancel").addEventListener("click", function() { closeModal("add-worm-modal"); });
+    document.getElementById("btn-worm-add-cancel").addEventListener("click", function() {
+        closeModal("add-worm-modal");
+    });
     document.getElementById("btn-worm-browse").addEventListener("click", wormBrowsePath);
     document.getElementById("worm-grace-select").addEventListener("change", function() {
         document.getElementById("worm-grace-custom-wrap").classList.toggle("hidden", this.value !== "custom");
@@ -583,30 +700,31 @@ document.addEventListener("DOMContentLoaded", function() {
         checkWormSambaMatch(this.value.trim());
     });
 
-    // FTP
-    loadFtp();
+    // Services tab
     document.getElementById("btn-ftp-start").addEventListener("click", function() {
-        cockpit.spawn(["bash", "-c", "sudo systemctl start vsftpd"], {superuser: "require", err: "message"})
-            .done(function() { loadFtp(); });
+        cockpit.spawn(["bash", "-c", "sudo systemctl start vsftpd"], { superuser: "require", err: "message" })
+        .done(function() { loadFtp(); });
     });
     document.getElementById("btn-ftp-stop").addEventListener("click", function() {
-        cockpit.spawn(["bash", "-c", "sudo systemctl stop vsftpd"], {superuser: "require", err: "message"})
-            .done(function() { loadFtp(); });
+        cockpit.spawn(["bash", "-c", "sudo systemctl stop vsftpd"], { superuser: "require", err: "message" })
+        .done(function() { loadFtp(); });
     });
     document.getElementById("btn-ftp-save").addEventListener("click", saveFtp);
 
-    // WebDAV
-    loadWebdav();
     document.getElementById("btn-webdav-start").addEventListener("click", function() {
-        cockpit.spawn(["bash", "-c", "sudo systemctl start apache2"], {superuser: "require", err: "message"})
-            .done(function() { loadWebdav(); });
+        cockpit.spawn(["bash", "-c", "sudo systemctl start apache2"], { superuser: "require", err: "message" })
+        .done(function() { loadWebdav(); });
     });
     document.getElementById("btn-webdav-stop").addEventListener("click", function() {
-        cockpit.spawn(["bash", "-c", "sudo systemctl stop apache2"], {superuser: "require", err: "message"})
-            .done(function() { loadWebdav(); });
+        cockpit.spawn(["bash", "-c", "sudo systemctl stop apache2"], { superuser: "require", err: "message" })
+        .done(function() { loadWebdav(); });
     });
     document.getElementById("btn-webdav-save").addEventListener("click", saveWebdav);
     document.getElementById("btn-webdav-add-user").addEventListener("click", addWebdavUser);
+
+    // Initial load
+    loadAllShares();
+    loadServiceStatus();
 });
 
 // ─── FTP (vsftpd) ─────────────────────────────────────────────────────────────
@@ -616,7 +734,7 @@ function loadFtp() {
         "systemctl is-active vsftpd 2>/dev/null || true; echo '---'; " +
         "cat /etc/vsftpd.conf 2>/dev/null | grep -E '^(anonymous_enable|write_enable|chroot_local_user|pasv_min_port|pasv_max_port)\\s*=' || true; echo '---'; " +
         "cat /proc/net/tcp6 /proc/net/tcp 2>/dev/null | grep -c ' 00000000:7530 ' || echo 0"
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function(out) {
         var parts = out.split("---\n");
         var active = (parts[0] || "").trim() === "active";
@@ -630,10 +748,10 @@ function loadFtp() {
             if (m) cfg[m[1].trim()] = m[2].trim().toUpperCase();
         });
         document.getElementById("ftp-anonymous").checked = cfg.anonymous_enable === "YES";
-        document.getElementById("ftp-write").checked = cfg.write_enable !== "NO";
-        document.getElementById("ftp-chroot").checked = cfg.chroot_local_user === "YES";
-        document.getElementById("ftp-pasv-min").value = cfg.pasv_min_port || "30000";
-        document.getElementById("ftp-pasv-max").value = cfg.pasv_max_port || "30100";
+        document.getElementById("ftp-write").checked     = cfg.write_enable !== "NO";
+        document.getElementById("ftp-chroot").checked    = cfg.chroot_local_user === "YES";
+        document.getElementById("ftp-pasv-min").value    = cfg.pasv_min_port || "30000";
+        document.getElementById("ftp-pasv-max").value    = cfg.pasv_max_port || "30100";
 
         var conns = parseInt((parts[2] || "").trim()) || 0;
         document.getElementById("ftp-connections").textContent =
@@ -642,26 +760,11 @@ function loadFtp() {
 }
 
 function saveFtp() {
-    var anon  = document.getElementById("ftp-anonymous").checked ? "YES" : "NO";
-    var write = document.getElementById("ftp-write").checked      ? "YES" : "NO";
-    var chroot = document.getElementById("ftp-chroot").checked    ? "YES" : "NO";
+    var anon    = document.getElementById("ftp-anonymous").checked ? "YES" : "NO";
+    var write   = document.getElementById("ftp-write").checked     ? "YES" : "NO";
+    var chroot  = document.getElementById("ftp-chroot").checked    ? "YES" : "NO";
     var pasvMin = document.getElementById("ftp-pasv-min").value || "30000";
     var pasvMax = document.getElementById("ftp-pasv-max").value || "30100";
-
-    var script = [
-        "python3 -c \"",
-        "import re",
-        "f = open('/etc/vsftpd.conf', 'r'); c = f.read(); f.close()",
-        "opts = {'anonymous_enable':'" + anon + "','write_enable':'" + write + "',",
-        "'chroot_local_user':'" + chroot + "','pasv_min_port':'" + pasvMin + "',",
-        "'pasv_max_port':'" + pasvMax + "','allow_writeable_chroot':'" + chroot + "'}",
-        "for k,v in opts.items():",
-        "    if re.search(r'^'+k+r'\\\\s*=',c,re.M): c=re.sub(r'^'+k+r'\\\\s*=.*$',k+'='+v,c,flags=re.M)",
-        "    else: c += k+'='+v+'\\\\n'",
-        "open('/etc/vsftpd.conf','w').write(c)",
-        "\"",
-        "&& systemctl restart vsftpd"
-    ].join("; ");
 
     cockpit.spawn(["bash", "-c",
         "python3 << 'PYEOF'\n" +
@@ -671,13 +774,12 @@ function saveFtp() {
         "        'chroot_local_user':'" + chroot + "','allow_writeable_chroot':'" + chroot + "',\n" +
         "        'pasv_min_port':'" + pasvMin + "','pasv_max_port':'" + pasvMax + "'}\n" +
         "for k,v in opts.items():\n" +
-        "    import re\n" +
         "    if re.search(r'^' + k + r'\\s*=', c, re.M): c = re.sub(r'^' + k + r'\\s*=.*$', k+'='+v, c, flags=re.M)\n" +
         "    else: c += k+'='+v+'\\n'\n" +
         "open('/etc/vsftpd.conf','w').write(c)\n" +
         "PYEOF\n" +
         "systemctl restart vsftpd"
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function() { loadFtp(); })
     .fail(function(e) { alert("Ошибка сохранения FTP: " + e); });
 }
@@ -692,7 +794,7 @@ function loadWebdav() {
         "systemctl is-active apache2 2>/dev/null || true; echo '---'; " +
         "cat " + WEBDAV_CONF + " 2>/dev/null; echo '---'; " +
         "cat " + WEBDAV_PASS + " 2>/dev/null | cut -d: -f1 | sort -u || true"
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function(out) {
         var parts = out.split("---\n");
         var active = (parts[0] || "").trim() === "active";
@@ -700,13 +802,13 @@ function loadWebdav() {
         badge.className = "badge " + (active ? "badge-success" : "badge-danger");
         badge.textContent = active ? "✅ Активен" : "🔴 Остановлен";
 
-        var conf = parts[1] || "";
+        var conf   = parts[1] || "";
         var aliasM = conf.match(/^Alias\s+(\S+)/m);
         var dirM   = conf.match(/<Directory\s+([^>]+?)>/m);
         document.getElementById("webdav-alias").value = aliasM ? aliasM[1] : "/webdav";
         document.getElementById("webdav-path").value  = dirM   ? dirM[1]   : "";
 
-        var users = (parts[2] || "").trim().split("\n").filter(Boolean);
+        var users  = (parts[2] || "").trim().split("\n").filter(Boolean);
         var listEl = document.getElementById("webdav-users-list");
         if (!users.length) {
             listEl.innerHTML = '<span class="text-muted">Пользователей нет</span>';
@@ -714,9 +816,12 @@ function loadWebdav() {
             listEl.innerHTML = users.map(function(u) {
                 return '<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">' +
                     '<span>' + u + '</span>' +
-                    '<button class="btn btn-danger btn-sm" onclick="removeWebdavUser(\'' + u.replace(/'/g,"") + '\')">✕</button>' +
+                    '<button class="btn btn-danger btn-sm webdav-del-user" data-user="' + u.replace(/"/g, "") + '">✕</button>' +
                     '</div>';
             }).join("");
+            document.querySelectorAll(".webdav-del-user").forEach(function(btn) {
+                btn.addEventListener("click", function() { removeWebdavUser(this.dataset.user); });
+            });
         }
     });
 }
@@ -743,7 +848,7 @@ function saveWebdav() {
         "mkdir -p " + path + " && " +
         "tee " + WEBDAV_CONF + " << 'CONFEOF'\n" + conf + "CONFEOF\n" +
         "&& systemctl reload apache2"
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function() { loadWebdav(); })
     .fail(function(e) { alert("Ошибка сохранения WebDAV: " + e); });
 }
@@ -756,26 +861,25 @@ function addWebdavUser() {
     cockpit.spawn(["bash", "-c",
         "htdigest -b " + WEBDAV_PASS + " WebDAV " + user + " " + pass +
         " 2>/dev/null || htdigest " + WEBDAV_PASS + " WebDAV " + user
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function() {
         document.getElementById("webdav-new-user").value = "";
         document.getElementById("webdav-new-pass").value = "";
         loadWebdav();
     })
     .fail(function() {
-        // htdigest doesn't support -b on all versions, try python fallback
         cockpit.spawn(["python3", "-c",
             "import hashlib, os\n" +
             "realm='WebDAV'\n" +
-            "user='" + user.replace(/'/g,"") + "'\n" +
-            "pw='" + pass.replace(/'/g,"") + "'\n" +
+            "user='" + user.replace(/'/g, "") + "'\n" +
+            "pw='" + pass.replace(/'/g, "") + "'\n" +
             "h=hashlib.md5((user+':'+realm+':'+pw).encode()).hexdigest()\n" +
             "line=user+':'+realm+':'+h+'\\n'\n" +
             "f='" + WEBDAV_PASS + "'\n" +
             "lines=[l for l in (open(f).readlines() if os.path.exists(f) else []) if not l.startswith(user+':')]\n" +
             "lines.append(line)\n" +
             "open(f,'w').writelines(lines)\n"
-        ], {superuser: "require", err: "message"})
+        ], { superuser: "require", err: "message" })
         .done(function() {
             document.getElementById("webdav-new-user").value = "";
             document.getElementById("webdav-new-pass").value = "";
@@ -788,7 +892,7 @@ function removeWebdavUser(user) {
     if (!confirm("Удалить пользователя " + user + "?")) return;
     cockpit.spawn(["bash", "-c",
         "sed -i '/^" + user + ":/d' " + WEBDAV_PASS
-    ], {superuser: "require", err: "message"})
+    ], { superuser: "require", err: "message" })
     .done(function() { loadWebdav(); });
 }
 
@@ -796,8 +900,8 @@ function removeWebdavUser(user) {
 
 var WORM_CONFIG = "/etc/rusnas/worm.json";
 var WORM_BIN    = "/usr/local/bin/rusnas-worm";
-var _wormConfig = { paths: [] };   // cached config
-var _wormStatus = {};              // cached status: path -> {locked, total, pending}
+var _wormConfig = { paths: [] };
+var _wormStatus = {};
 
 var GRACE_LABELS = {
     "3600":    "1 час",
@@ -895,10 +999,7 @@ function toggleWormPath(idx, enabled) {
 function removeWormPath(idx) {
     var p = _wormConfig.paths[idx];
     if (!confirm("Удалить WORM-путь " + p.path + "?\n\nСуществующие заблокированные файлы останутся с chattr +i — разблокировка только вручную.")) return;
-    // Remove Samba vfs_worm if it was enabled
-    if (p.samba_vfs) {
-        removeSambaWorm(p.path);
-    }
+    if (p.samba_vfs) { removeSambaWorm(p.path); }
     _wormConfig.paths.splice(idx, 1);
     saveWormConfig(renderWorm);
 }
@@ -915,7 +1016,6 @@ function openAddWormModal() {
     var sugg = document.getElementById("worm-path-suggestions");
     sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Загрузка путей…</span>";
 
-    // Collect mount points + Samba share paths in parallel
     var paths = {};
     var pending = 2;
     function done() {
@@ -939,10 +1039,9 @@ function openAddWormModal() {
         });
     }
 
-    // Mount points
     cockpit.spawn(["bash", "-c",
         "findmnt --real -o TARGET,FSTYPE --noheadings 2>/dev/null | grep -vE '^/ |/boot|/efi|tmpfs|swap|/run|/sys|/proc|/dev'; true"
-    ], {err: "message"})
+    ], { err: "message" })
     .done(function(out) {
         out.trim().split("\n").filter(Boolean).forEach(function(line) {
             var p = line.trim().split(/\s+/);
@@ -951,10 +1050,9 @@ function openAddWormModal() {
     })
     .always(done);
 
-    // Samba share paths
     cockpit.spawn(["bash", "-c",
         "grep -E '^\\s*path\\s*=' /etc/samba/smb.conf 2>/dev/null | sed 's/.*=\\s*//'; true"
-    ], {err: "message"})
+    ], { err: "message" })
     .done(function(out) {
         out.trim().split("\n").filter(Boolean).forEach(function(line) {
             var p = line.trim();
@@ -966,15 +1064,14 @@ function openAddWormModal() {
     showModal("add-worm-modal");
 }
 
-// Browse subdirectories of current path
 function wormBrowsePath() {
-    var cur = document.getElementById("worm-path-input").value.trim() || "/mnt";
+    var cur  = document.getElementById("worm-path-input").value.trim() || "/mnt";
     var sugg = document.getElementById("worm-path-suggestions");
     sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Загрузка…</span>";
 
     cockpit.spawn(["bash", "-c",
         "find " + JSON.stringify(cur) + " -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort; true"
-    ], {err: "message"})
+    ], { err: "message" })
     .done(function(out) {
         sugg.innerHTML = "";
         var dirs = out.trim().split("\n").filter(Boolean);
@@ -982,7 +1079,6 @@ function wormBrowsePath() {
             sugg.innerHTML = "<span style='font-size:11px;color:#888;'>Нет подпапок в " + cur + "</span>";
             return;
         }
-        // "up" button if not at root
         if (cur !== "/") {
             var up = document.createElement("button");
             up.className = "btn btn-secondary btn-sm";
@@ -1010,13 +1106,11 @@ function wormBrowsePath() {
 }
 
 function checkWormSambaMatch(path) {
-    // Check if this path (or a parent) is an SMB share path
     cockpit.spawn(["bash", "-c",
         "grep -r 'path\\s*=\\s*" + path.replace(/\//g, "\\/") + "' /etc/samba/smb.conf 2>/dev/null | head -1; true"
-    ], {err: "message"})
+    ], { err: "message" })
     .done(function(out) {
-        var opt = document.getElementById("worm-samba-option");
-        opt.style.display = out.trim() ? "block" : "none";
+        document.getElementById("worm-samba-option").style.display = out.trim() ? "block" : "none";
     });
 }
 
@@ -1040,28 +1134,19 @@ function confirmAddWorm() {
         errEl.classList.remove("hidden");
         return;
     }
-    // Check duplicate
     if ((_wormConfig.paths || []).some(function(p){ return p.path === path; })) {
         errEl.textContent = "Этот путь уже добавлен";
         errEl.classList.remove("hidden");
         return;
     }
 
-    var mode       = document.querySelector("input[name='worm-mode']:checked").value;
-    var graceSec   = getWormGraceSeconds();
-    var sambaVfs   = document.getElementById("worm-samba-vfs").checked &&
-                     document.getElementById("worm-samba-option").style.display !== "none";
-
-    var entry = {
-        path:         path,
-        enabled:      true,
-        grace_period: graceSec,
-        mode:         mode,
-        samba_vfs:    sambaVfs,
-    };
+    var mode     = document.querySelector("input[name='worm-mode']:checked").value;
+    var graceSec = getWormGraceSeconds();
+    var sambaVfs = document.getElementById("worm-samba-vfs").checked &&
+                   document.getElementById("worm-samba-option").style.display !== "none";
 
     _wormConfig.paths = _wormConfig.paths || [];
-    _wormConfig.paths.push(entry);
+    _wormConfig.paths.push({ path: path, enabled: true, grace_period: graceSec, mode: mode, samba_vfs: sambaVfs });
 
     saveWormConfig(function() {
         closeModal("add-worm-modal");
@@ -1092,31 +1177,18 @@ function wormUnlockPrompt(idx) {
 // ── Samba vfs_worm helpers ─────────────────────────────────────────────────────
 
 function addSambaWorm(sharePath, gracePeriod, callback) {
-    // Find share name by path in smb.conf, inject vfs_worm settings
     var script =
         "python3 << 'PYEOF'\n" +
-        "import re, subprocess\n" +
-        "path = '" + sharePath.replace(/'/g,"") + "'\n" +
-        "grace = " + gracePeriod + "\n" +
+        "import re\n" +
+        "path = '" + sharePath.replace(/'/g, "") + "'\n" +
         "with open('/etc/samba/smb.conf') as f: conf = f.read()\n" +
-        // Find the share section containing this path
-        "sections = re.split(r'(^\\[)', conf, flags=re.M)\n" +
-        "# Use sed instead: find section with path= and inject\n" +
-        "result = subprocess.run(['testparm','-s','--section-name=global','2>/dev/null'],capture_output=True)\n" +
-        "# Simple approach: find [sectionname] blocks, check for path =\n" +
-        "pattern = r'(\\[(?!global\\]|homes\\]|printers\\])\\w[^\\]]*\\].*?path\\s*=\\s*" +
-        sharePath.replace(/\//g, "\\/").replace(/'/g,"") + "\\s*$)'\n" +
-        "# Inject after path line\n" +
         "conf2 = re.sub(\n" +
-        "    r'(path\\s*=\\s*" + sharePath.replace(/\//g, "\\/").replace(/'/g,"") + "\\s*\\n)',\n" +
+        "    r'(path\\s*=\\s*" + sharePath.replace(/\//g, "\\/").replace(/'/g, "") + "\\s*\\n)',\n" +
         "    r'\\1    vfs objects = worm\\n    worm:grace_period = " + gracePeriod + "\\n',\n" +
         "    conf, flags=re.M\n" +
         ")\n" +
         "if conf2 != conf:\n" +
         "    with open('/etc/samba/smb.conf', 'w') as f: f.write(conf2)\n" +
-        "    print('patched')\n" +
-        "else:\n" +
-        "    print('not_found')\n" +
         "PYEOF\n" +
         "systemctl reload smbd 2>/dev/null || true";
 
