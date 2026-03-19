@@ -1,8 +1,8 @@
 # rusNAS Storage Page — ТЗ на редизайн
 
-> Версия 1.0 — 2026-03-19
-> Ветка: `feature/storage-redesign`
-> Статус: Готово к реализации
+> Версия 1.1 — 2026-03-19
+> Ветка: `feature/storage-redesign` → влита в `main` 2026-03-19
+> Статус: ✅ Реализовано и задеплоено
 
 ---
 
@@ -269,3 +269,41 @@ async function loadAllShares() {
 9. Tab «WORM» → таблица работает
 10. Tab «Сервисы» → FTP + WebDAV карточки работают
 11. Mobile 390px: вкладки scrollable, таблица в overflow-x
+
+---
+
+## Заметки по реализации (2026-03-19)
+
+### Что реализовано точно по ТЗ
+
+- 4 вкладки (`advisor-tabs`) — `📂 Шары | 🎯 iSCSI | 🔒 WORM | ⚙️ Сервисы`
+- Unified Share Modal с внутренними `.tab-btn` вкладками (`Основные / SMB / NFS`)
+- `parseSmbConf()` + `parseNfsExports()` как Promise-хелперы, `loadAllShares()` с merge по path
+- `loadServiceStatus()` — badges над таблицей шар
+- `deleteShareEntry()` — удаляет только из конфигов, директорию не трогает
+- 3 CSS-класса: `.service-status-bar`, `.share-proto-badges`, `.modal-tabs`
+
+### Отклонения от ТЗ (обоснованные)
+
+| ТЗ | Реализовано | Причина |
+|----|-------------|---------|
+| `deleteShare(shareData)` | `deleteShareEntry(shareData)` | Имя изменено чтобы не конфликтовать с именем в WORM-коде |
+| `loadVolumeSelects(callback)` параметры | Добавлен второй параметр `targetId` | Для точечного указания целевого `<select>` без изменения логики |
+| В ТЗ говорилось `cockpit.file().replace()` для smb.conf | Используется `bash -c + sed + printf` | Исторически этот подход уже работал и проверен; `cockpit.file().replace()` подходит для JSON/простых конфигов, но smb.conf требует атомарного range-replace через sed |
+| Lazy load WORM только при первом входе | `_tabsLoaded.worm` флаг | Добавлен guard чтобы WORM не перезагружался при каждом клике на вкладку |
+
+### Архитектурные решения, зафиксированные в коде
+
+- **`window._sharesData`** — глобальный массив для event handlers кнопок в таблице (стандартный паттерн для динамически генерируемых строк)
+- **`_shareModalMode`** / **`_shareModalData`** — модульные переменные состояния modal (create vs edit)
+- **SMB reload**: `systemctl reload smbd` (не restart) — более мягкий, не рвёт активные соединения
+- **NFS**: `exportfs -ra` после каждого изменения — полная пересинхронизация
+- **Volume select в edit mode**: disabled `<select>` с одним элементом (текущий путь) — вместо отдельного input для простоты
+
+### Файлы изменены
+
+| Файл | Строк (было → стало) | Тип |
+|------|----------------------|-----|
+| `cockpit/rusnas/index.html` | 445 → 297 | Полная реструктуризация |
+| `cockpit/rusnas/js/app.js` | 1132 → 873 | Рефактор (-259 строк) |
+| `cockpit/rusnas/css/style.css` | 1240 → 1266 | +26 строк (3 класса) |
