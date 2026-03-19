@@ -11,354 +11,305 @@
 <body>
     <h1>rusNAS — Хранилище</h1>
 
-    <!-- SMB Shares -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>SMB шары (Windows/Samba)</h2>
-            <button class="btn btn-success" id="btn-add-share">+ Добавить SMB шару</button>
-        </div>
-        <table>
-            <thead>
-                <tr><th>Имя</th><th>Путь</th><th>Протокол</th><th>Статус</th><th>Действия</th></tr>
-            </thead>
-            <tbody id="shares-body">
-                <tr><td colspan="5">Загрузка...</td></tr>
-            </tbody>
-        </table>
+    <!-- Tab navigation -->
+    <div class="advisor-tabs" id="storage-tabs">
+        <button class="advisor-tab-btn active" data-tab="shares">📂 Шары</button>
+        <button class="advisor-tab-btn" data-tab="iscsi">🎯 iSCSI</button>
+        <button class="advisor-tab-btn" data-tab="worm">🔒 WORM</button>
+        <button class="advisor-tab-btn" data-tab="services">⚙️ Сервисы</button>
     </div>
 
-    <!-- NFS Shares -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>NFS шары (Linux/Mac)</h2>
-            <button class="btn btn-success" id="btn-add-nfs">+ Добавить NFS шару</button>
+    <!-- ── Tab: Шары ─────────────────────────────────────────────────────────── -->
+    <div id="tab-shares">
+        <div class="service-status-bar">
+            <span>SMB: <span id="smb-status-dot"><span class="badge badge-secondary">Загрузка…</span></span></span>
+            <span>NFS: <span id="nfs-status-dot"><span class="badge badge-secondary">Загрузка…</span></span></span>
         </div>
-        <table>
-            <thead>
-                <tr><th>Путь</th><th>Клиенты</th><th>Опции</th><th>Статус</th><th>Действия</th></tr>
-            </thead>
-            <tbody id="nfs-body">
-                <tr><td colspan="5">Загрузка...</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- iSCSI Targets -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>iSCSI Targets</h2>
-            <button class="btn btn-success" id="btn-add-iscsi">+ Добавить Target</button>
-        </div>
-        <table>
-            <thead>
-                <tr><th>IQN</th><th>LUN</th><th>Размер</th><th>Статус</th><th>Действия</th></tr>
-            </thead>
-            <tbody id="iscsi-body">
-                <tr><td colspan="5">Загрузка...</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Modal: Edit SMB Share -->
-    <div class="modal-overlay hidden" id="edit-share-modal">
-        <div class="modal-box">
-            <h3>Редактировать SMB шару</h3>
-            <div class="form-group">
-                <label>Имя шары</label>
-                <input type="text" id="edit-share-name" disabled>
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>Общие папки</h2>
+                <button class="btn btn-success" id="btn-add-share">+ Создать шару</button>
             </div>
-            <div class="form-group">
-                <label>Путь</label>
-                <input type="text" id="edit-share-path">
-            </div>
-            <div class="form-group">
-                <label>Права директории</label>
-                <select id="edit-share-chmod">
-                    <option value="777">Публичный — все читают и пишут (777)</option>
-                    <option value="755">Стандартный — владелец пишет, остальные читают (755)</option>
-                    <option value="555">Только чтение для всех (555)</option>
-                    <option value="700">Только владелец (700)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Владелец (owner)</label>
-                <select id="edit-share-owner"></select>
-            </div>
-            <div class="form-group">
-                <label>Группа (group)</label>
-                <select id="edit-share-group"></select>
-            </div>
-            <div class="form-group">
-                <label>Доступ</label>
-                <select id="edit-share-access">
-                    <option value="public">Публичный (guest ok = Yes)</option>
-                    <option value="private">Приватный (guest ok = No)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Разрешённые пользователи (valid users)</label>
-                <div id="edit-share-users" class="checkbox-group"><small>Загрузка...</small></div>
-            </div>
-            <div class="form-group">
-                <label>Browseable</label>
-                <select id="edit-share-browseable">
-                    <option value="yes">Да</option>
-                    <option value="no">Нет</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Writable</label>
-                <select id="edit-share-writable">
-                    <option value="yes">Да</option>
-                    <option value="no">Нет</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-share-save">Сохранить</button>
-                <button class="btn btn-default" id="btn-share-edit-cancel">Отмена</button>
-            </div>
+            <table>
+                <thead>
+                    <tr><th>Имя</th><th>Путь</th><th>Протоколы</th><th>Доступ</th><th>Действия</th></tr>
+                </thead>
+                <tbody id="shares-body">
+                    <tr><td colspan="5">Загрузка...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Modal: Add SMB Share -->
-    <div class="modal-overlay hidden" id="add-share-modal">
-        <div class="modal-box">
-            <h3>Добавить SMB шару</h3>
-            <div class="form-group">
-                <label>Том (точка монтирования)</label>
-                <select id="share-volume">
-                    <option value="">— загрузка томов... —</option>
-                </select>
+    <!-- ── Tab: iSCSI ────────────────────────────────────────────────────────── -->
+    <div id="tab-iscsi" class="hidden">
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>iSCSI Targets</h2>
+                <button class="btn btn-success" id="btn-add-iscsi">+ Добавить Target</button>
             </div>
-            <div class="form-group">
-                <label>Имя шары</label>
-                <input type="text" id="share-name" placeholder="например: documents">
-                <div id="share-path-hint" class="text-muted" style="font-size:12px;margin-top:4px"></div>
-            </div>
-            <div class="form-group">
-                <label>Права директории</label>
-                <select id="share-chmod">
-                    <option value="777">Публичный — все читают и пишут (777)</option>
-                    <option value="755">Стандартный — владелец пишет, остальные читают (755)</option>
-                    <option value="555">Только чтение для всех (555)</option>
-                    <option value="700">Только владелец (700)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Доступ</label>
-                <select id="share-access">
-                    <option value="public">Публичный (без пароля)</option>
-                    <option value="private">Приватный (с паролем)</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-share-create">Создать</button>
-                <button class="btn btn-default" id="btn-share-cancel">Отмена</button>
-            </div>
+            <table>
+                <thead>
+                    <tr><th>IQN</th><th>LUN</th><th>Размер</th><th>Статус</th><th>Действия</th></tr>
+                </thead>
+                <tbody id="iscsi-body">
+                    <tr><td colspan="5">Загрузка...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Modal: Edit NFS Share -->
-    <div class="modal-overlay hidden" id="edit-nfs-modal">
-        <div class="modal-box">
-            <h3>Редактировать NFS шару</h3>
-            <div class="form-group">
-                <label>Путь</label>
-                <input type="text" id="edit-nfs-path" disabled>
+    <!-- ── Tab: WORM ─────────────────────────────────────────────────────────── -->
+    <div id="tab-worm" class="hidden">
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>WriteOnce / WORM</h2>
+                <button class="btn btn-success" id="btn-add-worm">+ Добавить путь</button>
             </div>
-            <div class="form-group">
-                <label>Права директории</label>
-                <select id="edit-nfs-chmod">
-                    <option value="777">Публичный — все читают и пишут (777)</option>
-                    <option value="755">Стандартный — владелец пишет, остальные читают (755)</option>
-                    <option value="555">Только чтение для всех (555)</option>
-                    <option value="700">Только владелец (700)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Владелец (owner)</label>
-                <select id="edit-nfs-owner"></select>
-            </div>
-            <div class="form-group">
-                <label>Группа (group)</label>
-                <select id="edit-nfs-group"></select>
-            </div>
-            <div class="form-group">
-                <label>Разрешённые клиенты</label>
-                <input type="text" id="edit-nfs-clients" placeholder="например: 192.168.1.0/24 или *">
-            </div>
-            <div class="form-group">
-                <label>Доступ</label>
-                <select id="edit-nfs-access">
-                    <option value="rw">Чтение и запись (rw)</option>
-                    <option value="ro">Только чтение (ro)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Root Squash</label>
-                <select id="edit-nfs-squash">
-                    <option value="no_root_squash">Отключён (no_root_squash)</option>
-                    <option value="root_squash">Включён (root_squash)</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-nfs-save">Сохранить</button>
-                <button class="btn btn-default" id="btn-nfs-edit-cancel">Отмена</button>
-            </div>
+            <p class="table-hint">
+                Файлы блокируются от изменения и удаления (<code>chattr +i</code>) по истечении grace period.
+                Работает для SMB, NFS и всех протоколов одновременно.
+                <button class="btn btn-secondary btn-sm" id="btn-worm-refresh" style="margin-left:8px;">↻ Обновить статус</button>
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Путь</th>
+                        <th>Grace period</th>
+                        <th>Режим</th>
+                        <th>SMB vfs_worm</th>
+                        <th>Статус файлов</th>
+                        <th>Вкл</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="worm-body">
+                    <tr><td colspan="7" class="text-muted">Загрузка...</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Modal: Add NFS Share -->
-    <div class="modal-overlay hidden" id="add-nfs-modal">
-        <div class="modal-box">
-            <h3>Добавить NFS шару</h3>
-            <div class="form-group">
-                <label>Том (точка монтирования)</label>
-                <select id="nfs-volume">
-                    <option value="">— загрузка томов... —</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Имя директории</label>
-                <input type="text" id="nfs-name" placeholder="например: backups">
-            </div>
-            <div class="form-group">
-                <label>Права директории</label>
-                <select id="nfs-chmod">
-                    <option value="777">Публичный — все читают и пишут (777)</option>
-                    <option value="755">Стандартный — владелец пишет, остальные читают (755)</option>
-                    <option value="555">Только чтение для всех (555)</option>
-                    <option value="700">Только владелец (700)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Разрешённые клиенты</label>
-                <input type="text" id="nfs-clients" value="*" placeholder="например: 192.168.1.0/24 или *">
-            </div>
-            <div class="form-group">
-                <label>Доступ</label>
-                <select id="nfs-access">
-                    <option value="rw">Чтение и запись (rw)</option>
-                    <option value="ro">Только чтение (ro)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Root Squash</label>
-                <select id="nfs-squash">
-                    <option value="no_root_squash">Отключён (no_root_squash)</option>
-                    <option value="root_squash">Включён (root_squash)</option>
-                </select>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-nfs-create">Создать</button>
-                <button class="btn btn-default" id="btn-nfs-cancel">Отмена</button>
-            </div>
-        </div>
-    </div>
+    <!-- ── Tab: Сервисы ──────────────────────────────────────────────────────── -->
+    <div id="tab-services" class="hidden">
 
-    <!-- FTP -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>FTP (vsftpd)</h2>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <span id="ftp-status-badge" class="badge badge-secondary">Загрузка…</span>
-                <button class="btn btn-success btn-sm" id="btn-ftp-start">▶ Запустить</button>
-                <button class="btn btn-danger btn-sm"  id="btn-ftp-stop">■ Остановить</button>
+        <!-- FTP -->
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>FTP (vsftpd)</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span id="ftp-status-badge" class="badge badge-secondary">Загрузка…</span>
+                    <button class="btn btn-success btn-sm" id="btn-ftp-start">▶ Запустить</button>
+                    <button class="btn btn-danger btn-sm"  id="btn-ftp-stop">■ Остановить</button>
+                </div>
             </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
-            <div class="array-card">
-                <b>Настройки vsftpd</b>
-                <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
-                    <label class="checkbox-label"><input type="checkbox" id="ftp-anonymous"> Анонимный доступ</label>
-                    <label class="checkbox-label"><input type="checkbox" id="ftp-write"> Разрешить запись</label>
-                    <label class="checkbox-label"><input type="checkbox" id="ftp-chroot"> Ограничить домашней директорией (chroot)</label>
-                    <div>
-                        <label style="font-size:13px;margin-bottom:4px;display:block;">Пассивный диапазон портов</label>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <input type="number" id="ftp-pasv-min" style="width:90px;" placeholder="30000">
-                            <span>—</span>
-                            <input type="number" id="ftp-pasv-max" style="width:90px;" placeholder="30100">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+                <div class="array-card">
+                    <b>Настройки vsftpd</b>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+                        <label class="checkbox-label"><input type="checkbox" id="ftp-anonymous"> Анонимный доступ</label>
+                        <label class="checkbox-label"><input type="checkbox" id="ftp-write"> Разрешить запись</label>
+                        <label class="checkbox-label"><input type="checkbox" id="ftp-chroot"> Ограничить домашней директорией (chroot)</label>
+                        <div>
+                            <label style="font-size:13px;margin-bottom:4px;display:block;">Пассивный диапазон портов</label>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input type="number" id="ftp-pasv-min" style="width:90px;" placeholder="30000">
+                                <span>—</span>
+                                <input type="number" id="ftp-pasv-max" style="width:90px;" placeholder="30100">
+                            </div>
                         </div>
                     </div>
+                    <div style="margin-top:14px;">
+                        <button class="btn btn-primary" id="btn-ftp-save">Сохранить</button>
+                    </div>
                 </div>
-                <div style="margin-top:14px;">
-                    <button class="btn btn-primary" id="btn-ftp-save">Сохранить</button>
+                <div class="array-card">
+                    <b>Активные подключения</b>
+                    <div id="ftp-connections" class="text-muted" style="margin-top:8px;font-size:13px;">Нет данных</div>
                 </div>
             </div>
-            <div class="array-card">
-                <b>Активные подключения</b>
-                <div id="ftp-connections" class="text-muted" style="margin-top:8px;font-size:13px;">Нет данных</div>
+        </div>
+
+        <!-- WebDAV -->
+        <div class="section">
+            <div class="section-toolbar">
+                <h2>WebDAV (Apache)</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span id="webdav-status-badge" class="badge badge-secondary">Загрузка…</span>
+                    <button class="btn btn-success btn-sm" id="btn-webdav-start">▶ Запустить</button>
+                    <button class="btn btn-danger btn-sm"  id="btn-webdav-stop">■ Остановить</button>
+                </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+                <div class="array-card">
+                    <b>Конфигурация</b>
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
+                        <div>
+                            <label style="font-size:13px;margin-bottom:4px;display:block;">URL-алиас</label>
+                            <input type="text" id="webdav-alias" placeholder="/webdav" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px;margin-bottom:4px;display:block;">Путь к директории</label>
+                            <input type="text" id="webdav-path" placeholder="/mnt/data/shares/webdav" style="width:100%;">
+                        </div>
+                    </div>
+                    <div style="margin-top:14px;">
+                        <button class="btn btn-primary" id="btn-webdav-save">Сохранить</button>
+                    </div>
+                </div>
+                <div class="array-card">
+                    <b>Пользователи WebDAV</b>
+                    <div id="webdav-users-list" style="margin-top:8px;margin-bottom:10px;font-size:13px;">Загрузка…</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <input type="text"     id="webdav-new-user" placeholder="Логин" style="width:110px;">
+                        <input type="password" id="webdav-new-pass" placeholder="Пароль" style="width:110px;">
+                        <button class="btn btn-success btn-sm" id="btn-webdav-add-user">+ Добавить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         MODALS
+    ═══════════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Modal: Unified Share (create + edit) -->
+    <div class="modal-overlay hidden" id="share-modal">
+        <div class="modal-box">
+            <h3 id="share-modal-title">Новая шара</h3>
+
+            <!-- Inner tab nav -->
+            <div class="tabs modal-tabs">
+                <button class="tab-btn tab-active" data-tab="share-tab-general">Основные</button>
+                <button class="tab-btn" data-tab="share-tab-smb">SMB</button>
+                <button class="tab-btn" data-tab="share-tab-nfs">NFS</button>
+            </div>
+
+            <!-- Inner tab: Основные -->
+            <div id="share-tab-general" class="tab-panel">
+                <div class="form-group">
+                    <label>Имя шары</label>
+                    <input type="text" id="sm-name" placeholder="например: documents">
+                </div>
+                <div class="form-group" id="sm-volume-wrap">
+                    <label id="sm-volume-label">Том (точка монтирования)</label>
+                    <select id="sm-volume">
+                        <option value="">— загрузка томов... —</option>
+                    </select>
+                    <div id="sm-path-hint" class="text-muted" style="font-size:12px;margin-top:4px"></div>
+                </div>
+                <div class="form-group">
+                    <label>Права директории</label>
+                    <select id="sm-chmod">
+                        <option value="777">Публичный — все читают и пишут (777)</option>
+                        <option value="755" selected>Стандартный — владелец пишет, остальные читают (755)</option>
+                        <option value="555">Только чтение для всех (555)</option>
+                        <option value="700">Только владелец (700)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Владелец (owner)</label>
+                    <select id="sm-owner"></select>
+                </div>
+                <div class="form-group">
+                    <label>Группа (group)</label>
+                    <select id="sm-group"></select>
+                </div>
+            </div>
+
+            <!-- Inner tab: SMB -->
+            <div id="share-tab-smb" class="tab-panel hidden">
+                <div class="form-group">
+                    <label class="checkbox-label" style="font-size:14px;">
+                        <input type="checkbox" id="sm-smb-enabled" checked>
+                        Включить доступ SMB (Samba / Windows)
+                    </label>
+                </div>
+                <div id="sm-smb-settings">
+                    <div class="form-group">
+                        <label>Доступ</label>
+                        <select id="sm-smb-access">
+                            <option value="public">Публичный (без пароля)</option>
+                            <option value="private">Приватный (с паролем)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Разрешённые пользователи (valid users)</label>
+                        <div id="sm-smb-users" class="checkbox-group"><small>Загрузка...</small></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Browseable</label>
+                        <select id="sm-smb-browseable">
+                            <option value="yes">Да</option>
+                            <option value="no">Нет</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Writable</label>
+                        <select id="sm-smb-writable">
+                            <option value="yes">Да</option>
+                            <option value="no">Нет</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inner tab: NFS -->
+            <div id="share-tab-nfs" class="tab-panel hidden">
+                <div class="form-group">
+                    <label class="checkbox-label" style="font-size:14px;">
+                        <input type="checkbox" id="sm-nfs-enabled">
+                        Включить доступ NFS (Linux / Mac)
+                    </label>
+                </div>
+                <div id="sm-nfs-settings" class="hidden">
+                    <div class="form-group">
+                        <label>Разрешённые клиенты</label>
+                        <input type="text" id="sm-nfs-clients" placeholder="192.168.1.0/24 или *" value="*">
+                    </div>
+                    <div class="form-group">
+                        <label>Доступ</label>
+                        <select id="sm-nfs-access">
+                            <option value="rw">Чтение и запись (rw)</option>
+                            <option value="ro">Только чтение (ro)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Root Squash</label>
+                        <select id="sm-nfs-squash">
+                            <option value="no_root_squash">Отключён (no_root_squash)</option>
+                            <option value="root_squash">Включён (root_squash)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-sm-save">Сохранить</button>
+                <button class="btn btn-default" id="btn-sm-cancel">Отмена</button>
             </div>
         </div>
     </div>
 
-    <!-- WebDAV -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>WebDAV (Apache)</h2>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <span id="webdav-status-badge" class="badge badge-secondary">Загрузка…</span>
-                <button class="btn btn-success btn-sm" id="btn-webdav-start">▶ Запустить</button>
-                <button class="btn btn-danger btn-sm"  id="btn-webdav-stop">■ Остановить</button>
+    <!-- Modal: Add iSCSI Target -->
+    <div class="modal-overlay hidden" id="add-iscsi-modal">
+        <div class="modal-box">
+            <h3>Добавить iSCSI Target</h3>
+            <div class="form-group">
+                <label>Имя (суффикс IQN)</label>
+                <input type="text" id="iscsi-name" placeholder="например: backup1">
+            </div>
+            <div class="form-group">
+                <label>Размер LUN (ГБ)</label>
+                <input type="number" id="iscsi-size" value="10" min="1">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-iscsi-create">Создать</button>
+                <button class="btn btn-default" id="btn-iscsi-cancel">Отмена</button>
             </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
-            <div class="array-card">
-                <b>Конфигурация</b>
-                <div style="margin-top:10px;display:flex;flex-direction:column;gap:10px;">
-                    <div>
-                        <label style="font-size:13px;margin-bottom:4px;display:block;">URL-алиас</label>
-                        <input type="text" id="webdav-alias" placeholder="/webdav" style="width:100%;">
-                    </div>
-                    <div>
-                        <label style="font-size:13px;margin-bottom:4px;display:block;">Путь к директории</label>
-                        <input type="text" id="webdav-path" placeholder="/mnt/data/shares/webdav" style="width:100%;">
-                    </div>
-                </div>
-                <div style="margin-top:14px;">
-                    <button class="btn btn-primary" id="btn-webdav-save">Сохранить</button>
-                </div>
-            </div>
-            <div class="array-card">
-                <b>Пользователи WebDAV</b>
-                <div id="webdav-users-list" style="margin-top:8px;margin-bottom:10px;font-size:13px;">Загрузка…</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <input type="text"     id="webdav-new-user" placeholder="Логин" style="width:110px;">
-                    <input type="password" id="webdav-new-pass" placeholder="Пароль" style="width:110px;">
-                    <button class="btn btn-success btn-sm" id="btn-webdav-add-user">+ Добавить</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- WriteOnce / WORM -->
-    <div class="section">
-        <div class="section-toolbar">
-            <h2>WriteOnce / WORM</h2>
-            <button class="btn btn-success" id="btn-add-worm">+ Добавить путь</button>
-        </div>
-        <p class="table-hint">
-            Файлы блокируются от изменения и удаления (<code>chattr +i</code>) по истечении grace period.
-            Работает для SMB, NFS и всех протоколов одновременно.
-            <button class="btn btn-secondary btn-sm" id="btn-worm-refresh" style="margin-left:8px;">↻ Обновить статус</button>
-        </p>
-        <table>
-            <thead>
-                <tr>
-                    <th>Путь</th>
-                    <th>Grace period</th>
-                    <th>Режим</th>
-                    <th>SMB vfs_worm</th>
-                    <th>Статус файлов</th>
-                    <th>Вкл</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="worm-body">
-                <tr><td colspan="7" class="text-muted">Загрузка...</td></tr>
-            </tbody>
-        </table>
     </div>
 
     <!-- Modal: Add WORM path -->
@@ -417,25 +368,6 @@
             <div class="modal-footer">
                 <button class="btn btn-primary" id="btn-worm-add-confirm">Добавить</button>
                 <button class="btn btn-default" id="btn-worm-add-cancel">Отмена</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Add iSCSI Target -->
-    <div class="modal-overlay hidden" id="add-iscsi-modal">
-        <div class="modal-box">
-            <h3>Добавить iSCSI Target</h3>
-            <div class="form-group">
-                <label>Имя (суффикс IQN)</label>
-                <input type="text" id="iscsi-name" placeholder="например: backup1">
-            </div>
-            <div class="form-group">
-                <label>Размер LUN (ГБ)</label>
-                <input type="number" id="iscsi-size" value="10" min="1">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-iscsi-create">Создать</button>
-                <button class="btn btn-default" id="btn-iscsi-cancel">Отмена</button>
             </div>
         </div>
     </div>
