@@ -81,20 +81,104 @@ function pushHistory(arr, val) {
 }
 
 // ── Sparkline renderer ────────────────────────────────────────────────────
+// ── Sparkline helpers ──────────────────────────────────────────────────────
+
+function _sparkPoints(values, w, h, padT, padB) {
+    var maxVal = Math.max.apply(null, values.concat([1]));
+    var n = values.length;
+    return values.map(function(v, i) {
+        return {
+            x: parseFloat(((i / Math.max(n - 1, 1)) * w).toFixed(2)),
+            y: parseFloat((h - padB - (v / maxVal) * (h - padT - padB)).toFixed(2))
+        };
+    });
+}
+
+function _sparkPath(pts) {
+    if (!pts.length) return '';
+    var d = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < pts.length; i++) {
+        var tension = 0.35;
+        var dx = pts[i].x - pts[i - 1].x;
+        var cp1x = (pts[i - 1].x + dx * tension).toFixed(2);
+        var cp2x = (pts[i].x - dx * tension).toFixed(2);
+        d += ' C' + cp1x + ',' + pts[i - 1].y.toFixed(2) +
+             ' ' + cp2x + ',' + pts[i].y.toFixed(2) +
+             ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    return d;
+}
+
+function _sparkGridLines(w, h, padT, padB) {
+    var out = '';
+    [0.33, 0.66].forEach(function(f) {
+        var y = (padT + (h - padT - padB) * f).toFixed(1);
+        out += '<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y +
+               '" stroke="currentColor" stroke-opacity="0.07" stroke-width="1"/>';
+    });
+    return out;
+}
+
 function renderSparkline(svgId, values, color) {
     var svg = el(svgId);
     if (!svg) return;
-    var w = svg.clientWidth || 200;
-    var h = svg.clientHeight || 40;
-    var max = Math.max.apply(null, values.concat([1]));
-    var pts = values.map(function(v, i) {
-        var x = (i / Math.max(values.length - 1, 1)) * w;
-        var y = h - (v / max) * (h - 2) - 1;
-        return x.toFixed(1) + "," + y.toFixed(1);
-    }).join(" ");
-    svg.innerHTML = '<polyline points="' + pts +
-        '" fill="none" stroke="' + (color || "#22aa44") +
-        '" stroke-width="1.5" stroke-linejoin="round"/>';
+    var w = svg.clientWidth || 280;
+    var h = svg.clientHeight || 56;
+    var padT = 4, padB = 3;
+    var pts = _sparkPoints(values, w, h, padT, padB);
+    var line = _sparkPath(pts);
+    var area = line + ' L' + pts[pts.length-1].x + ',' + (h - padB) +
+               ' L' + pts[0].x + ',' + (h - padB) + 'Z';
+    var last = pts[pts.length - 1];
+    var gId = svgId + 'G';
+    svg.innerHTML =
+        '<defs>' +
+        '<linearGradient id="' + gId + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.22"/>' +
+        '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/>' +
+        '</linearGradient>' +
+        '</defs>' +
+        _sparkGridLines(w, h, padT, padB) +
+        '<path d="' + area + '" fill="url(#' + gId + ')" stroke="none"/>' +
+        '<path d="' + line + '" fill="none" stroke="' + color +
+        '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<circle cx="' + last.x + '" cy="' + last.y + '" r="2.5" fill="' + color + '"/>';
+}
+
+function renderDualSparkline(svgId, v1, c1, v2, c2) {
+    var svg = el(svgId);
+    if (!svg) return;
+    var w = svg.clientWidth || 280;
+    var h = svg.clientHeight || 56;
+    var padT = 4, padB = 3;
+    var maxVal = Math.max.apply(null, v1.concat(v2).concat([1]));
+    function pts(vals) {
+        var n = vals.length;
+        return vals.map(function(v, i) {
+            return {
+                x: parseFloat(((i / Math.max(n - 1, 1)) * w).toFixed(2)),
+                y: parseFloat((h - padB - (v / maxVal) * (h - padT - padB)).toFixed(2))
+            };
+        });
+    }
+    var p1 = pts(v1), p2 = pts(v2);
+    var l1 = _sparkPath(p1), l2 = _sparkPath(p2);
+    var a1 = l1 + ' L' + p1[p1.length-1].x + ',' + (h-padB) + ' L' + p1[0].x + ',' + (h-padB) + 'Z';
+    var a2 = l2 + ' L' + p2[p2.length-1].x + ',' + (h-padB) + ' L' + p2[0].x + ',' + (h-padB) + 'Z';
+    var e1 = p1[p1.length - 1], e2 = p2[p2.length - 1];
+    var g1 = svgId + 'G1', g2 = svgId + 'G2';
+    svg.innerHTML =
+        '<defs>' +
+        '<linearGradient id="' + g1 + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + c1 + '" stop-opacity="0.18"/><stop offset="100%" stop-color="' + c1 + '" stop-opacity="0"/></linearGradient>' +
+        '<linearGradient id="' + g2 + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + c2 + '" stop-opacity="0.14"/><stop offset="100%" stop-color="' + c2 + '" stop-opacity="0"/></linearGradient>' +
+        '</defs>' +
+        _sparkGridLines(w, h, padT, padB) +
+        '<path d="' + a1 + '" fill="url(#' + g1 + ')" stroke="none"/>' +
+        '<path d="' + a2 + '" fill="url(#' + g2 + ')" stroke="none"/>' +
+        '<path d="' + l1 + '" fill="none" stroke="' + c1 + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="' + l2 + '" fill="none" stroke="' + c2 + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<circle cx="' + e1.x + '" cy="' + e1.y + '" r="2.5" fill="' + c1 + '"/>' +
+        '<circle cx="' + e2.x + '" cy="' + e2.y + '" r="2.5" fill="' + c2 + '"/>';
 }
 
 // ── Section: Identity Bar ─────────────────────────────────────────────────
@@ -472,11 +556,10 @@ function loadNet() {
 
         pushHistory(sparkNetR, rxSpeed);
         pushHistory(sparkNetT, txSpeed);
-        var combined = sparkNetR.map(function(v, i){ return v + sparkNetT[i]; });
-        renderSparkline("spark-net", combined, "#0066cc");
+        renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
         el("net-iface").textContent = best.iface;
-        el("net-rx").textContent = "↓ " + fmtSpeed(Math.max(0, rxSpeed));
-        el("net-tx").textContent = "↑ " + fmtSpeed(Math.max(0, txSpeed));
+        el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
+        el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
     });
 }
 
@@ -513,8 +596,7 @@ function loadDiskIO() {
 
         pushHistory(sparkIoR, totalR);
         pushHistory(sparkIoW, totalW);
-        renderSparkline("spark-io-read",  sparkIoR, "#22aa44");
-        renderSparkline("spark-io-write", sparkIoW, "#e68a00");
+        renderDualSparkline("spark-io", sparkIoR, "#3b82f6", sparkIoW, "#f97316");
         el("io-read").textContent  = fmtSpeed(Math.max(0, totalR));
         el("io-write").textContent = fmtSpeed(Math.max(0, totalW));
 

@@ -146,7 +146,17 @@
 .db-metric-big { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
 
 /* Sparkline */
-.db-sparkline { display: block; width: 100%; height: 40px; margin: 4px 0; }
+.db-sparkline { display: block; width: 100%; height: 56px; margin: 6px 0; }
+
+/* Dual sparkline legend */
+.db-spark-legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.db-spark-legend-item { display: flex; align-items: center; gap: 4px; }
 
 /* Events list */
 .db-events-list { font-size: 12px; }

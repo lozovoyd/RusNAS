@@ -100,8 +100,10 @@
       <div class="db-metric-big" id="net-iface">—</div>
     </div>
     <svg id="spark-net" class="db-sparkline"></svg>
-    <div class="db-card-sub" id="net-rx">↓ —</div>
-    <div class="db-card-sub" id="net-tx">↑ —</div>
+    <div class="db-spark-legend">
+      <span class="db-spark-legend-item" style="color:#22c55e">↓ <span id="net-rx-val">—</span></span>
+      <span class="db-spark-legend-item" style="color:#f97316">↑ <span id="net-tx-val">—</span></span>
+    </div>
   </div>
 
 </div>
@@ -110,22 +112,13 @@
 <div class="db-card" style="margin-bottom:14px">
   <div class="db-perf-header">
     <div><span class="db-card-icon">📊</span> <span class="db-card-title">ДИСКОВЫЙ I/O</span></div>
-    <div style="display:flex;gap:24px">
-      <span class="db-card-sub">Чтение: <strong id="io-read">—</strong></span>
-      <span class="db-card-sub">Запись: <strong id="io-write">—</strong></span>
+    <div class="db-spark-legend">
+      <span class="db-spark-legend-item" style="color:#3b82f6">R <strong id="io-read">—</strong></span>
+      <span class="db-spark-legend-item" style="color:#f97316">W <strong id="io-write">—</strong></span>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
-    <div>
-      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Чтение MB/s</div>
-      <svg id="spark-io-read" class="db-sparkline"></svg>
-    </div>
-    <div>
-      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Запись MB/s</div>
-      <svg id="spark-io-write" class="db-sparkline"></svg>
-    </div>
-  </div>
-  <div class="db-card-sub" id="io-per-disk" style="margin-top:8px;font-size:11px"></div>
+  <svg id="spark-io" class="db-sparkline" style="height:64px"></svg>
+  <div class="db-card-sub" id="io-per-disk" style="margin-top:6px;font-size:11px"></div>
 </div>
 
 <!-- ── Section D+E: Events, Snapshots, Guard, UPS ────────────────────────── -->
