@@ -2,13 +2,11 @@
 // rusNAS Dashboard — js/dashboard.js
 
 // ── Refresh intervals (ms) ────────────────────────────────────────────────
-var TICK_FAST    = 1000;   // identity, CPU, RAM, net, I/O
-var TICK_STORAGE = 10000;  // df, mdstat, services
-var TICK_SMART   = 300000; // smartctl cache TTL
+var TICK_METRICS = 2000;   // metrics server: CPU, RAM, net, I/O, RAID, storage, services, guard
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
-var TICK_GUARD   = 5000;   // guard status
 var TICK_UPS     = 10000;  // ups status
+var TICK_FAST    = 1000;   // datetime only
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -19,11 +17,19 @@ var sparkNetT = new Array(HISTORY).fill(0);
 var sparkIoR  = new Array(HISTORY).fill(0);
 var sparkIoW  = new Array(HISTORY).fill(0);
 
-// ── Delta state ───────────────────────────────────────────────────────────
-var prevCpu     = null;
-var prevNet     = {};
-var prevDisk    = {};
-var smartCache  = {};
+// ── Metrics HTTP client (reused across calls) ─────────────────────────────
+var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
+
+// ── Tick constants ─────────────────────────────────────────────────────────
+var TICK_STORAGE = 10000;
+var TICK_SMART   = 300000;
+var TICK_GUARD   = 5000;
+
+// ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
+var prevCpu  = null;
+var prevNet  = {};
+var prevDisk = {};
+var smartCache = {};
 
 // ── Utilities ─────────────────────────────────────────────────────────────
 function el(id) { return document.getElementById(id); }
@@ -940,6 +946,131 @@ window.copyMetricsUrl = function(type) {
     });
 };
 
+// ── CPU Monitor Modal ─────────────────────────────────────────────────────
+var _cmInterval = null;
+var _cmPrevCpu  = {};
+
+window.openCpuModal = function() {
+    el("cpu-modal").classList.remove("hidden");
+    _cmPrevCpu = {};
+    refreshCpuModal();
+    _cmInterval = setInterval(refreshCpuModal, 1000);
+};
+
+window.closeCpuModal = function() {
+    el("cpu-modal").classList.add("hidden");
+    clearInterval(_cmInterval);
+    _cmInterval = null;
+};
+
+function refreshCpuModal() {
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/stat; echo '===S==='; " +
+        "cat /proc/meminfo; echo '===S==='; " +
+        "cat /proc/loadavg; echo '===S==='; " +
+        "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''; echo '===S==='; " +
+        "ps -eo pid,comm,%cpu,%mem,rss --sort=-%cpu --no-header 2>/dev/null | tail -n +2 | head -14"
+    ], { err: "message" }).done(renderCpuModal);
+}
+
+function _cpuBarColor(pct) {
+    if (pct >= 80) return "#ef4444";
+    if (pct >= 60) return "#f59e0b";
+    return "#22c55e";
+}
+
+function cmBar(label, pct, color, sub) {
+    var cls = pct >= 80 ? "db-crit" : pct >= 60 ? "db-warn" : "db-ok";
+    return '<div class="cm-bar-row">' +
+        '<span class="cm-bar-label">' + label + '</span>' +
+        '<div class="cm-bar-wrap"><div class="cm-bar-fill" style="width:' + Math.min(pct, 100) + '%;background:' + color + '"></div></div>' +
+        '<span class="cm-bar-val ' + cls + '">' + pct + '%</span>' +
+        (sub ? '<span class="cm-bar-sub">' + sub + '</span>' : '') +
+        '</div>';
+}
+
+function renderCpuModal(out) {
+    var parts = out.split("===S===\n");
+    if (parts.length < 5) return;
+    var statText = parts[0];
+    var memText  = parts[1];
+    var loadText = parts[2].trim();
+    var tempText = parts[3].trim();
+    var procText = parts[4];
+
+    // CPU cores
+    var statLines = statText.trim().split("\n").filter(function(l) { return l.match(/^cpu/); });
+    var cores = statLines.map(function(line) {
+        var m = line.match(/^(cpu\d*)\s+([\d\s]+)/);
+        if (!m) return null;
+        var id = m[1];
+        var f  = m[2].trim().split(/\s+/).map(Number);
+        var idle  = f[3] + (f[4] || 0);
+        var total = f.reduce(function(a, b) { return a + b; }, 0);
+        var pct = 0;
+        if (_cmPrevCpu[id]) {
+            var dt = total - _cmPrevCpu[id].total;
+            var di = idle  - _cmPrevCpu[id].idle;
+            pct = dt > 0 ? Math.max(0, Math.min(100, Math.round((1 - di / dt) * 100))) : 0;
+        }
+        _cmPrevCpu[id] = { total: total, idle: idle };
+        return { id: id, pct: pct };
+    }).filter(Boolean);
+
+    var totalCpu = cores.find(function(c) { return c.id === "cpu"; });
+    var perCore  = cores.filter(function(c) { return c.id !== "cpu"; });
+
+    el("cm-total-bar").innerHTML = totalCpu
+        ? cmBar("CPU", totalCpu.pct, _cpuBarColor(totalCpu.pct))
+        : "";
+    el("cm-cpu-cores").innerHTML = perCore.map(function(c, i) {
+        return cmBar("C" + i, c.pct, _cpuBarColor(c.pct));
+    }).join("");
+
+    // Memory
+    var getM = function(k) {
+        var m = memText.match(new RegExp(k + ":\\s+(\\d+)"));
+        return m ? parseInt(m[1]) * 1024 : 0;
+    };
+    var memTotal  = getM("MemTotal"),  memAvail = getM("MemAvailable");
+    var swapTotal = getM("SwapTotal"), swapFree = getM("SwapFree");
+    var memUsed   = memTotal  - memAvail;
+    var swapUsed  = swapTotal - swapFree;
+    var memPct    = memTotal  > 0 ? Math.round(memUsed  / memTotal  * 100) : 0;
+    var swapPct   = swapTotal > 0 ? Math.round(swapUsed / swapTotal * 100) : 0;
+    var memColor  = memPct >= 90 ? "#ef4444" : memPct >= 70 ? "#f59e0b" : "#3b82f6";
+    el("cm-mem-bars").innerHTML =
+        cmBar("RAM",  memPct,  memColor, fmtBytes(memUsed)  + " / " + fmtBytes(memTotal)) +
+        (swapTotal > 0 ? cmBar("Swap", swapPct, "#a855f7", fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal)) : "");
+
+    // Load average + temp
+    var la = loadText.split(" ");
+    el("cm-la1").textContent  = la[0] || "—";
+    el("cm-la5").textContent  = la[1] || "—";
+    el("cm-la15").textContent = la[2] || "—";
+    el("cm-temp").textContent = tempText ? (parseInt(tempText) / 1000).toFixed(0) + "°C" : "—";
+
+    // Processes
+    var procs = procText.trim().split("\n").filter(Boolean).slice(0, 12);
+    el("cm-proc-list").innerHTML = procs.map(function(line) {
+        var p = line.trim().split(/\s+/);
+        if (p.length < 5) return "";
+        var pid  = p[0];
+        var name = p[1].slice(0, 22);
+        var cpu  = parseFloat(p[2]) || 0;
+        var mem  = parseFloat(p[3]) || 0;
+        var rss  = parseInt(p[4]) * 1024;
+        var cls  = cpu > 30 ? "db-crit" : cpu > 10 ? "db-warn" : "";
+        return '<div class="cm-proc-row">' +
+            '<span>' + escHtml(pid) + '</span>' +
+            '<span class="cm-proc-name">' + escHtml(name) + '</span>' +
+            '<span class="cm-proc-val ' + cls + '">' + cpu.toFixed(1) + '</span>' +
+            '<span class="cm-proc-val">' + mem.toFixed(1) + '</span>' +
+            '<span class="cm-proc-val">' + fmtBytes(rss) + '</span>' +
+            '</div>';
+    }).join("");
+}
+
 // ── Tick loops ────────────────────────────────────────────────────────────
 function tickFast() {
     updateDateTime();
@@ -976,6 +1107,16 @@ function tickGuard() {
 document.addEventListener("DOMContentLoaded", function() {
     loadIdentity();
     initMetricsBlock();
+
+    // CPU monitor modal events
+    var cardCpu = el("card-cpu");
+    if (cardCpu) cardCpu.addEventListener("click", window.openCpuModal);
+    var cmClose = el("cpu-modal-close");
+    if (cmClose) cmClose.addEventListener("click", window.closeCpuModal);
+    var cmOverlay = el("cpu-modal");
+    if (cmOverlay) cmOverlay.addEventListener("click", function(e) {
+        if (e.target === cmOverlay) window.closeCpuModal();
+    });
 
 
     // Initial loads

@@ -14,7 +14,7 @@
     --bg-card:      #ffffff;
     --bg-input:     #ffffff;
     --bg-th:        #f8fafc;
-    --bg-row-hover: #f1f5f9;
+    --bg-row-hover: #e8edf3;
     --bg-disabled:  #f8fafc;
 
     /* Text */
@@ -81,8 +81,8 @@
     --modal-overlay-bg: rgba(15,23,42,0.55);
 
     /* Elevation & shape */
-    --card-shadow:      0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --card-shadow-hover:0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+    --card-shadow:      0 1px 3px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
+    --card-shadow-hover:0 4px 20px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.07);
     --radius-sm:        5px;
     --radius:           10px;
     --radius-lg:        14px;
@@ -720,7 +720,7 @@ tbody tr:last-child td { border-bottom: none; }
     background: var(--primary);
     color: #ffffff;
     font-weight: 600;
-    box-shadow: 0 1px 4px rgba(37,99,235,0.35);
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--primary) 40%, transparent);
 }
 
 /* ─── Snapshots sidebar layout ──────────────────────────────────────────────── */

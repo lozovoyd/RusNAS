@@ -72,7 +72,7 @@
 <div class="db-grid-3" style="margin-bottom:14px">
 
   <!-- B1: CPU -->
-  <div class="db-card">
+  <div class="db-card" id="card-cpu" style="cursor:pointer">
     <div class="db-perf-header">
       <div><span class="db-card-icon">⚡</span> <span class="db-card-title">CPU</span></div>
       <div class="db-metric-big" id="cpu-pct">—%</div>
@@ -233,6 +233,69 @@
     Для Prometheus: <code>scrape_configs target: &lt;IP&gt;:9100</code> &nbsp;|&nbsp;
     Для Zabbix: HTTP Agent → URL выше &nbsp;|&nbsp;
     <span id="metrics-server-status"></span>
+  </div>
+</div>
+
+<!-- ── CPU / Memory Monitor Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="cpu-modal">
+  <div class="modal-box" style="width:780px;max-width:96vw">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">⚡ Монитор системных ресурсов</span>
+      <button id="cpu-modal-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+    </div>
+
+    <!-- CPU + Memory grid -->
+    <div class="cm-grid">
+
+      <!-- CPU -->
+      <div class="cm-section">
+        <div class="cm-section-title">⚡ Процессор</div>
+        <div id="cm-total-bar" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--color-border)"></div>
+        <div class="cm-cores-wrap" id="cm-cpu-cores"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+      </div>
+
+      <!-- Memory + Load -->
+      <div class="cm-section">
+        <div class="cm-section-title">🧠 Память</div>
+        <div id="cm-mem-bars"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+        <div class="cm-section-title" style="margin-top:14px;margin-bottom:8px">📈 Нагрузка системы</div>
+        <div class="cm-load-grid">
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la1">—</div>
+            <div class="cm-load-lbl">1 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la5">—</div>
+            <div class="cm-load-lbl">5 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la15">—</div>
+            <div class="cm-load-lbl">15 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-temp">—</div>
+            <div class="cm-load-lbl">Темп. CPU</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Process list -->
+    <div class="cm-section" style="margin-bottom:0">
+      <div class="cm-section-title" style="margin-bottom:6px">🏃 Топ процессов по CPU</div>
+      <div class="cm-proc-head">
+        <span>PID</span>
+        <span>Процесс</span>
+        <span class="cm-proc-val">CPU%</span>
+        <span class="cm-proc-val">MEM%</span>
+        <span class="cm-proc-val">RAM</span>
+      </div>
+      <div id="cm-proc-list"></div>
+    </div>
+
   </div>
 </div>
 
