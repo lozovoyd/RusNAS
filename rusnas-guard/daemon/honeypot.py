@@ -9,8 +9,22 @@ import os
 import random
 import string
 import logging
+import threading
+import time
 
 logger = logging.getLogger("rusnas-guard.honeypot")
+
+# ── Bait creation suppression ─────────────────────────────────────────────────
+# Paths currently being written by Guard itself — inotify events for these
+# must be suppressed to avoid self-triggering the honeypot detector.
+_creating_baits: set = set()
+_creating_lock = threading.Lock()
+
+
+def is_guard_creating(path: str) -> bool:
+    """Return True if Guard is currently writing this bait file (suppress detection)."""
+    with _creating_lock:
+        return path in _creating_baits
 
 # Bait extensions that look like real office/data files
 BAIT_EXTENSIONS = [".docx", ".xlsx", ".pdf", ".pptx", ".doc", ".xls"]
@@ -34,14 +48,26 @@ def _make_bait_name():
 def _fill_bait(path, size):
     """Write random-looking but low-entropy data (not truly random — avoids
     triggering our own entropy detector on bait files)."""
-    # Repeating pattern — low entropy, looks non-empty
-    chunk = (b"\x00" * 512 + b"\xFF" * 512)
-    with open(path, "wb") as fh:
-        written = 0
-        while written < size:
-            block = chunk[:min(len(chunk), size - written)]
-            fh.write(block)
-            written += len(block)
+    # Mark as Guard-created BEFORE writing so inotify events are suppressed
+    with _creating_lock:
+        _creating_baits.add(path)
+
+    try:
+        # Repeating pattern — low entropy, looks non-empty
+        chunk = (b"\x00" * 512 + b"\xFF" * 512)
+        with open(path, "wb") as fh:
+            written = 0
+            while written < size:
+                block = chunk[:min(len(chunk), size - written)]
+                fh.write(block)
+                written += len(block)
+    finally:
+        # Remove from suppression set after 1s — generous window for inotify events
+        def _remove():
+            time.sleep(1.0)
+            with _creating_lock:
+                _creating_baits.discard(path)
+        threading.Thread(target=_remove, daemon=True).start()
 
 
 def ensure_baits(monitored_path: str, bait_registry: dict) -> list:

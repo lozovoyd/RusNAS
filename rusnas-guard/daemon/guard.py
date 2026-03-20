@@ -274,6 +274,8 @@ class GuardDaemon:
 
     def _update_state(self):
         self._state["mode"] = self._config.get("mode", "monitor")
+        self._state["monitored_count"] = len(self._config.get("monitored_paths", []))
+        self._state["daemon_running"] = self._running
         # current_iops is written directly by Detector._record_iops() into shared state
         write_state(self._state)
 

@@ -15,7 +15,7 @@ import inotify.adapters
 import inotify.constants
 
 from entropy  import compute as compute_entropy, should_skip as entropy_skip
-from honeypot import is_bait, recreate_bait
+from honeypot import is_bait, recreate_bait, is_guard_creating
 
 logger = logging.getLogger("rusnas-guard.detector")
 
@@ -24,6 +24,26 @@ ENTROPY_RATE_LIMIT = 200
 
 # Ransomware extension check fires on these inotify events
 EXT_EVENTS = {"IN_CREATE", "IN_MOVED_TO", "IN_CLOSE_WRITE"}
+
+# Honeypot fires only on WRITE/DELETE/RENAME — not on reads.
+# Samba's streams_xattr vfs module opens files to read xattrs (IN_OPEN/IN_ACCESS),
+# which would create false positives if we fired on all event types.
+HONEYPOT_EVENTS = {"IN_CLOSE_WRITE", "IN_CREATE", "IN_MOVED_TO",
+                   "IN_DELETE", "IN_MOVED_FROM"}
+
+
+def _dedup_watch_paths(paths: list) -> list:
+    """Remove paths that are subdirectories of other monitored paths.
+    InotifyTrees watches recursively — having both /mnt/data and
+    /mnt/data/documents would cause every event in /mnt/data/documents
+    to fire twice (once per watch root)."""
+    sorted_paths = sorted(set(paths))  # shortest (parent) paths first
+    result = []
+    for p in sorted_paths:
+        p_norm = p.rstrip('/')
+        if not any(p_norm.startswith(r.rstrip('/') + '/') for r in result):
+            result.append(p)
+    return result
 
 
 def _load_extensions(path="/etc/rusnas-guard/ransom_extensions.txt") -> set:
@@ -153,6 +173,14 @@ class Detector:
         return [p for p in self._config.get("monitored_paths", []) if p.get("enabled", True)]
 
     def _run(self):
+        try:
+            self._run_inner()
+        except Exception as e:
+            logger.exception("Detector thread crashed: %s", e)
+        finally:
+            self._state["daemon_running"] = False
+
+    def _run_inner(self):
         paths = [p["path"] for p in self._monitored()]
         if not paths:
             logger.warning("No monitored paths configured — detector idle")
@@ -166,6 +194,12 @@ class Detector:
         if not paths:
             logger.warning("No accessible monitored paths — detector idle")
             return
+
+        # Deduplicate: if /mnt/data and /mnt/data/documents are both monitored,
+        # InotifyTrees watches recursively — events in /mnt/data/documents would
+        # fire twice. Keep only the topmost (shortest) paths.
+        paths = _dedup_watch_paths(paths)
+        logger.info("InotifyTrees watching: %s", paths)
 
         for p in paths:
             self._iops_windows[p] = IOPSWindow()
@@ -192,9 +226,17 @@ class Detector:
             self._record_iops(watch_path)
 
             # ── Honeypot check ────────────────────────────────────────────────
-            if pconf.get("honeypot", True) and self._config.get("detection", {}).get("honeypot", True):
+            # Only fire on write/delete/rename — not on reads (IN_OPEN, IN_ACCESS).
+            # Samba's streams_xattr reads files on directory listing → false positives.
+            if (type_set & HONEYPOT_EVENTS and
+                    pconf.get("honeypot", True) and
+                    self._config.get("detection", {}).get("honeypot", True)):
                 bait_registry = self._config.get("bait_registry", {})
                 if is_bait(full_path, bait_registry):
+                    if is_guard_creating(full_path):
+                        # Guard itself is writing this bait — suppress self-detection
+                        logger.debug("Suppressed self-write for bait: %s", full_path)
+                        continue
                     logger.warning("BAIT TRIGGERED: %s", full_path)
                     self._fire("honeypot", watch_path, [filename], full_path)
                     recreate_bait(full_path, bait_registry)
