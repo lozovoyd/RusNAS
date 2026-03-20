@@ -105,13 +105,6 @@ function addUser() {
     cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
         .done(function() {
             closeModal("add-user-modal");
-            // Синхронизируем нового пользователя с FileBrowser (fire-and-forget)
-            cockpit.spawn(
-                ["sudo", "-n", "python3",
-                 "/usr/share/cockpit/rusnas/scripts/fb-sync-user.py",
-                 "create", name, password],
-                { err: "message" }
-            );
             document.getElementById("user-name").value = "";
             document.getElementById("user-password").value = "";
             document.getElementById("user-samba").checked = true;
@@ -182,13 +175,6 @@ function saveEditUser() {
     cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
         .done(function() {
             closeModal("edit-user-modal");
-            // Синхронизируем изменения в FileBrowser (fire-and-forget)
-            cockpit.spawn(
-                ["sudo", "-n", "python3",
-                 "/usr/share/cockpit/rusnas/scripts/fb-sync-user.py",
-                 "update", name, password || ""],
-                { err: "message" }
-            );
             loadUsers();
         })
         .fail(function(err) { alert("Ошибка: " + err); });
@@ -199,13 +185,6 @@ function deleteUser(name) {
     var cmd = "smbpasswd -x " + name + " 2>/dev/null || true; userdel " + name;
     cockpit.spawn(["bash", "-c", cmd], {superuser: "require"})
         .done(function() {
-            // Удаляем пользователя из FileBrowser (fire-and-forget)
-            cockpit.spawn(
-                ["sudo", "-n", "python3",
-                 "/usr/share/cockpit/rusnas/scripts/fb-sync-user.py",
-                 "delete", name],
-                { err: "message" }
-            );
             loadUsers();
         })
         .fail(function(err) { alert("Ошибка: " + err); });
