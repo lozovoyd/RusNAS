@@ -1,0 +1,11 @@
+[Unit]
+Description=rusNAS Certificate Check — daily auto-renewal
+After=network-online.target
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target

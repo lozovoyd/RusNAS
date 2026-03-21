@@ -104,9 +104,10 @@ function switchTab(tabName) {
 
     if (!_tabLoaded[tabName]) {
         _tabLoaded[tabName] = true;
-        if (tabName === "dns")    loadDns(); loadHosts();
+        if (tabName === "dns")    { loadDns(); loadHosts(); }
         if (tabName === "routes") loadRoutes();
         if (tabName === "diag")   populateWolIfaceSelect();
+        if (tabName === "certs")  loadCerts();
     }
 }
 
@@ -948,6 +949,401 @@ function startReconnectCountdown(newIp, seconds) {
     }, 1000);
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// CERTIFICATES TAB
+// ══════════════════════════════════════════════════════════════════════════════
+
+var CERTS_API = "/usr/share/cockpit/rusnas/scripts/certs-api.py";
+var _certsData = [];
+var _certDetailsCurrent = null;
+
+function certsApi(args) {
+    return new Promise(function(resolve, reject) {
+        var out = "";
+        var proc = cockpit.spawn(
+            ["sudo", "-n", "python3", CERTS_API].concat(args),
+            { err: "message", superuser: "try" }
+        );
+        proc.stream(function(d) { out += d; });
+        proc.done(function() {
+            var j = safeJson(out);
+            if (j) resolve(j); else reject(new Error("Bad JSON: " + out.slice(0, 200)));
+        });
+        proc.fail(function(ex) {
+            var j = safeJson(out);
+            if (j) resolve(j); else reject(ex);
+        });
+    });
+}
+
+// ── Load certs ────────────────────────────────────────────────────────────────
+
+function loadCerts() {
+    document.getElementById("certsLoading").style.display = "";
+    document.getElementById("certsTable").style.display   = "none";
+    document.getElementById("certsEmpty").style.display   = "none";
+
+    certsApi(["list-certs"]).then(function(data) {
+        document.getElementById("certsLoading").style.display = "none";
+        if (!data.ok) {
+            document.getElementById("certsEmpty").style.display = "";
+            document.getElementById("certsEmpty").querySelector(".net-certs-empty-sub").textContent =
+                "Ошибка: " + (data.error || "");
+            return;
+        }
+        _certsData = data.certs || [];
+        renderCertsTable();
+        updateCertExpBadge();
+    }).catch(function(e) {
+        document.getElementById("certsLoading").style.display = "none";
+        document.getElementById("certsEmpty").style.display = "";
+        document.getElementById("certsEmpty").querySelector(".net-certs-empty-sub").textContent =
+            "Ошибка загрузки: " + escHtml(String(e));
+    });
+
+    loadCertDaemonStatus();
+    checkCertbot();
+}
+
+function checkCertbot() {
+    certsApi(["check-certbot"]).then(function(data) {
+        var alertEl = document.getElementById("certsNoCertbot");
+        if (data.installed) {
+            alertEl.style.display = "none";
+        } else {
+            alertEl.style.display = "";
+        }
+    });
+}
+
+function renderCertsTable() {
+    var tbody = document.getElementById("certsTbody");
+
+    if (_certsData.length === 0) {
+        document.getElementById("certsEmpty").style.display = "";
+        return;
+    }
+
+    document.getElementById("certsTable").style.display = "";
+
+    tbody.innerHTML = _certsData.map(function(c, idx) {
+        var status    = c.status || "unknown";
+        var daysLeft  = c.days_left != null ? c.days_left : "?";
+        var expDate   = c.not_after_iso || "—";
+        var typeLabel = {
+            letsencrypt: '<span class="net-cert-type net-cert-le">Let\'s Encrypt</span>',
+            selfsigned:  '<span class="net-cert-type net-cert-ss">Самоподписанный</span>',
+            custom:      '<span class="net-cert-type net-cert-custom">Внешний</span>',
+        }[c.type] || '<span class="net-cert-type net-cert-custom">Внешний</span>';
+
+        var statusBadge = {
+            valid:    '<span class="net-cert-status net-cert-valid">Действует</span>',
+            expiring: '<span class="net-cert-status net-cert-expiring">Истекает</span>',
+            expired:  '<span class="net-cert-status net-cert-expired">Истёк</span>',
+            unknown:  '<span class="net-cert-status">Неизвестно</span>',
+        }[status] || '<span class="net-cert-status">—</span>';
+
+        var daysClass = daysLeft < 0 ? "net-cert-days-expired"
+            : daysLeft < 14  ? "net-cert-days-critical"
+            : daysLeft < 30  ? "net-cert-days-warn"
+            : "net-cert-days-ok";
+        var daysStr = daysLeft < 0 ? "Истёк" : daysLeft + " дн.";
+
+        var renewBtn = (c.renewable || c.source === "letsencrypt")
+            ? '<button class="btn btn-default btn-sm" data-idx="' + idx + '" id="cert-renew-' + idx + '">🔄</button> '
+            : '';
+
+        return '<tr>' +
+            '<td><strong class="net-mono">' + escHtml(c.cn || c.name) + '</strong>' +
+            (c.sans && c.sans.length > 0
+                ? '<br><small class="net-muted">' + c.sans.slice(0,3).map(escHtml).join(", ") + '</small>'
+                : '') +
+            '</td>' +
+            '<td>' + typeLabel + '</td>' +
+            '<td class="net-muted">' + escHtml(c.issuer || "—") + '</td>' +
+            '<td>' + escHtml(expDate) + '</td>' +
+            '<td><span class="' + daysClass + '">' + daysStr + '</span></td>' +
+            '<td>' + statusBadge + '</td>' +
+            '<td style="text-align:right;white-space:nowrap">' +
+              renewBtn +
+              '<button class="btn btn-default btn-sm" data-idx="' + idx + '" id="cert-detail-' + idx + '">ℹ</button> ' +
+              '<button class="btn btn-danger btn-sm" data-idx="' + idx + '" id="cert-del-' + idx + '">🗑</button>' +
+            '</td>' +
+            '</tr>';
+    }).join("");
+
+    // Wire buttons
+    _certsData.forEach(function(c, idx) {
+        var detBtn = document.getElementById("cert-detail-" + idx);
+        if (detBtn) detBtn.addEventListener("click", function() { openCertDetails(idx); });
+
+        var delBtn = document.getElementById("cert-del-" + idx);
+        if (delBtn) delBtn.addEventListener("click", function() {
+            openConfirm("Удалить сертификат " + (c.cn || c.name) + "?", function() {
+                certsApi(["delete-cert", c.name, c.source || "custom"]).then(function() {
+                    loadCerts();
+                });
+            });
+        });
+
+        var renBtn = document.getElementById("cert-renew-" + idx);
+        if (renBtn) renBtn.addEventListener("click", function() { renewCert(c.name); });
+    });
+}
+
+function updateCertExpBadge() {
+    var badge = document.getElementById("certExpBadge");
+    var expiring = _certsData.filter(function(c) {
+        return c.status === "expiring" || c.status === "expired";
+    });
+    if (expiring.length > 0) {
+        badge.textContent = expiring.length;
+        badge.style.display = "";
+    } else {
+        badge.style.display = "none";
+    }
+}
+
+// ── Cert details modal ────────────────────────────────────────────────────────
+
+function openCertDetails(idx) {
+    var c = _certsData[idx];
+    if (!c) return;
+    _certDetailsCurrent = c;
+
+    document.getElementById("certDetailsTitle").textContent =
+        "Сертификат: " + (c.cn || c.name);
+
+    var rows = [
+        ["Домен (CN)",    c.cn || "—"],
+        ["Тип",           c.type === "letsencrypt" ? "Let's Encrypt"
+                        : c.type === "selfsigned" ? "Самоподписанный" : "Внешний"],
+        ["Издатель",      c.issuer || "—"],
+        ["Subject",       c.subject || "—"],
+        ["Действует с",   c.not_before || "—"],
+        ["Действует до",  c.not_after_iso || "—"],
+        ["Осталось",      c.days_left != null ? c.days_left + " дней" : "—"],
+        ["SAN",           (c.sans || []).join(", ") || "—"],
+        ["Путь к cert",   c.cert_path || "—"],
+        ["Путь к key",    c.key_path  || "—"],
+    ];
+
+    document.getElementById("certDetailsBody").innerHTML =
+        '<table class="table net-table" style="margin:0">' +
+        rows.map(function(r) {
+            return '<tr><td style="font-weight:600;width:140px">' + escHtml(r[0]) + '</td>' +
+                   '<td class="net-mono">' + escHtml(String(r[1])) + '</td></tr>';
+        }).join("") +
+        '</table>';
+
+    var renewBtn = document.getElementById("btnCertRenew");
+    renewBtn.style.display = c.renewable ? "" : "none";
+
+    document.getElementById("certDetailsModal").style.display = "flex";
+}
+
+function renewCert(name) {
+    document.getElementById("certDetailsModal").style.display = "none";
+    var loadingMsg = '<div class="net-loading"><div class="net-spinner"></div> Обновление сертификата ' + escHtml(name) + '...</div>';
+    document.getElementById("certsLoading").innerHTML = loadingMsg;
+    document.getElementById("certsLoading").style.display = "";
+    document.getElementById("certsTable").style.display = "none";
+
+    certsApi(["renew-cert", name]).then(function(data) {
+        loadCerts();
+        if (!data.ok) {
+            alert("Ошибка обновления:\n" + (data.output || data.error || ""));
+        }
+    });
+}
+
+// ── Let's Encrypt modal ───────────────────────────────────────────────────────
+
+function openLeModal() {
+    document.getElementById("leDomain").value  = "";
+    document.getElementById("leEmail").value   = "";
+    document.getElementById("leMethod").value  = "webroot";
+    document.getElementById("leWebroot").value = "/var/www/rusnas-landing";
+    document.getElementById("leAgree").checked = false;
+    document.getElementById("leProgress").style.display = "none";
+    document.getElementById("leOutput").textContent = "";
+    document.getElementById("leError").style.display = "none";
+    document.getElementById("leCancelBtn").style.display = "";
+    document.getElementById("btnIssueLe").style.display = "";
+    document.getElementById("leModal").style.display = "flex";
+}
+
+function issueLetEncrypt() {
+    var domain  = document.getElementById("leDomain").value.trim();
+    var email   = document.getElementById("leEmail").value.trim();
+    var method  = document.getElementById("leMethod").value;
+    var webroot = document.getElementById("leWebroot").value.trim();
+    var agreed  = document.getElementById("leAgree").checked;
+
+    var errEl = document.getElementById("leError");
+    errEl.style.display = "none";
+
+    if (!domain) { errEl.textContent = "Введите доменное имя"; errEl.style.display = ""; return; }
+    if (!email)  { errEl.textContent = "Введите email"; errEl.style.display = ""; return; }
+    if (!agreed) { errEl.textContent = "Необходимо принять условия использования"; errEl.style.display = ""; return; }
+
+    document.getElementById("leProgress").style.display = "";
+    document.getElementById("btnIssueLe").style.display = "none";
+    document.getElementById("leCancelBtn").style.display = "none";
+
+    var outputEl = document.getElementById("leOutput");
+    outputEl.textContent = "$ certbot certonly...\n";
+
+    certsApi(["issue-letsencrypt", domain, email, method, webroot]).then(function(data) {
+        outputEl.textContent += (data.output || "");
+        if (data.ok) {
+            outputEl.textContent += "\n✅ Сертификат получен!";
+            setTimeout(function() {
+                document.getElementById("leModal").style.display = "none";
+                loadCerts();
+            }, 2000);
+        } else {
+            errEl.textContent = data.error || "Ошибка certbot";
+            errEl.style.display = "";
+            document.getElementById("leCancelBtn").style.display = "";
+        }
+    }).catch(function(e) {
+        errEl.textContent = String(e);
+        errEl.style.display = "";
+        document.getElementById("leCancelBtn").style.display = "";
+    });
+}
+
+// ── Self-signed modal ─────────────────────────────────────────────────────────
+
+function openSelfSignedModal() {
+    document.getElementById("ssCommonName").value = "";
+    document.getElementById("ssOrg").value = "rusNAS";
+    document.getElementById("ssSan").value = "";
+    document.getElementById("ssDays").value = "730";
+    document.getElementById("ssKeySize").value = "4096";
+    document.getElementById("ssError").style.display = "none";
+    document.getElementById("selfSignedModal").style.display = "flex";
+}
+
+function createSelfSigned() {
+    var cn      = document.getElementById("ssCommonName").value.trim();
+    var org     = document.getElementById("ssOrg").value.trim() || "rusNAS";
+    var san     = document.getElementById("ssSan").value.trim();
+    var days    = document.getElementById("ssDays").value;
+    var keySize = document.getElementById("ssKeySize").value;
+
+    var errEl = document.getElementById("ssError");
+    errEl.style.display = "none";
+
+    if (!cn) { errEl.textContent = "Введите доменное имя"; errEl.style.display = ""; return; }
+
+    // Name = CN sanitized
+    var name = cn.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    document.getElementById("selfSignedModal").style.display = "none";
+
+    certsApi(["create-selfsigned", name, cn, org, san, days, keySize]).then(function(data) {
+        if (!data.ok) {
+            alert("Ошибка создания сертификата:\n" + (data.error || ""));
+        }
+        loadCerts();
+    });
+}
+
+// ── Import cert modal ─────────────────────────────────────────────────────────
+
+function openImportModal() {
+    document.getElementById("importName").value     = "";
+    document.getElementById("importCertPem").value  = "";
+    document.getElementById("importKeyPem").value   = "";
+    document.getElementById("importChainPem").value = "";
+    document.getElementById("importCertError").style.display = "none";
+    document.getElementById("importCertModal").style.display = "flex";
+}
+
+function saveImportCert() {
+    var name    = document.getElementById("importName").value.trim();
+    var certPem = document.getElementById("importCertPem").value.trim();
+    var keyPem  = document.getElementById("importKeyPem").value.trim();
+    var chainPem= document.getElementById("importChainPem").value.trim();
+
+    var errEl = document.getElementById("importCertError");
+    errEl.style.display = "none";
+
+    if (!name)    { errEl.textContent = "Введите имя"; errEl.style.display = ""; return; }
+    if (!certPem) { errEl.textContent = "Вставьте сертификат PEM"; errEl.style.display = ""; return; }
+    if (!keyPem)  { errEl.textContent = "Вставьте приватный ключ PEM"; errEl.style.display = ""; return; }
+
+    var certB64  = btoa(unescape(encodeURIComponent(certPem)));
+    var keyB64   = btoa(unescape(encodeURIComponent(keyPem)));
+    var chainB64 = chainPem ? btoa(unescape(encodeURIComponent(chainPem))) : "";
+
+    document.getElementById("importCertModal").style.display = "none";
+
+    certsApi(["import-cert", name, certB64, keyB64, chainB64]).then(function(data) {
+        if (!data.ok) {
+            alert("Ошибка импорта:\n" + (data.error || ""));
+        }
+        loadCerts();
+    });
+}
+
+// ── Daemon status ─────────────────────────────────────────────────────────────
+
+function loadCertDaemonStatus() {
+    certsApi(["daemon-status"]).then(function(data) {
+        if (!data.ok) return;
+        var statusEl = document.getElementById("certDaemonStatus");
+        var toggleBtn = document.getElementById("btnToggleCertDaemon");
+
+        if (data.active) {
+            statusEl.innerHTML = '<span class="net-iface-badge up"><span class="net-iface-badge-dot"></span>Активен</span>';
+            toggleBtn.textContent = "Выключить";
+            toggleBtn.className = "btn btn-default btn-sm";
+        } else {
+            statusEl.innerHTML = '<span class="net-iface-badge down"><span class="net-iface-badge-dot"></span>Остановлен</span>';
+            toggleBtn.textContent = "Включить";
+            toggleBtn.className = "btn btn-primary btn-sm";
+        }
+
+        document.getElementById("certDaemonLastCheck").textContent =
+            data.last_run ? data.last_run : "Никогда";
+        document.getElementById("certDaemonNextCheck").textContent =
+            data.next_run ? data.next_run : "—";
+    });
+}
+
+function toggleCertDaemon() {
+    var btn = document.getElementById("btnToggleCertDaemon");
+    var enabling = btn.textContent.trim() === "Включить";
+    certsApi([enabling ? "daemon-enable" : "daemon-disable"]).then(function() {
+        setTimeout(loadCertDaemonStatus, 500);
+    });
+}
+
+function showCertLog() {
+    var wrap = document.getElementById("certLogWrap");
+    wrap.style.display = "";
+    document.getElementById("certLogOutput").textContent = "Загрузка...";
+
+    certsApi(["get-log"]).then(function(data) {
+        document.getElementById("certLogOutput").textContent = data.log || "Лог пустой";
+    });
+}
+
+// ── LE method hint ────────────────────────────────────────────────────────────
+
+function updateLeMethodHint() {
+    var method = document.getElementById("leMethod").value;
+    var hints = {
+        webroot:    "Использует существующий Apache, путь /var/www/rusnas-landing. Рекомендуется.",
+        standalone: "certbot временно запустит собственный HTTP-сервер. Apache должен быть остановлен или порт 80 свободен.",
+    };
+    document.getElementById("leMethodHint").textContent = hints[method] || "";
+    document.getElementById("leWebrootGroup").style.display = (method === "webroot") ? "" : "none";
+}
+
 // ── DOMContentLoaded ──────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -1046,6 +1442,48 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btnRunPortCheck").addEventListener("click", runPortCheck);
     document.getElementById("btnRunWol").addEventListener("click", runWol);
     document.getElementById("btnClearDiag").addEventListener("click", clearDiag);
+
+    // Certificates tab
+    document.getElementById("btnRefreshCerts").addEventListener("click", loadCerts);
+    document.getElementById("btnGetLetsEncrypt").addEventListener("click", openLeModal);
+    document.getElementById("btnNewSelfSigned").addEventListener("click", openSelfSignedModal);
+    document.getElementById("btnImportCert").addEventListener("click", openImportModal);
+    document.getElementById("btnInstallCertbot").addEventListener("click", function() {
+        this.disabled = true;
+        this.textContent = "Устанавливается...";
+        var self = this;
+        certsApi(["install-certbot"]).then(function(data) {
+            self.disabled = false;
+            if (data.ok) {
+                self.closest(".net-alert").style.display = "none";
+            } else {
+                self.textContent = "Ошибка — попробуйте вручную";
+            }
+        });
+    });
+
+    // LE modal
+    document.getElementById("btnIssueLe").addEventListener("click", issueLetEncrypt);
+    document.getElementById("leMethod").addEventListener("change", updateLeMethodHint);
+    updateLeMethodHint();
+
+    // Self-signed modal
+    document.getElementById("btnCreateSelfSigned").addEventListener("click", createSelfSigned);
+
+    // Import modal
+    document.getElementById("btnSaveImportCert").addEventListener("click", saveImportCert);
+
+    // Cert details modal
+    document.getElementById("btnCertRenew").addEventListener("click", function() {
+        if (_certDetailsCurrent) renewCert(_certDetailsCurrent.name);
+    });
+
+    // Daemon
+    document.getElementById("btnToggleCertDaemon").addEventListener("click", toggleCertDaemon);
+    document.getElementById("btnCertLog").addEventListener("click", showCertLog);
+    document.getElementById("btnCloseCertLog").addEventListener("click", function() {
+        document.getElementById("certLogWrap").style.display = "none";
+    });
 
     // Initial load
     loadInterfaces();

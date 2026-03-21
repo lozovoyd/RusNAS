@@ -31,6 +31,7 @@
   <li><a href="#" data-tab="dns">DNS и хосты</a></li>
   <li><a href="#" data-tab="routes">Маршруты</a></li>
   <li><a href="#" data-tab="diag">Диагностика</a></li>
+  <li><a href="#" data-tab="certs">Сертификаты <span class="net-cert-tab-badge" id="certExpBadge" style="display:none"></span></a></li>
 </ul>
 
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
@@ -227,6 +228,96 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 5: CERTIFICATES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-certs" style="display:none">
+
+  <!-- certbot not installed alert -->
+  <div id="certsNoCertbot" class="net-alert net-alert-warn" style="display:none">
+    <span>certbot не установлен — автовыпуск Let's Encrypt недоступен.</span>
+    <button class="btn btn-sm btn-default" id="btnInstallCertbot" style="margin-left:auto">Установить certbot</button>
+  </div>
+
+  <!-- Certificates table -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Установленные сертификаты</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-default btn-sm" id="btnRefreshCerts" title="Обновить список">↻ Обновить</button>
+        <button class="btn btn-default btn-sm" id="btnNewSelfSigned">+ Самоподписанный</button>
+        <button class="btn btn-default btn-sm" id="btnImportCert">📥 Импортировать</button>
+        <button class="btn btn-primary btn-sm" id="btnGetLetsEncrypt">🔒 Let's Encrypt</button>
+      </div>
+    </div>
+
+    <div id="certsLoading" class="net-loading"><div class="net-spinner"></div> Загрузка сертификатов...</div>
+
+    <table class="table net-table" id="certsTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Домен / Имя</th>
+          <th>Тип</th>
+          <th>Издатель</th>
+          <th>Действует до</th>
+          <th>Осталось</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="certsTbody">
+      </tbody>
+    </table>
+
+    <div id="certsEmpty" class="net-certs-empty" style="display:none">
+      <div class="net-certs-empty-icon">🔒</div>
+      <div class="net-certs-empty-text">Нет установленных сертификатов</div>
+      <div class="net-certs-empty-sub">Получите Let's Encrypt или создайте самоподписанный</div>
+    </div>
+  </div>
+
+  <!-- Auto-renewal daemon status -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Авто-обновление сертификатов</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="net-cert-daemon-status" id="certDaemonStatus">
+          <span class="net-spinner" style="width:12px;height:12px"></span>
+        </span>
+        <button class="btn btn-default btn-sm" id="btnToggleCertDaemon">Включить</button>
+      </div>
+    </div>
+    <div class="net-cert-daemon-info">
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Последняя проверка:</span>
+        <span id="certDaemonLastCheck">—</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Следующая проверка:</span>
+        <span id="certDaemonNextCheck">—</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Порог обновления:</span>
+        <span>За 30 дней до истечения</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Журнал:</span>
+        <button class="btn btn-default btn-sm" id="btnCertLog">Показать лог</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cert log output -->
+  <div id="certLogWrap" class="net-diag-output-wrap" style="display:none">
+    <div class="net-diag-output-header">
+      <span>Лог авто-обновления</span>
+      <button class="btn btn-sm btn-default" id="btnCloseCertLog">✕</button>
+    </div>
+    <div class="net-diag-output" id="certLogOutput"></div>
+  </div>
+
+</div><!-- /tab-certs -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!-- MODALS -->
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 
@@ -420,6 +511,149 @@
     <div class="modal-footer">
       <button class="btn" data-dismiss="modal">Отмена</button>
       <button class="btn btn-danger" id="btnConfirmOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Let's Encrypt Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="leModal" style="display:none">
+  <div class="modal-box" style="width:540px">
+    <h3>🔒 Получить сертификат Let's Encrypt</h3>
+
+    <div class="net-alert net-alert-warn" style="margin-bottom:16px">
+      Для выпуска сертификата ваш сервер должен быть доступен из интернета по доменному имени (порт 80).
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Доменное имя</label>
+      <input type="text" class="form-control" id="leDomain" placeholder="nas.example.com">
+      <small class="net-muted">Должен указывать на этот сервер</small>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email (для уведомлений)</label>
+      <input type="email" class="form-control" id="leEmail" placeholder="admin@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Метод подтверждения</label>
+      <select class="form-control" id="leMethod">
+        <option value="webroot">HTTP-01 / Webroot (рекомендуется)</option>
+        <option value="standalone">HTTP-01 / Standalone (остановит Apache)</option>
+      </select>
+      <small class="net-muted" id="leMethodHint">Использует существующий Apache, путь /var/www/rusnas-landing</small>
+    </div>
+    <div class="form-group" id="leWebrootGroup">
+      <label class="form-label">Webroot путь</label>
+      <input type="text" class="form-control" id="leWebroot" value="/var/www/rusnas-landing">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="leAgree" required>
+        Согласен с <a href="https://letsencrypt.org/documents/LE-SA-v1.3-September-21-2022.pdf" target="_blank">условиями использования Let's Encrypt</a>
+      </label>
+    </div>
+
+    <div id="leProgress" style="display:none">
+      <div class="net-diag-output-wrap" style="margin-bottom:8px">
+        <div class="net-diag-output-header"><span>Вывод certbot</span></div>
+        <div class="net-diag-output" id="leOutput" style="min-height:120px"></div>
+      </div>
+    </div>
+
+    <div id="leError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal" id="leCancelBtn">Отмена</button>
+      <button class="btn btn-primary" id="btnIssueLe">Получить сертификат</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Self-Signed Modal ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="selfSignedModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>🔑 Создать самоподписанный сертификат</h3>
+
+    <div class="form-group">
+      <label class="form-label">Доменное имя (CN)</label>
+      <input type="text" class="form-control" id="ssCommonName" placeholder="nas.local или 192.168.1.100">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Организация</label>
+      <input type="text" class="form-control" id="ssOrg" placeholder="My NAS" value="rusNAS">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Дополнительные домены / IP (SAN)</label>
+      <input type="text" class="form-control" id="ssSan" placeholder="nas.local, 192.168.1.100, 10.0.0.1">
+      <small class="net-muted">Через запятую — добавятся в Subject Alternative Names</small>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Срок действия</label>
+      <select class="form-control" id="ssDays">
+        <option value="365">1 год</option>
+        <option value="730" selected>2 года</option>
+        <option value="1825">5 лет</option>
+        <option value="3650">10 лет</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Длина ключа</label>
+      <select class="form-control" id="ssKeySize">
+        <option value="2048">RSA 2048</option>
+        <option value="4096" selected>RSA 4096</option>
+      </select>
+    </div>
+
+    <div id="ssError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnCreateSelfSigned">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Import Cert Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="importCertModal" style="display:none">
+  <div class="modal-box" style="width:560px">
+    <h3>📥 Импортировать сертификат</h3>
+
+    <div class="form-group">
+      <label class="form-label">Имя / идентификатор</label>
+      <input type="text" class="form-control" id="importName" placeholder="my-cert">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Сертификат (PEM)</label>
+      <textarea class="form-control" id="importCertPem" rows="5"
+        placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Приватный ключ (PEM)</label>
+      <textarea class="form-control" id="importKeyPem" rows="5"
+        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цепочка / CA bundle <span class="net-muted">(необязательно)</span></label>
+      <textarea class="form-control" id="importChainPem" rows="3"
+        placeholder="-----BEGIN CERTIFICATE-----&#10;(промежуточные CA, если нужны)&#10;-----END CERTIFICATE-----"></textarea>
+    </div>
+
+    <div id="importCertError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveImportCert">Импортировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cert Details Modal ─────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="certDetailsModal" style="display:none">
+  <div class="modal-box" style="width:560px">
+    <h3 id="certDetailsTitle">Сертификат</h3>
+    <div id="certDetailsBody"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+      <button class="btn btn-primary" id="btnCertRenew" style="display:none">🔄 Обновить</button>
     </div>
   </div>
 </div>

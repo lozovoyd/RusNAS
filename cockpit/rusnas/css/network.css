@@ -762,3 +762,95 @@
   .net-skeleton,
   .net-diag-output:empty::before { animation: none !important; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CERTIFICATES TAB
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Tab badge (expiring count) */
+.net-cert-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-left: 5px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Cert type badges */
+.net-cert-type {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.net-cert-le     { background: #dbeafe; color: #1e40af; }
+.net-cert-ss     { background: #fef3c7; color: #92400e; }
+.net-cert-custom { background: #f3e8ff; color: #6b21a8; }
+
+/* Cert status badges */
+.net-cert-status {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+}
+.net-cert-valid    { background: var(--badge-success-bg); color: var(--badge-success-text); }
+.net-cert-expiring { background: var(--badge-warning-bg); color: var(--badge-warning-text); }
+.net-cert-expired  { background: var(--badge-danger-bg);  color: var(--badge-danger-text); }
+
+/* Days left colors */
+.net-cert-days-ok       { color: var(--success); font-weight: 600; }
+.net-cert-days-warn     { color: var(--warning); font-weight: 700; }
+.net-cert-days-critical { color: var(--danger);  font-weight: 700; }
+.net-cert-days-expired  { color: var(--danger);  font-weight: 700; text-decoration: line-through; }
+
+/* Empty state */
+.net-certs-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--color-muted);
+}
+.net-certs-empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+.net-certs-empty-text { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: var(--color); }
+.net-certs-empty-sub  { font-size: 0.85rem; }
+
+/* Daemon info grid */
+.net-cert-daemon-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 24px;
+  margin-top: 4px;
+}
+.net-cert-daemon-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.net-cert-daemon-label {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.net-cert-daemon-status {
+  display: flex;
+  align-items: center;
+}
+
+/* Dark mode cert types */
+[data-theme="dark"] .net-cert-le     { background: rgba(37,99,235,0.2); color: #93c5fd; }
+[data-theme="dark"] .net-cert-ss     { background: rgba(217,119,6,0.2); color: #fcd34d; }
+[data-theme="dark"] .net-cert-custom { background: rgba(139,92,246,0.2); color: #c4b5fd; }
