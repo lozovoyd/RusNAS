@@ -10,17 +10,17 @@
 /* ─── Design tokens (light) ────────────────────────────────────────────────── */
 :root {
     /* Backgrounds */
-    --bg:           #f1f5f9;
+    --bg:           #f0f4f8;
     --bg-card:      #ffffff;
     --bg-input:     #ffffff;
-    --bg-th:        #f8fafc;
-    --bg-row-hover: #e8edf3;
-    --bg-disabled:  #f8fafc;
+    --bg-th:        #f1f5f9;
+    --bg-row-hover: #e8eef6;
+    --bg-disabled:  #f1f5f9;
 
     /* Text */
     --color:        #0f172a;
-    --color-muted:  #64748b;
-    --color-border: #e2e8f0;
+    --color-muted:  #475569;
+    --color-border: #cbd5e1;
     --color-link:   #2563eb;
 
     /* Primary (modern blue) */
@@ -56,24 +56,24 @@
     /* Badges */
     --badge-success-bg:   #dcfce7;
     --badge-success-text: #166534;
-    --badge-warning-bg:   #fef9c3;
+    --badge-warning-bg:   #fef3c7;
     --badge-warning-text: #854d0e;
     --badge-danger-bg:    #fee2e2;
     --badge-danger-text:  #991b1b;
     --badge-info-bg:      #dbeafe;
     --badge-info-text:    #1e40af;
-    --badge-neutral-bg:   #f1f5f9;
-    --badge-neutral-text: #475569;
+    --badge-neutral-bg:   #e2e8f0;
+    --badge-neutral-text: #334155;
 
     /* Buttons */
     --btn-secondary-bg:       #ffffff;
-    --btn-secondary-text:     #2563eb;
-    --btn-secondary-border:   #bfdbfe;
+    --btn-secondary-text:     #1d4ed8;
+    --btn-secondary-border:   #93c5fd;
     --btn-secondary-hover-bg: #eff6ff;
     --btn-default-bg:         #ffffff;
-    --btn-default-text:       #374151;
-    --btn-default-border:     #d1d5db;
-    --btn-default-hover-bg:   #f9fafb;
+    --btn-default-text:       #1e293b;
+    --btn-default-border:     #94a3b8;
+    --btn-default-hover-bg:   #f1f5f9;
 
     /* Modal */
     --modal-bg:         #ffffff;
@@ -81,8 +81,8 @@
     --modal-overlay-bg: rgba(15,23,42,0.55);
 
     /* Elevation & shape */
-    --card-shadow:      0 1px 3px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
-    --card-shadow-hover:0 4px 20px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.07);
+    --card-shadow:      0 1px 3px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.07);
+    --card-shadow-hover:0 4px 20px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.09);
     --radius-sm:        5px;
     --radius:           10px;
     --radius-lg:        14px;
@@ -90,8 +90,9 @@
 }
 
 /* ─── Design tokens (dark) ─────────────────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-    :root {
+/* Applied when: Cockpit theme = dark, OR OS dark + no Cockpit preference      */
+/* Controlled by data-theme attribute set by inline JS (see each HTML <head>)  */
+:root[data-theme="dark"] {
         --bg:           #0f172a;
         --bg-card:      #1e293b;
         --bg-input:     #1e293b;
@@ -158,7 +159,6 @@
 
         --card-shadow:       0 1px 4px rgba(0,0,0,0.4);
         --card-shadow-hover: 0 4px 16px rgba(0,0,0,0.55);
-    }
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────────── */

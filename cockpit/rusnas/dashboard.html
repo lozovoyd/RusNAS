@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>rusNAS — Dashboard</title>
+  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <script src="../base1/cockpit.js"></script>
@@ -94,7 +95,7 @@
   </div>
 
   <!-- B3: Network -->
-  <div class="db-card">
+  <div class="db-card" id="card-net" style="cursor:pointer">
     <div class="db-perf-header">
       <div><span class="db-card-icon">🌐</span> <span class="db-card-title">СЕТЬ</span></div>
       <div class="db-metric-big" id="net-iface">—</div>
@@ -233,6 +234,62 @@
     Для Prometheus: <code>scrape_configs target: &lt;IP&gt;:9100</code> &nbsp;|&nbsp;
     Для Zabbix: HTTP Agent → URL выше &nbsp;|&nbsp;
     <span id="metrics-server-status"></span>
+  </div>
+</div>
+
+<!-- ── Network Monitor Modal ──────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="net-modal">
+  <div class="modal-box" style="width:780px;max-width:96vw">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">🌐 Мониторинг сети</span>
+      <button id="net-modal-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+    </div>
+
+    <!-- Live speed row -->
+    <div class="nm-live-grid">
+      <div class="nm-live-item">
+        <div class="nm-live-label" style="color:#22c55e">↓ Входящий</div>
+        <div class="nm-live-val" style="color:#22c55e" id="nm-rx-speed">—</div>
+        <div class="nm-live-sub" id="nm-rx-today">Сегодня: —</div>
+      </div>
+      <div class="nm-live-item nm-live-center">
+        <div class="nm-live-iface" id="nm-iface-name">—</div>
+        <div class="nm-live-since" id="nm-since">—</div>
+      </div>
+      <div class="nm-live-item nm-live-right">
+        <div class="nm-live-label" style="color:#f97316">↑ Исходящий</div>
+        <div class="nm-live-val" style="color:#f97316" id="nm-tx-speed">—</div>
+        <div class="nm-live-sub" id="nm-tx-today">Сегодня: —</div>
+      </div>
+    </div>
+
+    <!-- 7-day bar chart -->
+    <div class="nm-section">
+      <div class="nm-section-title">📊 Трафик за 7 дней</div>
+      <div class="nm-chart-legend">
+        <span class="nm-legend-dot" style="background:#22c55e"></span> Входящий &nbsp;
+        <span class="nm-legend-dot" style="background:#f97316"></span> Исходящий
+      </div>
+      <div id="nm-chart-7d" class="nm-chart-wrap">
+        <span class="text-muted" style="font-size:12px">Загрузка…</span>
+      </div>
+    </div>
+
+    <!-- 24h hourly chart -->
+    <div class="nm-section">
+      <div class="nm-section-title">🕐 Трафик за 24 часа (почасово)</div>
+      <div id="nm-chart-24h" class="nm-chart-wrap">
+        <span class="text-muted" style="font-size:12px">Загрузка…</span>
+      </div>
+    </div>
+
+    <!-- Monthly summary table -->
+    <div class="nm-section" style="margin-bottom:0">
+      <div class="nm-section-title">📅 Помесячная статистика</div>
+      <div id="nm-months-table"></div>
+    </div>
+
   </div>
 </div>
 

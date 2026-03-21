@@ -1291,3 +1291,130 @@ storage-analyzer.css:
 
 ### Ветка
 - `feature/filebrowser` → merge в `main`
+
+---
+
+## Сессия 2026-03-20 — Редизайн UI (feature/redesign-ui)
+
+### Цель
+Анализ текущего дизайна и полный редизайн дизайн-системы с помощью ui-ux-pro-max skill.
+
+### Анализ текущего дизайна
+- Стиль: PatternFly 2018-era, плоский, функциональный
+- Проблемы: устаревшая палитра #0066cc, нет hover-эффектов на карточках, плоские кнопки без теней, старый underline tab style, слабая тёмная тема, нет анимаций
+
+### Что изменено
+
+**style.css:**
+- Новая цветовая система: Slate-based light (#f1f5f9 bg, #0f172a text, #2563eb primary) + Deep navy dark (#0f172a bg, #1e293b cards, #3b82f6 primary)
+- Кнопки: box-shadow на primary/danger/success, усиление при hover
+- Вкладки advisor-tabs: pill-style (активная = синий background), было underline
+- Карточки RAID: hover translateY(-1px) + card-shadow-hover
+- Модалы: backdrop-filter blur(2px) + @keyframes modal-in анимация
+- Progress bars: linear-gradient
+- Таблицы: border-radius на th:first/last-child
+- border-radius: 6px → 10px cards, 14px modals
+- Улучшена типографика: letter-spacing, font-weight
+
+**dashboard.css:**
+- Dashboard карточки: hover = translateY(-1px) + border-color primary
+- Status dots: ring-glow (box-shadow 0 0 0 3px) вместо simple glow
+- Progress fill: linear-gradient для success/warn/crit
+- Guard stat cells: border добавлен
+- UPS metric items: border добавлен
+- db-card-metric: font-size 28px → 30px, font-weight 700 → 800
+
+### Ветка
+- `feature/redesign-ui` — создана от main, задеплоена на VM
+
+---
+
+## Сессия N+1 — CPU Monitor Modal + Light Theme + ui.md (2026-03-20)
+
+### Задачи
+1. Починить поломанный dashboard.js (переменные удалены в предыдущей сессии, функции сломаны)
+2. Добавить модальный монитор ресурсов (htop-like, по клику на CPU-виджет дашборда)
+3. Починить светлую тему (shadows, row-hover)
+4. Обновить ui.md с полным описанием дизайн-системы
+
+### Реализовано
+
+#### dashboard.js — починка поломанных переменных
+- Возвращены: `prevCpu`, `prevNet`, `prevDisk`, `smartCache`, `TICK_STORAGE`, `TICK_SMART`, `TICK_GUARD`
+- Без этих переменных все функции CPU/Net/IO/SMART падали с ReferenceError
+
+#### dashboard.js + dashboard.html + dashboard.css — CPU Monitor Modal
+- Клик по карточке CPU (`#card-cpu`) открывает модал `#cpu-modal`
+- Обновление каждые 1 секунду через `setInterval(refreshCpuModal, 1000)`
+- Layout: 2-column grid (CPU cores + Memory/Load) + процессы внизу
+- CPU bars: per-core (C0, C1...) + total, gradient цвет по нагрузке
+- Memory bars: RAM (синий) + Swap (фиолетовый) с human-readable подписями
+- Load grid: 4 tile (1мин / 5мин / 15мин / CPU temp)
+- Process table: топ-12 процессов по CPU (PID, имя, CPU%, MEM%, RAM)
+- Цвета баров: зелёный (0-59%) → жёлтый (60-79%) → красный (≥80%)
+- Закрытие: кнопка ✕ или клик по overlay
+
+#### style.css — светлая тема
+- `--card-shadow`: `0 1px 3px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05)` (усилено)
+- `--card-shadow-hover`: `0 4px 20px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.07)` (усилено)
+- `--bg-row-hover`: `#f1f5f9` → `#e8edf3` (теперь заметно отличается от bg-card white)
+- `.advisor-tab-btn.active box-shadow`: rgba(hardcoded) → `color-mix(in srgb, var(--primary) 40%, transparent)` (адаптивно к теме)
+
+#### ui.md — полная переработка
+- Документированы все CSS-переменные (таблицы свет/тёмн)
+- Документированы pill-tabs vs underline-tabs
+- Modal дизайн (backdrop-blur, animation, radius-lg)
+- Dashboard компоненты: sparklines (bezier, gradient fill, endpoint dot, grid lines)
+- Status dots ring-glow через color-mix
+- CPU Monitor Modal компоненты
+- Все адаптивные breakpoints
+- JS правила (CSP, superuser, Promise.all pattern)
+
+### Ветка
+- `main` — задеплоено на VM
+
+---
+
+## Сессия N+2 — Network Modal, Guard Auto-Start, Snapshot Fix, TX Bug (2026-03-21)
+
+### Задачи
+1. Сетевой монитор в модальном окне (клик по виджету СЕТЬ на дашборде)
+2. Guard не запускался автоматически после перезагрузки сервера
+3. Неправильный подсчёт снапшотов в виджете дашборда
+4. Исходящий трафик (↑) всегда показывал 0 Б/с
+
+### Реализовано
+
+#### dashboard.html + dashboard.css + dashboard.js — Network Monitor Modal
+- Клик по карточке `#card-net` открывает модал `#net-modal`
+- Live-скорости RX/TX (копируются с основной карточки, обновление 1 сек)
+- vnstat интеграция: `cockpit.spawn(["vnstat", "--json"])` → парсинг JSON
+- 7-дневный бар-чарт (SVG, попарные столбики RX/TX зелёный/оранжевый)
+- 24-часовой почасовой бар-чарт (сортировка по timestamp)
+- Таблица помесячной статистики (последние 12 месяцев, новые сверху)
+- CSS `.nm-*` классы по аналогии с `.cm-*` (CPU modal)
+- Закрытие: кнопка ✕ или клик по overlay
+
+**Баг vnstat:** неправильные ключи JSON — `traffic.days/hours/months` → правильно `traffic.day/hour/month`;
+порядок записей oldest-first → today = `day[day.length-1]`
+
+#### rusnas-guard/daemon/guard.py — Auto-Start Detector
+- Добавлен `auto_start: true` флаг (default True)
+- В `run()` после инициализации: если `auto_start` → вызывается `start_guard()` автоматически
+- Результат: после `systemctl restart rusnas-guard` и после ребута сервера детектор запускается сам
+- `state.json` сразу показывает `daemon_running: true`
+
+#### dashboard.js — Snapshot Widget Fix
+- Было: `total_count` из `storage-info` включал старые тестовые пути `/mnt/btrfspool/...` → 46 снапшотов вместо 20
+- Стало: cross-reference с `schedule list` — показываются субволюмы которые имеют расписание (любое) ИЛИ ненулевое количество снапшотов
+- Суммирование `totalCount` и `totalSize` пересчитывается по отфильтрованному списку
+- Используется `fmtBytes()` для форматирования размера вместо `total_size_human` из API
+
+#### dashboard.js — TX Speed Fix (/proc/net/dev regex)
+- Баг: regex `/^(\w+):\s+(\d+)(\s+\d+){6}\s+(\d+)/` захватывал `RX_multicast` (8-й RX-столбец, всегда ≈0) вместо `TX_bytes` (9-й столбец)
+- `/proc/net/dev` формат: `iface: RX_bytes pkt errs drop fifo frame compressed multicast | TX_bytes ...`
+- Исправление: добавлен один `\s+\d+` → теперь правильно пропускает все 7 RX-полей и захватывает TX_bytes
+- Это исправляет как модал (↑ 0 Б/с), так и спарклайн оранжевой линии TX на основной карточке
+
+### Ветка
+- `feature/redesign-ui` → слита в `main`, задеплоена на VM
