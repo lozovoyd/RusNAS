@@ -124,16 +124,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings modal
     document.getElementById('btnSettings').addEventListener('click', () => {
-        const m = document.getElementById('settingsModal');
-        m.style.display = 'flex';
-        m.classList.add('in');
+        document.getElementById('settingsModal').style.display = 'flex';
     });
     document.querySelectorAll('[data-dismiss="modal"]').forEach(btn => {
         btn.addEventListener('click', closeModal);
     });
+    // Close on overlay backdrop click
+    document.getElementById('settingsModal').addEventListener('click', e => {
+        if (e.target === document.getElementById('settingsModal')) closeModal();
+    });
     document.getElementById('btnSaveSettings').addEventListener('click', () => {
         closeModal();
-        cockpit.notification.show('Настройки сохранены');
     });
     document.getElementById('settingSchedule').addEventListener('change', function() {
         document.getElementById('settingDailyTimeGroup').style.display =
@@ -170,9 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function closeModal() {
-    const m = document.getElementById('settingsModal');
-    m.classList.remove('in');
-    setTimeout(() => { m.style.display = 'none'; }, 300);
+    document.getElementById('settingsModal').style.display = 'none';
 }
 
 function switchTab(tab) {

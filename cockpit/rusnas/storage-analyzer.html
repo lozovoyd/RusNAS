@@ -291,50 +291,45 @@
 </div><!-- /tab-filetypes -->
 
 <!-- ========== SETTINGS MODAL ========== -->
-<div class="modal fade" id="settingsModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal">×</button>
-        <h4 class="modal-title">⚙ Настройки анализатора</h4>
+<div class="modal-overlay" id="settingsModal" style="display:none">
+  <div class="modal-box" style="width:520px">
+    <h3>⚙ Настройки анализатора</h3>
+    <div class="form-group">
+      <label class="form-label">Расписание сканирования</label>
+      <select class="form-control" id="settingSchedule">
+        <option value="hourly">Каждый час</option>
+        <option value="6h">Каждые 6 часов</option>
+        <option value="daily">Ежедневно</option>
+        <option value="manual">Только вручную</option>
+      </select>
+    </div>
+    <div class="form-group" id="settingDailyTimeGroup" style="display:none">
+      <label class="form-label">Время запуска</label>
+      <input type="time" class="form-control" id="settingDailyTime" value="03:00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Исключить из сканирования</label>
+      <div id="excludeList" style="margin-bottom:6px"></div>
+      <button class="btn btn-sm" id="btnAddExclude">+ Добавить путь</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Уведомления</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+          <input type="checkbox" id="notifyFill" checked>
+          Уведомлять при заполнении &gt;
+          <input type="number" id="notifyFillPct" value="85" min="50" max="99" style="width:55px"> %
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+          <input type="checkbox" id="notifyForecast" checked>
+          Уведомлять при прогнозе &lt;
+          <input type="number" id="notifyForecastDays" value="14" min="1" max="90" style="width:55px"> дней
+        </label>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Расписание сканирования</label>
-          <select class="form-control" id="settingSchedule">
-            <option value="hourly">Каждый час</option>
-            <option value="6h">Каждые 6 часов</option>
-            <option value="daily">Ежедневно</option>
-            <option value="manual">Только вручную</option>
-          </select>
-        </div>
-        <div class="form-group" id="settingDailyTimeGroup" style="display:none">
-          <label>Время запуска</label>
-          <input type="time" class="form-control" id="settingDailyTime" value="03:00">
-        </div>
-        <div class="form-group">
-          <label>Исключить из сканирования</label>
-          <div id="excludeList"></div>
-          <button class="btn btn-default btn-sm" id="btnAddExclude">+ Добавить путь</button>
-        </div>
-        <div class="form-group">
-          <label>Уведомления</label>
-          <div class="checkbox">
-            <label><input type="checkbox" id="notifyFill" checked>
-              Уведомлять при заполнении &gt; <input type="number" id="notifyFillPct" value="85" min="50" max="99" style="width:55px;display:inline"> %
-            </label>
-          </div>
-          <div class="checkbox">
-            <label><input type="checkbox" id="notifyForecast" checked>
-              Уведомлять при прогнозе &lt; <input type="number" id="notifyForecastDays" value="14" min="1" max="90" style="width:55px;display:inline"> дней
-            </label>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-default" data-dismiss="modal">Отмена</button>
-        <button class="btn btn-primary" id="btnSaveSettings">Сохранить</button>
-      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveSettings">Сохранить</button>
     </div>
   </div>
 </div>
