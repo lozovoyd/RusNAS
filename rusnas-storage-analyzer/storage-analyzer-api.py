@@ -6,6 +6,23 @@
 
 import os, sys, json, sqlite3, time, subprocess, re, stat
 
+VIDEO_EXT   = {"mp4","mkv","avi","mov","wmv","ts","m2ts","flv","webm","mpg","mpeg","3gp"}
+PHOTO_EXT   = {"jpg","jpeg","png","raw","cr2","nef","heic","tiff","bmp","gif","arw","orf"}
+DOC_EXT     = {"pdf","doc","docx","xls","xlsx","odt","ods","ppt","pptx","txt","rtf","odf"}
+ARCHIVE_EXT = {"zip","tar","gz","bz2","xz","7z","rar","iso","tgz","tbz"}
+BACKUP_EXT  = {"img","bak","bkp","backup","dump","sql","vhd","vmdk","qcow2"}
+CODE_EXT    = {"py","js","ts","go","rs","java","c","cpp","h","hpp","cs","rb","php","sh"}
+
+def classify_ext(filename):
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext in VIDEO_EXT:   return "video"
+    if ext in PHOTO_EXT:   return "photo"
+    if ext in DOC_EXT:     return "docs"
+    if ext in ARCHIVE_EXT: return "archive"
+    if ext in BACKUP_EXT:  return "backup"
+    if ext in CODE_EXT:    return "code"
+    return "other"
+
 DB_PATH    = "/var/lib/rusnas/storage_history.db"
 CACHE_PATH = "/var/lib/rusnas/storage_cache.json"
 SCAN_FILE  = "/var/lib/rusnas/last_storage_scan"
@@ -203,43 +220,65 @@ def cmd_files(path="/", sort="size", ftype="all", older_than="0"):
 
     entries = []
     try:
-        for name in os.listdir(path):
-            if name.startswith("."):
-                continue
-            full = os.path.join(path, name)
-            try:
-                st = os.stat(full)
-            except OSError:
-                continue
-            is_dir = stat.S_ISDIR(st.st_mode)
-
-            if older_days > 0 and st.st_mtime > cutoff_mtime:
-                continue
-
-            if is_dir:
-                # get size via du
-                out = run(["du", "-sb", "--apparent-size", full])
-                try:
-                    sz = int(out.split()[0])
-                except Exception:
-                    sz = st.st_size
-                fc_out = run(f"find {full!r} -type f 2>/dev/null | wc -l", shell=True)
-                fc = int(fc_out.strip()) if fc_out.strip().isdigit() else 0
-                entries.append({
-                    "name": name, "type": "dir",
-                    "bytes": sz, "files": fc,
-                    "mtime": int(st.st_mtime)
-                })
-            else:
-                if ftype != "all":
-                    from storage_collector_lib import classify_ext
+        if ftype != "all":
+            # Recursive file search when a type filter is active.
+            # Walk the entire subtree and collect matching files only.
+            for dirpath, dirnames, filenames in os.walk(path):
+                # Skip hidden dirs
+                dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+                for name in filenames:
+                    if name.startswith("."):
+                        continue
                     if classify_ext(name) != ftype:
                         continue
-                entries.append({
-                    "name": name, "type": "file",
-                    "bytes": st.st_size,
-                    "mtime": int(st.st_mtime)
-                })
+                    full = os.path.join(dirpath, name)
+                    try:
+                        st = os.stat(full)
+                    except OSError:
+                        continue
+                    if older_days > 0 and st.st_mtime > cutoff_mtime:
+                        continue
+                    # Show relative path from root for clarity
+                    rel = os.path.relpath(full, path)
+                    entries.append({
+                        "name": rel, "type": "file",
+                        "bytes": st.st_size,
+                        "mtime": int(st.st_mtime)
+                    })
+        else:
+            # Non-recursive: list current directory only
+            for name in os.listdir(path):
+                if name.startswith("."):
+                    continue
+                full = os.path.join(path, name)
+                try:
+                    st = os.stat(full)
+                except OSError:
+                    continue
+                is_dir = stat.S_ISDIR(st.st_mode)
+
+                if older_days > 0 and st.st_mtime > cutoff_mtime:
+                    continue
+
+                if is_dir:
+                    out = run(["du", "-sb", "--apparent-size", full])
+                    try:
+                        sz = int(out.split()[0])
+                    except Exception:
+                        sz = st.st_size
+                    fc_out = run(f"find {full!r} -type f 2>/dev/null | wc -l", shell=True)
+                    fc = int(fc_out.strip()) if fc_out.strip().isdigit() else 0
+                    entries.append({
+                        "name": name, "type": "dir",
+                        "bytes": sz, "files": fc,
+                        "mtime": int(st.st_mtime)
+                    })
+                else:
+                    entries.append({
+                        "name": name, "type": "file",
+                        "bytes": st.st_size,
+                        "mtime": int(st.st_mtime)
+                    })
     except PermissionError:
         err("Permission denied")
         return

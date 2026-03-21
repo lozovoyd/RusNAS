@@ -1418,3 +1418,61 @@ storage-analyzer.css:
 
 ### Ветка
 - `feature/redesign-ui` → слита в `main`, задеплоена на VM
+
+---
+
+## Сессия 2026-03-22 — iSCSI Architectural Redesign
+
+### Задача
+Полный редизайн iSCSI-секции: разделение LUN Manager и Target Manager (как в Synology DSM), устранение orphaned файлов, замена хрупкого text-парсинга `targetcli ls /` на чтение структурированного `saveconfig.json`.
+
+### Ключевые изменения
+
+**index.html:**
+- Заменён `#tab-iscsi` — теперь два раздела: «LUN / Хранилища» + «iSCSI Targets»
+- Старый `#add-iscsi-modal` заменён тремя новыми модалами:
+  - `#iscsi-lun-modal` — создание LUN (fileio/block, опция создания файла)
+  - `#iscsi-target-modal` — создание/редактирование target (LUN-чеклист, ACL, CHAP)
+  - `#iscsi-delete-modal` — подтверждение удаления с опцией «Удалить файл с диска»
+
+**app.js (iSCSI секция, ~400 строк):**
+- Новое состояние: `_iscsiState = { backstores, targets, loaded }`, `_iscsiDeleteCtx`
+- `_tcli(args)` — helper для `sudo targetcli`
+- `_readSaveconfig()` — читает `/etc/rtslib-fb-target/saveconfig.json`
+- `_iscsiLoadConfig(cfg)` — парсит JSON в `_iscsiState`:
+  - `storage_objects` — flat list, поле `plugin` (не `type`), путь нормализуется (`/backstores/` strip)
+  - `targets` — flat list, фильтр `fabric === "iscsi"`
+- `loadISCSI()` — сначала `targetcli saveconfig` (гарантирует свежий JSON), потом читает и рендерит
+- `renderLunsTable()` — кнопка «Удалить» задисейблена если `inUseBy.length > 0`
+- `renderTargetsTable()` — кнопки «Изменить» и «Удалить»
+- `saveLun()` — fileio (mkdir + create) / block (create)
+- `confirmDeleteLun()` / `_iscsiExecuteDeleteLun()` — опциональное удаление `.img`
+- `openTargetModal()` — LUN-чеклист из `_iscsiState.backstores`
+- `saveTarget()` — create/edit: LUN-mappings, ACL, CHAP
+- `confirmDeleteTarget()` / `_iscsiExecuteDeleteTarget()` — только конфиг, файлы не трогает
+- `_esc()` — HTML-эскейп для safe rendering
+
+### Критические факты (для будущих сессий)
+- Конфиг: `/etc/rtslib-fb-target/saveconfig.json` (НЕ `/etc/target/`)
+- `storage_object` в JSON: `/backstores/fileio/backup1` — нормализуется strip `/backstores/`
+- Всегда вызывать `targetcli saveconfig` перед чтением JSON (файл обновляется только явно)
+- `_esc()` нужна для всех данных в innerHTML (IQN, пути содержат спецсимволы)
+
+### Ветка
+- Коммиты в `main`, задеплоено на VM
+
+### Продолжение сессии 2026-03-22 — багфиксы iSCSI + Storage Analyzer
+
+**iSCSI — дополнительные исправления:**
+- `_readSaveconfig()`: заменён `sudo cat` на `cockpit.file(path, {superuser:"try"}).read()` — `sudo cat` не был в sudoers NOPASSWD
+- `saveLun()` — fileio без галочки «Создать файл»: убран аргумент `size=` (targetcli определяет размер автоматически для существующего файла)
+- Поле «Размер» скрывается когда «Создать файл» снят; появляется подсказка «Файл уже существует»
+- Удаление файла LUN: заменён `cockpit.spawn(["sudo","rm",...])` на `cockpit.spawn(["rm",...],{superuser:"try"})` — `sudo rm` не в NOPASSWD
+- Добавлена кнопка «🔍 Найти незарегистрированные» — сканирует `/mnt/data/iscsi/*.img`, предлагает зарегистрировать незарегистрированные файлы как backstores
+
+**Storage Analyzer — исправления:**
+- `storage-analyzer-api.py`: `classify_ext` и константы расширений вынесены инлайн (убран `from storage_collector_lib import classify_ext` — модуль не существует)
+- `cmd_files`: при `ftype != "all"` — рекурсивный `os.walk` вместо плоского `os.listdir`; директории не включаются (убирает таймаут от `du -sb` на больших папках)
+- Файлы показываются с относительным путём от текущей директории (`documents/update.img`)
+
+**Лендинг:** обновлены карточка «Все протоколы» (упомянут LUN Manager) и «Анализатор пространства» (фильтрация по типам); добавлена строка «Независимый LUN Manager» в сравнительную таблицу

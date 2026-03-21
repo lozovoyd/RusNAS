@@ -635,9 +635,10 @@ function _tcli(args) {
 var _SAVECONFIG_PATH = "/etc/rtslib-fb-target/saveconfig.json";
 function _readSaveconfig() {
     return new Promise(function(resolve, reject) {
-        cockpit.spawn(["sudo", "cat", _SAVECONFIG_PATH], { err: "message" })
-            .done(function(out) {
-                try { resolve(JSON.parse(out)); }
+        cockpit.file(_SAVECONFIG_PATH, { superuser: "try" }).read()
+            .done(function(content) {
+                if (!content) { reject(new Error("saveconfig.json не найден")); return; }
+                try { resolve(JSON.parse(content)); }
                 catch(e) { reject(new Error("Ошибка разбора saveconfig.json: " + e.message)); }
             })
             .fail(function(err) { reject(err); });
@@ -810,7 +811,7 @@ function openLunModal(existing) {
     document.getElementById("lun-filepath").value = existing ? existing.file : "/mnt/data/iscsi/";
     document.getElementById("lun-size").value = 10;
     document.getElementById("lun-blockdev").value = existing ? existing.dev : "";
-    document.getElementById("lun-create-file").checked = true;
+    document.getElementById("lun-create-file").checked = !existing;
     document.getElementById("lun-modal-title").textContent = existing ? "Изменить LUN" : "Создать LUN";
     document.getElementById("btn-lun-save").textContent = existing ? "Сохранить" : "Создать";
     _iscsiToggleLunType();
@@ -821,6 +822,13 @@ function _iscsiToggleLunType() {
     var t = document.getElementById("lun-type").value;
     document.getElementById("lun-fileio-fields").style.display = t === "fileio" ? "" : "none";
     document.getElementById("lun-block-fields").style.display  = t === "block"  ? "" : "none";
+    _iscsiToggleCreateFile();
+}
+
+function _iscsiToggleCreateFile() {
+    var create = document.getElementById("lun-create-file").checked;
+    document.getElementById("lun-size-row").style.display    = create ? "" : "none";
+    document.getElementById("lun-existing-hint").style.display = create ? "none" : "";
 }
 
 function saveLun() {
@@ -840,7 +848,10 @@ function saveLun() {
             ? new Promise(function(res, rej) { cockpit.spawn(["sudo", "mkdir", "-p", dir], { err: "message" }).done(res).fail(rej); })
             : Promise.resolve();
         p = mkdirP.then(function() {
-            return _tcli(["/backstores/fileio", "create", "name=" + name, "file_or_dev=" + filePath, "size=" + size + "G"]);
+            // If registering existing file — no size needed, targetcli detects it automatically
+            var args = ["/backstores/fileio", "create", "name=" + name, "file_or_dev=" + filePath];
+            if (createFile) args.push("size=" + size + "G");
+            return _tcli(args);
         });
     } else {
         var dev = document.getElementById("lun-blockdev").value.trim();
@@ -854,6 +865,62 @@ function saveLun() {
         loadISCSI();
     })
     .catch(function(err) { alert("Ошибка создания LUN: " + (err.message || err)); });
+}
+
+// ── Scan unregistered .img files ─────────────────────────────────────────────
+
+function scanUnregisteredLuns() {
+    var btn = document.getElementById("btn-scan-luns");
+    btn.disabled = true;
+    btn.textContent = "Поиск...";
+
+    // Find all .img files under /mnt/data/iscsi/
+    new Promise(function(res, rej) {
+        cockpit.spawn(["find", "/mnt/data/iscsi", "-name", "*.img", "-type", "f"], { err: "message", superuser: "try" })
+            .done(res).fail(rej);
+    })
+    .then(function(out) {
+        var files = out.trim().split("\n").filter(Boolean);
+        var registered = _iscsiState.backstores.map(function(b) { return b.file; });
+        var unregistered = files.filter(function(f) { return registered.indexOf(f) === -1; });
+
+        btn.disabled = false;
+        btn.textContent = "🔍 Найти незарегистрированные";
+
+        if (!unregistered.length) {
+            alert("Все .img файлы уже зарегистрированы как LUN.");
+            return;
+        }
+
+        // Offer to register them
+        var msg = "Найдены незарегистрированные файлы:\n\n" +
+            unregistered.map(function(f) { return "  " + f; }).join("\n") +
+            "\n\nЗарегистрировать их как LUN?";
+        if (!confirm(msg)) return;
+
+        // Register each file as a fileio backstore
+        var p = Promise.resolve();
+        unregistered.forEach(function(f) {
+            var base = f.split("/").pop().replace(/\.img$/, "");
+            // Ensure unique name
+            var name = base;
+            var idx = 2;
+            while (_iscsiState.backstores.some(function(b) { return b.name === name; })) {
+                name = base + "_" + idx++;
+            }
+            p = p.then(function() {
+                return _tcli(["/backstores/fileio", "create", "name=" + name, "file_or_dev=" + f]);
+            });
+        });
+        p.then(function() { return _tcli(["saveconfig"]); })
+        .then(function() { loadISCSI(); })
+        .catch(function(err) { alert("Ошибка регистрации: " + (err.message || err)); });
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = "🔍 Найти незарегистрированные";
+        alert("Ошибка поиска файлов: " + (err.message || err));
+    });
 }
 
 // ── LUN Delete ───────────────────────────────────────────────────────────────
@@ -884,8 +951,9 @@ function _iscsiExecuteDeleteLun() {
     _tcli(["/" + (bs.type === "fileio" ? "backstores/fileio" : "backstores/block"), "delete", bs.name])
     .then(function() {
         if (deleteFile && bs.file) {
+            // Use cockpit.spawn with superuser instead of sudo rm (not in sudoers NOPASSWD)
             return new Promise(function(res, rej) {
-                cockpit.spawn(["sudo", "rm", "-f", bs.file], { err: "message" }).done(res).fail(rej);
+                cockpit.spawn(["rm", "-f", bs.file], { err: "message", superuser: "try" }).done(res).fail(rej);
             });
         }
     })
@@ -1181,10 +1249,12 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // iSCSI tab — LUN
+    document.getElementById("btn-scan-luns").addEventListener("click", scanUnregisteredLuns);
     document.getElementById("btn-add-lun").addEventListener("click", function() { openLunModal(null); });
     document.getElementById("btn-lun-save").addEventListener("click", saveLun);
     document.getElementById("btn-lun-cancel").addEventListener("click", function() { closeModal("iscsi-lun-modal"); });
     document.getElementById("lun-type").addEventListener("change", _iscsiToggleLunType);
+    document.getElementById("lun-create-file").addEventListener("change", _iscsiToggleCreateFile);
 
     // iSCSI tab — Target
     document.getElementById("btn-add-target").addEventListener("click", function() { openTargetModal(null); });

@@ -49,7 +49,10 @@
         <div class="section">
             <div class="section-toolbar">
                 <h2>LUN / Хранилища</h2>
-                <button class="btn btn-success" id="btn-add-lun">+ Создать LUN</button>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-default" id="btn-scan-luns">🔍 Найти незарегистрированные</button>
+                    <button class="btn btn-success" id="btn-add-lun">+ Создать LUN</button>
+                </div>
             </div>
             <table>
                 <thead>
@@ -365,18 +368,19 @@
             </div>
             <div id="lun-fileio-fields">
                 <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" id="lun-create-file" checked>
+                        Создать новый файл на диске
+                    </label>
+                    <small class="text-muted" id="lun-existing-hint" style="display:none">Файл уже существует — targetcli определит размер автоматически</small>
+                </div>
+                <div class="form-group">
                     <label>Путь к файлу</label>
                     <input type="text" id="lun-filepath" placeholder="/mnt/data/iscsi/backup1.img">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="lun-size-row">
                     <label>Размер (ГБ)</label>
                     <input type="number" id="lun-size" value="10" min="1">
-                </div>
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:8px">
-                        <input type="checkbox" id="lun-create-file" checked>
-                        Создать файл на диске
-                    </label>
                 </div>
             </div>
             <div id="lun-block-fields" style="display:none">
