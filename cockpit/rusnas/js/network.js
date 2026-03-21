@@ -164,7 +164,7 @@ function renderIfaceCards() {
         var gw = iface.gateway || "—";
 
         return [
-            '<div class="net-iface-card" id="card-' + iface.name + '">',
+            '<div class="net-iface-card' + (iface.up ? '' : ' status-down') + '" id="card-' + iface.name + '">',
             '  <div class="net-iface-card-header">',
             '    <span class="net-iface-card-name">' + escHtml(iface.name) + '</span>',
             '    <span class="net-iface-card-status ' + status + '">' + statusLbl + '</span>',
@@ -178,11 +178,11 @@ function renderIfaceCards() {
             '    <div class="net-iface-field"><div class="net-iface-field-label">Режим</div><div class="net-iface-field-value">' + escHtml(iface.config_mode || "—") + '</div></div>',
             '  </div>',
             '  <div class="net-iface-card-traffic" id="traffic-' + iface.name + '">',
-            '    <div class="net-traffic-item"><span class="net-traffic-label">↓</span>',
+            '    <div class="net-traffic-item"><span class="net-traffic-label rx">↓</span>',
             '      <span class="net-traffic-speed" id="rx-speed-' + iface.name + '">—</span>',
             '      <svg class="net-sparkline" id="rx-spark-' + iface.name + '" width="80" height="24" viewBox="0 0 80 24"></svg>',
             '    </div>',
-            '    <div class="net-traffic-item"><span class="net-traffic-label">↑</span>',
+            '    <div class="net-traffic-item"><span class="net-traffic-label tx">↑</span>',
             '      <span class="net-traffic-speed" id="tx-speed-' + iface.name + '">—</span>',
             '      <svg class="net-sparkline" id="tx-spark-' + iface.name + '" width="80" height="24" viewBox="0 0 80 24"></svg>',
             '    </div>',
