@@ -624,56 +624,54 @@ function loadISCSI() {
     var tbody = document.getElementById("iscsi-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
 
-    var script = [
-        "import subprocess, json, re",
-        "out = subprocess.check_output(['targetcli', 'ls', '/'], text=True, stderr=subprocess.DEVNULL)",
-        "targets = []",
-        "backstores = {}",
-        "current = None",
-        "for line in out.splitlines():",
-        "    bm = re.search(r'o- (\\w+)\\s+\\[(/[^\\s]+\\.img)\\s+\\(([^)]+)\\)', line)",
-        "    if bm: backstores[bm.group(1)] = {'file': bm.group(2), 'size': bm.group(3)}",
-        "    m = re.search(r'(iqn\\.[^\\s\\[]+)', line)",
-        "    if m and 'TPGs' in line:",
-        "        current = {'iqn': m.group(1), 'luns': []}",
-        "        targets.append(current)",
-        "    elif current:",
-        "        lm = re.search(r'lun(\\d+).*?fileio/(\\S+)\\s+\\(', line)",
-        "        if lm:",
-        "            store = lm.group(2)",
-        "            info = backstores.get(store, {})",
-        "            current['luns'].append({'id': int(lm.group(1)), 'store': store, 'size': info.get('size','?'), 'file': info.get('file','')})",
-        "print(json.dumps(targets))"
-    ].join("\n");
-
-    cockpit.spawn(["bash", "-c", "sudo python3 -c '" + script.replace(/'/g, "'\\''") + "'"], { err: "message" })
+    cockpit.spawn(["sudo", "targetcli", "ls", "/"], { err: "message" })
     .done(function(output) {
-        var targets;
-        try { targets = JSON.parse(output.trim()); } catch(e) { targets = []; }
+        // Parse backstores: "o- name [/path/file.img (10.0GiB) ...]"
+        var backstores = {};
+        output.split("\n").forEach(function(line) {
+            var bm = line.match(/o-\s+(\w+)\s+\[([^\s]+\.img)\s+\(([^)]+)\)/);
+            if (bm) backstores[bm[1]] = { file: bm[2], size: bm[3] };
+        });
+
+        // Parse targets and their LUNs
+        var targets = [];
+        var current = null;
+        output.split("\n").forEach(function(line) {
+            var tm = line.match(/(iqn\.[^\s\[]+)/);
+            if (tm && line.indexOf("TPGs") !== -1) {
+                current = { iqn: tm[1], luns: [] };
+                targets.push(current);
+                return;
+            }
+            if (!current) return;
+            var lm = line.match(/lun(\d+).*?fileio\/(\S+)\s+\(/);
+            if (lm) {
+                var store = lm[2];
+                var bs = backstores[store] || {};
+                current.luns.push({ id: parseInt(lm[1]), store: store, size: bs.size || "?", file: bs.file || "" });
+            }
+        });
+
         if (!targets.length) {
             tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет iSCSI targets</td></tr>";
             return;
         }
+
         tbody.innerHTML = targets.map(function(t) {
-            var lunInfo = t.luns.length
-                ? t.luns.map(function(l) { return "LUN" + l.id + " (" + l.store + ")"; }).join(", ")
-                : "—";
-            var sizeInfo = t.luns.length
-                ? t.luns.map(function(l) { return l.size; }).join(", ")
-                : "—";
-            var stores = t.luns.map(function(l) { return l.store; }).join(",");
-            var files   = t.luns.map(function(l) { return l.file; }).join(",");
+            var lunInfo  = t.luns.length ? t.luns.map(function(l) { return "LUN" + l.id + " (" + l.store + ")"; }).join(", ") : "—";
+            var sizeInfo = t.luns.length ? t.luns.map(function(l) { return l.size; }).join(", ") : "—";
+            var stores   = t.luns.map(function(l) { return l.store; }).join(",");
+            var files    = t.luns.map(function(l) { return l.file; }).join(",");
             return "<tr>" +
                 "<td style='font-size:12px'>" + t.iqn + "</td>" +
                 "<td>" + lunInfo + "</td>" +
                 "<td>" + sizeInfo + "</td>" +
                 "<td class='status-active'>Активен</td>" +
                 "<td><button class='btn btn-danger btn-sm delete-iscsi'" +
-                " data-iqn='" + t.iqn + "'" +
-                " data-stores='" + stores + "'" +
-                " data-files='" + files + "'>Удалить</button></td>" +
+                " data-iqn='" + t.iqn + "' data-stores='" + stores + "' data-files='" + files + "'>Удалить</button></td>" +
                 "</tr>";
         }).join("");
+
         document.querySelectorAll(".delete-iscsi").forEach(function(btn) {
             btn.addEventListener("click", function() {
                 deleteISCSI(this.dataset.iqn, this.dataset.stores, this.dataset.files);
@@ -690,21 +688,27 @@ function addISCSI() {
     var size = document.getElementById("iscsi-size").value;
     if (!name) { alert("Введите имя"); return; }
 
-    var iqn = "iqn.2026-03.com.rusnas:" + name;
-    var cmd = "mkdir -p /mnt/data/iscsi && " +
-        "sudo targetcli /backstores/fileio create " + name + " /mnt/data/iscsi/" + name + ".img " + size + "G && " +
-        "sudo targetcli /iscsi create " + iqn + " && " +
-        "sudo targetcli /iscsi/" + iqn + "/tpg1/luns create /backstores/fileio/" + name + " && " +
-        "sudo targetcli /iscsi/" + iqn + "/tpg1 set attribute authentication=0 && " +
-        "sudo targetcli saveconfig";
+    var iqn     = "iqn.2026-03.com.rusnas:" + name;
+    var imgPath = "/mnt/data/iscsi/" + name + ".img";
 
-    cockpit.spawn(["bash", "-c", cmd], { err: "message" })
-    .done(function() {
+    var sp = function(args) {
+        return new Promise(function(res, rej) {
+            cockpit.spawn(args, { err: "message" }).done(res).fail(rej);
+        });
+    };
+
+    sp(["sudo", "mkdir", "-p", "/mnt/data/iscsi"])
+    .then(function() { return sp(["sudo", "targetcli", "/backstores/fileio", "create", name, imgPath, size + "G"]); })
+    .then(function() { return sp(["sudo", "targetcli", "/iscsi", "create", iqn]); })
+    .then(function() { return sp(["sudo", "targetcli", "/iscsi/" + iqn + "/tpg1/luns", "create", "/backstores/fileio/" + name]); })
+    .then(function() { return sp(["sudo", "targetcli", "/iscsi/" + iqn + "/tpg1", "set", "attribute", "authentication=0"]); })
+    .then(function() { return sp(["sudo", "targetcli", "saveconfig"]); })
+    .then(function() {
         closeModal("add-iscsi-modal");
         document.getElementById("iscsi-name").value = "";
         loadISCSI();
     })
-    .fail(function(err) { alert("Ошибка: " + (err.message || err)); });
+    .catch(function(err) { alert("Ошибка создания: " + (err.message || err)); });
 }
 
 function deleteISCSI(iqn, stores, files) {
@@ -712,18 +716,43 @@ function deleteISCSI(iqn, stores, files) {
     var storeList = (stores || "").split(",").filter(Boolean);
     var fileList  = (files  || "").split(",").filter(Boolean);
 
-    var cmd = "sudo targetcli /iscsi delete " + iqn;
-    storeList.forEach(function(s) {
-        cmd += " && sudo targetcli /backstores/fileio delete " + s;
+    // Step 1: delete iscsi target
+    var p = new Promise(function(res, rej) {
+        cockpit.spawn(["sudo", "targetcli", "/iscsi", "delete", iqn], { err: "message" })
+            .done(res).fail(rej);
     });
-    fileList.forEach(function(f) {
-        if (f) cmd += " && sudo rm -f " + f;
-    });
-    cmd += " && sudo targetcli saveconfig";
 
-    cockpit.spawn(["bash", "-c", cmd], { err: "message" })
-    .done(function() { loadISCSI(); })
-    .fail(function(err) { alert("Ошибка удаления: " + (err.message || err)); });
+    // Step 2: delete each backstore
+    storeList.forEach(function(s) {
+        p = p.then(function() {
+            return new Promise(function(res, rej) {
+                cockpit.spawn(["sudo", "targetcli", "/backstores/fileio", "delete", s], { err: "message" })
+                    .done(res).fail(rej);
+            });
+        });
+    });
+
+    // Step 3: delete image files
+    fileList.forEach(function(f) {
+        if (!f) return;
+        p = p.then(function() {
+            return new Promise(function(res, rej) {
+                cockpit.spawn(["sudo", "rm", "-f", f], { err: "message" })
+                    .done(res).fail(rej);
+            });
+        });
+    });
+
+    // Step 4: save config
+    p = p.then(function() {
+        return new Promise(function(res, rej) {
+            cockpit.spawn(["sudo", "targetcli", "saveconfig"], { err: "message" })
+                .done(res).fail(rej);
+        });
+    });
+
+    p.then(function() { loadISCSI(); })
+     .catch(function(err) { alert("Ошибка удаления: " + (err.message || err)); });
 }
 
 // ─── FileBrowser Management ───────────────────────────────────────────────────
