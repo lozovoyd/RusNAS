@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>rusNAS — Dashboard</title>
+  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <script src="../base1/cockpit.js"></script>
@@ -72,7 +73,7 @@
 <div class="db-grid-3" style="margin-bottom:14px">
 
   <!-- B1: CPU -->
-  <div class="db-card">
+  <div class="db-card" id="card-cpu" style="cursor:pointer">
     <div class="db-perf-header">
       <div><span class="db-card-icon">⚡</span> <span class="db-card-title">CPU</span></div>
       <div class="db-metric-big" id="cpu-pct">—%</div>
@@ -94,14 +95,16 @@
   </div>
 
   <!-- B3: Network -->
-  <div class="db-card">
+  <div class="db-card" id="card-net" style="cursor:pointer">
     <div class="db-perf-header">
       <div><span class="db-card-icon">🌐</span> <span class="db-card-title">СЕТЬ</span></div>
       <div class="db-metric-big" id="net-iface">—</div>
     </div>
     <svg id="spark-net" class="db-sparkline"></svg>
-    <div class="db-card-sub" id="net-rx">↓ —</div>
-    <div class="db-card-sub" id="net-tx">↑ —</div>
+    <div class="db-spark-legend">
+      <span class="db-spark-legend-item" style="color:#22c55e">↓ <span id="net-rx-val">—</span></span>
+      <span class="db-spark-legend-item" style="color:#f97316">↑ <span id="net-tx-val">—</span></span>
+    </div>
   </div>
 
 </div>
@@ -110,22 +113,13 @@
 <div class="db-card" style="margin-bottom:14px">
   <div class="db-perf-header">
     <div><span class="db-card-icon">📊</span> <span class="db-card-title">ДИСКОВЫЙ I/O</span></div>
-    <div style="display:flex;gap:24px">
-      <span class="db-card-sub">Чтение: <strong id="io-read">—</strong></span>
-      <span class="db-card-sub">Запись: <strong id="io-write">—</strong></span>
+    <div class="db-spark-legend">
+      <span class="db-spark-legend-item" style="color:#3b82f6">R <strong id="io-read">—</strong></span>
+      <span class="db-spark-legend-item" style="color:#f97316">W <strong id="io-write">—</strong></span>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
-    <div>
-      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Чтение MB/s</div>
-      <svg id="spark-io-read" class="db-sparkline"></svg>
-    </div>
-    <div>
-      <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:2px">Запись MB/s</div>
-      <svg id="spark-io-write" class="db-sparkline"></svg>
-    </div>
-  </div>
-  <div class="db-card-sub" id="io-per-disk" style="margin-top:8px;font-size:11px"></div>
+  <svg id="spark-io" class="db-sparkline" style="height:64px"></svg>
+  <div class="db-card-sub" id="io-per-disk" style="margin-top:6px;font-size:11px"></div>
 </div>
 
 <!-- ── Section D+E: Events, Snapshots, Guard, UPS ────────────────────────── -->
@@ -240,6 +234,125 @@
     Для Prometheus: <code>scrape_configs target: &lt;IP&gt;:9100</code> &nbsp;|&nbsp;
     Для Zabbix: HTTP Agent → URL выше &nbsp;|&nbsp;
     <span id="metrics-server-status"></span>
+  </div>
+</div>
+
+<!-- ── Network Monitor Modal ──────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="net-modal">
+  <div class="modal-box" style="width:780px;max-width:96vw">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">🌐 Мониторинг сети</span>
+      <button id="net-modal-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+    </div>
+
+    <!-- Live speed row -->
+    <div class="nm-live-grid">
+      <div class="nm-live-item">
+        <div class="nm-live-label" style="color:#22c55e">↓ Входящий</div>
+        <div class="nm-live-val" style="color:#22c55e" id="nm-rx-speed">—</div>
+        <div class="nm-live-sub" id="nm-rx-today">Сегодня: —</div>
+      </div>
+      <div class="nm-live-item nm-live-center">
+        <div class="nm-live-iface" id="nm-iface-name">—</div>
+        <div class="nm-live-since" id="nm-since">—</div>
+      </div>
+      <div class="nm-live-item nm-live-right">
+        <div class="nm-live-label" style="color:#f97316">↑ Исходящий</div>
+        <div class="nm-live-val" style="color:#f97316" id="nm-tx-speed">—</div>
+        <div class="nm-live-sub" id="nm-tx-today">Сегодня: —</div>
+      </div>
+    </div>
+
+    <!-- 7-day bar chart -->
+    <div class="nm-section">
+      <div class="nm-section-title">📊 Трафик за 7 дней</div>
+      <div class="nm-chart-legend">
+        <span class="nm-legend-dot" style="background:#22c55e"></span> Входящий &nbsp;
+        <span class="nm-legend-dot" style="background:#f97316"></span> Исходящий
+      </div>
+      <div id="nm-chart-7d" class="nm-chart-wrap">
+        <span class="text-muted" style="font-size:12px">Загрузка…</span>
+      </div>
+    </div>
+
+    <!-- 24h hourly chart -->
+    <div class="nm-section">
+      <div class="nm-section-title">🕐 Трафик за 24 часа (почасово)</div>
+      <div id="nm-chart-24h" class="nm-chart-wrap">
+        <span class="text-muted" style="font-size:12px">Загрузка…</span>
+      </div>
+    </div>
+
+    <!-- Monthly summary table -->
+    <div class="nm-section" style="margin-bottom:0">
+      <div class="nm-section-title">📅 Помесячная статистика</div>
+      <div id="nm-months-table"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── CPU / Memory Monitor Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="cpu-modal">
+  <div class="modal-box" style="width:780px;max-width:96vw">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">⚡ Монитор системных ресурсов</span>
+      <button id="cpu-modal-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+    </div>
+
+    <!-- CPU + Memory grid -->
+    <div class="cm-grid">
+
+      <!-- CPU -->
+      <div class="cm-section">
+        <div class="cm-section-title">⚡ Процессор</div>
+        <div id="cm-total-bar" style="margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--color-border)"></div>
+        <div class="cm-cores-wrap" id="cm-cpu-cores"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+      </div>
+
+      <!-- Memory + Load -->
+      <div class="cm-section">
+        <div class="cm-section-title">🧠 Память</div>
+        <div id="cm-mem-bars"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+        <div class="cm-section-title" style="margin-top:14px;margin-bottom:8px">📈 Нагрузка системы</div>
+        <div class="cm-load-grid">
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la1">—</div>
+            <div class="cm-load-lbl">1 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la5">—</div>
+            <div class="cm-load-lbl">5 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-la15">—</div>
+            <div class="cm-load-lbl">15 мин</div>
+          </div>
+          <div class="cm-load-item">
+            <div class="cm-load-val" id="cm-temp">—</div>
+            <div class="cm-load-lbl">Темп. CPU</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Process list -->
+    <div class="cm-section" style="margin-bottom:0">
+      <div class="cm-section-title" style="margin-bottom:6px">🏃 Топ процессов по CPU</div>
+      <div class="cm-proc-head">
+        <span>PID</span>
+        <span>Процесс</span>
+        <span class="cm-proc-val">CPU%</span>
+        <span class="cm-proc-val">MEM%</span>
+        <span class="cm-proc-val">RAM</span>
+      </div>
+      <div id="cm-proc-list"></div>
+    </div>
+
   </div>
 </div>
 

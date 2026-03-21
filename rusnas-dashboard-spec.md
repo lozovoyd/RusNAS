@@ -843,6 +843,29 @@ if __name__ == '__main__':
 
 ---
 
+## 11. Реализованные дополнения (2026-03-21)
+
+### Network Monitor Modal
+- Клик по карточке `#card-net` → модал `#net-modal`
+- Live RX/TX скорости (копируются с основной карточки, 1 сек интервал)
+- vnstat интеграция: `cockpit.spawn(["vnstat", "--json"])` — ключи `traffic.day/hour/month` (не plural)
+- SVG бар-чарты: 7-дневный + 24-часовой (попарные столбики RX/TX)
+- Таблица помесячной статистики (до 12 месяцев, newest first)
+- CSS `.nm-*` namespace
+
+### TX Speed Bug Fix
+- Регекс `/proc/net/dev` захватывал `RX_multicast` (≈0) вместо `TX_bytes`
+- Формат файла: `iface: RX_bytes pkt errs drop fifo frame compressed multicast TX_bytes ...`
+- Правильный regex: 7 skip-групп между RX_bytes и TX_bytes
+- Исправляет как спарклайн на карточке, так и модал
+
+### Snapshot Widget Fix
+- `storage-info` возвращал все субволюмы из БД (включая старые тестовые пути) → завышенное число
+- Теперь: cross-reference с `schedule list`, показываются субволюмы с расписанием ИЛИ с ненулевым count
+- Суммирование пересчитывается по отфильтрованному списку, используется `fmtBytes()` для размера
+
+---
+
 ## 10. Примечания по деплою
 
 1. После создания файлов — `systemctl restart cockpit` для перезагрузки плагина

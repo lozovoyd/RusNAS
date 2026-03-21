@@ -149,10 +149,16 @@ rusNAS/
 ### Что готово ✅
 
 **Cockpit-плагин:**
-- Storage: SMB-шары, NFS-экспорты, iSCSI-таргеты
-- Disks & RAID: полное управление mdadm + RAID Advisor
-- Users: управление пользователями
+- Dashboard: главная страница с виджетами CPU/RAM/Сеть/RAID/Storage/Guard/UPS/FileBrowser
+- Storage: SMB-шары, NFS-экспорты, iSCSI-таргеты, FTP, WebDAV, файловый менеджер
+- Disks & RAID: полное управление mdadm + RAID Advisor + SSD-кеш (dm-cache)
+- Users: управление пользователями + синхронизация с FileBrowser
 - Guard 🛡️: полнофункциональный UI антишифровальщика
+- Snapshots 📸: Btrfs snapshot manager + расписания + статистика
+- Dedup: дедупликация duperemove + SMB vfs_btrfs
+- UPS: управление ИБП через NUT
+- Storage Analyzer: анализ дискового пространства (5 вкладок, treemap, прогноз)
+- FileBrowser: веб-файловый менеджер (/files/)
 
 **rusNAS Guard:**
 - Все 4 метода обнаружения реализованы и протестированы
@@ -160,10 +166,9 @@ rusNAS/
 - PIN-аутентификация (bcrypt), session tokens (30 мин)
 - Post-attack safe mode (флаг `/etc/rusnas-guard/post_attack`)
 - PIN reset через CLI
-- Полное E2E тестирование (18 тестов, все прошли):
-  - IOPS-триггер: 777 ops/min при реальной нагрузке
-  - Entropy-триггер: 50 событий на random-бинарных файлах (entropy ~8.0)
-  - Honeypot-триггер: обнаружение bait-файла за <3 сек
+- Авто-запуск детектора при старте службы (`auto_start: true`)
+- Исправлены honeypot false positives (suppression при записи bait-файлов)
+- Полное E2E тестирование (18 тестов, все прошли)
 
 **Инфраструктура:**
 - deploy.sh — автодеплой плагина на VM (sshpass + chmod 644/755)

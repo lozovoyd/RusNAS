@@ -2,13 +2,11 @@
 // rusNAS Dashboard — js/dashboard.js
 
 // ── Refresh intervals (ms) ────────────────────────────────────────────────
-var TICK_FAST    = 1000;   // identity, CPU, RAM, net, I/O
-var TICK_STORAGE = 10000;  // df, mdstat, services
-var TICK_SMART   = 300000; // smartctl cache TTL
+var TICK_METRICS = 2000;   // metrics server: CPU, RAM, net, I/O, RAID, storage, services, guard
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
-var TICK_GUARD   = 5000;   // guard status
 var TICK_UPS     = 10000;  // ups status
+var TICK_FAST    = 1000;   // datetime only
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -19,11 +17,19 @@ var sparkNetT = new Array(HISTORY).fill(0);
 var sparkIoR  = new Array(HISTORY).fill(0);
 var sparkIoW  = new Array(HISTORY).fill(0);
 
-// ── Delta state ───────────────────────────────────────────────────────────
-var prevCpu     = null;
-var prevNet     = {};
-var prevDisk    = {};
-var smartCache  = {};
+// ── Metrics HTTP client (reused across calls) ─────────────────────────────
+var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
+
+// ── Tick constants ─────────────────────────────────────────────────────────
+var TICK_STORAGE = 10000;
+var TICK_SMART   = 300000;
+var TICK_GUARD   = 5000;
+
+// ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
+var prevCpu  = null;
+var prevNet  = {};
+var prevDisk = {};
+var smartCache = {};
 
 // ── Utilities ─────────────────────────────────────────────────────────────
 function el(id) { return document.getElementById(id); }
@@ -81,20 +87,104 @@ function pushHistory(arr, val) {
 }
 
 // ── Sparkline renderer ────────────────────────────────────────────────────
+// ── Sparkline helpers ──────────────────────────────────────────────────────
+
+function _sparkPoints(values, w, h, padT, padB) {
+    var maxVal = Math.max.apply(null, values.concat([1]));
+    var n = values.length;
+    return values.map(function(v, i) {
+        return {
+            x: parseFloat(((i / Math.max(n - 1, 1)) * w).toFixed(2)),
+            y: parseFloat((h - padB - (v / maxVal) * (h - padT - padB)).toFixed(2))
+        };
+    });
+}
+
+function _sparkPath(pts) {
+    if (!pts.length) return '';
+    var d = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < pts.length; i++) {
+        var tension = 0.35;
+        var dx = pts[i].x - pts[i - 1].x;
+        var cp1x = (pts[i - 1].x + dx * tension).toFixed(2);
+        var cp2x = (pts[i].x - dx * tension).toFixed(2);
+        d += ' C' + cp1x + ',' + pts[i - 1].y.toFixed(2) +
+             ' ' + cp2x + ',' + pts[i].y.toFixed(2) +
+             ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    return d;
+}
+
+function _sparkGridLines(w, h, padT, padB) {
+    var out = '';
+    [0.33, 0.66].forEach(function(f) {
+        var y = (padT + (h - padT - padB) * f).toFixed(1);
+        out += '<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y +
+               '" stroke="currentColor" stroke-opacity="0.07" stroke-width="1"/>';
+    });
+    return out;
+}
+
 function renderSparkline(svgId, values, color) {
     var svg = el(svgId);
     if (!svg) return;
-    var w = svg.clientWidth || 200;
-    var h = svg.clientHeight || 40;
-    var max = Math.max.apply(null, values.concat([1]));
-    var pts = values.map(function(v, i) {
-        var x = (i / Math.max(values.length - 1, 1)) * w;
-        var y = h - (v / max) * (h - 2) - 1;
-        return x.toFixed(1) + "," + y.toFixed(1);
-    }).join(" ");
-    svg.innerHTML = '<polyline points="' + pts +
-        '" fill="none" stroke="' + (color || "#22aa44") +
-        '" stroke-width="1.5" stroke-linejoin="round"/>';
+    var w = svg.clientWidth || 280;
+    var h = svg.clientHeight || 56;
+    var padT = 4, padB = 3;
+    var pts = _sparkPoints(values, w, h, padT, padB);
+    var line = _sparkPath(pts);
+    var area = line + ' L' + pts[pts.length-1].x + ',' + (h - padB) +
+               ' L' + pts[0].x + ',' + (h - padB) + 'Z';
+    var last = pts[pts.length - 1];
+    var gId = svgId + 'G';
+    svg.innerHTML =
+        '<defs>' +
+        '<linearGradient id="' + gId + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="' + color + '" stop-opacity="0.22"/>' +
+        '<stop offset="100%" stop-color="' + color + '" stop-opacity="0"/>' +
+        '</linearGradient>' +
+        '</defs>' +
+        _sparkGridLines(w, h, padT, padB) +
+        '<path d="' + area + '" fill="url(#' + gId + ')" stroke="none"/>' +
+        '<path d="' + line + '" fill="none" stroke="' + color +
+        '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<circle cx="' + last.x + '" cy="' + last.y + '" r="2.5" fill="' + color + '"/>';
+}
+
+function renderDualSparkline(svgId, v1, c1, v2, c2) {
+    var svg = el(svgId);
+    if (!svg) return;
+    var w = svg.clientWidth || 280;
+    var h = svg.clientHeight || 56;
+    var padT = 4, padB = 3;
+    var maxVal = Math.max.apply(null, v1.concat(v2).concat([1]));
+    function pts(vals) {
+        var n = vals.length;
+        return vals.map(function(v, i) {
+            return {
+                x: parseFloat(((i / Math.max(n - 1, 1)) * w).toFixed(2)),
+                y: parseFloat((h - padB - (v / maxVal) * (h - padT - padB)).toFixed(2))
+            };
+        });
+    }
+    var p1 = pts(v1), p2 = pts(v2);
+    var l1 = _sparkPath(p1), l2 = _sparkPath(p2);
+    var a1 = l1 + ' L' + p1[p1.length-1].x + ',' + (h-padB) + ' L' + p1[0].x + ',' + (h-padB) + 'Z';
+    var a2 = l2 + ' L' + p2[p2.length-1].x + ',' + (h-padB) + ' L' + p2[0].x + ',' + (h-padB) + 'Z';
+    var e1 = p1[p1.length - 1], e2 = p2[p2.length - 1];
+    var g1 = svgId + 'G1', g2 = svgId + 'G2';
+    svg.innerHTML =
+        '<defs>' +
+        '<linearGradient id="' + g1 + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + c1 + '" stop-opacity="0.18"/><stop offset="100%" stop-color="' + c1 + '" stop-opacity="0"/></linearGradient>' +
+        '<linearGradient id="' + g2 + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + c2 + '" stop-opacity="0.14"/><stop offset="100%" stop-color="' + c2 + '" stop-opacity="0"/></linearGradient>' +
+        '</defs>' +
+        _sparkGridLines(w, h, padT, padB) +
+        '<path d="' + a1 + '" fill="url(#' + g1 + ')" stroke="none"/>' +
+        '<path d="' + a2 + '" fill="url(#' + g2 + ')" stroke="none"/>' +
+        '<path d="' + l1 + '" fill="none" stroke="' + c1 + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="' + l2 + '" fill="none" stroke="' + c2 + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<circle cx="' + e1.x + '" cy="' + e1.y + '" r="2.5" fill="' + c1 + '"/>' +
+        '<circle cx="' + e2.x + '" cy="' + e2.y + '" r="2.5" fill="' + c2 + '"/>';
 }
 
 // ── Section: Identity Bar ─────────────────────────────────────────────────
@@ -450,7 +540,7 @@ function loadNet() {
         var best = null, bestBytes = 0;
         var now = Date.now();
         lines.forEach(function(l) {
-            var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
+            var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
             if (!m || m[1] === "lo") return;
             var iface = m[1];
             var rx = parseInt(m[2]);
@@ -472,11 +562,10 @@ function loadNet() {
 
         pushHistory(sparkNetR, rxSpeed);
         pushHistory(sparkNetT, txSpeed);
-        var combined = sparkNetR.map(function(v, i){ return v + sparkNetT[i]; });
-        renderSparkline("spark-net", combined, "#0066cc");
+        renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
         el("net-iface").textContent = best.iface;
-        el("net-rx").textContent = "↓ " + fmtSpeed(Math.max(0, rxSpeed));
-        el("net-tx").textContent = "↑ " + fmtSpeed(Math.max(0, txSpeed));
+        el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
+        el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
     });
 }
 
@@ -513,8 +602,7 @@ function loadDiskIO() {
 
         pushHistory(sparkIoR, totalR);
         pushHistory(sparkIoW, totalW);
-        renderSparkline("spark-io-read",  sparkIoR, "#22aa44");
-        renderSparkline("spark-io-write", sparkIoW, "#e68a00");
+        renderDualSparkline("spark-io", sparkIoR, "#3b82f6", sparkIoW, "#f97316");
         el("io-read").textContent  = fmtSpeed(Math.max(0, totalR));
         el("io-write").textContent = fmtSpeed(Math.max(0, totalW));
 
@@ -561,33 +649,65 @@ function escHtml(s) {
 
 // ── Section D2: Snapshots ─────────────────────────────────────────────────
 function loadSnapshots() {
-    cockpit.spawn(["sudo", "-n", "rusnas-snap", "storage-info"], {err: "message"})
-    .done(function(out) {
-        try {
-            var info = JSON.parse(out.trim());
-            el("snap-total").textContent = "Всего: " + info.total_count + " снапшотов · " + info.total_size_human;
-            if (!info.subvols || !info.subvols.length) {
-                el("snap-list").innerHTML = '<span class="text-muted">Нет данных</span>';
-                return;
-            }
-            // Load last snapshot time per subvol
-            var html = info.subvols.slice(0, 6).map(function(sv) {
-                var vol = sv.subvol_path.split("/").pop();
-                var ico = sv.count > 0 ? "✅" : "🔴";
-                var cls = sv.count > 0 ? "" : "db-crit";
-                return '<div class="db-snap-row">' +
-                    '<span class="db-snap-vol">' + vol + '</span>' +
-                    '<span class="db-snap-age ' + cls + '">' + ico + ' ' + sv.count + ' снапш.</span>' +
-                    '</div>';
-            }).join("");
-            el("snap-list").innerHTML = html;
-        } catch(e) {
-            el("snap-list").innerHTML = '<span class="text-muted">Ошибка загрузки</span>';
+    // Get active schedule paths first, then cross-reference with storage-info
+    var schedP = new Promise(function(resolve) {
+        cockpit.spawn(["sudo", "-n", "rusnas-snap", "schedule", "list"], {err: "message"})
+            .done(function(out) {
+                try { resolve(JSON.parse(out.trim())); } catch(e) { resolve([]); }
+            })
+            .fail(function() { resolve([]); });
+    });
+    var infoP = new Promise(function(resolve) {
+        cockpit.spawn(["sudo", "-n", "rusnas-snap", "storage-info"], {err: "message"})
+            .done(function(out) {
+                try { resolve(JSON.parse(out.trim())); } catch(e) { resolve(null); }
+            })
+            .fail(function() { resolve(null); });
+    });
+
+    Promise.all([schedP, infoP]).then(function(results) {
+        var schedules = results[0];
+        var info      = results[1];
+
+        if (!info) {
+            el("snap-list").innerHTML = '<span class="text-muted">rusnas-snap не найден</span>';
+            el("snap-total").textContent = "";
+            return;
         }
-    })
-    .fail(function() {
-        el("snap-list").innerHTML = '<span class="text-muted">rusnas-snap не найден</span>';
-        el("snap-total").textContent = "";
+
+        // Build set of subvol paths that have schedules (active or not)
+        var scheduledPaths = {};
+        (schedules || []).forEach(function(s) {
+            if (s.subvol_path) scheduledPaths[s.subvol_path] = true;
+        });
+        var hasSchedules = Object.keys(scheduledPaths).length > 0;
+
+        // Show: subvols that have a schedule (any state) OR have snapshots
+        var subvols = (info.subvols || []).filter(function(sv) {
+            return scheduledPaths[sv.subvol_path] || (sv.count > 0);
+        });
+
+        // Recompute totals from filtered subvols
+        var totalCount = subvols.reduce(function(s, sv) { return s + (sv.count || 0); }, 0);
+        var totalSize  = subvols.reduce(function(s, sv) { return s + (sv.size_bytes || 0); }, 0);
+
+        el("snap-total").textContent = "Всего: " + totalCount + " снапшотов · " + fmtBytes(totalSize);
+
+        if (!subvols.length) {
+            el("snap-list").innerHTML = '<span class="text-muted">Нет данных</span>';
+            return;
+        }
+
+        var html = subvols.slice(0, 6).map(function(sv) {
+            var vol = sv.subvol_path.split("/").pop();
+            var ico = sv.count > 0 ? "✅" : "🔴";
+            var cls = sv.count > 0 ? "" : "db-crit";
+            return '<div class="db-snap-row">' +
+                '<span class="db-snap-vol">' + vol + '</span>' +
+                '<span class="db-snap-age ' + cls + '">' + ico + ' ' + sv.count + ' снапш.</span>' +
+                '</div>';
+        }).join("");
+        el("snap-list").innerHTML = html;
     });
 }
 
@@ -858,6 +978,131 @@ window.copyMetricsUrl = function(type) {
     });
 };
 
+// ── CPU Monitor Modal ─────────────────────────────────────────────────────
+var _cmInterval = null;
+var _cmPrevCpu  = {};
+
+window.openCpuModal = function() {
+    el("cpu-modal").classList.remove("hidden");
+    _cmPrevCpu = {};
+    refreshCpuModal();
+    _cmInterval = setInterval(refreshCpuModal, 1000);
+};
+
+window.closeCpuModal = function() {
+    el("cpu-modal").classList.add("hidden");
+    clearInterval(_cmInterval);
+    _cmInterval = null;
+};
+
+function refreshCpuModal() {
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/stat; echo '===S==='; " +
+        "cat /proc/meminfo; echo '===S==='; " +
+        "cat /proc/loadavg; echo '===S==='; " +
+        "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''; echo '===S==='; " +
+        "ps -eo pid,comm,%cpu,%mem,rss --sort=-%cpu --no-header 2>/dev/null | tail -n +2 | head -14"
+    ], { err: "message" }).done(renderCpuModal);
+}
+
+function _cpuBarColor(pct) {
+    if (pct >= 80) return "#ef4444";
+    if (pct >= 60) return "#f59e0b";
+    return "#22c55e";
+}
+
+function cmBar(label, pct, color, sub) {
+    var cls = pct >= 80 ? "db-crit" : pct >= 60 ? "db-warn" : "db-ok";
+    return '<div class="cm-bar-row">' +
+        '<span class="cm-bar-label">' + label + '</span>' +
+        '<div class="cm-bar-wrap"><div class="cm-bar-fill" style="width:' + Math.min(pct, 100) + '%;background:' + color + '"></div></div>' +
+        '<span class="cm-bar-val ' + cls + '">' + pct + '%</span>' +
+        (sub ? '<span class="cm-bar-sub">' + sub + '</span>' : '') +
+        '</div>';
+}
+
+function renderCpuModal(out) {
+    var parts = out.split("===S===\n");
+    if (parts.length < 5) return;
+    var statText = parts[0];
+    var memText  = parts[1];
+    var loadText = parts[2].trim();
+    var tempText = parts[3].trim();
+    var procText = parts[4];
+
+    // CPU cores
+    var statLines = statText.trim().split("\n").filter(function(l) { return l.match(/^cpu/); });
+    var cores = statLines.map(function(line) {
+        var m = line.match(/^(cpu\d*)\s+([\d\s]+)/);
+        if (!m) return null;
+        var id = m[1];
+        var f  = m[2].trim().split(/\s+/).map(Number);
+        var idle  = f[3] + (f[4] || 0);
+        var total = f.reduce(function(a, b) { return a + b; }, 0);
+        var pct = 0;
+        if (_cmPrevCpu[id]) {
+            var dt = total - _cmPrevCpu[id].total;
+            var di = idle  - _cmPrevCpu[id].idle;
+            pct = dt > 0 ? Math.max(0, Math.min(100, Math.round((1 - di / dt) * 100))) : 0;
+        }
+        _cmPrevCpu[id] = { total: total, idle: idle };
+        return { id: id, pct: pct };
+    }).filter(Boolean);
+
+    var totalCpu = cores.find(function(c) { return c.id === "cpu"; });
+    var perCore  = cores.filter(function(c) { return c.id !== "cpu"; });
+
+    el("cm-total-bar").innerHTML = totalCpu
+        ? cmBar("CPU", totalCpu.pct, _cpuBarColor(totalCpu.pct))
+        : "";
+    el("cm-cpu-cores").innerHTML = perCore.map(function(c, i) {
+        return cmBar("C" + i, c.pct, _cpuBarColor(c.pct));
+    }).join("");
+
+    // Memory
+    var getM = function(k) {
+        var m = memText.match(new RegExp(k + ":\\s+(\\d+)"));
+        return m ? parseInt(m[1]) * 1024 : 0;
+    };
+    var memTotal  = getM("MemTotal"),  memAvail = getM("MemAvailable");
+    var swapTotal = getM("SwapTotal"), swapFree = getM("SwapFree");
+    var memUsed   = memTotal  - memAvail;
+    var swapUsed  = swapTotal - swapFree;
+    var memPct    = memTotal  > 0 ? Math.round(memUsed  / memTotal  * 100) : 0;
+    var swapPct   = swapTotal > 0 ? Math.round(swapUsed / swapTotal * 100) : 0;
+    var memColor  = memPct >= 90 ? "#ef4444" : memPct >= 70 ? "#f59e0b" : "#3b82f6";
+    el("cm-mem-bars").innerHTML =
+        cmBar("RAM",  memPct,  memColor, fmtBytes(memUsed)  + " / " + fmtBytes(memTotal)) +
+        (swapTotal > 0 ? cmBar("Swap", swapPct, "#a855f7", fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal)) : "");
+
+    // Load average + temp
+    var la = loadText.split(" ");
+    el("cm-la1").textContent  = la[0] || "—";
+    el("cm-la5").textContent  = la[1] || "—";
+    el("cm-la15").textContent = la[2] || "—";
+    el("cm-temp").textContent = tempText ? (parseInt(tempText) / 1000).toFixed(0) + "°C" : "—";
+
+    // Processes
+    var procs = procText.trim().split("\n").filter(Boolean).slice(0, 12);
+    el("cm-proc-list").innerHTML = procs.map(function(line) {
+        var p = line.trim().split(/\s+/);
+        if (p.length < 5) return "";
+        var pid  = p[0];
+        var name = p[1].slice(0, 22);
+        var cpu  = parseFloat(p[2]) || 0;
+        var mem  = parseFloat(p[3]) || 0;
+        var rss  = parseInt(p[4]) * 1024;
+        var cls  = cpu > 30 ? "db-crit" : cpu > 10 ? "db-warn" : "";
+        return '<div class="cm-proc-row">' +
+            '<span>' + escHtml(pid) + '</span>' +
+            '<span class="cm-proc-name">' + escHtml(name) + '</span>' +
+            '<span class="cm-proc-val ' + cls + '">' + cpu.toFixed(1) + '</span>' +
+            '<span class="cm-proc-val">' + mem.toFixed(1) + '</span>' +
+            '<span class="cm-proc-val">' + fmtBytes(rss) + '</span>' +
+            '</div>';
+    }).join("");
+}
+
 // ── Tick loops ────────────────────────────────────────────────────────────
 function tickFast() {
     updateDateTime();
@@ -890,10 +1135,222 @@ function tickGuard() {
     if (!guardPollFast) loadGuard();
 }
 
+// ── Network Monitor Modal ─────────────────────────────────────────────────
+
+var _nmInterval   = null;
+var _nmVnstatData = null;
+
+window.openNetModal = function() {
+    el("net-modal").classList.remove("hidden");
+    // Show current live speeds immediately from sparkline data
+    refreshNetLive();
+    // Load vnstat history
+    loadVnstat();
+    // Poll live speeds every second
+    _nmInterval = setInterval(refreshNetLive, 1000);
+};
+
+window.closeNetModal = function() {
+    el("net-modal").classList.add("hidden");
+    clearInterval(_nmInterval);
+    _nmInterval = null;
+};
+
+function refreshNetLive() {
+    // Re-use the values already shown in the mini card
+    var rxVal = el("net-rx-val") ? el("net-rx-val").textContent : "—";
+    var txVal = el("net-tx-val") ? el("net-tx-val").textContent : "—";
+    var iface = el("net-iface") ? el("net-iface").textContent : "—";
+    if (el("nm-rx-speed")) el("nm-rx-speed").textContent = rxVal;
+    if (el("nm-tx-speed")) el("nm-tx-speed").textContent = txVal;
+    if (el("nm-iface-name")) el("nm-iface-name").textContent = iface;
+}
+
+function loadVnstat() {
+    cockpit.spawn(["vnstat", "--json"], { err: "message" })
+        .done(function(out) {
+            try {
+                var data = JSON.parse(out);
+                _nmVnstatData = data;
+                renderVnstat(data);
+            } catch(e) {
+                el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">Ошибка парсинга данных vnstat</span>';
+            }
+        })
+        .fail(function(err) {
+            el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">vnstat не найден или нет данных</span>';
+        });
+}
+
+function renderVnstat(data) {
+    if (!data || !data.interfaces || !data.interfaces.length) {
+        el("nm-chart-7d").innerHTML = '<span class="text-muted" style="font-size:12px">Нет данных</span>';
+        return;
+    }
+
+    // Pick the interface matching the current one shown in card, or first
+    var iface = el("net-iface") ? el("net-iface").textContent.trim() : "";
+    var ifaceData = data.interfaces.find(function(i) { return i.name === iface; })
+                 || data.interfaces[0];
+
+    if (!ifaceData) return;
+
+    var traffic = ifaceData.traffic || {};
+
+    // ── Since text ────────────────────────────────────────────────────────
+    if (ifaceData.created) {
+        var c = ifaceData.created.date || {};
+        if (c.year) {
+            el("nm-since").textContent = "С " + c.year + "-" +
+                String(c.month || 1).padStart(2,"0") + "-" +
+                String(c.day   || 1).padStart(2,"0");
+        }
+    }
+
+    // vnstat key names: "day", "hour", "month" (not plural)
+    // Records are ordered oldest-first (ascending)
+    var days   = traffic.day   || [];
+    var hours  = traffic.hour  || [];
+    var months = traffic.month || [];
+
+    // ── Today totals (last entry = most recent day) ───────────────────────
+    if (days.length) {
+        var today = days[days.length - 1];
+        if (el("nm-rx-today")) el("nm-rx-today").textContent = "Сегодня: " + fmtBytes(today.rx || 0);
+        if (el("nm-tx-today")) el("nm-tx-today").textContent = "Сегодня: " + fmtBytes(today.tx || 0);
+    }
+
+    // ── 7-day bar chart (take last 7, already oldest→newest) ─────────────
+    var last7 = days.slice(-7);
+    renderNmBarChart("nm-chart-7d", last7, function(d) {
+        var dt = d.date || {};
+        return String(dt.month||"").padStart(2,"0") + "/" + String(dt.day||"").padStart(2,"0");
+    });
+
+    // ── 24h hourly chart ──────────────────────────────────────────────────
+    if (hours.length) {
+        // Each entry: {id: sequential, time: {hour: 0-23}, rx, tx}
+        // Sort by timestamp ascending for correct left-to-right order
+        var sortedHours = hours.slice().sort(function(a, b) {
+            return (a.timestamp || 0) - (b.timestamp || 0);
+        });
+        renderNmBarChart("nm-chart-24h", sortedHours, function(d) {
+            var h = (d.time && d.time.hour !== undefined) ? d.time.hour : d.id;
+            return String(h).padStart(2, "0") + ":00";
+        });
+    } else {
+        el("nm-chart-24h").innerHTML = '<span class="text-muted" style="font-size:12px">Нет данных</span>';
+    }
+
+    // ── Monthly table (newest first) ─────────────────────────────────────
+    var monthsDesc = months.slice().reverse().slice(0, 12);
+    if (monthsDesc.length) {
+        var html = '<table class="nm-months-table"><thead><tr>' +
+            '<th>Месяц</th><th>↓ Входящий</th><th>↑ Исходящий</th><th>Итого</th>' +
+            '</tr></thead><tbody>';
+        monthsDesc.forEach(function(m) {
+            var dt = m.date || {};
+            var monthNames = ["","Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
+            var label = (monthNames[dt.month] || dt.month) + " " + (dt.year || "");
+            var rx = m.rx || 0, tx = m.tx || 0;
+            html += '<tr><td>' + label + '</td><td style="color:#22c55e">' + fmtBytes(rx) +
+                    '</td><td style="color:#f97316">' + fmtBytes(tx) +
+                    '</td><td>' + fmtBytes(rx + tx) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el("nm-months-table").innerHTML = html;
+    } else {
+        el("nm-months-table").innerHTML = '<span class="text-muted" style="font-size:12px">Нет данных</span>';
+    }
+}
+
+function renderNmBarChart(containerId, items, labelFn) {
+    var container = el(containerId);
+    if (!container || !items || !items.length) return;
+
+    var W = container.clientWidth || 700;
+    var H = 80;
+    var pad = { l: 40, r: 8, t: 8, b: 22 };
+    var innerW = W - pad.l - pad.r;
+    var innerH = H - pad.t - pad.b;
+    var n = items.length;
+    var barGroup = innerW / n;
+    var barW = Math.max(2, barGroup * 0.38);
+    var gap  = barGroup * 0.06;
+
+    // Find max value for scale
+    var maxVal = 0;
+    items.forEach(function(d) {
+        var v = (d.rx || 0) + (d.tx || 0);
+        if (v > maxVal) maxVal = v;
+    });
+    if (maxVal === 0) {
+        container.innerHTML = '<span class="text-muted" style="font-size:12px">Нет данных за период</span>';
+        return;
+    }
+
+    var scaleY = function(v) { return innerH - (v / maxVal) * innerH; };
+    var barH   = function(v) { return (v / maxVal) * innerH; };
+
+    var svgParts = ['<svg width="100%" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible">'];
+
+    // Y-axis label (max)
+    svgParts.push('<text x="' + (pad.l - 4) + '" y="' + (pad.t + 8) + '" text-anchor="end" font-size="9" fill="var(--color-muted)">' + fmtBytes(maxVal) + '</text>');
+
+    items.forEach(function(d, i) {
+        var x = pad.l + i * barGroup;
+        var rx = d.rx || 0, tx = d.tx || 0;
+        var label = labelFn(d);
+
+        // RX bar (left of pair)
+        var rxH = barH(rx);
+        var rxY = pad.t + scaleY(rx);
+        svgParts.push('<rect class="nm-bar-rx" x="' + (x + gap) + '" y="' + rxY + '" width="' + barW + '" height="' + rxH + '" rx="2">');
+        svgParts.push('<title>' + label + ' ↓ ' + fmtBytes(rx) + '</title></rect>');
+
+        // TX bar (right of pair)
+        var txH = barH(tx);
+        var txY = pad.t + scaleY(tx);
+        svgParts.push('<rect class="nm-bar-tx" x="' + (x + gap + barW + 2) + '" y="' + txY + '" width="' + barW + '" height="' + txH + '" rx="2">');
+        svgParts.push('<title>' + label + ' ↑ ' + fmtBytes(tx) + '</title></rect>');
+
+        // X label (every other on small charts)
+        if (n <= 10 || i % 2 === 0 || i === n - 1) {
+            svgParts.push('<text x="' + (x + barGroup / 2) + '" y="' + (H - 4) + '" text-anchor="middle" font-size="9" fill="var(--color-muted)">' + label + '</text>');
+        }
+    });
+
+    // Baseline
+    svgParts.push('<line x1="' + pad.l + '" y1="' + (pad.t + innerH) + '" x2="' + (W - pad.r) + '" y2="' + (pad.t + innerH) + '" stroke="var(--color-border)" stroke-width="1"/>');
+
+    svgParts.push('</svg>');
+    container.innerHTML = svgParts.join("");
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", function() {
     loadIdentity();
     initMetricsBlock();
+
+    // Network monitor modal events
+    var cardNet = el("card-net");
+    if (cardNet) cardNet.addEventListener("click", window.openNetModal);
+    var nmClose = el("net-modal-close");
+    if (nmClose) nmClose.addEventListener("click", window.closeNetModal);
+    var nmOverlay = el("net-modal");
+    if (nmOverlay) nmOverlay.addEventListener("click", function(e) {
+        if (e.target === nmOverlay) window.closeNetModal();
+    });
+
+    // CPU monitor modal events
+    var cardCpu = el("card-cpu");
+    if (cardCpu) cardCpu.addEventListener("click", window.openCpuModal);
+    var cmClose = el("cpu-modal-close");
+    if (cmClose) cmClose.addEventListener("click", window.closeCpuModal);
+    var cmOverlay = el("cpu-modal");
+    if (cmOverlay) cmOverlay.addEventListener("click", function(e) {
+        if (e.target === cmOverlay) window.closeCpuModal();
+    });
 
 
     // Initial loads

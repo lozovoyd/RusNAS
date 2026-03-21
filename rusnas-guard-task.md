@@ -384,6 +384,10 @@ All available in Debian 13:
 | Socket timeout при `superuser: "require"` | Cockpit polkit-эскалация не propagates между iframe Guard и shell когда admin уже разблокирован на другой странице | Убрано `superuser: "require"` из `cockpit.channel()`; сокет `chmod 0o666`; безопасность — PIN |
 | Extensions list показывает "Файл не найден" | `/etc/rusnas-guard/` был `chmod 700`; Cockpit bridge (не-root) не мог войти в директорию | `chmod 755 /etc/rusnas-guard/` при установке |
 | `/run/rusnas-guard/` пропадает после ребута | Tmpfs очищается при перезагрузке, папка не пересоздавалась | `RuntimeDirectory=rusnas-guard` в systemd unit автоматически создаёт папку при старте сервиса |
+| Honeypot ложные срабатывания (бесконечный цикл) | `_refresh_baits()` обходил все поддиректории → inotify → `is_bait()` True → `recreate_bait()` → снова inotify | Модуль-уровень `_creating_baits: set` в `honeypot.py`; пути добавляются перед записью, удаляются через 1с; `is_guard_creating()` проверяется в `detector.py` до `_fire()` |
+| Дублирование событий от одного файла | InotifyTrees при наличии `/mnt/data` и `/mnt/data/documents` стреляет дважды | `_dedup_watch_paths()` удаляет поддиректории перед передачей в InotifyTrees; остаётся только топовый путь |
+| Samba streams_xattr → honeypot срабатывает на чтение | `vfs objects = streams_xattr` открывает bait-файлы для чтения xattr → `IN_OPEN` → false positive | Добавлен `HONEYPOT_EVENTS` фильтр: honeypot стреляет только на write/delete/rename, не на read |
+| Детектор не запускается после ребута сервера | Daemon стартовал как служба, но Detector thread ждал команды из UI | Добавлен `auto_start: true` (default) в конфиг; `run()` вызывает `start_guard()` автоматически при старте |
 
 ## Out of Scope
 

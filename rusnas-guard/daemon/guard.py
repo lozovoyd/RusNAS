@@ -98,6 +98,11 @@ class GuardDaemon:
         self._state["daemon_running"] = False
         write_state(self._state)
 
+        # Auto-start detector if configured (default: True)
+        if self._config.get("auto_start", True):
+            logger.info("Auto-starting detector (auto_start=true)")
+            self.start_guard()
+
         # Main loop — daemon stays alive; detector starts/stops on demand
         _bait_refresh_counter = 0
         try:
@@ -274,6 +279,8 @@ class GuardDaemon:
 
     def _update_state(self):
         self._state["mode"] = self._config.get("mode", "monitor")
+        self._state["monitored_count"] = len(self._config.get("monitored_paths", []))
+        self._state["daemon_running"] = self._running
         # current_iops is written directly by Detector._record_iops() into shared state
         write_state(self._state)
 
