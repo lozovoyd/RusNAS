@@ -55,6 +55,32 @@ $SSH $VM "echo '${PASS}' | sudo -S cp /tmp/rusnas-certcheck.service /etc/systemd
           echo '${PASS}' | sudo -S systemctl enable --now rusnas-certcheck.timer"
 $SSH $VM "echo '${PASS}' | sudo -S systemctl is-active rusnas-certcheck.timer" && echo "timer OK"
 
+echo "==> Installing domain packages (optional, may take a while)..."
+$SSH $VM "echo '${PASS}' | sudo -S apt-get install -y --no-install-recommends realmd adcli winbind libnss-winbind libpam-winbind krb5-user samba-common-bin 2>&1 | tail -5" || echo "(некоторые пакеты домена недоступны — пропускаем)"
+
+echo "==> Adding domain-api sudoers..."
+DOMAIN_SUDOERS="# rusNAS Domain module
+rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/share/cockpit/rusnas/scripts/domain-api.py *
+rusnas ALL=(ALL) NOPASSWD: /usr/sbin/realm
+rusnas ALL=(ALL) NOPASSWD: /usr/bin/net
+rusnas ALL=(ALL) NOPASSWD: /usr/bin/wbinfo
+rusnas ALL=(ALL) NOPASSWD: /usr/bin/samba-tool
+rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart winbind
+rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart smbd
+rusnas ALL=(ALL) NOPASSWD: /usr/bin/kinit"
+
+echo "$DOMAIN_SUDOERS" | sshpass -p "${PASS}" ssh \
+  -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no \
+  $VM "cat > /tmp/rusnas-domain-sudoers"
+
+$SSH $VM "echo '${PASS}' | sudo -S cp /tmp/rusnas-domain-sudoers /etc/sudoers.d/rusnas-domain && \
+          echo '${PASS}' | sudo -S chmod 440 /etc/sudoers.d/rusnas-domain && \
+          rm /tmp/rusnas-domain-sudoers"
+$SSH $VM "echo '${PASS}' | sudo -S visudo -c" && echo "domain sudoers OK"
+
+echo "==> Making domain-api.py executable..."
+$SSH $VM "echo '${PASS}' | sudo -S chmod 755 /usr/share/cockpit/rusnas/scripts/domain-api.py"
+
 echo ""
-echo "✅  Network module installed (including Certificates tab)."
+echo "✅  Network module installed (including Certificates + Domain tabs)."
 echo "    URL: https://10.10.10.72:9090/cockpit/@localhost/rusnas/network.html"

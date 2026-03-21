@@ -108,6 +108,7 @@ function switchTab(tabName) {
         if (tabName === "routes") loadRoutes();
         if (tabName === "diag")   populateWolIfaceSelect();
         if (tabName === "certs")  loadCerts();
+        if (tabName === "domain") initDomainTab();
     }
 }
 
@@ -1494,3 +1495,1134 @@ document.addEventListener("DOMContentLoaded", function() {
     loadHosts();
     loadRoutes();
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOMAIN SERVICES TAB
+// ══════════════════════════════════════════════════════════════════════════════
+
+var DOMAIN_API = "/usr/share/cockpit/rusnas/scripts/domain-api.py";
+var _domainMode = null;   // null | "member" | "dc" | "none"
+var _domainState = { joined: false, domain: "", workgroup: "", dc: "", method: "winbind" };
+var _dcState = { provisioned: false, domain: "", realm: "", fsmo: {} };
+var _domainTabLoaded = false;
+var _dcGroupCurrent = "";
+
+function domainApi(args) {
+    return new Promise(function(resolve, reject) {
+        var out = "";
+        var proc = cockpit.spawn(
+            ["sudo", "-n", "python3", DOMAIN_API].concat(args),
+            { err: "message", superuser: "try" }
+        );
+        proc.stream(function(d) { out += d; });
+        proc.done(function() {
+            var j = safeJson(out);
+            if (j) resolve(j); else reject(new Error("Bad JSON: " + out.slice(0,300)));
+        });
+        proc.fail(function(err, msg) {
+            var j = safeJson(out);
+            if (j) resolve(j); else reject(new Error(msg || "domain-api error"));
+        });
+    });
+}
+
+// ── Mode selector ──────────────────────────────────────────────────────────
+
+function loadDomain() {
+    document.getElementById("domainLoading").style.display = "";
+    document.getElementById("domainMemberPanel").style.display = "none";
+    document.getElementById("domainDcPanel").style.display = "none";
+
+    domainApi(["detect-mode"]).then(function(r) {
+        document.getElementById("domainLoading").style.display = "none";
+        if (!r.ok) { showDomainError(r.error || "Ошибка определения режима"); return; }
+        _domainMode = r.mode;
+        updateDomainModeSelector(r.mode);
+        if (r.mode === "member" || r.mode === "none") {
+            showMemberPanel();
+        } else if (r.mode === "dc") {
+            showDcPanel();
+        }
+    }).catch(function(e) {
+        document.getElementById("domainLoading").style.display = "none";
+        // Default to member mode on error
+        _domainMode = "none";
+        updateDomainModeSelector("none");
+        showMemberPanel();
+    });
+}
+
+function updateDomainModeSelector(mode) {
+    var isDc = (mode === "dc");
+    document.getElementById("domainModeCardMember").classList.toggle("active", !isDc);
+    document.getElementById("domainModeCardDc").classList.toggle("active", isDc);
+    document.querySelector('#domainModeCardMember input[type=radio]').checked = !isDc;
+    document.querySelector('#domainModeCardDc input[type=radio]').checked = isDc;
+}
+
+function showMemberPanel() {
+    document.getElementById("domainMemberPanel").style.display = "";
+    document.getElementById("domainDcPanel").style.display = "none";
+    loadMemberOverview();
+}
+
+function showDcPanel() {
+    document.getElementById("domainMemberPanel").style.display = "none";
+    document.getElementById("domainDcPanel").style.display = "";
+    loadDcOverview();
+}
+
+function showDomainError(msg) {
+    document.getElementById("domainLoading").innerHTML =
+        '<div class="net-alert net-alert-danger">' + escHtml(msg) + '</div>';
+}
+
+// ── Mode selector click handlers ───────────────────────────────────────────
+
+function initDomainModeSelector() {
+    document.getElementById("domainModeCardMember").addEventListener("click", function() {
+        if (_domainMode === "dc") {
+            if (!confirm("Переключение в режим «Участник домена» потребует остановки Samba AD DC. Продолжить?")) return;
+        }
+        _domainMode = "none";
+        updateDomainModeSelector("none");
+        showMemberPanel();
+    });
+    document.getElementById("domainModeCardDc").addEventListener("click", function() {
+        _domainMode = "dc";
+        updateDomainModeSelector("dc");
+        showDcPanel();
+    });
+}
+
+// ── Sub-tabs ───────────────────────────────────────────────────────────────
+
+function initSubtabs(containerSelector, contentPrefix) {
+    var container = document.querySelector(containerSelector);
+    if (!container) return;
+    container.querySelectorAll(".domain-subtab-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            container.querySelectorAll(".domain-subtab-btn").forEach(function(b) { b.classList.remove("active"); });
+            btn.classList.add("active");
+            var tab = btn.dataset.subtab;
+            document.querySelectorAll(".domain-subtab-content").forEach(function(el) {
+                el.style.display = (el.id === "subtab-" + tab) ? "" : "none";
+            });
+            onDomainSubtabSwitch(tab);
+        });
+    });
+}
+
+function onDomainSubtabSwitch(tab) {
+    if (tab === "member-overview") loadMemberOverview();
+    else if (tab === "member-join") loadMemberJoin();
+    else if (tab === "member-users") { loadDomainUsers(); loadDomainGroups(); loadPermittedGroups(); }
+    else if (tab === "member-samba") loadSmbGlobal();
+    else if (tab === "dc-overview") loadDcOverview();
+    else if (tab === "dc-users") loadDcUsers();
+    else if (tab === "dc-groups") loadDcGroups();
+    else if (tab === "dc-repl") loadDcRepl();
+    else if (tab === "dc-dns") loadDcDnsZones();
+    else if (tab === "dc-gpo") loadDcGpo();
+    else if (tab === "dc-provision") { /* just show form */ }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MEMBER MODE
+// ══════════════════════════════════════════════════════════════════════════════
+
+function loadMemberOverview() {
+    var el = document.getElementById("memberOverviewContent");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>';
+    domainApi(["status"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        _domainState = r;
+        renderMemberOverview(r, el);
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function renderMemberOverview(r, el) {
+    var joined = r.joined;
+    var joinedHtml = joined
+        ? '<span style="color:#16a34a;font-weight:700">● Подключён к домену</span>'
+        : '<span style="color:#dc2626;font-weight:700">○ Не подключён к домену</span>';
+
+    var svcs = r.services || {};
+    function svcBadge(name, key) {
+        var st = svcs[key] || "unknown";
+        return '<span class="domain-svc-badge ' + (st === "active" ? "active" : "inactive") + '">'
+            + '<span class="domain-svc-dot"></span>' + escHtml(name) + ' ' + escHtml(st) + '</span>';
+    }
+
+    var html = '<div class="domain-status-card">'
+        + '<div class="domain-status-header">'
+        + '<div class="domain-status-icon">🏢</div>'
+        + '<div><div class="domain-status-title">' + joinedHtml + '</div>'
+        + '<div class="domain-status-subtitle">Active Directory — Участник домена</div></div>'
+        + '</div>';
+
+    if (joined) {
+        html += '<div class="domain-info-grid">'
+            + infoItem("Домен", r.domain || "—")
+            + infoItem("Рабочая группа", r.workgroup || "—")
+            + infoItem("DC адрес", r.dc || "—")
+            + infoItem("Метод", r.method || "winbind")
+            + infoItem("Realm", r.realm || "—")
+            + infoItem("Kerberos TGT", r.kerberos_tgt ? "✓ Активен" : "✗ Нет")
+            + '</div>';
+    }
+
+    html += '<div class="domain-services-row">'
+        + svcBadge("winbind", "winbind")
+        + svcBadge("smbd", "smbd")
+        + '<button class="btn btn-default btn-sm" id="btnRestartWinbind">↻ Перезапустить winbind</button>'
+        + '<button class="btn btn-default btn-sm" id="btnKerberosRenew">🔑 Обновить Kerberos TGT</button>'
+        + '<button class="btn btn-default btn-sm" id="btnRefreshMemberOverview">↻ Обновить</button>';
+
+    if (!joined) {
+        html += '<button class="btn btn-primary btn-sm" id="btnGoJoin">→ Подключиться к домену</button>';
+    }
+
+    html += '</div></div>';
+    el.innerHTML = html;
+
+    document.getElementById("btnRestartWinbind").addEventListener("click", function() {
+        this.disabled = true; this.textContent = "...";
+        var btn = this;
+        domainApi(["restart-winbind"]).then(function(r) {
+            btn.disabled = false; btn.textContent = "↻ Перезапустить winbind";
+            loadMemberOverview();
+        }).catch(function(e) { btn.disabled = false; btn.textContent = "↻ Перезапустить winbind"; });
+    });
+
+    document.getElementById("btnKerberosRenew").addEventListener("click", function() {
+        this.disabled = true;
+        var btn = this;
+        domainApi(["kerberos-renew"]).then(function(r) {
+            btn.disabled = false;
+            if (r.ok) alert("Kerberos TGT обновлён успешно");
+            else alert("Ошибка: " + r.error);
+        }).catch(function(e) { btn.disabled = false; alert(e.message); });
+    });
+
+    document.getElementById("btnRefreshMemberOverview").addEventListener("click", loadMemberOverview);
+
+    if (!joined && document.getElementById("btnGoJoin")) {
+        document.getElementById("btnGoJoin").addEventListener("click", function() {
+            document.querySelector('[data-subtab="member-join"]').click();
+        });
+    }
+}
+
+function infoItem(label, value) {
+    return '<div class="domain-info-item">'
+        + '<div class="domain-info-label">' + escHtml(label) + '</div>'
+        + '<div class="domain-info-value">' + escHtml(value) + '</div>'
+        + '</div>';
+}
+
+// ── Join / Leave ───────────────────────────────────────────────────────────
+
+function loadMemberJoin() {
+    var el = document.getElementById("memberJoinContent");
+    if (_domainState.joined) {
+        renderLeaveForm(el);
+    } else {
+        renderJoinForm(el);
+    }
+}
+
+function renderJoinForm(el) {
+    el.innerHTML = '<div class="domain-join-section">'
+        + '<div class="domain-join-title">🔗 Присоединиться к домену</div>'
+        + '<div class="form-group">'
+        + '<label class="form-label">Домен (FQDN)</label>'
+        + '<div style="display:flex;gap:8px">'
+        + '<input type="text" class="form-control" id="joinDomain" placeholder="company.local">'
+        + '<button class="btn btn-default btn-sm" id="btnDiscoverDomain">🔍 Проверить DNS</button>'
+        + '</div>'
+        + '<div id="discoverResult" style="margin-top:8px"></div>'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label class="form-label">Метод интеграции</label>'
+        + '<div class="net-radio-group">'
+        + '<label><input type="radio" name="joinMethod" value="winbind" checked> Winbind (рекомендуется для NAS)</label>'
+        + '<label><input type="radio" name="joinMethod" value="sssd"> SSSD (для Linux-логинов)</label>'
+        + '</div></div>'
+        + '<div class="form-group"><label class="form-label">Пользователь AD (с правами join)</label>'
+        + '<input type="text" class="form-control" id="joinUser" placeholder="Administrator"></div>'
+        + '<div class="form-group"><label class="form-label">Пароль</label>'
+        + '<input type="password" class="form-control" id="joinPass" placeholder="••••••••"></div>'
+        + '<div id="joinSteps" class="domain-progress-steps" style="display:none"></div>'
+        + '<div id="joinError" class="net-alert net-alert-danger" style="display:none"></div>'
+        + '<button class="btn btn-primary" id="btnJoinDomain">🔗 Подключиться к домену</button>'
+        + '</div>';
+
+    document.getElementById("btnDiscoverDomain").addEventListener("click", function() {
+        var domain = document.getElementById("joinDomain").value.trim();
+        if (!domain) { alert("Введите доменное имя"); return; }
+        var res = document.getElementById("discoverResult");
+        res.innerHTML = '<div class="net-loading"><div class="net-spinner"></div> Поиск DC...</div>';
+        domainApi(["discover", domain]).then(function(r) {
+            if (!r.ok) {
+                res.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>';
+            } else {
+                var dcs = (r.domain_controllers || []).map(function(dc) { return escHtml(dc); }).join(", ");
+                res.innerHTML = '<div class="net-alert net-alert-info" style="background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.2);border-radius:6px;padding:10px">'
+                    + '✓ Домен найден: <strong>' + escHtml(r.realm || domain) + '</strong><br>'
+                    + (dcs ? 'Контроллеры: ' + dcs : '')
+                    + '</div>';
+            }
+        }).catch(function(e) {
+            res.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+        });
+    });
+
+    document.getElementById("btnJoinDomain").addEventListener("click", function() {
+        var domain = document.getElementById("joinDomain").value.trim();
+        var user = document.getElementById("joinUser").value.trim();
+        var pass = document.getElementById("joinPass").value;
+        var method = document.querySelector('input[name="joinMethod"]:checked').value;
+        var errEl = document.getElementById("joinError");
+        errEl.style.display = "none";
+
+        if (!domain || !user || !pass) { errEl.textContent = "Заполните все поля"; errEl.style.display = ""; return; }
+
+        var steps = [
+            "Проверка DNS",
+            "Получение Kerberos TGT",
+            "Добавление в домен",
+            "Обновление smb.conf",
+            "Обновление nsswitch.conf",
+            "Запуск Winbind"
+        ];
+        var stepsEl = document.getElementById("joinSteps");
+        stepsEl.style.display = "";
+        stepsEl.innerHTML = steps.map(function(s, i) {
+            return '<div class="domain-progress-step" id="joinStep' + i + '">'
+                + '<div class="domain-step-icon" id="joinStepIcon' + i + '">○</div>'
+                + '<div class="domain-step-label">' + escHtml(s) + '</div>'
+                + '<div class="domain-step-status" id="joinStepStatus' + i + '"></div>'
+                + '</div>';
+        }).join("");
+
+        document.getElementById("btnJoinDomain").disabled = true;
+
+        setStep(0, "running"); setStep(1, "running");
+
+        domainApi(["join", domain, user, method, pass]).then(function(r) {
+            if (r.ok) {
+                for (var i = 0; i < steps.length; i++) setStep(i, "done");
+                _domainState.joined = true;
+                _domainState.domain = domain;
+                _domainMode = "member";
+                setTimeout(function() { loadMemberOverview(); loadMemberJoin(); }, 1200);
+            } else {
+                for (var i = 0; i < 2; i++) setStep(i, "done");
+                setStep(2, "error");
+                errEl.textContent = r.error || "Ошибка подключения к домену";
+                errEl.style.display = "";
+                document.getElementById("btnJoinDomain").disabled = false;
+            }
+        }).catch(function(e) {
+            setStep(0, "error");
+            errEl.textContent = e.message;
+            errEl.style.display = "";
+            document.getElementById("btnJoinDomain").disabled = false;
+        });
+    });
+}
+
+function setStep(i, state) {
+    var icon = document.getElementById("joinStepIcon" + i);
+    if (!icon) return;
+    icon.className = "domain-step-icon " + state;
+    if (state === "done") icon.textContent = "✓";
+    else if (state === "error") icon.textContent = "✗";
+    else if (state === "running") icon.textContent = "⟳";
+    else icon.textContent = "○";
+}
+
+function renderLeaveForm(el) {
+    el.innerHTML = '<div class="domain-join-section">'
+        + '<div class="net-alert net-alert-warn" style="margin-bottom:16px">⚠ Покидание домена прервёт доступ доменных пользователей к шарам. SMB-соединения будут разорваны.</div>'
+        + '<div class="form-group"><label class="form-label">Пользователь AD (с правами remove)</label>'
+        + '<input type="text" class="form-control" id="leaveUser" placeholder="Administrator"></div>'
+        + '<div class="form-group"><label class="form-label">Пароль</label>'
+        + '<input type="password" class="form-control" id="leavePass" placeholder="••••••••"></div>'
+        + '<div id="leaveError" class="net-alert net-alert-danger" style="display:none"></div>'
+        + '<button class="btn btn-danger" id="btnLeaveDomain">🚪 Покинуть домен</button>'
+        + '</div>';
+
+    document.getElementById("btnLeaveDomain").addEventListener("click", function() {
+        var user = document.getElementById("leaveUser").value.trim();
+        var pass = document.getElementById("leavePass").value;
+        var errEl = document.getElementById("leaveError");
+        errEl.style.display = "none";
+        if (!user || !pass) { errEl.textContent = "Заполните все поля"; errEl.style.display = ""; return; }
+        if (!confirm("Покинуть домен " + (_domainState.domain || "") + "? Доменные пользователи потеряют доступ.")) return;
+        this.disabled = true;
+        var btn = this;
+        domainApi(["leave", user, pass]).then(function(r) {
+            btn.disabled = false;
+            if (r.ok) {
+                _domainState.joined = false;
+                _domainState.domain = "";
+                _domainMode = "none";
+                loadMemberOverview();
+                renderJoinForm(el);
+            } else {
+                errEl.textContent = r.error || "Ошибка";
+                errEl.style.display = "";
+            }
+        }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+    });
+}
+
+// ── Domain users / groups (member mode) ───────────────────────────────────
+
+function loadDomainUsers() {
+    var el = document.getElementById("domainUsersList");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["list-users"]).then(function(r) {
+        if (!r.ok || !r.users || !r.users.length) {
+            el.innerHTML = '<div class="net-muted" style="padding:12px;font-size:0.85rem">'
+                + (r.ok ? 'Пользователи не найдены. Убедитесь что NAS подключён к домену.' : escHtml(r.error || "Ошибка"))
+                + '</div>';
+            return;
+        }
+        var search = (document.getElementById("domainUserSearch").value || "").toLowerCase();
+        var users = r.users.filter(function(u) { return !search || u.username.toLowerCase().includes(search); });
+        var html = '<table class="domain-table"><thead><tr><th>Имя входа</th><th>UID</th></tr></thead><tbody>';
+        users.forEach(function(u) {
+            html += '<tr><td>' + escHtml(u.username) + '</td><td>' + escHtml(u.uid || "—") + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function loadDomainGroups() {
+    var el = document.getElementById("domainGroupsList");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["list-groups"]).then(function(r) {
+        if (!r.ok || !r.groups || !r.groups.length) {
+            el.innerHTML = '<div class="net-muted" style="padding:12px;font-size:0.85rem">'
+                + (r.ok ? 'Группы не найдены.' : escHtml(r.error || "Ошибка"))
+                + '</div>';
+            return;
+        }
+        var html = '<table class="domain-table"><thead><tr><th>Имя группы</th><th>GID</th></tr></thead><tbody>';
+        r.groups.forEach(function(g) {
+            html += '<tr><td>' + escHtml(g.name) + '</td><td>' + escHtml(g.gid || "—") + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function loadPermittedGroups() {
+    var el = document.getElementById("permittedGroupsList");
+    el.innerHTML = '<span class="net-muted" style="font-size:0.85rem">Загрузка...</span>';
+    domainApi(["list-permitted"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<span class="net-muted">' + escHtml(r.error || "Ошибка") + '</span>'; return; }
+        var groups = r.groups || [];
+        if (!groups.length) { el.innerHTML = '<span class="net-muted" style="font-size:0.85rem">Нет ограничений — все группы разрешены</span>'; return; }
+        el.innerHTML = groups.map(function(g) {
+            return '<span class="domain-group-tag">' + escHtml(g)
+                + '<button data-group="' + escHtml(g) + '" title="Запретить">×</button></span>';
+        }).join("");
+        el.querySelectorAll("button[data-group]").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var g = this.dataset.group;
+                domainApi(["deny-group", g]).then(function() { loadPermittedGroups(); });
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<span class="net-muted">' + escHtml(e.message) + '</span>';
+    });
+}
+
+// ── Samba global settings ──────────────────────────────────────────────────
+
+function loadSmbGlobal() {
+    var el = document.getElementById("smbGlobalForm");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["get-smb-global"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var s = r.settings || {};
+        var fields = ["workgroup","realm","security","kerberos method","winbind enum users","winbind enum groups","winbind use default domain","template shell","template homedir","idmap config * : backend","idmap config * : range"];
+        var html = '';
+        fields.forEach(function(k) {
+            html += '<div class="net-form-row"><label>' + escHtml(k) + '</label>'
+                + '<input type="text" class="form-control net-input-sm" data-key="' + escHtml(k) + '" value="' + escHtml(s[k] || "") + '"></div>';
+        });
+        html += '<div class="net-form-actions"><button class="btn btn-primary btn-sm" id="btnSaveSmbGlobal">Применить</button></div>'
+            + '<div id="smbGlobalMsg" style="margin-top:8px"></div>';
+        el.innerHTML = html;
+        document.getElementById("btnSaveSmbGlobal").addEventListener("click", function() {
+            var inputs = el.querySelectorAll("input[data-key]");
+            var btn = this;
+            btn.disabled = true;
+            var promises = [];
+            inputs.forEach(function(inp) {
+                var k = inp.dataset.key;
+                var v = inp.value.trim();
+                if (v) promises.push(domainApi(["set-smb-global", k, v]));
+            });
+            Promise.all(promises).then(function() {
+                btn.disabled = false;
+                document.getElementById("smbGlobalMsg").innerHTML = '<span style="color:#16a34a">✓ Настройки применены</span>';
+            }).catch(function(e) {
+                btn.disabled = false;
+                document.getElementById("smbGlobalMsg").innerHTML = '<span style="color:#dc2626">' + escHtml(e.message) + '</span>';
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DC MODE
+// ══════════════════════════════════════════════════════════════════════════════
+
+function loadDcOverview() {
+    var el = document.getElementById("dcOverviewContent");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>';
+    domainApi(["dc-status"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        _dcState = r;
+        renderDcOverview(r, el);
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function renderDcOverview(r, el) {
+    var svcs = r.services || {};
+    var provisioned = r.provisioned;
+
+    var html = '<div class="domain-status-card">';
+    if (provisioned) {
+        html += '<div class="domain-status-header">'
+            + '<div class="domain-status-icon">🏛</div>'
+            + '<div><div class="domain-status-title"><span style="color:#16a34a;font-weight:700">● Контроллер домена активен</span></div>'
+            + '<div class="domain-status-subtitle">Samba AD DC</div></div></div>'
+            + '<div class="domain-info-grid">'
+            + infoItem("Домен", r.domain || "—")
+            + infoItem("Realm", r.realm || "—")
+            + infoItem("NetBIOS", r.netbios || "—")
+            + infoItem("DC hostname", r.dc_hostname || "—")
+            + infoItem("Уровень леса", r.level || "—")
+            + infoItem("Клиентов", String(r.clients || 0))
+            + '</div>';
+
+        var fsmo = r.fsmo || {};
+        if (Object.keys(fsmo).length) {
+            html += '<div style="margin:12px 0 8px;font-weight:700;font-size:0.82rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-muted)">FSMO роли</div>'
+                + '<div class="domain-fsmo-grid">';
+            var fsmoLabels = {
+                "SchemaMaster": "Schema Master",
+                "DomainMaster": "Domain Master",
+                "PDCEmulator": "PDC Emulator",
+                "RIDManager": "RID Manager",
+                "InfrastructureMaster": "Infrastructure Master"
+            };
+            Object.keys(fsmoLabels).forEach(function(k) {
+                var holder = fsmo[k] || "—";
+                var isSelf = holder && r.dc_hostname && holder.toLowerCase().includes(r.dc_hostname.toLowerCase().split(".")[0]);
+                html += '<div class="domain-fsmo-item">'
+                    + '<div class="domain-fsmo-role">' + escHtml(fsmoLabels[k]) + '</div>'
+                    + '<div class="domain-fsmo-holder' + (isSelf ? " domain-fsmo-self" : "") + '">' + escHtml(holder) + (isSelf ? ' <span style="font-size:0.7rem">(этот сервер)</span>' : '') + '</div>'
+                    + '</div>';
+            });
+            html += '</div>';
+        }
+    } else {
+        html += '<div class="domain-status-header">'
+            + '<div class="domain-status-icon">🏛</div>'
+            + '<div><div class="domain-status-title"><span style="color:var(--color-muted)">○ Домен не настроен</span></div>'
+            + '<div class="domain-status-subtitle">Samba AD DC не настроен</div></div></div>'
+            + '<p style="color:var(--color-muted);font-size:0.85rem">Используйте вкладку «Создать домен» для первоначальной настройки.</p>'
+            + '<button class="btn btn-primary btn-sm" id="btnGotoProvision">🚀 Создать домен</button>';
+    }
+
+    function svcBadge(name, key) {
+        var st = svcs[key] || "unknown";
+        return '<span class="domain-svc-badge ' + (st === "active" ? "active" : "inactive") + '">'
+            + '<span class="domain-svc-dot"></span>' + escHtml(name) + ' ' + escHtml(st) + '</span>';
+    }
+    html += '<div class="domain-services-row">'
+        + svcBadge("samba-ad-dc", "samba_ad_dc")
+        + svcBadge("bind9 (DNS)", "bind9")
+        + '<button class="btn btn-default btn-sm" id="btnRefreshDcOverview">↻ Обновить</button>'
+        + '</div>';
+
+    html += '</div>';
+    el.innerHTML = html;
+
+    document.getElementById("btnRefreshDcOverview").addEventListener("click", loadDcOverview);
+    var btnGoto = document.getElementById("btnGotoProvision");
+    if (btnGoto) {
+        btnGoto.addEventListener("click", function() {
+            document.querySelector('[data-subtab="dc-provision"]').click();
+        });
+    }
+}
+
+// ── DC Provision ───────────────────────────────────────────────────────────
+
+function initDcProvision() {
+    var fqdnEl = document.getElementById("dcDomainFqdn");
+    var nbEl = document.getElementById("dcNetbiosName");
+    if (fqdnEl && nbEl) {
+        fqdnEl.addEventListener("input", function() {
+            var val = this.value.split(".")[0].toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,15);
+            nbEl.value = val;
+        });
+    }
+
+    var btn = document.getElementById("btnProvisionDomain");
+    if (!btn) return;
+    btn.addEventListener("click", function() {
+        var fqdn = (document.getElementById("dcDomainFqdn").value || "").trim();
+        var nb = (document.getElementById("dcNetbiosName").value || "").trim();
+        var pass = (document.getElementById("dcAdminPass").value || "");
+        var passC = (document.getElementById("dcAdminPassConfirm").value || "");
+        var dns = document.querySelector('input[name="dcDnsBackend"]:checked').value;
+        var rfc = document.getElementById("dcRfc2307").checked ? "yes" : "no";
+        var errEl = document.getElementById("dcProvisionError");
+        errEl.style.display = "none";
+
+        if (!fqdn) { errEl.textContent = "Введите имя домена"; errEl.style.display = ""; return; }
+        if (!nb) { errEl.textContent = "Введите NetBIOS имя"; errEl.style.display = ""; return; }
+        if (!pass) { errEl.textContent = "Введите пароль"; errEl.style.display = ""; return; }
+        if (pass !== passC) { errEl.textContent = "Пароли не совпадают"; errEl.style.display = ""; return; }
+
+        document.getElementById("dcProvisionForm").style.display = "none";
+        var progEl = document.getElementById("dcProvisionProgress");
+        progEl.style.display = "";
+        var stepsEl = document.getElementById("dcProvisionSteps");
+        var steps = [
+            "Проверка hostname и DNS",
+            "samba-tool domain provision",
+            "Настройка Kerberos (/etc/krb5.conf)",
+            "Запуск samba AD DC"
+        ];
+        stepsEl.innerHTML = steps.map(function(s, i) {
+            return '<div class="domain-progress-step">'
+                + '<div class="domain-step-icon" id="dcStep' + i + '">○</div>'
+                + '<div class="domain-step-label">' + escHtml(s) + '</div>'
+                + '</div>';
+        }).join("");
+
+        function dcStep(i, st) {
+            var el2 = document.getElementById("dcStep" + i);
+            if (!el2) return;
+            el2.className = "domain-step-icon " + st;
+            if (st === "done") el2.textContent = "✓";
+            else if (st === "error") el2.textContent = "✗";
+            else if (st === "running") el2.textContent = "⟳";
+        }
+
+        dcStep(0, "running"); dcStep(1, "running"); dcStep(2, "running"); dcStep(3, "running");
+
+        domainApi(["dc-provision", fqdn, nb, pass, dns, rfc]).then(function(r) {
+            if (r.ok) {
+                for (var i = 0; i < steps.length; i++) dcStep(i, "done");
+                _dcState.provisioned = true;
+                _dcState.realm = fqdn;
+                _domainMode = "dc";
+                updateDomainModeSelector("dc");
+                setTimeout(function() { loadDcOverview(); document.querySelector('[data-subtab="dc-overview"]').click(); }, 1500);
+            } else {
+                dcStep(1, "error");
+                var errEl2 = document.getElementById("dcProvisionError");
+                errEl2.textContent = r.error || "Ошибка провизии домена";
+                errEl2.style.display = "";
+                document.getElementById("dcProvisionForm").style.display = "";
+                progEl.style.display = "none";
+            }
+        }).catch(function(e) {
+            dcStep(1, "error");
+            var errEl2 = document.getElementById("dcProvisionError");
+            errEl2.textContent = e.message;
+            errEl2.style.display = "";
+            document.getElementById("dcProvisionForm").style.display = "";
+            progEl.style.display = "none";
+        });
+    });
+}
+
+// ── DC Users ───────────────────────────────────────────────────────────────
+
+function loadDcUsers() {
+    var el = document.getElementById("dcUsersTable");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-user-list"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var users = r.users || [];
+        var search = (document.getElementById("dcUserSearch").value || "").toLowerCase();
+        if (search) users = users.filter(function(u) { return u.username.toLowerCase().includes(search); });
+        if (!users.length) { el.innerHTML = '<div class="net-muted" style="padding:12px;font-size:0.85rem">Пользователи не найдены</div>'; return; }
+        var html = '<table class="domain-table"><thead><tr><th>Имя входа</th><th>Полное имя</th><th>Email</th><th>Статус</th><th></th></tr></thead><tbody>';
+        users.forEach(function(u) {
+            var enabled = u.enabled !== false;
+            html += '<tr>'
+                + '<td><strong>' + escHtml(u.username) + '</strong></td>'
+                + '<td>' + escHtml(u.fullname || "—") + '</td>'
+                + '<td>' + escHtml(u.email || "—") + '</td>'
+                + '<td>' + (enabled
+                    ? '<span class="domain-user-enabled">● Вкл.</span>'
+                    : '<span class="domain-user-disabled">○ Откл.</span>') + '</td>'
+                + '<td style="white-space:nowrap">'
+                + '<button class="btn btn-sm btn-default dc-user-pass" data-user="' + escHtml(u.username) + '" title="Сменить пароль">🔑</button> '
+                + (enabled
+                    ? '<button class="btn btn-sm btn-default dc-user-disable" data-user="' + escHtml(u.username) + '" title="Отключить">⊘</button> '
+                    : '<button class="btn btn-sm btn-default dc-user-enable" data-user="' + escHtml(u.username) + '" title="Включить">✓</button> ')
+                + '<button class="btn btn-sm btn-danger dc-user-delete" data-user="' + escHtml(u.username) + '" title="Удалить">✕</button>'
+                + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+
+        el.querySelectorAll(".dc-user-pass").forEach(function(btn) {
+            btn.addEventListener("click", function() { openDcPassModal(this.dataset.user); });
+        });
+        el.querySelectorAll(".dc-user-disable").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                domainApi(["dc-user-disable", this.dataset.user]).then(function() { loadDcUsers(); });
+            });
+        });
+        el.querySelectorAll(".dc-user-enable").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                domainApi(["dc-user-enable", this.dataset.user]).then(function() { loadDcUsers(); });
+            });
+        });
+        el.querySelectorAll(".dc-user-delete").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var u = this.dataset.user;
+                if (!confirm("Удалить пользователя " + u + "?")) return;
+                domainApi(["dc-user-delete", u]).then(function() { loadDcUsers(); });
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function openDcPassModal(username) {
+    document.getElementById("dcPassUsername").textContent = username;
+    document.getElementById("dcPassNew").value = "";
+    document.getElementById("dcPassError").style.display = "none";
+    document.getElementById("dcPassModal")._username = username;
+    document.getElementById("dcPassModal").style.display = "";
+}
+
+// ── DC Groups ──────────────────────────────────────────────────────────────
+
+function loadDcGroups() {
+    var el = document.getElementById("dcGroupsTable");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-group-list"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var groups = r.groups || [];
+        if (!groups.length) { el.innerHTML = '<div class="net-muted" style="padding:12px;font-size:0.85rem">Группы не найдены</div>'; return; }
+        var html = '<table class="domain-table"><thead><tr><th>Имя группы</th><th>Тип</th><th>Участников</th><th></th></tr></thead><tbody>';
+        groups.forEach(function(g) {
+            html += '<tr>'
+                + '<td><strong>' + escHtml(g.name) + '</strong></td>'
+                + '<td>' + escHtml(g.type || "Security Group") + '</td>'
+                + '<td>' + escHtml(String(g.members_count || 0)) + '</td>'
+                + '<td style="white-space:nowrap">'
+                + '<button class="btn btn-sm btn-default dc-group-members" data-group="' + escHtml(g.name) + '" title="Управление участниками">👥</button> '
+                + '<button class="btn btn-sm btn-danger dc-group-delete" data-group="' + escHtml(g.name) + '" title="Удалить">✕</button>'
+                + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+
+        el.querySelectorAll(".dc-group-members").forEach(function(btn) {
+            btn.addEventListener("click", function() { openGroupMembersModal(this.dataset.group); });
+        });
+        el.querySelectorAll(".dc-group-delete").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var g = this.dataset.group;
+                if (!confirm("Удалить группу " + g + "?")) return;
+                domainApi(["dc-group-delete", g]).then(function() { loadDcGroups(); });
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+function openGroupMembersModal(groupName) {
+    _dcGroupCurrent = groupName;
+    document.getElementById("dcGroupMembersName").textContent = groupName;
+    document.getElementById("dcGroupAddMember").value = "";
+    document.getElementById("dcGroupMembersError").style.display = "none";
+    document.getElementById("dcGroupMembersModal").style.display = "";
+    loadGroupMembers(groupName);
+}
+
+function loadGroupMembers(groupName) {
+    var el = document.getElementById("dcGroupMembersContent");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-group-members", groupName]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var members = r.members || [];
+        if (!members.length) { el.innerHTML = '<div class="net-muted" style="font-size:0.85rem">Нет участников</div>'; return; }
+        el.innerHTML = '<ul style="margin:0;padding:0 0 0 16px">'
+            + members.map(function(m) {
+                return '<li style="padding:4px 0;display:flex;justify-content:space-between;align-items:center">'
+                    + '<span>' + escHtml(m) + '</span>'
+                    + '<button class="btn btn-sm btn-danger dc-rm-member" data-member="' + escHtml(m) + '">✕</button>'
+                    + '</li>';
+            }).join("") + '</ul>';
+        el.querySelectorAll(".dc-rm-member").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                domainApi(["dc-group-delmember", groupName, this.dataset.member]).then(function() {
+                    loadGroupMembers(groupName);
+                });
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+// ── DC Replication ─────────────────────────────────────────────────────────
+
+function loadDcRepl() {
+    var el = document.getElementById("dcReplContent");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-repl-status"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var partners = r.partners || [];
+        var html = '';
+        if (!partners.length) {
+            html = '<div class="net-muted" style="font-size:0.85rem;padding:8px 0">Нет дополнительных контроллеров домена. Это единственный DC.</div>';
+        } else {
+            html = '<table class="domain-table"><thead><tr><th>Хост</th><th>Последняя синхр.</th><th>Статус</th></tr></thead><tbody>';
+            partners.forEach(function(p) {
+                html += '<tr><td>' + escHtml(p.host || "—") + '</td><td>' + escHtml(p.last_sync || "—") + '</td>'
+                    + '<td><span class="domain-svc-badge ' + (p.ok ? "active" : "inactive") + '"><span class="domain-svc-dot"></span>' + (p.ok ? "Sync OK" : "Error") + '</span></td></tr>';
+            });
+            html += '</tbody></table>';
+        }
+        if (r.last_sync) html += '<div style="margin-top:8px;font-size:0.82rem;color:var(--color-muted)">Последняя репликация: ' + escHtml(r.last_sync) + '</div>';
+        el.innerHTML = html;
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+// ── DC DNS ─────────────────────────────────────────────────────────────────
+
+function loadDcDnsZones() {
+    var sel = document.getElementById("dcDnsZone");
+    if (!sel) return;
+    if (_dcState && _dcState.realm) {
+        sel.innerHTML = '<option value="' + escHtml(_dcState.realm) + '">' + escHtml(_dcState.realm) + '</option>';
+    }
+}
+
+function queryDcDns() {
+    var zone = document.getElementById("dcDnsZone").value;
+    if (!zone) { alert("Выберите зону"); return; }
+    var el = document.getElementById("dcDnsTable");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-dns-query", zone]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var records = r.records || [];
+        if (!records.length) { el.innerHTML = '<div class="net-muted" style="padding:20px;text-align:center">Записи не найдены</div>'; return; }
+        var html = '<table class="domain-table"><thead><tr><th>Имя</th><th>Тип</th><th>Значение</th><th>TTL</th><th></th></tr></thead><tbody>';
+        records.forEach(function(rec) {
+            html += '<tr><td>' + escHtml(rec.name || "@") + '</td><td>' + escHtml(rec.type || "") + '</td>'
+                + '<td style="font-family:monospace;font-size:0.82rem">' + escHtml(rec.value || "") + '</td>'
+                + '<td>' + escHtml(String(rec.ttl || "")) + '</td>'
+                + '<td><button class="btn btn-sm btn-danger dc-dns-del" data-name="' + escHtml(rec.name || "@") + '" data-type="' + escHtml(rec.type || "") + '" data-value="' + escHtml(rec.value || "") + '">✕</button></td>'
+                + '</tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+        el.querySelectorAll(".dc-dns-del").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var z = document.getElementById("dcDnsZone").value;
+                domainApi(["dc-dns-delete", z, this.dataset.name, this.dataset.type, this.dataset.value])
+                    .then(function() { queryDcDns(); });
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+// ── DC GPO ─────────────────────────────────────────────────────────────────
+
+function loadDcGpo() {
+    var el = document.getElementById("dcGpoTable");
+    el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
+    domainApi(["dc-gpo-list"]).then(function(r) {
+        if (!r.ok) { el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(r.error) + '</div>'; return; }
+        var gpos = r.gpos || [];
+        if (!gpos.length) { el.innerHTML = '<div class="net-muted" style="padding:12px;font-size:0.85rem">GPO не найдены</div>'; return; }
+        var html = '<table class="domain-table"><thead><tr><th>Имя GPO</th><th>GUID</th><th>Путь</th></tr></thead><tbody>';
+        gpos.forEach(function(g) {
+            html += '<tr><td><strong>' + escHtml(g.name) + '</strong></td><td style="font-family:monospace;font-size:0.78rem">' + escHtml(g.guid || "—") + '</td><td style="font-size:0.8rem">' + escHtml(g.path || "—") + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        el.innerHTML = html;
+    }).catch(function(e) {
+        el.innerHTML = '<div class="net-alert net-alert-danger">' + escHtml(e.message) + '</div>';
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOMAIN MODAL HANDLERS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function initDomainModals() {
+    // DC User modal
+    var btnAddUser = document.getElementById("btnAddDcUser");
+    if (btnAddUser) {
+        btnAddUser.addEventListener("click", function() {
+            document.getElementById("dcUserModalTitle").textContent = "Создать пользователя домена";
+            document.getElementById("dcUserUsername").value = "";
+            document.getElementById("dcUserFullname").value = "";
+            document.getElementById("dcUserEmail").value = "";
+            document.getElementById("dcUserPass").value = "";
+            document.getElementById("dcUserEnabled").checked = true;
+            document.getElementById("dcUserModalError").style.display = "none";
+            document.getElementById("dcUserPassGroup").style.display = "";
+            document.getElementById("dcUserModal").style.display = "";
+        });
+    }
+
+    var btnSaveUser = document.getElementById("btnSaveDcUser");
+    if (btnSaveUser) {
+        btnSaveUser.addEventListener("click", function() {
+            var u = document.getElementById("dcUserUsername").value.trim();
+            var fn = document.getElementById("dcUserFullname").value.trim();
+            var email = document.getElementById("dcUserEmail").value.trim();
+            var pass = document.getElementById("dcUserPass").value;
+            var errEl = document.getElementById("dcUserModalError");
+            errEl.style.display = "none";
+            if (!u || !pass) { errEl.textContent = "Введите имя и пароль"; errEl.style.display = ""; return; }
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-user-add", u, pass, fn, email]).then(function(r) {
+                btn.disabled = false;
+                if (r.ok) { document.getElementById("dcUserModal").style.display = "none"; loadDcUsers(); }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    // DC Password modal
+    var btnSavePass = document.getElementById("btnSaveDcPass");
+    if (btnSavePass) {
+        btnSavePass.addEventListener("click", function() {
+            var username = document.getElementById("dcPassModal")._username;
+            var pass = document.getElementById("dcPassNew").value;
+            var errEl = document.getElementById("dcPassError");
+            errEl.style.display = "none";
+            if (!pass) { errEl.textContent = "Введите пароль"; errEl.style.display = ""; return; }
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-user-setpass", username, pass]).then(function(r) {
+                btn.disabled = false;
+                if (r.ok) { document.getElementById("dcPassModal").style.display = "none"; }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    // DC Group modal
+    var btnAddGroup = document.getElementById("btnAddDcGroup");
+    if (btnAddGroup) {
+        btnAddGroup.addEventListener("click", function() {
+            document.getElementById("dcGroupName").value = "";
+            document.getElementById("dcGroupModalError").style.display = "none";
+            document.getElementById("dcGroupModal").style.display = "";
+        });
+    }
+
+    var btnSaveGroup = document.getElementById("btnSaveDcGroup");
+    if (btnSaveGroup) {
+        btnSaveGroup.addEventListener("click", function() {
+            var name = document.getElementById("dcGroupName").value.trim();
+            var errEl = document.getElementById("dcGroupModalError");
+            errEl.style.display = "none";
+            if (!name) { errEl.textContent = "Введите имя группы"; errEl.style.display = ""; return; }
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-group-add", name]).then(function(r) {
+                btn.disabled = false;
+                if (r.ok) { document.getElementById("dcGroupModal").style.display = "none"; loadDcGroups(); }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    // Group members modal
+    var btnAddMember = document.getElementById("btnAddGroupMember");
+    if (btnAddMember) {
+        btnAddMember.addEventListener("click", function() {
+            var member = document.getElementById("dcGroupAddMember").value.trim();
+            var errEl = document.getElementById("dcGroupMembersError");
+            errEl.style.display = "none";
+            if (!member) { errEl.textContent = "Введите имя пользователя"; errEl.style.display = ""; return; }
+            domainApi(["dc-group-addmember", _dcGroupCurrent, member]).then(function(r) {
+                if (r.ok) { document.getElementById("dcGroupAddMember").value = ""; loadGroupMembers(_dcGroupCurrent); }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    // DNS record modal
+    var btnAddDns = document.getElementById("btnAddDnsRecord");
+    if (btnAddDns) {
+        btnAddDns.addEventListener("click", function() {
+            var zone = document.getElementById("dcDnsZone").value;
+            document.getElementById("dnsRecordZone").value = zone;
+            document.getElementById("dnsRecordName").value = "";
+            document.getElementById("dnsRecordValue").value = "";
+            document.getElementById("dcDnsModalError").style.display = "none";
+            document.getElementById("dcDnsModal").style.display = "";
+        });
+    }
+
+    var btnSaveDns = document.getElementById("btnSaveDnsRecord");
+    if (btnSaveDns) {
+        btnSaveDns.addEventListener("click", function() {
+            var zone = document.getElementById("dnsRecordZone").value.trim();
+            var name = document.getElementById("dnsRecordName").value.trim();
+            var type = document.getElementById("dnsRecordType").value;
+            var value = document.getElementById("dnsRecordValue").value.trim();
+            var errEl = document.getElementById("dcDnsModalError");
+            errEl.style.display = "none";
+            if (!zone || !name || !value) { errEl.textContent = "Заполните все поля"; errEl.style.display = ""; return; }
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-dns-add", zone, name, type, value]).then(function(r) {
+                btn.disabled = false;
+                if (r.ok) { document.getElementById("dcDnsModal").style.display = "none"; queryDcDns(); }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    var btnQueryDns = document.getElementById("btnQueryDns");
+    if (btnQueryDns) btnQueryDns.addEventListener("click", queryDcDns);
+
+    // GPO modal
+    var btnCreateGpo = document.getElementById("btnCreateGpo");
+    if (btnCreateGpo) {
+        btnCreateGpo.addEventListener("click", function() {
+            document.getElementById("dcGpoName").value = "";
+            document.getElementById("dcGpoModalError").style.display = "none";
+            document.getElementById("dcGpoModal").style.display = "";
+        });
+    }
+
+    var btnSaveGpo = document.getElementById("btnSaveDcGpo");
+    if (btnSaveGpo) {
+        btnSaveGpo.addEventListener("click", function() {
+            var name = document.getElementById("dcGpoName").value.trim();
+            var errEl = document.getElementById("dcGpoModalError");
+            errEl.style.display = "none";
+            if (!name) { errEl.textContent = "Введите имя GPO"; errEl.style.display = ""; return; }
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-gpo-create", name]).then(function(r) {
+                btn.disabled = false;
+                if (r.ok) { document.getElementById("dcGpoModal").style.display = "none"; loadDcGpo(); }
+                else { errEl.textContent = r.error || "Ошибка"; errEl.style.display = ""; }
+            }).catch(function(e) { btn.disabled = false; errEl.textContent = e.message; errEl.style.display = ""; });
+        });
+    }
+
+    // Replication buttons
+    var btnSync = document.getElementById("btnSyncRepl");
+    if (btnSync) {
+        btnSync.addEventListener("click", function() {
+            this.disabled = true;
+            var btn = this;
+            domainApi(["dc-repl-sync"]).then(function(r) {
+                btn.disabled = false;
+                if (!r.ok) alert("Ошибка: " + (r.error || ""));
+                else loadDcRepl();
+            }).catch(function(e) { btn.disabled = false; alert(e.message); });
+        });
+    }
+
+    var btnReplLog = document.getElementById("btnShowReplLog");
+    if (btnReplLog) {
+        btnReplLog.addEventListener("click", function() {
+            document.getElementById("dcReplLogModal").style.display = "";
+            var el = document.getElementById("dcReplLogOutput");
+            el.textContent = "Загрузка...";
+            domainApi(["dc-repl-status"]).then(function(r) {
+                el.textContent = r.raw || JSON.stringify(r, null, 2);
+            }).catch(function(e) { el.textContent = e.message; });
+        });
+    }
+
+    // Refresh buttons
+    var btnRefUsers = document.getElementById("btnRefreshDomainUsers");
+    if (btnRefUsers) btnRefUsers.addEventListener("click", loadDomainUsers);
+
+    var btnRefGroups = document.getElementById("btnRefreshDomainGroups");
+    if (btnRefGroups) btnRefGroups.addEventListener("click", loadDomainGroups);
+
+    var btnRefDcUsers = document.getElementById("btnRefreshDcUsers");
+    if (btnRefDcUsers) btnRefDcUsers.addEventListener("click", loadDcUsers);
+
+    var btnRefDcGroups = document.getElementById("btnRefreshDcGroups");
+    if (btnRefDcGroups) btnRefDcGroups.addEventListener("click", loadDcGroups);
+
+    var btnRefGpo = document.getElementById("btnRefreshGpo");
+    if (btnRefGpo) btnRefGpo.addEventListener("click", loadDcGpo);
+
+    var dcUserSearch = document.getElementById("dcUserSearch");
+    if (dcUserSearch) dcUserSearch.addEventListener("input", loadDcUsers);
+
+    var domainUserSearch = document.getElementById("domainUserSearch");
+    if (domainUserSearch) domainUserSearch.addEventListener("input", loadDomainUsers);
+
+    var btnPermit = document.getElementById("btnPermitGroup");
+    if (btnPermit) {
+        btnPermit.addEventListener("click", function() {
+            var g = document.getElementById("permitGroupInput").value.trim();
+            if (!g) return;
+            domainApi(["permit-group", g]).then(function() {
+                document.getElementById("permitGroupInput").value = "";
+                loadPermittedGroups();
+            });
+        });
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DOMAIN INIT
+// ══════════════════════════════════════════════════════════════════════════════
+
+function initDomainTab() {
+    if (_domainTabLoaded) return;
+    _domainTabLoaded = true;
+    initDomainModeSelector();
+    initSubtabs("#memberSubtabs", "member");
+    initSubtabs("#dcSubtabs", "dc");
+    initDcProvision();
+    initDomainModals();
+    loadDomain();
+}

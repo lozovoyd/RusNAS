@@ -32,6 +32,7 @@
   <button class="advisor-tab-btn" data-tab="routes">Маршруты</button>
   <button class="advisor-tab-btn" data-tab="diag">Диагностика</button>
   <button class="advisor-tab-btn" data-tab="certs">Сертификаты <span class="net-cert-tab-badge" id="certExpBadge" style="display:none"></span></button>
+  <button class="advisor-tab-btn" data-tab="domain">🏢 Домен</button>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
@@ -316,6 +317,410 @@
   </div>
 
 </div><!-- /tab-certs -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 6: DOMAIN SERVICES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-domain" style="display:none">
+
+  <!-- Mode Selector -->
+  <div class="domain-mode-selector" id="domainModeSelector">
+    <div class="domain-mode-card active" id="domainModeCardMember" data-mode="member">
+      <input type="radio" class="domain-mode-radio" name="domainMode" value="member" checked>
+      <div class="domain-mode-content">
+        <div class="domain-mode-title">Участник домена</div>
+        <div class="domain-mode-desc">Присоединиться к существующему Windows или Samba AD. SMB-шары видят доменных пользователей.</div>
+      </div>
+    </div>
+    <div class="domain-mode-card" id="domainModeCardDc" data-mode="dc">
+      <input type="radio" class="domain-mode-radio" name="domainMode" value="dc">
+      <div class="domain-mode-content">
+        <div class="domain-mode-title">Контроллер домена (Samba AD DC)</div>
+        <div class="domain-mode-desc">NAS сам является DC, совместимым с Windows AD. Управление пользователями, группами, DNS, GPO.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="domainLoading" class="net-loading"><div class="net-spinner"></div> Определение режима...</div>
+
+  <!-- ── MEMBER MODE ─────────────────────────────────────────────────────── -->
+  <div id="domainMemberPanel" style="display:none">
+    <div class="domain-subtabs" id="memberSubtabs">
+      <button class="domain-subtab-btn active" data-subtab="member-overview">📊 Обзор</button>
+      <button class="domain-subtab-btn" data-subtab="member-join">🔗 Подключение</button>
+      <button class="domain-subtab-btn" data-subtab="member-users">👥 Пользователи</button>
+      <button class="domain-subtab-btn" data-subtab="member-samba">⚙️ Samba</button>
+    </div>
+
+    <!-- Обзор -->
+    <div class="domain-subtab-content" id="subtab-member-overview">
+      <div id="memberOverviewContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Подключение -->
+    <div class="domain-subtab-content" id="subtab-member-join" style="display:none">
+      <div id="memberJoinContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Пользователи -->
+    <div class="domain-subtab-content" id="subtab-member-users" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Пользователи домена</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="domainUserSearch" class="form-control net-input-sm" placeholder="🔍 Поиск..." style="width:160px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDomainUsers">🔄 Обновить</button>
+          </div>
+        </div>
+        <div id="domainUsersList">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Группы домена</div>
+          <button class="btn btn-default btn-sm" id="btnRefreshDomainGroups">🔄 Обновить</button>
+        </div>
+        <div id="domainGroupsList">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Разрешённые группы</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="permitGroupInput" class="form-control net-input-sm" placeholder="Domain Users">
+            <button class="btn btn-default btn-sm" id="btnPermitGroup">+ Разрешить</button>
+          </div>
+        </div>
+        <div id="permittedGroupsList" class="domain-groups-list">
+          <span class="net-muted" style="font-size:0.85rem">Загрузка...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Настройки Samba -->
+    <div class="domain-subtab-content" id="subtab-member-samba" style="display:none">
+      <div class="domain-join-section">
+        <div class="domain-join-title">Параметры [global] smb.conf</div>
+        <div id="smbGlobalForm">
+          <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /domainMemberPanel -->
+
+  <!-- ── DC MODE ─────────────────────────────────────────────────────────── -->
+  <div id="domainDcPanel" style="display:none">
+    <div class="domain-subtabs" id="dcSubtabs">
+      <button class="domain-subtab-btn active" data-subtab="dc-overview">📊 Обзор</button>
+      <button class="domain-subtab-btn" data-subtab="dc-provision">⚙️ Создать домен</button>
+      <button class="domain-subtab-btn" data-subtab="dc-users">👥 Пользователи</button>
+      <button class="domain-subtab-btn" data-subtab="dc-groups">🏢 Группы</button>
+      <button class="domain-subtab-btn" data-subtab="dc-repl">🔗 Репликация</button>
+      <button class="domain-subtab-btn" data-subtab="dc-dns">🌐 DNS</button>
+      <button class="domain-subtab-btn" data-subtab="dc-gpo">📋 Политики</button>
+    </div>
+
+    <!-- DC Обзор -->
+    <div class="domain-subtab-content" id="subtab-dc-overview">
+      <div id="dcOverviewContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- DC Создать домен -->
+    <div class="domain-subtab-content" id="subtab-dc-provision" style="display:none">
+      <div class="domain-wizard-card">
+        <div class="domain-wizard-title">🚀 Мастер создания домена</div>
+        <div id="dcProvisionForm">
+          <div class="form-group">
+            <label class="form-label">Имя домена (FQDN)</label>
+            <input type="text" class="form-control" id="dcDomainFqdn" placeholder="company.local">
+          </div>
+          <div class="form-group">
+            <label class="form-label">NetBIOS имя</label>
+            <input type="text" class="form-control" id="dcNetbiosName" placeholder="COMPANY">
+            <small class="net-muted">Авто-заполняется из FQDN</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Уровень домена</label>
+            <select class="form-control" id="dcDomainLevel">
+              <option value="2008_R2">Windows 2008 R2</option>
+              <option value="2012_R2" selected>Windows 2012 R2</option>
+              <option value="2016">Windows 2016</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">DNS backend</label>
+            <div class="net-radio-group">
+              <label><input type="radio" name="dcDnsBackend" value="SAMBA_INTERNAL" checked> Samba internal (проще)</label>
+              <label><input type="radio" name="dcDnsBackend" value="BIND9_DLZ"> BIND9 DLZ (гибче, для prod)</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Пароль администратора</label>
+            <input type="password" class="form-control" id="dcAdminPass" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Подтверждение пароля</label>
+            <input type="password" class="form-control" id="dcAdminPassConfirm" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+              <input type="checkbox" id="dcRfc2307" checked>
+              RFC 2307 — включить POSIX UID/GID атрибуты
+            </label>
+          </div>
+          <div id="dcProvisionError" class="net-alert net-alert-danger" style="display:none"></div>
+          <button class="btn btn-primary" id="btnProvisionDomain">🚀 Создать домен</button>
+        </div>
+        <div id="dcProvisionProgress" style="display:none">
+          <div class="domain-progress-steps" id="dcProvisionSteps"></div>
+          <div id="dcProvisionOutput" class="net-diag-output" style="min-height:80px;margin-top:12px;display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Пользователи -->
+    <div class="domain-subtab-content" id="subtab-dc-users" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Пользователи домена</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="dcUserSearch" class="form-control net-input-sm" placeholder="🔍 Поиск..." style="width:160px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDcUsers">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnAddDcUser">+ Создать пользователя</button>
+          </div>
+        </div>
+        <div id="dcUsersTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Группы -->
+    <div class="domain-subtab-content" id="subtab-dc-groups" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Группы домена</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDcGroups">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnAddDcGroup">+ Создать группу</button>
+          </div>
+        </div>
+        <div id="dcGroupsTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Репликация -->
+    <div class="domain-subtab-content" id="subtab-dc-repl" style="display:none">
+      <div class="domain-repl-card">
+        <div class="net-section-header" style="padding:0;margin-bottom:16px">
+          <div class="net-section-title">Контроллеры домена</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnSyncRepl">🔄 Синхронизировать</button>
+            <button class="btn btn-default btn-sm" id="btnShowReplLog">📋 Лог</button>
+          </div>
+        </div>
+        <div id="dcReplContent">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC DNS -->
+    <div class="domain-subtab-content" id="subtab-dc-dns" style="display:none">
+      <div class="domain-dns-wrap">
+        <div class="domain-dns-header">
+          <span class="net-section-title" style="margin:0">DNS записи домена</span>
+          <select class="form-control net-select-sm" id="dcDnsZone" style="width:200px">
+            <option value="">Зона...</option>
+          </select>
+          <button class="btn btn-default btn-sm" id="btnQueryDns">🔍 Запросить</button>
+          <button class="btn btn-primary btn-sm" id="btnAddDnsRecord">+ Добавить запись</button>
+        </div>
+        <div id="dcDnsTable">
+          <div style="padding:20px;color:var(--color-muted);font-size:0.85rem;text-align:center">Выберите зону и нажмите «Запросить»</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC GPO -->
+    <div class="domain-subtab-content" id="subtab-dc-gpo" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Групповые политики (GPO)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnRefreshGpo">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnCreateGpo">+ Создать GPO</button>
+          </div>
+        </div>
+        <div id="dcGpoTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /domainDcPanel -->
+
+</div><!-- /tab-domain -->
+
+<!-- Domain: Create DC User Modal -->
+<div class="modal-overlay" id="dcUserModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3 id="dcUserModalTitle">Создать пользователя домена</h3>
+    <div class="form-group">
+      <label class="form-label">Имя входа (username)</label>
+      <input type="text" class="form-control" id="dcUserUsername" placeholder="jsmith">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Полное имя</label>
+      <input type="text" class="form-control" id="dcUserFullname" placeholder="John Smith">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" id="dcUserEmail" placeholder="jsmith@company.local">
+    </div>
+    <div class="form-group" id="dcUserPassGroup">
+      <label class="form-label">Пароль</label>
+      <input type="password" class="form-control" id="dcUserPass" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="dcUserEnabled" checked>
+        Учётная запись активна
+      </label>
+    </div>
+    <div id="dcUserModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcUser">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Change Password Modal -->
+<div class="modal-overlay" id="dcPassModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>🔑 Сменить пароль</h3>
+    <p>Пользователь: <strong id="dcPassUsername"></strong></p>
+    <div class="form-group">
+      <label class="form-label">Новый пароль</label>
+      <input type="password" class="form-control" id="dcPassNew" placeholder="••••••••">
+    </div>
+    <div id="dcPassError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcPass">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Create Group Modal -->
+<div class="modal-overlay" id="dcGroupModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>Создать группу</h3>
+    <div class="form-group">
+      <label class="form-label">Имя группы</label>
+      <input type="text" class="form-control" id="dcGroupName" placeholder="IT Staff">
+    </div>
+    <div id="dcGroupModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcGroup">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Group Members Modal -->
+<div class="modal-overlay" id="dcGroupMembersModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>👥 Участники группы: <span id="dcGroupMembersName"></span></h3>
+    <div id="dcGroupMembersContent">
+      <div class="net-loading"><div class="net-spinner"></div></div>
+    </div>
+    <div class="form-group" style="margin-top:16px">
+      <label class="form-label">Добавить пользователя</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-control" id="dcGroupAddMember" placeholder="username">
+        <button class="btn btn-primary btn-sm" id="btnAddGroupMember">+ Добавить</button>
+      </div>
+    </div>
+    <div id="dcGroupMembersError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Add DNS Record Modal -->
+<div class="modal-overlay" id="dcDnsModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>+ Добавить DNS запись</h3>
+    <div class="form-group">
+      <label class="form-label">Зона</label>
+      <input type="text" class="form-control" id="dnsRecordZone" placeholder="company.local">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Имя</label>
+      <input type="text" class="form-control" id="dnsRecordName" placeholder="server1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Тип</label>
+      <select class="form-control" id="dnsRecordType">
+        <option value="A">A</option>
+        <option value="AAAA">AAAA</option>
+        <option value="CNAME">CNAME</option>
+        <option value="MX">MX</option>
+        <option value="TXT">TXT</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Значение</label>
+      <input type="text" class="form-control" id="dnsRecordValue" placeholder="192.168.1.100">
+    </div>
+    <div id="dcDnsModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDnsRecord">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: GPO Create Modal -->
+<div class="modal-overlay" id="dcGpoModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>Создать GPO</h3>
+    <div class="form-group">
+      <label class="form-label">Имя GPO</label>
+      <input type="text" class="form-control" id="dcGpoName" placeholder="My Policy">
+    </div>
+    <div id="dcGpoModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcGpo">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Repl Log Modal -->
+<div class="modal-overlay" id="dcReplLogModal" style="display:none">
+  <div class="modal-box" style="width:640px">
+    <h3>📋 Лог репликации</h3>
+    <div class="net-diag-output" id="dcReplLogOutput" style="min-height:200px;max-height:400px;overflow:auto"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!-- MODALS -->
