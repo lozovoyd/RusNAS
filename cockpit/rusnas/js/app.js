@@ -623,28 +623,65 @@ function deleteShareEntry(shareData) {
 function loadISCSI() {
     var tbody = document.getElementById("iscsi-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
-    cockpit.spawn(["bash", "-c", "sudo targetcli ls /iscsi 2>&1 | grep 'iqn' | awk '{print $2}'"])
+
+    var script = [
+        "import subprocess, json, re",
+        "out = subprocess.check_output(['targetcli', 'ls', '/'], text=True, stderr=subprocess.DEVNULL)",
+        "targets = []",
+        "backstores = {}",
+        "current = None",
+        "for line in out.splitlines():",
+        "    bm = re.search(r'o- (\\w+)\\s+\\[(/[^\\s]+\\.img)\\s+\\(([^)]+)\\)', line)",
+        "    if bm: backstores[bm.group(1)] = {'file': bm.group(2), 'size': bm.group(3)}",
+        "    m = re.search(r'(iqn\\.[^\\s\\[]+)', line)",
+        "    if m and 'TPGs' in line:",
+        "        current = {'iqn': m.group(1), 'luns': []}",
+        "        targets.append(current)",
+        "    elif current:",
+        "        lm = re.search(r'lun(\\d+).*?fileio/(\\S+)\\s+\\(', line)",
+        "        if lm:",
+        "            store = lm.group(2)",
+        "            info = backstores.get(store, {})",
+        "            current['luns'].append({'id': int(lm.group(1)), 'store': store, 'size': info.get('size','?'), 'file': info.get('file','')})",
+        "print(json.dumps(targets))"
+    ].join("\n");
+
+    cockpit.spawn(["bash", "-c", "sudo python3 -c '" + script.replace(/'/g, "'\\''") + "'"], { err: "message" })
     .done(function(output) {
-        var targets = output.trim().split("\n").filter(Boolean);
-        if (targets.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='5'>Нет targets</td></tr>";
+        var targets;
+        try { targets = JSON.parse(output.trim()); } catch(e) { targets = []; }
+        if (!targets.length) {
+            tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет iSCSI targets</td></tr>";
             return;
         }
-        tbody.innerHTML = targets.map(function(iqn) {
+        tbody.innerHTML = targets.map(function(t) {
+            var lunInfo = t.luns.length
+                ? t.luns.map(function(l) { return "LUN" + l.id + " (" + l.store + ")"; }).join(", ")
+                : "—";
+            var sizeInfo = t.luns.length
+                ? t.luns.map(function(l) { return l.size; }).join(", ")
+                : "—";
+            var stores = t.luns.map(function(l) { return l.store; }).join(",");
+            var files   = t.luns.map(function(l) { return l.file; }).join(",");
             return "<tr>" +
-                "<td>" + iqn + "</td>" +
-                "<td>LUN 0</td>" +
-                "<td>-</td>" +
+                "<td style='font-size:12px'>" + t.iqn + "</td>" +
+                "<td>" + lunInfo + "</td>" +
+                "<td>" + sizeInfo + "</td>" +
                 "<td class='status-active'>Активен</td>" +
-                "<td><button class='btn btn-danger btn-sm delete-iscsi' data-iqn='" + iqn + "'>Удалить</button></td>" +
+                "<td><button class='btn btn-danger btn-sm delete-iscsi'" +
+                " data-iqn='" + t.iqn + "'" +
+                " data-stores='" + stores + "'" +
+                " data-files='" + files + "'>Удалить</button></td>" +
                 "</tr>";
         }).join("");
         document.querySelectorAll(".delete-iscsi").forEach(function(btn) {
-            btn.addEventListener("click", function() { deleteISCSI(this.dataset.iqn); });
+            btn.addEventListener("click", function() {
+                deleteISCSI(this.dataset.iqn, this.dataset.stores, this.dataset.files);
+            });
         });
     })
     .fail(function(err) {
-        tbody.innerHTML = "<tr><td colspan='5'>Ошибка: " + err + "</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка загрузки: " + (err.message || err) + "</td></tr>";
     });
 }
 
@@ -661,20 +698,32 @@ function addISCSI() {
         "sudo targetcli /iscsi/" + iqn + "/tpg1 set attribute authentication=0 && " +
         "sudo targetcli saveconfig";
 
-    cockpit.spawn(["bash", "-c", cmd], { superuser: "require" })
+    cockpit.spawn(["bash", "-c", cmd], { err: "message" })
     .done(function() {
         closeModal("add-iscsi-modal");
         document.getElementById("iscsi-name").value = "";
         loadISCSI();
     })
-    .fail(function(err) { alert("Ошибка: " + err); });
+    .fail(function(err) { alert("Ошибка: " + (err.message || err)); });
 }
 
-function deleteISCSI(iqn) {
-    if (!confirm("Удалить target " + iqn + "?")) return;
-    cockpit.spawn(["bash", "-c", "sudo targetcli /iscsi delete " + iqn + " && sudo targetcli saveconfig"], { superuser: "require" })
+function deleteISCSI(iqn, stores, files) {
+    if (!confirm("Удалить target " + iqn + " и все его LUN/backstores?")) return;
+    var storeList = (stores || "").split(",").filter(Boolean);
+    var fileList  = (files  || "").split(",").filter(Boolean);
+
+    var cmd = "sudo targetcli /iscsi delete " + iqn;
+    storeList.forEach(function(s) {
+        cmd += " && sudo targetcli /backstores/fileio delete " + s;
+    });
+    fileList.forEach(function(f) {
+        if (f) cmd += " && sudo rm -f " + f;
+    });
+    cmd += " && sudo targetcli saveconfig";
+
+    cockpit.spawn(["bash", "-c", cmd], { err: "message" })
     .done(function() { loadISCSI(); })
-    .fail(function(err) { alert("Ошибка: " + err); });
+    .fail(function(err) { alert("Ошибка удаления: " + (err.message || err)); });
 }
 
 // ─── FileBrowser Management ───────────────────────────────────────────────────

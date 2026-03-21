@@ -10,7 +10,7 @@
   --bg: #0d0d0d;
   --bg-card: #161616;
   --orange: #f5a623;
-  --orange2: #e8703a;
+  --orange2: #e8703a;а 
   --red: #d32f2f;
   --red-hover: #b71c1c;
   --white: #ffffff;
@@ -726,7 +726,8 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
     <div class="features-grid">
       <div class="feat-card"><div class="feat-icon">⚙️</div><div class="feat-title">RAID любого уровня</div><div class="feat-desc">RAID 0, 1, 5, 6, 10, F1. Онлайн-миграция между уровнями без остановки и потери данных — ключевая функция для бизнеса.</div></div>
       <div class="feat-card" style="cursor:pointer;" onclick="document.getElementById('snapshots').scrollIntoView({behavior:'smooth'})"><div class="feat-icon">📸</div><div class="feat-title">Снапшоты Btrfs</div><div class="feat-desc">До 256 снапшотов на папку, до 4096 на систему. Откат за секунды. Репликация на удалённый узел по расписанию.</div></div>
-      <div class="feat-card"><div class="feat-icon">🖥️</div><div class="feat-title">Веб-интерфейс</div><div class="feat-desc">Полное управление через браузер — диски, RAID, пользователи, протоколы, снапшоты, iSCSI. SSH не нужен.</div></div>
+      <div class="feat-card"><div class="feat-icon">🖥️</div><div class="feat-title">Веб-интерфейс + Дашборд</div><div class="feat-desc">Дашборд с реалтайм-метриками CPU, RAM, сети и дискового I/O. Полное управление через браузер — диски, RAID, пользователи, протоколы, снапшоты, iSCSI. SSH не нужен.</div></div>
+      <div class="feat-card" style="border-color:rgba(0,150,136,0.2);"><div class="feat-icon" style="background:rgba(0,150,136,0.1);border-color:rgba(0,150,136,0.2);">📂</div><div class="feat-title">Файловый менеджер</div><div class="feat-desc">Встроенный веб-файловый менеджер FileBrowser (v2.31.2) с доступом по /files/. Просмотр, загрузка и управление файлами шар прямо из браузера. Права доступа синхронизированы с пользователями NAS.</div></div>
       <div class="feat-card"><div class="feat-icon">🔗</div><div class="feat-title">Все протоколы</div><div class="feat-desc">SMB 2/3, NFS v3/v4, iSCSI (64 target, 128 LUN), FTP, WebDAV, Rsync, AFP — любые клиенты Windows, Linux, macOS, VMware.</div></div>
       <div class="feat-card"><div class="feat-icon">👥</div><div class="feat-title">Управление доступом</div><div class="feat-desc">До 2048 локальных пользователей, 512 групп, 512 общих папок. Windows ACL. Интеграция AD/LDAP через Winbind/SSSD.</div></div>
       <div class="feat-card"><div class="feat-icon">🔄</div><div class="feat-title">Удалённые обновления</div><div class="feat-desc">Централизованное управление парком 1000+ устройств. Ansible + собственный deb-репозиторий. Без доступа Synology.</div></div>
@@ -2417,6 +2418,9 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
         <tr class="hl"><td>Дедупликация данных</td><td class="c-syn part">✅ только на Btrfs-томах</td><td class="c-rus yes">✅ duperemove + reflinks + vfs_btrfs</td></tr>
         <tr><td>Управление ИБП</td><td class="c-syn yes">✅ DSM Power Manager</td><td class="c-rus yes">✅ NUT 2.8.1, 140+ моделей</td></tr>
         <tr class="hl"><td>Мониторинг (Prometheus/Zabbix)</td><td class="c-syn part">✅ SNMP (дополнительный пакет)</td><td class="c-rus yes">✅ Prometheus endpoint встроен (порт 9100)</td></tr>
+        <tr><td>Веб-файловый менеджер</td><td class="c-syn part">⚡ File Station (базовый)</td><td class="c-rus yes">✅ FileBrowser v2 — полнофункциональный, /files/</td></tr>
+        <tr class="hl"><td>Дашборд реалтайм-метрик</td><td class="c-syn yes">✅ DSM Resource Monitor</td><td class="c-rus yes">✅ Встроен: CPU/RAM/сеть/I/O/Guard/UPS/снапшоты</td></tr>
+        <tr><td>Мониторинг сетевого трафика</td><td class="c-syn part">⚡ Через пакет</td><td class="c-rus yes">✅ vnStat — история по часам, дням, месяцам</td></tr>
       </tbody>
     </table>
     </div>
