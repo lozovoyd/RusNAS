@@ -299,6 +299,11 @@ sshpass -p 'kl4389qd' scp -o StrictHostKeyChecking=no -o PreferredAuthentication
 - Treemap navigation: `navigateTo(path)` updates `filePath` global and reloads files view
 - `guessColor(entry)` classifies files by extension client-side for treemap coloring
 
+**Critical storage-analyzer-api.py notes:**
+- `classify_ext()` и константы расширений определены ИНЛАЙН в api-файле (не импортируются из storage_collector_lib — модуль не существует)
+- `cmd_files(path, sort, ftype, older_than)`: при `ftype != "all"` — рекурсивный `os.walk`, директории пропускаются (избегает таймаута от `du -sb`); файлы показываются с rel-путём от root
+- При `ftype == "all"` — плоский `os.listdir` с `du -sb` для директорий (как раньше)
+
 ## Mobile / Responsive CSS Rules
 
 Все HTML-страницы плагина **обязаны** иметь viewport meta (иначе мобильные браузеры игнорируют @media queries):
@@ -339,7 +344,7 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 
 **Структура страницы (4 вкладки, `advisor-tabs`):**
 - `📂 Шары` — единая таблица SMB+NFS, загружается сразу при открытии страницы
-- `🎯 iSCSI` — таблица targets, lazy load при первом клике
+- `🎯 iSCSI` — два раздела: LUN Manager + Target Manager; перезагружается при каждом клике
 - `🔒 WORM` — WriteOnce paths, lazy load при первом клике (`_tabsLoaded.worm` guard)
 - `⚙️ Сервисы` — FTP + WebDAV карточки, lazy load при первом клике
 
@@ -367,6 +372,16 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 **NFS (без изменений):**
 - Delete old entry before adding: `sed -i '\|^/path |d'` before append (prevents duplication)
 - `exportfs -ra` после каждого изменения
+
+**iSCSI (редизайн 2026-03-22):**
+- Источник данных: `sudo cat /etc/rtslib-fb-target/saveconfig.json` (НЕ `/etc/target/`)
+- Перед чтением всегда `targetcli saveconfig` (файл не обновляется автоматически)
+- JSON структура: `storage_objects[]` — flat list, поле `plugin` (fileio/block); `targets[]` — flat list, поле `fabric === "iscsi"`
+- `storage_object` в `luns[]` имеет префикс `/backstores/` → нормализуется strip при парсинге
+- Состояние: `_iscsiState = { backstores, targets, loaded }`; `_iscsiDeleteCtx`
+- LUN удаление: кнопка задисейблена если `inUseBy.length > 0`; опциональное удаление `.img`-файла (чекбокс, по умолчанию OFF)
+- Target удаление: только конфиг, файлы не трогает
+- `_esc(s)` — HTML-эскейп для safe innerHTML rendering
 
 **disks.js:**
 - Parse `/proc/mdstat` with states: `active` / `degraded` / `inactive` / `resyncing` / `reshaping`
@@ -413,6 +428,12 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | Guard PIN modal not appearing after `--reset-pin` | Socket unavailable after reset → `guardCmd("has_pin")` silently fails; added `checkPinSetup()` with `test -f` fallback called from both DOMContentLoaded and refreshStatus error branch |
 | Dashboard dark mode не работал | `dashboard.css` использовал несуществующие переменные (`--color-bg-secondary`, `--color-card-bg`, `--color-text-muted`) с fallback к светлым hex-значениям; исправлено: заменены на `--bg-th`, `--bg-card`, `--color-muted` из `style.css` |
 | Guard bait files visible in SMB clients | Toggle `detection.hide_smb_baits` in Guard settings; `_apply_smb_hide()` writes `hide files = /!~rng_*/` into `[global]` section of smb.conf + `systemctl reload smbd`; atomic write via `.guard.tmp`; applied on daemon start |
+| Guard honeypot infinite false-positive loop | `_refresh_baits()` writes to subdirs → inotify → `is_bait()` → `recreate_bait()` loop; fixed: `_creating_baits` set in `honeypot.py`; `is_guard_creating()` checked before `_fire()` in `detector.py` |
+| Guard duplicate events per file | InotifyTrees watching both `/mnt/data` AND `/mnt/data/documents` fires each event twice; fixed: `_dedup_watch_paths()` keeps only topmost paths |
+| Samba streams_xattr honeypot false positives | `vfs objects = streams_xattr` reads bait files for xattr → `IN_OPEN` → false positive; fixed: `HONEYPOT_EVENTS` filter — honeypot only on write/delete/rename events |
+| Guard detector not starting after reboot | Daemon service started but Detector thread required manual UI Start; fixed: `auto_start: true` (default) — `run()` calls `start_guard()` automatically |
+| Dashboard TX speed always 0 | `/proc/net/dev` regex captured field 8 (`RX_multicast` ≈0) instead of field 9 (`TX_bytes`); fixed: one extra `\s+\d+` skip group |
+| Dashboard snapshot count inflated | `storage-info` included stale btrfspool paths from DB; fixed: cross-reference with `schedule list` — show subvols with schedule OR non-zero snapshot count |
 
 ## FTP and WebDAV settings (app.js / index.html)
 
@@ -584,6 +605,10 @@ Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)
 - **Dark mode fix (2026-03-16):** dashboard.css использовал `--color-bg-secondary`/`--color-card-bg`/`--color-text-muted` → заменено на `--bg-th`/`--bg-card`/`--color-muted`
 - Metrics server: warmup 1 сек перед первым delta-расчётом
 - Metrics endpoint: `http://<IP>:9100/metrics` (Prometheus) + `/metrics.json` (JSON)
+- **Network Modal (2026-03-21):** клик на `#card-net` → `#net-modal`; `openNetModal()` / `closeNetModal()`; live speeds из `net-rx-val`/`net-tx-val`; vnstat JSON через `cockpit.spawn(["vnstat","--json"])` — ключи `traffic.day/hour/month` (не plural!); порядок oldest-first → today = `day[day.length-1]`
+- **TX bug fix (2026-03-21):** `/proc/net/dev` regex имел 6 skip-групп вместо 7 → захватывал `RX_multicast` вместо `TX_bytes`; исправлено добавлением одного `\s+\d+`
+- **Snapshot widget (2026-03-21):** `loadSnapshots()` cross-reference `storage-info` с `schedule list`; показывает субволюмы с расписанием (любым) ИЛИ count > 0; перестал показывать старые тестовые пути
+- **Guard auto_start (2026-03-21):** `guard.py` вызывает `start_guard()` автоматически при старте если `config["auto_start"] == True` (default)
 
 ### ✅ Дедупликация (реализована 2026-03-15, ветка feature/dedup)
 - `dedup.html` + `js/dedup.js` — полная страница управления дедупликацией

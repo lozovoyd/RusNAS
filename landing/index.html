@@ -661,6 +661,164 @@ footer{border-top:1px solid rgba(255,255,255,0.05);padding:36px 48px;position:re
 .ups-conn-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
 .ups-pill{background:rgba(33,150,243,0.08);border:1px solid rgba(33,150,243,0.18);border-radius:5px;padding:3px 10px;font-size:11px;font-weight:600;color:#64b5f6;}
 @media(max-width:1024px){.ups-layout{grid-template-columns:1fr;gap:28px;}.ups-section{padding-left:22px;padding-right:22px;}.ups-metrics-row{grid-template-columns:1fr 1fr;}}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI/UX PRO MAX — PREMIUM ENHANCEMENTS
+═══════════════════════════════════════════════════════════════════ */
+
+/* 1 ─ NOISE / GRAIN TEXTURE ─────────────────────────────────────── */
+body::after{
+  content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
+  opacity:0.028;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:200px 200px;
+}
+
+/* 2 ─ ANIMATED GRADIENT ON .accent ──────────────────────────────── */
+@keyframes gradientFlow{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+.accent{
+  background:linear-gradient(135deg,#f5a623,#e8703a,#ffcc44,#f5a623,#e8703a);
+  background-size:300% 300%;
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:gradientFlow 5s ease infinite;
+}
+
+/* 3 ─ HERO DOT-GRID BACKGROUND ──────────────────────────────────── */
+.hero::before{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(circle,rgba(245,166,35,0.22) 1px,transparent 1px);
+  background-size:38px 38px;
+  -webkit-mask-image:radial-gradient(ellipse 75% 75% at 60% 40%,black 20%,transparent 75%);
+  mask-image:radial-gradient(ellipse 75% 75% at 60% 40%,black 20%,transparent 75%);
+  opacity:0.4;
+}
+
+/* 4 ─ BIGGER HERO GLOW ORBS ─────────────────────────────────────── */
+.hero-glow{
+  top:-320px;right:-280px;width:1000px;height:1000px;
+  background:radial-gradient(circle,rgba(245,166,35,0.13) 0%,rgba(232,112,58,0.07) 38%,transparent 68%);
+}
+.hero-glow2{
+  bottom:-180px;left:-180px;width:700px;height:700px;
+  background:radial-gradient(circle,rgba(211,47,47,0.1) 0%,rgba(245,166,35,0.04) 50%,transparent 70%);
+}
+
+/* 5 ─ PRIMARY BUTTON — SHIMMER ──────────────────────────────────── */
+@keyframes shimmerSlide{
+  0%{transform:translateX(-100%);}
+  100%{transform:translateX(100%);}
+}
+.btn-primary,.btn-submit{
+  background:linear-gradient(135deg,#d32f2f,#b71c1c);
+  position:relative;overflow:hidden;
+}
+.btn-primary::after,.btn-submit::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,0.22) 50%,transparent 62%);
+  transform:translateX(-100%);
+  animation:shimmerSlide 2.8s ease-in-out infinite;
+  pointer-events:none;
+}
+.btn-primary:hover,.btn-submit:hover{
+  background:linear-gradient(135deg,#b71c1c,#8b0000);
+}
+
+/* 6 ─ FEAT-CARD GRADIENT BORDER ON HOVER ────────────────────────── */
+.feat-card{position:relative;}
+.feat-card::before{
+  content:'';position:absolute;inset:-1px;border-radius:15px;
+  background:linear-gradient(135deg,rgba(245,166,35,0),rgba(245,166,35,0.55),rgba(232,112,58,0.38),rgba(245,166,35,0));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  padding:1px;opacity:0;transition:opacity 0.38s ease;pointer-events:none;
+}
+.feat-card:hover::before{opacity:1;}
+.feat-card:hover{
+  box-shadow:0 18px 48px rgba(245,166,35,0.1),0 4px 16px rgba(0,0,0,0.5);
+}
+
+/* 7 ─ GLASSMORPHISM HEADER ───────────────────────────────────────── */
+header{
+  background:rgba(8,8,8,0.72);
+  backdrop-filter:blur(28px) saturate(160%);
+  -webkit-backdrop-filter:blur(28px) saturate(160%);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  box-shadow:0 1px 0 rgba(245,166,35,0.08),0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* 8 ─ RACK UNITS — GLASSMORPHISM ────────────────────────────────── */
+.rack-unit{
+  background:rgba(18,18,18,0.65);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.08);
+  box-shadow:0 2px 12px rgba(0,0,0,0.35);
+}
+
+/* 9 ─ ANIMATED SECTION SEPARATOR ────────────────────────────────── */
+@keyframes sepShimmer{
+  0%,100%{background-position:0% center;}
+  50%{background-position:100% center;}
+}
+.sep{
+  height:1px;margin:0 48px;
+  background:linear-gradient(90deg,transparent,rgba(245,166,35,0.35),rgba(232,112,58,0.25),rgba(245,166,35,0.35),transparent);
+  background-size:300% 100%;
+  animation:sepShimmer 5s ease-in-out infinite;
+  border:none;
+}
+
+/* 10 ─ SECTION TITLE AMBIENT GLOW ───────────────────────────────── */
+.section-title,.guard-title,.sa-title,.dedup-title,.ssd-tier-title,.snap-title,.ups-title{
+  text-shadow:0 0 60px rgba(245,166,35,0.07);
+}
+
+/* 11 ─ HERO BADGE UPGRADE ────────────────────────────────────────── */
+.hero-badge{
+  background:rgba(245,166,35,0.08);
+  border:1px solid rgba(245,166,35,0.32);
+  box-shadow:0 0 16px rgba(245,166,35,0.1),inset 0 1px 0 rgba(245,166,35,0.1);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+
+/* 12 ─ CTA BOX UPGRADE ───────────────────────────────────────────── */
+.cta-inner{
+  background:linear-gradient(135deg,rgba(18,18,18,0.98),rgba(22,22,22,0.95));
+  box-shadow:0 0 80px rgba(245,166,35,0.06),0 32px 80px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+/* 13 ─ FEAT-ICON GLOW PULSE ─────────────────────────────────────── */
+.feat-card:hover .feat-icon{
+  background:rgba(245,166,35,0.16);
+  box-shadow:0 0 18px rgba(245,166,35,0.2);
+  transition:background 0.3s,box-shadow 0.3s;
+}
+
+/* 14 ─ SECTION LABEL GLOW ───────────────────────────────────────── */
+.section-label{
+  text-shadow:0 0 20px rgba(245,166,35,0.35);
+}
+
+/* 15 ─ OUTLINE BUTTON UPGRADE ────────────────────────────────────── */
+.btn-outline{
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border:1.5px solid rgba(255,255,255,0.2);
+}
+.btn-outline:hover{
+  border-color:rgba(255,255,255,0.4);
+  background:rgba(255,255,255,0.06);
+  box-shadow:0 4px 20px rgba(255,255,255,0.05);
+}
+
+/* REDUCED MOTION FALLBACK ─────────────────────────────────────────── */
+@media(prefers-reduced-motion:reduce){
+  .accent,.btn-primary::after,.btn-submit::after,.sep,.hero-badge::before,
+  .rack-led.amber,.rack-bar.anim{animation:none!important;}
+}
 </style>
 </head>
 <body>

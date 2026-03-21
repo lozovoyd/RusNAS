@@ -18,7 +18,7 @@ echo "==> Copying landing files to VM..."
 ssh_sudo "mkdir -p $LANDING_DIR"
 
 sshpass -p "$PASS" scp $SSH_OPTS landing/index.html "$VM:/tmp/rusnas-index.html"
-sshpass -p "$PASS" scp $SSH_OPTS landing/apache/rusnas-landing.conf "$VM:/tmp/rusnas-landing.conf"
+sshpass -p "$PASS" scp $SSH_OPTS landing/apache/000-rusnas-landing.conf "$VM:/tmp/rusnas-landing.conf"
 
 echo "==> Installing files on VM..."
 ssh_sudo "cp /tmp/rusnas-index.html $LANDING_DIR/index.html"
