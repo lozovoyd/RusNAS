@@ -618,141 +618,405 @@ function deleteShareEntry(shareData) {
     .fail(function(err) { alert("Ошибка удаления: " + err); });
 }
 
-// ─── iSCSI Targets ───────────────────────────────────────────────────────────
+// ─── iSCSI Redesign ──────────────────────────────────────────────────────────
+
+var _iscsiState = { backstores: [], targets: [], loaded: false };
+var _iscsiDeleteCtx = null;
+
+/// Helper: run a targetcli command
+function _tcli(args) {
+    return new Promise(function(resolve, reject) {
+        cockpit.spawn(["sudo", "targetcli"].concat(args), { err: "message" })
+            .done(resolve).fail(reject);
+    });
+}
+
+// Read and parse saveconfig.json (rtslib-fb saves to /etc/rtslib-fb-target/)
+var _SAVECONFIG_PATH = "/etc/rtslib-fb-target/saveconfig.json";
+function _readSaveconfig() {
+    return new Promise(function(resolve, reject) {
+        cockpit.spawn(["sudo", "cat", _SAVECONFIG_PATH], { err: "message" })
+            .done(function(out) {
+                try { resolve(JSON.parse(out)); }
+                catch(e) { reject(new Error("Ошибка разбора saveconfig.json: " + e.message)); }
+            })
+            .fail(function(err) { reject(err); });
+    });
+}
+
+// Parse saveconfig into _iscsiState
+// Actual rtslib-fb JSON structure:
+//   storage_objects: flat array, each with { name, plugin, dev, size, ... }
+//   targets: flat array, each with { wwn, fabric, tpgs: [{ luns, node_acls, portals, ... }] }
+function _iscsiLoadConfig(cfg) {
+    var backstores = [];
+    var targets = [];
+
+    // First pass: collect lunUsage — which targets reference each backstore
+    // lun.storage_object in JSON is "/backstores/fileio/backup1" — normalize to "fileio/backup1"
+    var lunUsage = {};
+    function _normStore(s) { return s.replace(/^\/backstores\//, ""); }
+    (cfg.targets || []).forEach(function(tgt) {
+        if (tgt.fabric !== "iscsi") return;
+        var iqn = tgt.wwn;
+        (tgt.tpgs || []).forEach(function(tpg) {
+            (tpg.luns || []).forEach(function(lun) {
+                var stor = _normStore(lun.storage_object || "");
+                if (!lunUsage[stor]) lunUsage[stor] = [];
+                if (lunUsage[stor].indexOf(iqn) === -1) lunUsage[stor].push(iqn);
+            });
+        });
+    });
+
+    // Parse backstores (flat list in storage_objects)
+    (cfg.storage_objects || []).forEach(function(so) {
+        var type = so.plugin || "fileio";
+        var key = type + "/" + so.name;
+        var sizeBytes = so.size || 0;
+        var sizeMB = Math.round(sizeBytes / 1024 / 1024);
+        var sizeStr = sizeMB >= 1024 ? (sizeMB / 1024).toFixed(1) + " ГБ" : sizeMB + " МБ";
+        backstores.push({
+            name: so.name,
+            type: type,
+            dev: so.dev || so.udev_path || "",
+            file: (type === "fileio") ? (so.dev || "") : "",
+            size: sizeStr,
+            sizeRaw: sizeBytes,
+            inUseBy: lunUsage[key] || []
+        });
+    });
+
+    // Parse targets (flat list in targets, fabric="iscsi")
+    (cfg.targets || []).forEach(function(tgt) {
+        if (tgt.fabric !== "iscsi") return;
+        var iqn = tgt.wwn;
+        var tpgs = tgt.tpgs || [];
+        var tpg = tpgs[0] || {};
+        var luns = (tpg.luns || []).map(function(l) {
+            return { index: l.index, storage_object: _normStore(l.storage_object || "") };
+        });
+        var acls = (tpg.node_acls || []).map(function(a) { return a.node_wwn; });
+        var portals = (tpg.portals || []).map(function(p) { return p.ip_address + ":" + p.port; });
+        var allowAll = !acls.length;
+        targets.push({ iqn: iqn, luns: luns, acls: acls, portals: portals, allowAll: allowAll });
+    });
+
+    _iscsiState.backstores = backstores;
+    _iscsiState.targets = targets;
+}
 
 function loadISCSI() {
-    var tbody = document.getElementById("iscsi-body");
-    tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
+    var lb = document.getElementById("luns-body");
+    var tb = document.getElementById("targets-body");
+    lb.innerHTML = "<tr><td colspan='6'>Загрузка...</td></tr>";
+    tb.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
 
-    cockpit.spawn(["sudo", "targetcli", "ls", "/"], { err: "message" })
-    .done(function(output) {
-        // Parse backstores: "o- name [/path/file.img (10.0GiB) ...]"
-        var backstores = {};
-        output.split("\n").forEach(function(line) {
-            var bm = line.match(/o-\s+(\w+)\s+\[([^\s]+\.img)\s+\(([^)]+)\)/);
-            if (bm) backstores[bm[1]] = { file: bm[2], size: bm[3] };
-        });
-
-        // Parse targets and their LUNs
-        var targets = [];
-        var current = null;
-        output.split("\n").forEach(function(line) {
-            var tm = line.match(/(iqn\.[^\s\[]+)/);
-            if (tm && line.indexOf("TPGs") !== -1) {
-                current = { iqn: tm[1], luns: [] };
-                targets.push(current);
-                return;
-            }
-            if (!current) return;
-            var lm = line.match(/lun(\d+).*?fileio\/(\S+)\s+\(/);
-            if (lm) {
-                var store = lm[2];
-                var bs = backstores[store] || {};
-                current.luns.push({ id: parseInt(lm[1]), store: store, size: bs.size || "?", file: bs.file || "" });
-            }
-        });
-
-        if (!targets.length) {
-            tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет iSCSI targets</td></tr>";
-            return;
-        }
-
-        tbody.innerHTML = targets.map(function(t) {
-            var lunInfo  = t.luns.length ? t.luns.map(function(l) { return "LUN" + l.id + " (" + l.store + ")"; }).join(", ") : "—";
-            var sizeInfo = t.luns.length ? t.luns.map(function(l) { return l.size; }).join(", ") : "—";
-            var stores   = t.luns.map(function(l) { return l.store; }).join(",");
-            var files    = t.luns.map(function(l) { return l.file; }).join(",");
-            return "<tr>" +
-                "<td style='font-size:12px'>" + t.iqn + "</td>" +
-                "<td>" + lunInfo + "</td>" +
-                "<td>" + sizeInfo + "</td>" +
-                "<td class='status-active'>Активен</td>" +
-                "<td><button class='btn btn-danger btn-sm delete-iscsi'" +
-                " data-iqn='" + t.iqn + "' data-stores='" + stores + "' data-files='" + files + "'>Удалить</button></td>" +
-                "</tr>";
-        }).join("");
-
-        document.querySelectorAll(".delete-iscsi").forEach(function(btn) {
-            btn.addEventListener("click", function() {
-                deleteISCSI(this.dataset.iqn, this.dataset.stores, this.dataset.files);
-            });
-        });
+    // Always save first to ensure saveconfig.json is fresh and exists
+    _tcli(["saveconfig"])
+    .then(function() { return _readSaveconfig(); })
+    .then(function(cfg) {
+        _iscsiLoadConfig(cfg);
+        _iscsiState.loaded = true;
+        renderLunsTable(_iscsiState.backstores);
+        renderTargetsTable(_iscsiState.targets);
     })
-    .fail(function(err) {
-        tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка загрузки: " + (err.message || err) + "</td></tr>";
+    .catch(function(err) {
+        var msg = "<tr><td colspan='6' class='text-muted'>Ошибка: " + (err.message || err) + "</td></tr>";
+        lb.innerHTML = msg;
+        tb.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка загрузки конфигурации</td></tr>";
     });
 }
 
-function addISCSI() {
-    var name = document.getElementById("iscsi-name").value.trim();
-    var size = document.getElementById("iscsi-size").value;
-    if (!name) { alert("Введите имя"); return; }
-
-    var iqn     = "iqn.2026-03.com.rusnas:" + name;
-    var imgPath = "/mnt/data/iscsi/" + name + ".img";
-
-    var sp = function(args) {
-        return new Promise(function(res, rej) {
-            cockpit.spawn(args, { err: "message" }).done(res).fail(rej);
+function renderLunsTable(backstores) {
+    var tbody = document.getElementById("luns-body");
+    if (!backstores.length) {
+        tbody.innerHTML = "<tr><td colspan='6' class='text-muted'>Нет LUN / хранилищ</td></tr>";
+        return;
+    }
+    tbody.innerHTML = backstores.map(function(bs) {
+        var devCell = bs.type === "fileio" ? bs.file : bs.dev;
+        var usedBy = bs.inUseBy.length ? bs.inUseBy.map(function(iqn) {
+            // Show only the suffix after last ':'
+            return iqn.split(":").pop();
+        }).join(", ") : "—";
+        var inUse = bs.inUseBy.length > 0;
+        var delBtn = inUse
+            ? "<button class='btn btn-danger btn-sm' disabled title='Используется в: " + bs.inUseBy.join(", ") + "'>Удалить</button>"
+            : "<button class='btn btn-danger btn-sm lun-del-btn' data-name='" + _esc(bs.name) + "' data-type='" + _esc(bs.type) + "' data-file='" + _esc(bs.file) + "'>Удалить</button>";
+        return "<tr>" +
+            "<td><strong>" + _esc(bs.name) + "</strong></td>" +
+            "<td><code>" + _esc(bs.type) + "</code></td>" +
+            "<td style='font-size:12px'>" + _esc(devCell) + "</td>" +
+            "<td>" + bs.size + "</td>" +
+            "<td>" + _esc(usedBy) + "</td>" +
+            "<td>" + delBtn + "</td>" +
+            "</tr>";
+    }).join("");
+    tbody.querySelectorAll(".lun-del-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            confirmDeleteLun({ name: this.dataset.name, type: this.dataset.type, file: this.dataset.file });
         });
-    };
+    });
+}
 
-    sp(["sudo", "mkdir", "-p", "/mnt/data/iscsi"])
-    .then(function() { return sp(["sudo", "targetcli", "/backstores/fileio", "create", name, imgPath, size + "G"]); })
-    .then(function() { return sp(["sudo", "targetcli", "/iscsi", "create", iqn]); })
-    .then(function() { return sp(["sudo", "targetcli", "/iscsi/" + iqn + "/tpg1/luns", "create", "/backstores/fileio/" + name]); })
-    .then(function() { return sp(["sudo", "targetcli", "/iscsi/" + iqn + "/tpg1", "set", "attribute", "authentication=0"]); })
-    .then(function() { return sp(["sudo", "targetcli", "saveconfig"]); })
+function renderTargetsTable(targets) {
+    var tbody = document.getElementById("targets-body");
+    if (!targets.length) {
+        tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Нет iSCSI targets</td></tr>";
+        return;
+    }
+    tbody.innerHTML = targets.map(function(t) {
+        var lunNames = t.luns.length
+            ? t.luns.map(function(l) { return "LUN" + l.index + " (" + l.storage_object.split("/").pop() + ")"; }).join(", ")
+            : "—";
+        var portals = t.portals.length ? t.portals.join(", ") : "0.0.0.0:3260";
+        var acls = t.allowAll || !t.acls.length ? "Все" : t.acls.length + " ACL";
+        return "<tr>" +
+            "<td style='font-size:12px'>" + _esc(t.iqn) + "</td>" +
+            "<td>" + _esc(lunNames) + "</td>" +
+            "<td>" + _esc(portals) + "</td>" +
+            "<td>" + acls + "</td>" +
+            "<td>" +
+                "<button class='btn btn-default btn-sm target-edit-btn' data-iqn='" + _esc(t.iqn) + "' style='margin-right:4px'>Изменить</button>" +
+                "<button class='btn btn-danger btn-sm target-del-btn' data-iqn='" + _esc(t.iqn) + "'>Удалить</button>" +
+            "</td>" +
+            "</tr>";
+    }).join("");
+    tbody.querySelectorAll(".target-del-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var t = _iscsiState.targets.filter(function(x) { return x.iqn === btn.dataset.iqn; })[0];
+            if (t) confirmDeleteTarget(t);
+        });
+    });
+    tbody.querySelectorAll(".target-edit-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            var t = _iscsiState.targets.filter(function(x) { return x.iqn === btn.dataset.iqn; })[0];
+            if (t) openTargetModal(t);
+        });
+    });
+}
+
+// Escape for HTML attribute/content
+function _esc(s) {
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── LUN Modal ────────────────────────────────────────────────────────────────
+
+function openLunModal(existing) {
+    document.getElementById("lun-name").value = existing ? existing.name : "";
+    document.getElementById("lun-name").disabled = !!existing;
+    document.getElementById("lun-type").value = existing ? existing.type : "fileio";
+    document.getElementById("lun-filepath").value = existing ? existing.file : "/mnt/data/iscsi/";
+    document.getElementById("lun-size").value = 10;
+    document.getElementById("lun-blockdev").value = existing ? existing.dev : "";
+    document.getElementById("lun-create-file").checked = true;
+    document.getElementById("lun-modal-title").textContent = existing ? "Изменить LUN" : "Создать LUN";
+    document.getElementById("btn-lun-save").textContent = existing ? "Сохранить" : "Создать";
+    _iscsiToggleLunType();
+    showModal("iscsi-lun-modal");
+}
+
+function _iscsiToggleLunType() {
+    var t = document.getElementById("lun-type").value;
+    document.getElementById("lun-fileio-fields").style.display = t === "fileio" ? "" : "none";
+    document.getElementById("lun-block-fields").style.display  = t === "block"  ? "" : "none";
+}
+
+function saveLun() {
+    var name = document.getElementById("lun-name").value.trim();
+    var type = document.getElementById("lun-type").value;
+    if (!name) { alert("Введите имя LUN"); return; }
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) { alert("Имя должно содержать только буквы, цифры, _ и -"); return; }
+
+    var p;
+    if (type === "fileio") {
+        var filePath = document.getElementById("lun-filepath").value.trim();
+        var size = parseInt(document.getElementById("lun-size").value) || 10;
+        var createFile = document.getElementById("lun-create-file").checked;
+        if (!filePath) { alert("Укажите путь к файлу"); return; }
+        var dir = filePath.substring(0, filePath.lastIndexOf("/"));
+        var mkdirP = dir
+            ? new Promise(function(res, rej) { cockpit.spawn(["sudo", "mkdir", "-p", dir], { err: "message" }).done(res).fail(rej); })
+            : Promise.resolve();
+        p = mkdirP.then(function() {
+            return _tcli(["/backstores/fileio", "create", "name=" + name, "file_or_dev=" + filePath, "size=" + size + "G"]);
+        });
+    } else {
+        var dev = document.getElementById("lun-blockdev").value.trim();
+        if (!dev) { alert("Укажите блочное устройство"); return; }
+        p = _tcli(["/backstores/block", "create", "name=" + name, "dev=" + dev]);
+    }
+
+    p.then(function() { return _tcli(["saveconfig"]); })
     .then(function() {
-        closeModal("add-iscsi-modal");
-        document.getElementById("iscsi-name").value = "";
+        closeModal("iscsi-lun-modal");
         loadISCSI();
     })
-    .catch(function(err) { alert("Ошибка создания: " + (err.message || err)); });
+    .catch(function(err) { alert("Ошибка создания LUN: " + (err.message || err)); });
 }
 
-function deleteISCSI(iqn, stores, files) {
-    if (!confirm("Удалить target " + iqn + " и все его LUN/backstores?")) return;
-    var storeList = (stores || "").split(",").filter(Boolean);
-    var fileList  = (files  || "").split(",").filter(Boolean);
+// ── LUN Delete ───────────────────────────────────────────────────────────────
 
-    // Step 1: delete iscsi target
-    var p = new Promise(function(res, rej) {
-        cockpit.spawn(["sudo", "targetcli", "/iscsi", "delete", iqn], { err: "message" })
-            .done(res).fail(rej);
-    });
+function confirmDeleteLun(bs) {
+    _iscsiDeleteCtx = { type: "lun", data: bs };
+    document.getElementById("iscsi-delete-msg").textContent =
+        "Удалить LUN «" + bs.name + "» (" + bs.type + ")? Конфигурация цели не затрагивается.";
+    var fileRow = document.getElementById("iscsi-delete-file-row");
+    var fileChk = document.getElementById("iscsi-delete-file-chk");
+    if (bs.type === "fileio" && bs.file) {
+        fileRow.style.display = "";
+        fileRow.querySelector("label").lastChild.textContent = " Удалить файл " + bs.file;
+        fileChk.checked = false;
+    } else {
+        fileRow.style.display = "none";
+        fileChk.checked = false;
+    }
+    showModal("iscsi-delete-modal");
+}
 
-    // Step 2: delete each backstore
-    storeList.forEach(function(s) {
-        p = p.then(function() {
+function _iscsiExecuteDeleteLun() {
+    if (!_iscsiDeleteCtx || _iscsiDeleteCtx.type !== "lun") return;
+    var bs = _iscsiDeleteCtx.data;
+    var deleteFile = document.getElementById("iscsi-delete-file-chk").checked;
+    closeModal("iscsi-delete-modal");
+
+    _tcli(["/" + (bs.type === "fileio" ? "backstores/fileio" : "backstores/block"), "delete", bs.name])
+    .then(function() {
+        if (deleteFile && bs.file) {
             return new Promise(function(res, rej) {
-                cockpit.spawn(["sudo", "targetcli", "/backstores/fileio", "delete", s], { err: "message" })
-                    .done(res).fail(rej);
+                cockpit.spawn(["sudo", "rm", "-f", bs.file], { err: "message" }).done(res).fail(rej);
             });
-        });
+        }
+    })
+    .then(function() { return _tcli(["saveconfig"]); })
+    .then(function() { loadISCSI(); })
+    .catch(function(err) { alert("Ошибка удаления LUN: " + (err.message || err)); });
+}
+
+// ── Target Modal ─────────────────────────────────────────────────────────────
+
+function openTargetModal(existing) {
+    var ts = Math.floor(Date.now() / 1000);
+    var defIqn = "iqn.2026-03.com.rusnas:target-" + ts;
+    document.getElementById("target-iqn").value = existing ? existing.iqn : defIqn;
+    document.getElementById("target-iqn").disabled = !!existing;
+    document.getElementById("target-modal-title").textContent = existing ? "Изменить Target" : "Создать iSCSI Target";
+    document.getElementById("btn-target-save").textContent = existing ? "Сохранить" : "Создать";
+    document.getElementById("target-chap-user").value = "";
+    document.getElementById("target-chap-pass").value = "";
+
+    // ACL
+    var allowAll = existing ? existing.allowAll : true;
+    document.getElementById("target-allow-all").checked = allowAll;
+    document.getElementById("target-acl-fields").style.display = allowAll ? "none" : "";
+    document.getElementById("target-acls").value = existing && existing.acls.length ? existing.acls.join("\n") : "";
+
+    // LUN checklist
+    var checklist = document.getElementById("target-lun-checklist");
+    var existingLunStores = existing ? existing.luns.map(function(l) { return l.storage_object; }) : [];
+    if (!_iscsiState.backstores.length) {
+        checklist.innerHTML = "<span class='text-muted'>Нет доступных LUN. Создайте хранилище сначала.</span>";
+    } else {
+        checklist.innerHTML = _iscsiState.backstores.map(function(bs, i) {
+            var storePath = bs.type + "/" + bs.name;
+            var checked = existingLunStores.indexOf(storePath) !== -1 ? "checked" : "";
+            return "<label style='display:flex;align-items:center;gap:8px;padding:2px 0'>" +
+                "<input type='checkbox' class='target-lun-chk' data-store='" + _esc(storePath) + "' data-name='" + _esc(bs.name) + "' data-type='" + _esc(bs.type) + "' " + checked + ">" +
+                _esc(bs.name) + " <span class='text-muted'>(" + bs.type + ", " + bs.size + ")</span>" +
+                "</label>";
+        }).join("");
+    }
+
+    showModal("iscsi-target-modal");
+}
+
+function saveTarget() {
+    var iqn = document.getElementById("target-iqn").value.trim();
+    var isEdit = document.getElementById("target-iqn").disabled;
+    if (!iqn) { alert("Введите IQN"); return; }
+
+    var allowAll = document.getElementById("target-allow-all").checked;
+    var aclText = document.getElementById("target-acls").value.trim();
+    var acls = allowAll ? [] : aclText.split("\n").map(function(s) { return s.trim(); }).filter(Boolean);
+    var chapUser = document.getElementById("target-chap-user").value.trim();
+    var chapPass = document.getElementById("target-chap-pass").value.trim();
+
+    var checkedLuns = [];
+    document.querySelectorAll(".target-lun-chk:checked").forEach(function(chk) {
+        checkedLuns.push({ store: chk.dataset.store, name: chk.dataset.name, type: chk.dataset.type });
     });
 
-    // Step 3: delete image files
-    fileList.forEach(function(f) {
-        if (!f) return;
+    var p = Promise.resolve();
+
+    if (!isEdit) {
+        p = p.then(function() { return _tcli(["/iscsi", "create", iqn]); });
+    }
+
+    // Set authentication mode
+    if (allowAll) {
+        p = p.then(function() { return _tcli(["/iscsi/" + iqn + "/tpg1", "set", "attribute", "authentication=0"]); });
+        p = p.then(function() { return _tcli(["/iscsi/" + iqn + "/tpg1", "set", "attribute", "generate_node_acls=1"]); });
+    } else {
+        p = p.then(function() { return _tcli(["/iscsi/" + iqn + "/tpg1", "set", "attribute", "authentication=0"]); });
+        p = p.then(function() { return _tcli(["/iscsi/" + iqn + "/tpg1", "set", "attribute", "generate_node_acls=0"]); });
+    }
+
+    // Add LUN mappings
+    checkedLuns.forEach(function(lun) {
         p = p.then(function() {
-            return new Promise(function(res, rej) {
-                cockpit.spawn(["sudo", "rm", "-f", f], { err: "message" })
-                    .done(res).fail(rej);
-            });
+            return _tcli(["/iscsi/" + iqn + "/tpg1/luns", "create", "/backstores/" + lun.store]);
         });
     });
 
-    // Step 4: save config
-    p = p.then(function() {
-        return new Promise(function(res, rej) {
-            cockpit.spawn(["sudo", "targetcli", "saveconfig"], { err: "message" })
-                .done(res).fail(rej);
+    // Add ACLs
+    acls.forEach(function(acl) {
+        p = p.then(function() {
+            return _tcli(["/iscsi/" + iqn + "/tpg1/acls", "create", acl]);
         });
     });
 
-    p.then(function() { loadISCSI(); })
-     .catch(function(err) { alert("Ошибка удаления: " + (err.message || err)); });
+    // CHAP credentials
+    if (chapUser && chapPass) {
+        p = p.then(function() {
+            return _tcli(["/iscsi/" + iqn + "/tpg1", "set", "auth", "userid=" + chapUser, "password=" + chapPass]);
+        });
+    }
+
+    p.then(function() { return _tcli(["saveconfig"]); })
+    .then(function() {
+        closeModal("iscsi-target-modal");
+        loadISCSI();
+    })
+    .catch(function(err) { alert("Ошибка сохранения Target: " + (err.message || err)); });
+}
+
+// ── Target Delete ────────────────────────────────────────────────────────────
+
+function confirmDeleteTarget(target) {
+    _iscsiDeleteCtx = { type: "target", data: target };
+    var suffix = target.iqn.split(":").pop();
+    document.getElementById("iscsi-delete-msg").textContent =
+        "Удалить target «" + suffix + "»? Файлы LUN останутся на диске.";
+    document.getElementById("iscsi-delete-file-row").style.display = "none";
+    document.getElementById("iscsi-delete-file-chk").checked = false;
+    showModal("iscsi-delete-modal");
+}
+
+function _iscsiExecuteDeleteTarget() {
+    if (!_iscsiDeleteCtx || _iscsiDeleteCtx.type !== "target") return;
+    var iqn = _iscsiDeleteCtx.data.iqn;
+    closeModal("iscsi-delete-modal");
+
+    _tcli(["/iscsi", "delete", iqn])
+    .then(function() { return _tcli(["saveconfig"]); })
+    .then(function() { loadISCSI(); })
+    .catch(function(err) { alert("Ошибка удаления Target: " + (err.message || err)); });
+}
+
+function closeIscsiDeleteModal() {
+    closeModal("iscsi-delete-modal");
+    _iscsiDeleteCtx = null;
 }
 
 // ─── FileBrowser Management ───────────────────────────────────────────────────
@@ -916,14 +1180,27 @@ document.addEventListener("DOMContentLoaded", function() {
         closeModal("share-modal");
     });
 
-    // iSCSI tab
-    document.getElementById("btn-add-iscsi").addEventListener("click", function() {
-        showModal("add-iscsi-modal");
+    // iSCSI tab — LUN
+    document.getElementById("btn-add-lun").addEventListener("click", function() { openLunModal(null); });
+    document.getElementById("btn-lun-save").addEventListener("click", saveLun);
+    document.getElementById("btn-lun-cancel").addEventListener("click", function() { closeModal("iscsi-lun-modal"); });
+    document.getElementById("lun-type").addEventListener("change", _iscsiToggleLunType);
+
+    // iSCSI tab — Target
+    document.getElementById("btn-add-target").addEventListener("click", function() { openTargetModal(null); });
+    document.getElementById("btn-target-save").addEventListener("click", saveTarget);
+    document.getElementById("btn-target-cancel").addEventListener("click", function() { closeModal("iscsi-target-modal"); });
+    document.getElementById("target-allow-all").addEventListener("change", function() {
+        document.getElementById("target-acl-fields").style.display = this.checked ? "none" : "";
     });
-    document.getElementById("btn-iscsi-create").addEventListener("click", addISCSI);
-    document.getElementById("btn-iscsi-cancel").addEventListener("click", function() {
-        closeModal("add-iscsi-modal");
+
+    // iSCSI tab — Delete confirmation
+    document.getElementById("iscsi-delete-confirm-btn").addEventListener("click", function() {
+        if (!_iscsiDeleteCtx) return;
+        if (_iscsiDeleteCtx.type === "lun") _iscsiExecuteDeleteLun();
+        else _iscsiExecuteDeleteTarget();
     });
+    document.getElementById("iscsi-delete-cancel-btn").addEventListener("click", closeIscsiDeleteModal);
 
     // WORM tab
     document.getElementById("btn-worm-refresh").addEventListener("click", loadWormStatus);

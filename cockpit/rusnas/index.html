@@ -45,16 +45,33 @@
 
     <!-- ── Tab: iSCSI ────────────────────────────────────────────────────────── -->
     <div id="tab-iscsi" class="hidden">
+        <!-- LUN Manager -->
         <div class="section">
             <div class="section-toolbar">
-                <h2>iSCSI Targets</h2>
-                <button class="btn btn-success" id="btn-add-iscsi">+ Добавить Target</button>
+                <h2>LUN / Хранилища</h2>
+                <button class="btn btn-success" id="btn-add-lun">+ Создать LUN</button>
             </div>
             <table>
                 <thead>
-                    <tr><th>IQN</th><th>LUN</th><th>Размер</th><th>Статус</th><th>Действия</th></tr>
+                    <tr><th>Имя</th><th>Тип</th><th>Файл / Устройство</th><th>Размер</th><th>Используется в</th><th>Действия</th></tr>
                 </thead>
-                <tbody id="iscsi-body">
+                <tbody id="luns-body">
+                    <tr><td colspan="6">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Target Manager -->
+        <div class="section" style="margin-top:16px">
+            <div class="section-toolbar">
+                <h2>iSCSI Targets</h2>
+                <button class="btn btn-success" id="btn-add-target">+ Создать Target</button>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>IQN</th><th>LUN-ы</th><th>Порталы</th><th>ACL</th><th>Действия</th></tr>
+                </thead>
+                <tbody id="targets-body">
                     <tr><td colspan="5">Загрузка...</td></tr>
                 </tbody>
             </table>
@@ -331,21 +348,110 @@
         </div>
     </div>
 
-    <!-- Modal: Add iSCSI Target -->
-    <div class="modal-overlay hidden" id="add-iscsi-modal">
-        <div class="modal-box">
-            <h3>Добавить iSCSI Target</h3>
+    <!-- Modal: Create / Edit LUN -->
+    <div class="modal-overlay hidden" id="iscsi-lun-modal">
+        <div class="modal-box" style="max-width:500px">
+            <h3 id="lun-modal-title">Создать LUN</h3>
             <div class="form-group">
-                <label>Имя (суффикс IQN)</label>
-                <input type="text" id="iscsi-name" placeholder="например: backup1">
+                <label>Имя</label>
+                <input type="text" id="lun-name" placeholder="например: backup1">
             </div>
             <div class="form-group">
-                <label>Размер LUN (ГБ)</label>
-                <input type="number" id="iscsi-size" value="10" min="1">
+                <label>Тип</label>
+                <select id="lun-type">
+                    <option value="fileio">fileio (образ на диске)</option>
+                    <option value="block">block (блочное устройство)</option>
+                </select>
+            </div>
+            <div id="lun-fileio-fields">
+                <div class="form-group">
+                    <label>Путь к файлу</label>
+                    <input type="text" id="lun-filepath" placeholder="/mnt/data/iscsi/backup1.img">
+                </div>
+                <div class="form-group">
+                    <label>Размер (ГБ)</label>
+                    <input type="number" id="lun-size" value="10" min="1">
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" id="lun-create-file" checked>
+                        Создать файл на диске
+                    </label>
+                </div>
+            </div>
+            <div id="lun-block-fields" style="display:none">
+                <div class="form-group">
+                    <label>Блочное устройство</label>
+                    <input type="text" id="lun-blockdev" placeholder="/dev/sdb">
+                </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" id="btn-iscsi-create">Создать</button>
-                <button class="btn btn-default" id="btn-iscsi-cancel">Отмена</button>
+                <button class="btn btn-primary" id="btn-lun-save">Создать</button>
+                <button class="btn btn-default" id="btn-lun-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Create / Edit Target -->
+    <div class="modal-overlay hidden" id="iscsi-target-modal">
+        <div class="modal-box" style="max-width:560px">
+            <h3 id="target-modal-title">Создать iSCSI Target</h3>
+            <div class="form-group">
+                <label>IQN</label>
+                <input type="text" id="target-iqn" placeholder="iqn.2026-03.com.rusnas:backup1">
+            </div>
+            <div class="form-group">
+                <label>LUN-ы (выберите хранилища)</label>
+                <div id="target-lun-checklist" style="border:1px solid var(--border);border-radius:4px;padding:8px;max-height:150px;overflow-y:auto;background:var(--bg-th)">
+                    <span class="text-muted">Нет доступных LUN</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="target-allow-all" checked>
+                    Разрешить всем (без ACL)
+                </label>
+            </div>
+            <div id="target-acl-fields" style="display:none">
+                <div class="form-group">
+                    <label>ACL — IQN инициаторов (по одному на строку)</label>
+                    <textarea id="target-acls" rows="3" placeholder="iqn.1994-05.com.redhat:client1&#10;iqn.1994-05.com.redhat:client2"></textarea>
+                </div>
+            </div>
+            <details style="margin-bottom:12px">
+                <summary style="cursor:pointer;color:var(--color-link)">CHAP аутентификация (опционально)</summary>
+                <div style="padding-top:8px">
+                    <div class="form-group">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="target-chap-user" placeholder="">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="target-chap-pass" placeholder="">
+                    </div>
+                </div>
+            </details>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-target-save">Создать</button>
+                <button class="btn btn-default" id="btn-target-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Delete Confirmation (iSCSI) -->
+    <div class="modal-overlay hidden" id="iscsi-delete-modal">
+        <div class="modal-box" style="max-width:460px">
+            <h3>Подтверждение удаления</h3>
+            <p id="iscsi-delete-msg"></p>
+            <div id="iscsi-delete-file-row" style="display:none;margin-bottom:12px">
+                <label style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="iscsi-delete-file-chk">
+                    Удалить файл с диска
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" id="iscsi-delete-confirm-btn">Удалить</button>
+                <button class="btn btn-default" id="iscsi-delete-cancel-btn">Отмена</button>
             </div>
         </div>
     </div>
