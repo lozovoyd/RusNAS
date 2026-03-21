@@ -10,6 +10,7 @@
 > Storage Page (редизайн): [rusnas-storage-task.md](./rusnas-storage-task.md) — ТЗ и заметки по реализации редизайна страницы Хранилище
 > SSD-кеширование: [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md) — ТЗ и архитектура SSD-кеша (dm-cache/LVM)
 > MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ (планируется)
+> Управление сетью: [rusnas-network-task.md](./rusnas-network-task.md) — ТЗ и архитектура Network-модуля
 > FileBrowser: [rusnas-filebrowser-task.md](./rusnas-filebrowser-task.md) — ТЗ и архитектура
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -744,6 +745,29 @@ Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (mdadm RAID HDD) + 
 - Таблица шар: кнопка «📂 Файлы» → FileBrowser с path параметром
 - Storage Analyzer: кнопки «Открыть» → FileBrowser deep-links
 - Dashboard: карточка статуса FileBrowser в grid-4
+
+### ✅ Network module + Certificates (реализовано 2026-03-21, ветка feature/network)
+
+Управление сетевыми настройками через ifupdown (не NetworkManager). Страница: `/rusnas/network.html`.
+
+**5 вкладок:** Интерфейсы, DNS и хосты, Маршруты, Диагностика, Сертификаты
+
+**Key architecture notes:**
+- Root cause: enp0s1 управляется ifupdown (`/etc/network/interfaces`), NM считает "unmanaged" → Cockpit's /network read-only
+- Backend: `network-api.py` — чтение/запись `/etc/network/interfaces`, atomic write через tempfile+os.rename
+- Backend: `certs-api.py` — 13 команд; certs at `/etc/rusnas/certs/{name}/` + `/etc/letsencrypt/live/`
+- Daemon: `rusnas-certcheck.timer` (daily 03:30) → `rusnas-certcheck.service` → `certs-api.py check-and-renew`
+- certbot 4.0.0 (Debian 13 Trixie), webroot → /var/www/rusnas-landing
+- Деплой: `./deploy.sh` + `./install-network.sh`
+
+**parse_interfaces() критические детали:**
+- 2 stanza для одного интерфейса (inet + inet6): prefer `inet` for config_mode; inet6 → `method6`
+- `allow-hotplug` = `auto` (VM использует `allow-hotplug enp0s1`)
+
+**Critical network.js notes:**
+- Port check: `/bin/nc` (netcat-openbsd), НЕ `/usr/bin/ncat`
+- Cert SAN: `DNS:` prefix для hostname, `IP:` для IPv4 (автоопределение по regex)
+- Sparkline: pure SVG polyline, delta от /proc/net/dev каждую секунду
 
 ### MCP Server + AI Agent (после репликации)
 Полное ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)

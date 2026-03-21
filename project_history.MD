@@ -1476,3 +1476,40 @@ storage-analyzer.css:
 - Файлы показываются с относительным путём от текущей директории (`documents/update.img`)
 
 **Лендинг:** обновлены карточка «Все протоколы» (упомянут LUN Manager) и «Анализатор пространства» (фильтрация по типам); добавлена строка «Независимый LUN Manager» в сравнительную таблицу
+
+---
+
+## Сессия 2026-03-21 (продолжение) — Network module + Сертификаты
+
+### Задача
+Реализация полного модуля управления сетью (вкладка Сеть в Cockpit) + вкладка Сертификаты с Let's Encrypt, самоподписанными и импортированными сертификатами.
+
+### Новые файлы
+- `rusnas-network-task.md` — полное ТЗ для модуля сети
+- `cockpit/rusnas/network.html` — 5-вкладочная страница (Интерфейсы, DNS и хосты, Маршруты, Диагностика, Сертификаты)
+- `cockpit/rusnas/css/network.css` — стили с ui-ux-pro-max: elevation shadows, pulse animation, terminal output
+- `cockpit/rusnas/js/network.js` — полная логика: ifupdown management, трафик-мониторинг, диагностика, сертификаты
+- `cockpit/rusnas/scripts/network-api.py` — backend: parse/write /etc/network/interfaces, DNS, hosts, routes
+- `cockpit/rusnas/scripts/certs-api.py` — backend: list-certs, issue-letsencrypt, create-selfsigned, import-cert, delete-cert, check-and-renew, daemon-status
+- `rusnas-certcheck/rusnas-certcheck.service` — systemd oneshot сервис (daily check)
+- `rusnas-certcheck/rusnas-certcheck.timer` — daily 03:30, RandomizedDelaySec=1800
+- `install-network.sh` — деплой: пакеты (traceroute, dnsutils, netcat-openbsd, certbot), sudoers, systemd timer
+
+### Архитектура сертификатов
+- Хранение LE: `/etc/letsencrypt/live/`
+- Хранение кастомных: `/etc/rusnas/certs/{name}/cert.pem + key.pem + meta.json`
+- certbot: webroot (через /var/www/rusnas-landing) или standalone
+- openssl SAN: автоматически `DNS:` или `IP:` prefix по regex
+- Автопродление: ≤30 дней → certbot renew (только LE), daemon = rusnas-certcheck.timer
+- Лог: `/var/log/rusnas/certcheck.log`
+
+### Критические факты
+- `network-api.py parse_interfaces()`: `/etc/network/interfaces` может иметь 2 stanza для одного интерфейса (inet + inet6); prefer `inet` for config_mode; inet6 → `method6`
+- `allow-hotplug` обрабатывается аналогично `auto` в парсере
+- Port check: `nc` (`/bin/nc`) из пакета netcat-openbsd; НЕ ncat
+- cert SANs в openssl.cnf: `DNS:hostname` или `IP:x.x.x.x` (обязательно prefix!)
+- `install-network.sh`: sudoers записывается через `echo | ssh cat >` → `sudo cp` (не heredoc + sudo -S)
+- Certbot установлен на VM: `certbot 4.0.0` (Debian 13 Trixie)
+
+### Ветка
+- `feature/network` — активная разработка, задеплоено на VM
