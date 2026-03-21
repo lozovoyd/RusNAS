@@ -40,6 +40,10 @@
     "storage-analyzer": {
       "label": "Анализ 💾",
       "order": 9
+    },
+    "network": {
+      "label": "Сеть 🌐",
+      "order": 10
     }
   },
   "superuser": {

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сеть — rusNAS</title>
+  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+  <link rel="stylesheet" href="../base1/cockpit.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/network.css">
+  <script src="../base1/cockpit.js"></script>
+</head>
+<body>
+
+<!-- ── Page Header ──────────────────────────────────────────────────────────── -->
+<div class="net-page-header">
+  <div class="net-page-header-left">
+    <h2>🌐 Сеть</h2>
+    <div class="net-iface-statusbar" id="ifaceStatusBar">
+      <span class="net-status-loading">Загрузка...</span>
+    </div>
+  </div>
+  <div class="net-page-header-right">
+    <span class="net-unsaved-warn" id="unsavedWarn" style="display:none">⚠ Несохранённые изменения</span>
+  </div>
+</div>
+
+<!-- ── Tabs ─────────────────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs net-tabs" id="netTabs">
+  <li class="active"><a href="#" data-tab="interfaces">Интерфейсы</a></li>
+  <li><a href="#" data-tab="dns">DNS и хосты</a></li>
+  <li><a href="#" data-tab="routes">Маршруты</a></li>
+  <li><a href="#" data-tab="diag">Диагностика</a></li>
+</ul>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: INTERFACES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-interfaces">
+  <div id="ifaceCards">
+    <div class="net-loading"><div class="net-spinner"></div> Загрузка интерфейсов...</div>
+  </div>
+  <div class="net-iface-actions">
+    <button class="btn btn-default btn-sm" id="btnAddVlan">+ VLAN</button>
+    <button class="btn btn-default btn-sm" id="btnAddBond">+ Bond</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: DNS & HOSTS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-dns" style="display:none">
+
+  <!-- DNS Section -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">DNS серверы</div>
+      <button class="btn btn-default btn-sm" id="btnEditDns">✏ Изменить</button>
+    </div>
+    <div id="dnsView">
+      <div class="net-loading"><div class="net-spinner"></div></div>
+    </div>
+    <div id="dnsForm" style="display:none">
+      <div class="net-form-row">
+        <label>Основной DNS</label>
+        <input type="text" id="dnsServer1" class="form-control net-input-sm" placeholder="8.8.8.8">
+      </div>
+      <div class="net-form-row">
+        <label>Вторичный DNS</label>
+        <input type="text" id="dnsServer2" class="form-control net-input-sm" placeholder="8.8.4.4">
+      </div>
+      <div class="net-form-row">
+        <label>Домен поиска</label>
+        <input type="text" id="dnsSearch" class="form-control net-input-sm" placeholder="office.local">
+      </div>
+      <div class="net-form-actions">
+        <button class="btn btn-primary btn-sm" id="btnSaveDns">Сохранить</button>
+        <button class="btn btn-default btn-sm" id="btnCancelDns">Отмена</button>
+        <button class="btn btn-default btn-sm" id="btnTestDns">🔍 Проверить DNS</button>
+      </div>
+    </div>
+    <div id="dnsTestResult" class="net-diag-mini" style="display:none"></div>
+    <div id="dnsResolvconfWarn" class="net-alert net-alert-warn" style="display:none">
+      ⚠ /etc/resolv.conf управляется <strong id="resolvconfManager"></strong> — изменения могут быть перезаписаны.
+      <button class="btn btn-sm btn-default" id="btnDetachResolvconf">Отключить</button>
+    </div>
+  </div>
+
+  <!-- Hosts Section -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Локальные хосты (/etc/hosts)</div>
+      <button class="btn btn-default btn-sm" id="btnAddHost">+ Добавить запись</button>
+    </div>
+    <table class="table net-table" id="hostsTable">
+      <thead>
+        <tr>
+          <th>IP</th>
+          <th>Имя хоста</th>
+          <th>Псевдонимы</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="hostsTbody">
+        <tr><td colspan="4" class="net-loading"><div class="net-spinner"></div> Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: ROUTES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-routes" style="display:none">
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Статические маршруты</div>
+      <button class="btn btn-default btn-sm" id="btnAddRoute">+ Добавить маршрут</button>
+    </div>
+    <table class="table net-table" id="routesTable">
+      <thead>
+        <tr>
+          <th>Сеть назначения</th>
+          <th>Шлюз</th>
+          <th>Интерфейс</th>
+          <th>Метрика</th>
+          <th>Постоянный</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="routesTbody">
+        <tr><td colspan="6" class="net-loading"><div class="net-spinner"></div> Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: DIAGNOSTICS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-diag" style="display:none">
+
+  <div class="net-diag-toolbar" id="diagToolbar">
+    <button class="net-tool-btn active" data-tool="ping">🏓 Ping</button>
+    <button class="net-tool-btn" data-tool="traceroute">🛤 Traceroute</button>
+    <button class="net-tool-btn" data-tool="dns">🔍 DNS lookup</button>
+    <button class="net-tool-btn" data-tool="port">🔌 Проверка порта</button>
+    <button class="net-tool-btn" data-tool="wol">⚡ Wake-on-LAN</button>
+  </div>
+
+  <!-- Ping -->
+  <div class="net-diag-form" id="diag-ping">
+    <div class="net-diag-inputs">
+      <input type="text" id="pingHost" class="form-control net-input-md" placeholder="Хост или IP (google.com)">
+      <select id="pingCount" class="form-control net-select-sm">
+        <option value="4">4 пакета</option>
+        <option value="10">10 пакетов</option>
+        <option value="20">20 пакетов</option>
+        <option value="100">непрерывно (100)</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunPing">▶ Запустить</button>
+      <button class="btn btn-default" id="btnStopDiag" style="display:none">⏹ Стоп</button>
+    </div>
+  </div>
+
+  <!-- Traceroute -->
+  <div class="net-diag-form" id="diag-traceroute" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="traceHost" class="form-control net-input-md" placeholder="Хост или IP">
+      <button class="btn btn-primary" id="btnRunTrace">▶ Запустить</button>
+      <button class="btn btn-default" id="btnStopTrace" style="display:none">⏹ Стоп</button>
+    </div>
+  </div>
+
+  <!-- DNS Lookup -->
+  <div class="net-diag-form" id="diag-dns" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="dnsLookupHost" class="form-control net-input-md" placeholder="Хост или IP для reverse lookup">
+      <select id="dnsLookupType" class="form-control net-select-sm">
+        <option value="A">A</option>
+        <option value="AAAA">AAAA</option>
+        <option value="MX">MX</option>
+        <option value="NS">NS</option>
+        <option value="TXT">TXT</option>
+        <option value="ANY">ANY</option>
+      </select>
+      <input type="text" id="dnsLookupServer" class="form-control net-input-sm" placeholder="DNS сервер (необяз.)">
+      <button class="btn btn-primary" id="btnRunDnsLookup">▶ Запросить</button>
+    </div>
+  </div>
+
+  <!-- Port Check -->
+  <div class="net-diag-form" id="diag-port" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="portHost" class="form-control net-input-md" placeholder="Хост или IP">
+      <input type="number" id="portNum" class="form-control net-input-xs" placeholder="Порт" min="1" max="65535">
+      <select id="portProto" class="form-control net-select-sm">
+        <option value="tcp">TCP</option>
+        <option value="udp">UDP</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunPortCheck">🔌 Проверить</button>
+    </div>
+  </div>
+
+  <!-- WoL -->
+  <div class="net-diag-form" id="diag-wol" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="wolMac" class="form-control net-input-md" placeholder="MAC-адрес (AA:BB:CC:DD:EE:FF)">
+      <select id="wolIface" class="form-control net-select-sm" id="wolIface">
+        <option value="">Авто (broadcast)</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunWol">⚡ Отправить пакет</button>
+    </div>
+    <div class="net-diag-note">Wake-on-LAN работает только в локальной сети (L2). Устройство должно поддерживать WoL и быть настроено.</div>
+  </div>
+
+  <!-- Output area -->
+  <div class="net-diag-output-wrap">
+    <div class="net-diag-output-header" id="diagOutputHeader" style="display:none">
+      <span id="diagOutputTitle"></span>
+      <button class="btn btn-sm btn-default" id="btnClearDiag">✕ Очистить</button>
+    </div>
+    <div class="net-diag-output" id="diagOutput"></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- MODALS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Interface Edit Modal -->
+<div class="modal-overlay" id="ifaceModal" style="display:none">
+  <div class="modal-box" style="width:540px">
+    <h3 id="ifaceModalTitle">Настройка интерфейса</h3>
+
+    <div class="form-group">
+      <label class="form-label">Интерфейс</label>
+      <input type="text" class="form-control" id="ifaceModalName" readonly>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Режим IPv4</label>
+      <div class="net-radio-group">
+        <label><input type="radio" name="ifaceMode" value="dhcp" id="ifaceModeDhcp"> DHCP (автоматически)</label>
+        <label><input type="radio" name="ifaceMode" value="static" id="ifaceModeStatic"> Статический IP</label>
+      </div>
+    </div>
+
+    <div id="ifaceStaticFields">
+      <div class="form-group">
+        <label class="form-label">IP-адрес</label>
+        <input type="text" class="form-control" id="ifaceIp" placeholder="192.168.1.100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Маска / префикс</label>
+        <input type="text" class="form-control" id="ifaceMask" placeholder="24  или  255.255.255.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Шлюз</label>
+        <input type="text" class="form-control" id="ifaceGateway" placeholder="192.168.1.1">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">MTU</label>
+      <input type="number" class="form-control" id="ifaceMtu" value="1500" min="576" max="9000">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">IPv6</label>
+      <select class="form-control" id="ifaceIpv6Mode">
+        <option value="off">Выключен</option>
+        <option value="auto">Auto (SLAAC)</option>
+        <option value="dhcpv6">DHCPv6</option>
+        <option value="static">Статический</option>
+      </select>
+    </div>
+
+    <div id="ifaceIpv6Fields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">IPv6-адрес</label>
+        <input type="text" class="form-control" id="ifaceIpv6Addr" placeholder="2001:db8::1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Длина префикса</label>
+        <input type="number" class="form-control" id="ifaceIpv6Prefix" value="64" min="1" max="128">
+      </div>
+    </div>
+
+    <div id="ifaceModalError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveIface">Применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP Change Warning Modal -->
+<div class="modal-overlay" id="ipChangeWarnModal" style="display:none">
+  <div class="modal-box" style="width:460px">
+    <h3>⚠ Смена IP-адреса</h3>
+    <p>Изменение IP-адреса прервёт текущее подключение к Cockpit.</p>
+    <p>Страница автоматически перенаправит вас на новый адрес.</p>
+    <div class="modal-footer">
+      <button class="btn" id="btnIpWarnCancel">Отмена</button>
+      <button class="btn btn-danger" id="btnIpWarnConfirm">Всё равно применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP Reconnect Modal -->
+<div class="modal-overlay" id="reconnectModal" style="display:none">
+  <div class="modal-box" style="width:400px;text-align:center">
+    <h3>🔄 Переподключение...</h3>
+    <p>Настройки сети применяются. Переподключение через:</p>
+    <div class="net-countdown" id="reconnectCountdown">5</div>
+    <p class="net-muted">Новый адрес: <strong id="reconnectNewIp"></strong></p>
+  </div>
+</div>
+
+<!-- Route Modal -->
+<div class="modal-overlay" id="routeModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3 id="routeModalTitle">Добавить маршрут</h3>
+    <div class="form-group">
+      <label class="form-label">Сеть назначения (CIDR)</label>
+      <input type="text" class="form-control" id="routeNetwork" placeholder="10.0.0.0/8">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Шлюз</label>
+      <input type="text" class="form-control" id="routeGateway" placeholder="192.168.1.254">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Интерфейс</label>
+      <select class="form-control" id="routeIface"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Метрика <span class="net-muted">(необязательно)</span></label>
+      <input type="number" class="form-control" id="routeMetric" placeholder="100" min="0">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="routePersist" checked>
+        Сохранить постоянно (добавить в /etc/network/interfaces)
+      </label>
+    </div>
+    <div id="routeModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveRoute">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- VLAN Modal -->
+<div class="modal-overlay" id="vlanModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>Добавить VLAN</h3>
+    <div class="form-group">
+      <label class="form-label">Родительский интерфейс</label>
+      <select class="form-control" id="vlanParent"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">VLAN ID (1–4094)</label>
+      <input type="number" class="form-control" id="vlanId" min="1" max="4094" placeholder="100">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Режим IP</label>
+      <div class="net-radio-group">
+        <label><input type="radio" name="vlanMode" value="dhcp" checked> DHCP</label>
+        <label><input type="radio" name="vlanMode" value="static"> Статический</label>
+      </div>
+    </div>
+    <div id="vlanStaticFields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">IP / Маска</label>
+        <input type="text" class="form-control" id="vlanIp" placeholder="192.168.100.1/24">
+      </div>
+    </div>
+    <div id="vlanModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveVlan">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Host Modal -->
+<div class="modal-overlay" id="hostModal" style="display:none">
+  <div class="modal-box" style="width:460px">
+    <h3 id="hostModalTitle">Добавить запись хоста</h3>
+    <div class="form-group">
+      <label class="form-label">IP-адрес</label>
+      <input type="text" class="form-control" id="hostIp" placeholder="192.168.1.50">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Имя хоста</label>
+      <input type="text" class="form-control" id="hostName" placeholder="nas-backup">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Псевдонимы <span class="net-muted">(через пробел)</span></label>
+      <input type="text" class="form-control" id="hostAliases" placeholder="nas-bak backup">
+    </div>
+    <div id="hostModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveHost">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirmModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3 id="confirmTitle">Подтверждение</h3>
+    <p id="confirmMsg"></p>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-danger" id="btnConfirmOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/network.js"></script>
+</body>
+</html>
