@@ -115,34 +115,9 @@
   border-radius: 6px;
 }
 
-/* ── Tabs ─────────────────────────────────────────────────────────────────── */
-.net-tabs {
-  margin: 0;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--bg-card);
-}
-
-.net-tabs > li > a {
-  padding: 12px 18px 10px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-muted);
-  border-bottom: 2px solid transparent;
-  transition: all var(--net-transition);
-  cursor: pointer;
-}
-
-.net-tabs > li.active > a {
-  color: var(--primary);
-  border-bottom-color: var(--primary);
-  background: transparent;
-}
-
-.net-tabs > li > a:hover {
-  color: var(--color);
-  background: var(--bg-row-hover);
-}
+/* ── Tabs — используем advisor-tabs из style.css ───────────────────────── */
+/* Никаких кастомных стилей для табов — advisor-tabs + advisor-tab-btn
+   определены в style.css и работают корректно во всём плагине */
 
 /* ── Tab content ─────────────────────────────────────────────────────────── */
 .net-tab-content {
@@ -726,8 +701,7 @@
 
 /* ── Buttons — cursor + transitions ─────────────────────────────────────── */
 .btn,
-.net-tool-btn,
-.net-tabs > li > a {
+.net-tool-btn {
   cursor: pointer;
 }
 

@@ -94,13 +94,13 @@ function switchTab(tabName) {
     document.querySelectorAll(".net-tab-content").forEach(function(el) {
         el.style.display = "none";
     });
-    document.querySelectorAll("#netTabs li").forEach(function(li) {
-        li.classList.remove("active");
+    document.querySelectorAll("#netTabs .advisor-tab-btn").forEach(function(btn) {
+        btn.classList.remove("active");
     });
     var content = document.getElementById("tab-" + tabName);
     if (content) content.style.display = "";
-    var link = document.querySelector('#netTabs a[data-tab="' + tabName + '"]');
-    if (link) link.parentElement.classList.add("active");
+    var btn = document.querySelector('#netTabs .advisor-tab-btn[data-tab="' + tabName + '"]');
+    if (btn) btn.classList.add("active");
 
     if (!_tabLoaded[tabName]) {
         _tabLoaded[tabName] = true;
@@ -1351,10 +1351,9 @@ document.addEventListener("DOMContentLoaded", function() {
     wireModalDismiss();
 
     // Tab switching
-    document.querySelectorAll("#netTabs a[data-tab]").forEach(function(a) {
-        a.addEventListener("click", function(e) {
-            e.preventDefault();
-            switchTab(a.dataset.tab);
+    document.querySelectorAll("#netTabs .advisor-tab-btn[data-tab]").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            switchTab(btn.dataset.tab);
         });
     });
 
