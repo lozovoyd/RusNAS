@@ -1,0 +1,14 @@
+[Unit]
+Description=rusNAS Certificate Expiry Checker and Auto-Renewer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/share/cockpit/rusnas/scripts/certs-api.py check-and-renew
+StandardOutput=journal
+StandardError=journal
+User=root
+
+[Install]
+WantedBy=multi-user.target

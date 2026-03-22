@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Сеть — rusNAS</title>
+  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+  <link rel="stylesheet" href="../base1/cockpit.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/network.css">
+  <script src="../base1/cockpit.js"></script>
+</head>
+<body>
+
+<!-- ── Page Header ──────────────────────────────────────────────────────────── -->
+<div class="net-page-header">
+  <div class="net-page-header-left">
+    <h2>🌐 Сеть</h2>
+    <div class="net-iface-statusbar" id="ifaceStatusBar">
+      <span class="net-status-loading">Загрузка...</span>
+    </div>
+  </div>
+  <div class="net-page-header-right">
+    <span class="net-unsaved-warn" id="unsavedWarn" style="display:none">⚠ Несохранённые изменения</span>
+  </div>
+</div>
+
+<!-- ── Rollback Banner ──────────────────────────────────────────────────────── -->
+<div id="netRollbackBanner" class="net-rollback-banner" style="display:none">
+  <div class="net-rollback-icon">⚠️</div>
+  <div class="net-rollback-text">
+    <strong>Настройки применены для <span id="rollbackIfaceName"></span>.</strong>
+    Автооткат через <strong><span id="rollbackCountdown">90</span> сек</strong>.
+    <br>Убедитесь, что соединение работает, и подтвердите изменения.
+  </div>
+  <div class="net-rollback-actions">
+    <button class="btn btn-success btn-sm" id="btnConfirmNetChange">✓ Подтвердить</button>
+    <button class="btn btn-danger btn-sm" id="btnRevertNetChange">↩ Откатить</button>
+  </div>
+</div>
+
+<!-- ── Tabs ─────────────────────────────────────────────────────────────────── -->
+<div class="advisor-tabs" id="netTabs">
+  <button class="advisor-tab-btn active" data-tab="interfaces">Интерфейсы</button>
+  <button class="advisor-tab-btn" data-tab="dns">DNS и хосты</button>
+  <button class="advisor-tab-btn" data-tab="routes">Маршруты</button>
+  <button class="advisor-tab-btn" data-tab="diag">Диагностика</button>
+  <button class="advisor-tab-btn" data-tab="certs">Сертификаты <span class="net-cert-tab-badge" id="certExpBadge" style="display:none"></span></button>
+  <button class="advisor-tab-btn" data-tab="domain">🏢 Домен</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1: INTERFACES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-interfaces">
+  <div id="ifaceCards">
+    <div class="net-loading"><div class="net-spinner"></div> Загрузка интерфейсов...</div>
+  </div>
+  <div class="net-iface-actions">
+    <button class="btn btn-default btn-sm" id="btnAddVlan">+ VLAN</button>
+    <button class="btn btn-default btn-sm" id="btnAddBond">+ Bond</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2: DNS & HOSTS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-dns" style="display:none">
+
+  <!-- DNS Section -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">DNS серверы</div>
+      <button class="btn btn-default btn-sm" id="btnEditDns">✏ Изменить</button>
+    </div>
+    <div id="dnsView">
+      <div class="net-loading"><div class="net-spinner"></div></div>
+    </div>
+    <div id="dnsForm" style="display:none">
+      <div class="net-form-row">
+        <label>Основной DNS</label>
+        <input type="text" id="dnsServer1" class="form-control net-input-sm" placeholder="8.8.8.8">
+      </div>
+      <div class="net-form-row">
+        <label>Вторичный DNS</label>
+        <input type="text" id="dnsServer2" class="form-control net-input-sm" placeholder="8.8.4.4">
+      </div>
+      <div class="net-form-row">
+        <label>Домен поиска</label>
+        <input type="text" id="dnsSearch" class="form-control net-input-sm" placeholder="office.local">
+      </div>
+      <div class="net-form-actions">
+        <button class="btn btn-primary btn-sm" id="btnSaveDns">Сохранить</button>
+        <button class="btn btn-default btn-sm" id="btnCancelDns">Отмена</button>
+        <button class="btn btn-default btn-sm" id="btnTestDns">🔍 Проверить DNS</button>
+      </div>
+    </div>
+    <div id="dnsTestResult" class="net-diag-mini" style="display:none"></div>
+    <div id="dnsResolvconfWarn" class="net-alert net-alert-warn" style="display:none">
+      ⚠ /etc/resolv.conf управляется <strong id="resolvconfManager"></strong> — изменения могут быть перезаписаны.
+      <button class="btn btn-sm btn-default" id="btnDetachResolvconf">Отключить</button>
+    </div>
+  </div>
+
+  <!-- Hosts Section -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Локальные хосты (/etc/hosts)</div>
+      <button class="btn btn-default btn-sm" id="btnAddHost">+ Добавить запись</button>
+    </div>
+    <table class="table net-table" id="hostsTable">
+      <thead>
+        <tr>
+          <th>IP</th>
+          <th>Имя хоста</th>
+          <th>Псевдонимы</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="hostsTbody">
+        <tr><td colspan="4" class="net-loading"><div class="net-spinner"></div> Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3: ROUTES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-routes" style="display:none">
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Статические маршруты</div>
+      <button class="btn btn-default btn-sm" id="btnAddRoute">+ Добавить маршрут</button>
+    </div>
+    <table class="table net-table" id="routesTable">
+      <thead>
+        <tr>
+          <th>Сеть назначения</th>
+          <th>Шлюз</th>
+          <th>Интерфейс</th>
+          <th>Метрика</th>
+          <th>Постоянный</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="routesTbody">
+        <tr><td colspan="6" class="net-loading"><div class="net-spinner"></div> Загрузка...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 4: DIAGNOSTICS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-diag" style="display:none">
+
+  <div class="net-diag-toolbar" id="diagToolbar">
+    <button class="net-tool-btn active" data-tool="ping">🏓 Ping</button>
+    <button class="net-tool-btn" data-tool="traceroute">🛤 Traceroute</button>
+    <button class="net-tool-btn" data-tool="dns">🔍 DNS lookup</button>
+    <button class="net-tool-btn" data-tool="port">🔌 Проверка порта</button>
+    <button class="net-tool-btn" data-tool="wol">⚡ Wake-on-LAN</button>
+  </div>
+
+  <!-- Ping -->
+  <div class="net-diag-form" id="diag-ping">
+    <div class="net-diag-inputs">
+      <input type="text" id="pingHost" class="form-control net-input-md" placeholder="Хост или IP (google.com)">
+      <select id="pingCount" class="form-control net-select-sm">
+        <option value="4">4 пакета</option>
+        <option value="10">10 пакетов</option>
+        <option value="20">20 пакетов</option>
+        <option value="100">непрерывно (100)</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunPing">▶ Запустить</button>
+      <button class="btn btn-default" id="btnStopDiag" style="display:none">⏹ Стоп</button>
+    </div>
+  </div>
+
+  <!-- Traceroute -->
+  <div class="net-diag-form" id="diag-traceroute" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="traceHost" class="form-control net-input-md" placeholder="Хост или IP">
+      <button class="btn btn-primary" id="btnRunTrace">▶ Запустить</button>
+      <button class="btn btn-default" id="btnStopTrace" style="display:none">⏹ Стоп</button>
+    </div>
+  </div>
+
+  <!-- DNS Lookup -->
+  <div class="net-diag-form" id="diag-dns" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="dnsLookupHost" class="form-control net-input-md" placeholder="Хост или IP для reverse lookup">
+      <select id="dnsLookupType" class="form-control net-select-sm">
+        <option value="A">A</option>
+        <option value="AAAA">AAAA</option>
+        <option value="MX">MX</option>
+        <option value="NS">NS</option>
+        <option value="TXT">TXT</option>
+        <option value="ANY">ANY</option>
+      </select>
+      <input type="text" id="dnsLookupServer" class="form-control net-input-sm" placeholder="DNS сервер (необяз.)">
+      <button class="btn btn-primary" id="btnRunDnsLookup">▶ Запросить</button>
+    </div>
+  </div>
+
+  <!-- Port Check -->
+  <div class="net-diag-form" id="diag-port" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="portHost" class="form-control net-input-md" placeholder="Хост или IP">
+      <input type="number" id="portNum" class="form-control net-input-xs" placeholder="Порт" min="1" max="65535">
+      <select id="portProto" class="form-control net-select-sm">
+        <option value="tcp">TCP</option>
+        <option value="udp">UDP</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunPortCheck">🔌 Проверить</button>
+    </div>
+  </div>
+
+  <!-- WoL -->
+  <div class="net-diag-form" id="diag-wol" style="display:none">
+    <div class="net-diag-inputs">
+      <input type="text" id="wolMac" class="form-control net-input-md" placeholder="MAC-адрес (AA:BB:CC:DD:EE:FF)">
+      <select id="wolIface" class="form-control net-select-sm" id="wolIface">
+        <option value="">Авто (broadcast)</option>
+      </select>
+      <button class="btn btn-primary" id="btnRunWol">⚡ Отправить пакет</button>
+    </div>
+    <div class="net-diag-note">Wake-on-LAN работает только в локальной сети (L2). Устройство должно поддерживать WoL и быть настроено.</div>
+  </div>
+
+  <!-- Output area -->
+  <div class="net-diag-output-wrap">
+    <div class="net-diag-output-header" id="diagOutputHeader" style="display:none">
+      <span id="diagOutputTitle"></span>
+      <button class="btn btn-sm btn-default" id="btnClearDiag">✕ Очистить</button>
+    </div>
+    <div class="net-diag-output" id="diagOutput"></div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 5: CERTIFICATES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-certs" style="display:none">
+
+  <!-- certbot not installed alert -->
+  <div id="certsNoCertbot" class="net-alert net-alert-warn" style="display:none">
+    <span>certbot не установлен — автовыпуск Let's Encrypt недоступен.</span>
+    <button class="btn btn-sm btn-default" id="btnInstallCertbot" style="margin-left:auto">Установить certbot</button>
+  </div>
+
+  <!-- Certificates table -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Установленные сертификаты</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-default btn-sm" id="btnRefreshCerts" title="Обновить список">↻ Обновить</button>
+        <button class="btn btn-default btn-sm" id="btnNewSelfSigned">+ Самоподписанный</button>
+        <button class="btn btn-default btn-sm" id="btnImportCert">📥 Импортировать</button>
+        <button class="btn btn-primary btn-sm" id="btnGetLetsEncrypt">🔒 Let's Encrypt</button>
+      </div>
+    </div>
+
+    <div id="certsLoading" class="net-loading"><div class="net-spinner"></div> Загрузка сертификатов...</div>
+
+    <table class="table net-table" id="certsTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Домен / Имя</th>
+          <th>Тип</th>
+          <th>Издатель</th>
+          <th>Действует до</th>
+          <th>Осталось</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="certsTbody">
+      </tbody>
+    </table>
+
+    <div id="certsEmpty" class="net-certs-empty" style="display:none">
+      <div class="net-certs-empty-icon">🔒</div>
+      <div class="net-certs-empty-text">Нет установленных сертификатов</div>
+      <div class="net-certs-empty-sub">Получите Let's Encrypt или создайте самоподписанный</div>
+    </div>
+  </div>
+
+  <!-- Auto-renewal daemon status -->
+  <div class="net-section">
+    <div class="net-section-header">
+      <div class="net-section-title">Авто-обновление сертификатов</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="net-cert-daemon-status" id="certDaemonStatus">
+          <span class="net-spinner" style="width:12px;height:12px"></span>
+        </span>
+        <button class="btn btn-default btn-sm" id="btnToggleCertDaemon">Включить</button>
+      </div>
+    </div>
+    <div class="net-cert-daemon-info">
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Последняя проверка:</span>
+        <span id="certDaemonLastCheck">—</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Следующая проверка:</span>
+        <span id="certDaemonNextCheck">—</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Порог обновления:</span>
+        <span>За 30 дней до истечения</span>
+      </div>
+      <div class="net-cert-daemon-row">
+        <span class="net-cert-daemon-label">Журнал:</span>
+        <button class="btn btn-default btn-sm" id="btnCertLog">Показать лог</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cert log output -->
+  <div id="certLogWrap" class="net-diag-output-wrap" style="display:none">
+    <div class="net-diag-output-header">
+      <span>Лог авто-обновления</span>
+      <button class="btn btn-sm btn-default" id="btnCloseCertLog">✕</button>
+    </div>
+    <div class="net-diag-output" id="certLogOutput"></div>
+  </div>
+
+</div><!-- /tab-certs -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB 6: DOMAIN SERVICES -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div class="net-tab-content" id="tab-domain" style="display:none">
+
+  <!-- Mode Selector -->
+  <div class="domain-mode-selector" id="domainModeSelector">
+    <div class="domain-mode-card active" id="domainModeCardMember" data-mode="member">
+      <input type="radio" class="domain-mode-radio" name="domainMode" value="member" checked>
+      <div class="domain-mode-content">
+        <div class="domain-mode-title">Участник домена</div>
+        <div class="domain-mode-desc">Присоединиться к существующему Windows или Samba AD. SMB-шары видят доменных пользователей.</div>
+      </div>
+    </div>
+    <div class="domain-mode-card" id="domainModeCardDc" data-mode="dc">
+      <input type="radio" class="domain-mode-radio" name="domainMode" value="dc">
+      <div class="domain-mode-content">
+        <div class="domain-mode-title">Контроллер домена (Samba AD DC)</div>
+        <div class="domain-mode-desc">NAS сам является DC, совместимым с Windows AD. Управление пользователями, группами, DNS, GPO.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="domainLoading" class="net-loading"><div class="net-spinner"></div> Определение режима...</div>
+
+  <!-- ── MEMBER MODE ─────────────────────────────────────────────────────── -->
+  <div id="domainMemberPanel" style="display:none">
+    <div class="domain-subtabs" id="memberSubtabs">
+      <button class="domain-subtab-btn active" data-subtab="member-overview">📊 Обзор</button>
+      <button class="domain-subtab-btn" data-subtab="member-join">🔗 Подключение</button>
+      <button class="domain-subtab-btn" data-subtab="member-users">👥 Пользователи</button>
+      <button class="domain-subtab-btn" data-subtab="member-samba">⚙️ Samba</button>
+    </div>
+
+    <!-- Обзор -->
+    <div class="domain-subtab-content" id="subtab-member-overview">
+      <div id="memberOverviewContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Подключение -->
+    <div class="domain-subtab-content" id="subtab-member-join" style="display:none">
+      <div id="memberJoinContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Пользователи -->
+    <div class="domain-subtab-content" id="subtab-member-users" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Пользователи домена</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="domainUserSearch" class="form-control net-input-sm" placeholder="🔍 Поиск..." style="width:160px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDomainUsers">🔄 Обновить</button>
+          </div>
+        </div>
+        <div id="domainUsersList">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Группы домена</div>
+          <button class="btn btn-default btn-sm" id="btnRefreshDomainGroups">🔄 Обновить</button>
+        </div>
+        <div id="domainGroupsList">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Разрешённые группы</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="permitGroupInput" class="form-control net-input-sm" placeholder="Domain Users">
+            <button class="btn btn-default btn-sm" id="btnPermitGroup">+ Разрешить</button>
+          </div>
+        </div>
+        <div id="permittedGroupsList" class="domain-groups-list">
+          <span class="net-muted" style="font-size:0.85rem">Загрузка...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Настройки Samba -->
+    <div class="domain-subtab-content" id="subtab-member-samba" style="display:none">
+      <div class="domain-join-section">
+        <div class="domain-join-title">Параметры [global] smb.conf</div>
+        <div id="smbGlobalForm">
+          <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /domainMemberPanel -->
+
+  <!-- ── DC MODE ─────────────────────────────────────────────────────────── -->
+  <div id="domainDcPanel" style="display:none">
+    <div class="domain-subtabs" id="dcSubtabs">
+      <button class="domain-subtab-btn active" data-subtab="dc-overview">📊 Обзор</button>
+      <button class="domain-subtab-btn" data-subtab="dc-provision">⚙️ Создать домен</button>
+      <button class="domain-subtab-btn" data-subtab="dc-users">👥 Пользователи</button>
+      <button class="domain-subtab-btn" data-subtab="dc-groups">🏢 Группы</button>
+      <button class="domain-subtab-btn" data-subtab="dc-repl">🔗 Репликация</button>
+      <button class="domain-subtab-btn" data-subtab="dc-dns">🌐 DNS</button>
+      <button class="domain-subtab-btn" data-subtab="dc-gpo">📋 Политики</button>
+    </div>
+
+    <!-- DC Обзор -->
+    <div class="domain-subtab-content" id="subtab-dc-overview">
+      <div id="dcOverviewContent">
+        <div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- DC Создать домен -->
+    <div class="domain-subtab-content" id="subtab-dc-provision" style="display:none">
+      <div class="domain-wizard-card">
+        <div class="domain-wizard-title">🚀 Мастер создания домена</div>
+        <div id="dcProvisionForm">
+          <div class="form-group">
+            <label class="form-label">Имя домена (FQDN)</label>
+            <input type="text" class="form-control" id="dcDomainFqdn" placeholder="company.local">
+          </div>
+          <div class="form-group">
+            <label class="form-label">NetBIOS имя</label>
+            <input type="text" class="form-control" id="dcNetbiosName" placeholder="COMPANY">
+            <small class="net-muted">Авто-заполняется из FQDN</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Уровень домена</label>
+            <select class="form-control" id="dcDomainLevel">
+              <option value="2008_R2">Windows 2008 R2</option>
+              <option value="2012_R2" selected>Windows 2012 R2</option>
+              <option value="2016">Windows 2016</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">DNS backend</label>
+            <div class="net-radio-group">
+              <label><input type="radio" name="dcDnsBackend" value="SAMBA_INTERNAL" checked> Samba internal (проще)</label>
+              <label><input type="radio" name="dcDnsBackend" value="BIND9_DLZ"> BIND9 DLZ (гибче, для prod)</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Пароль администратора</label>
+            <input type="password" class="form-control" id="dcAdminPass" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Подтверждение пароля</label>
+            <input type="password" class="form-control" id="dcAdminPassConfirm" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+              <input type="checkbox" id="dcRfc2307" checked>
+              RFC 2307 — включить POSIX UID/GID атрибуты
+            </label>
+          </div>
+          <div id="dcProvisionError" class="net-alert net-alert-danger" style="display:none"></div>
+          <button class="btn btn-primary" id="btnProvisionDomain">🚀 Создать домен</button>
+        </div>
+        <div id="dcProvisionProgress" style="display:none">
+          <div class="domain-progress-steps" id="dcProvisionSteps"></div>
+          <div id="dcProvisionOutput" class="net-diag-output" style="min-height:80px;margin-top:12px;display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Пользователи -->
+    <div class="domain-subtab-content" id="subtab-dc-users" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Пользователи домена</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="dcUserSearch" class="form-control net-input-sm" placeholder="🔍 Поиск..." style="width:160px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDcUsers">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnAddDcUser">+ Создать пользователя</button>
+          </div>
+        </div>
+        <div id="dcUsersTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Группы -->
+    <div class="domain-subtab-content" id="subtab-dc-groups" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Группы домена</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnRefreshDcGroups">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnAddDcGroup">+ Создать группу</button>
+          </div>
+        </div>
+        <div id="dcGroupsTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC Репликация -->
+    <div class="domain-subtab-content" id="subtab-dc-repl" style="display:none">
+      <div class="domain-repl-card">
+        <div class="net-section-header" style="padding:0;margin-bottom:16px">
+          <div class="net-section-title">Контроллеры домена</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnSyncRepl">🔄 Синхронизировать</button>
+            <button class="btn btn-default btn-sm" id="btnShowReplLog">📋 Лог</button>
+          </div>
+        </div>
+        <div id="dcReplContent">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC DNS -->
+    <div class="domain-subtab-content" id="subtab-dc-dns" style="display:none">
+      <div class="domain-dns-wrap">
+        <div class="domain-dns-header">
+          <span class="net-section-title" style="margin:0">DNS записи домена</span>
+          <select class="form-control net-select-sm" id="dcDnsZone" style="width:200px">
+            <option value="">Зона...</option>
+          </select>
+          <button class="btn btn-default btn-sm" id="btnQueryDns">🔍 Запросить</button>
+          <button class="btn btn-primary btn-sm" id="btnAddDnsRecord">+ Добавить запись</button>
+        </div>
+        <div id="dcDnsTable">
+          <div style="padding:20px;color:var(--color-muted);font-size:0.85rem;text-align:center">Выберите зону и нажмите «Запросить»</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DC GPO -->
+    <div class="domain-subtab-content" id="subtab-dc-gpo" style="display:none">
+      <div class="net-section">
+        <div class="net-section-header">
+          <div class="net-section-title">Групповые политики (GPO)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" id="btnRefreshGpo">🔄 Обновить</button>
+            <button class="btn btn-primary btn-sm" id="btnCreateGpo">+ Создать GPO</button>
+          </div>
+        </div>
+        <div id="dcGpoTable">
+          <div class="net-loading"><div class="net-spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /domainDcPanel -->
+
+</div><!-- /tab-domain -->
+
+<!-- Domain: Create DC User Modal -->
+<div class="modal-overlay" id="dcUserModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3 id="dcUserModalTitle">Создать пользователя домена</h3>
+    <div class="form-group">
+      <label class="form-label">Имя входа (username)</label>
+      <input type="text" class="form-control" id="dcUserUsername" placeholder="jsmith">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Полное имя</label>
+      <input type="text" class="form-control" id="dcUserFullname" placeholder="John Smith">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" id="dcUserEmail" placeholder="jsmith@company.local">
+    </div>
+    <div class="form-group" id="dcUserPassGroup">
+      <label class="form-label">Пароль</label>
+      <input type="password" class="form-control" id="dcUserPass" placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="dcUserEnabled" checked>
+        Учётная запись активна
+      </label>
+    </div>
+    <div id="dcUserModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcUser">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Change Password Modal -->
+<div class="modal-overlay" id="dcPassModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>🔑 Сменить пароль</h3>
+    <p>Пользователь: <strong id="dcPassUsername"></strong></p>
+    <div class="form-group">
+      <label class="form-label">Новый пароль</label>
+      <input type="password" class="form-control" id="dcPassNew" placeholder="••••••••">
+    </div>
+    <div id="dcPassError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcPass">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Create Group Modal -->
+<div class="modal-overlay" id="dcGroupModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>Создать группу</h3>
+    <div class="form-group">
+      <label class="form-label">Имя группы</label>
+      <input type="text" class="form-control" id="dcGroupName" placeholder="IT Staff">
+    </div>
+    <div id="dcGroupModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcGroup">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Group Members Modal -->
+<div class="modal-overlay" id="dcGroupMembersModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>👥 Участники группы: <span id="dcGroupMembersName"></span></h3>
+    <div id="dcGroupMembersContent">
+      <div class="net-loading"><div class="net-spinner"></div></div>
+    </div>
+    <div class="form-group" style="margin-top:16px">
+      <label class="form-label">Добавить пользователя</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-control" id="dcGroupAddMember" placeholder="username">
+        <button class="btn btn-primary btn-sm" id="btnAddGroupMember">+ Добавить</button>
+      </div>
+    </div>
+    <div id="dcGroupMembersError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Add DNS Record Modal -->
+<div class="modal-overlay" id="dcDnsModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>+ Добавить DNS запись</h3>
+    <div class="form-group">
+      <label class="form-label">Зона</label>
+      <input type="text" class="form-control" id="dnsRecordZone" placeholder="company.local">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Имя</label>
+      <input type="text" class="form-control" id="dnsRecordName" placeholder="server1">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Тип</label>
+      <select class="form-control" id="dnsRecordType">
+        <option value="A">A</option>
+        <option value="AAAA">AAAA</option>
+        <option value="CNAME">CNAME</option>
+        <option value="MX">MX</option>
+        <option value="TXT">TXT</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Значение</label>
+      <input type="text" class="form-control" id="dnsRecordValue" placeholder="192.168.1.100">
+    </div>
+    <div id="dcDnsModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDnsRecord">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: GPO Create Modal -->
+<div class="modal-overlay" id="dcGpoModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3>Создать GPO</h3>
+    <div class="form-group">
+      <label class="form-label">Имя GPO</label>
+      <input type="text" class="form-control" id="dcGpoName" placeholder="My Policy">
+    </div>
+    <div id="dcGpoModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveDcGpo">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Domain: Repl Log Modal -->
+<div class="modal-overlay" id="dcReplLogModal" style="display:none">
+  <div class="modal-box" style="width:640px">
+    <h3>📋 Лог репликации</h3>
+    <div class="net-diag-output" id="dcReplLogOutput" style="min-height:200px;max-height:400px;overflow:auto"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Deprovision DC Modal -->
+<div class="modal-overlay" id="dcDeprovisionModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>⚠️ Удалить домен?</h3>
+    <p>Это действие <strong>необратимо</strong>. Будет выполнено:</p>
+    <ul style="margin:8px 0 12px;padding-left:20px;font-size:0.88rem">
+      <li>Остановка и отключение samba-ad-dc</li>
+      <li>Удаление базы данных домена (/var/lib/samba/private/)</li>
+      <li>Восстановление smb.conf из резервной копии (если есть)</li>
+    </ul>
+    <p style="font-size:0.88rem">Введите имя домена для подтверждения:</p>
+    <input id="dcDeprovisionConfirm" type="text" placeholder="corp.local" class="form-control" style="margin-bottom:10px">
+    <div id="dcDeprovisionErr" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" id="btnCancelDeprovision">Отмена</button>
+      <button class="btn btn-danger" id="btnConfirmDeprovision">🗑 Удалить домен</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- MODALS -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- Interface Edit Modal -->
+<div class="modal-overlay" id="ifaceModal" style="display:none">
+  <div class="modal-box" style="width:540px">
+    <h3 id="ifaceModalTitle">Настройка интерфейса</h3>
+
+    <div class="form-group">
+      <label class="form-label">Интерфейс</label>
+      <input type="text" class="form-control" id="ifaceModalName" readonly>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Режим IPv4</label>
+      <div class="net-radio-group">
+        <label><input type="radio" name="ifaceMode" value="dhcp" id="ifaceModeDhcp"> DHCP (автоматически)</label>
+        <label><input type="radio" name="ifaceMode" value="static" id="ifaceModeStatic"> Статический IP</label>
+      </div>
+    </div>
+
+    <div id="ifaceStaticFields">
+      <div class="form-group">
+        <label class="form-label">IP-адрес</label>
+        <input type="text" class="form-control" id="ifaceIp" placeholder="192.168.1.100">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Маска / префикс</label>
+        <input type="text" class="form-control" id="ifaceMask" placeholder="24  или  255.255.255.0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Шлюз</label>
+        <input type="text" class="form-control" id="ifaceGateway" placeholder="192.168.1.1">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">MTU</label>
+      <input type="number" class="form-control" id="ifaceMtu" value="1500" min="576" max="9000">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">IPv6</label>
+      <select class="form-control" id="ifaceIpv6Mode">
+        <option value="off">Выключен</option>
+        <option value="auto">Auto (SLAAC)</option>
+        <option value="dhcpv6">DHCPv6</option>
+        <option value="static">Статический</option>
+      </select>
+    </div>
+
+    <div id="ifaceIpv6Fields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">IPv6-адрес</label>
+        <input type="text" class="form-control" id="ifaceIpv6Addr" placeholder="2001:db8::1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Длина префикса</label>
+        <input type="number" class="form-control" id="ifaceIpv6Prefix" value="64" min="1" max="128">
+      </div>
+    </div>
+
+    <div id="ifaceModalError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveIface">Применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP Change Warning Modal -->
+<div class="modal-overlay" id="ipChangeWarnModal" style="display:none">
+  <div class="modal-box" style="width:460px">
+    <h3>⚠ Смена IP-адреса</h3>
+    <p>Изменение IP-адреса прервёт текущее подключение к Cockpit.</p>
+    <p>Страница автоматически перенаправит вас на новый адрес.</p>
+    <div class="modal-footer">
+      <button class="btn" id="btnIpWarnCancel">Отмена</button>
+      <button class="btn btn-danger" id="btnIpWarnConfirm">Всё равно применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Net Safety Modal (auto-revert explanation) -->
+<div class="modal-overlay" id="netSafetyModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>🛡 Настройки применены — запущен авто-откат</h3>
+    <div class="net-safety-changes" id="netSafetyChanges"></div>
+    <div class="net-safety-explain">
+      <p>Изменение сетевых настроек может <strong>разорвать соединение</strong> с сервером.</p>
+      <p>Запущен <strong>таймер автоотката на <span id="netSafetySeconds">90</span> секунд</strong>.
+         Если вы не подтвердите изменения в течение этого времени — настройки вернутся к предыдущим автоматически.</p>
+      <div class="net-safety-steps">
+        <div class="net-safety-step">
+          <span class="net-safety-num">1</span>
+          Убедитесь, что соединение с сервером работает
+        </div>
+        <div class="net-safety-step">
+          <span class="net-safety-num">2</span>
+          Вернитесь в Cockpit и нажмите <strong>«✓ Подтвердить»</strong> в баннере вверху страницы
+        </div>
+        <div class="net-safety-step">
+          <span class="net-safety-num">3</span>
+          Если что-то пошло не так — нажмите <strong>«↩ Откатить»</strong> или подождите <span id="netSafetySeconds2">90</span> сек — откат произойдёт автоматически
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnNetSafetyOk">Понятно — слежу за соединением</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP Reconnect Modal -->
+<div class="modal-overlay" id="reconnectModal" style="display:none">
+  <div class="modal-box" style="width:400px;text-align:center">
+    <h3>🔄 Переподключение...</h3>
+    <p>Настройки сети применяются. Переподключение через:</p>
+    <div class="net-countdown" id="reconnectCountdown">5</div>
+    <p class="net-muted">Новый адрес: <strong id="reconnectNewIp"></strong></p>
+  </div>
+</div>
+
+<!-- Route Modal -->
+<div class="modal-overlay" id="routeModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3 id="routeModalTitle">Добавить маршрут</h3>
+    <div class="form-group">
+      <label class="form-label">Сеть назначения (CIDR)</label>
+      <input type="text" class="form-control" id="routeNetwork" placeholder="10.0.0.0/8">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Шлюз</label>
+      <input type="text" class="form-control" id="routeGateway" placeholder="192.168.1.254">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Интерфейс</label>
+      <select class="form-control" id="routeIface"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Метрика <span class="net-muted">(необязательно)</span></label>
+      <input type="number" class="form-control" id="routeMetric" placeholder="100" min="0">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="routePersist" checked>
+        Сохранить постоянно (добавить в /etc/network/interfaces)
+      </label>
+    </div>
+    <div id="routeModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveRoute">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- VLAN Modal -->
+<div class="modal-overlay" id="vlanModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>Добавить VLAN</h3>
+    <div class="form-group">
+      <label class="form-label">Родительский интерфейс</label>
+      <select class="form-control" id="vlanParent"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">VLAN ID (1–4094)</label>
+      <input type="number" class="form-control" id="vlanId" min="1" max="4094" placeholder="100">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Режим IP</label>
+      <div class="net-radio-group">
+        <label><input type="radio" name="vlanMode" value="dhcp" checked> DHCP</label>
+        <label><input type="radio" name="vlanMode" value="static"> Статический</label>
+      </div>
+    </div>
+    <div id="vlanStaticFields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">IP / Маска</label>
+        <input type="text" class="form-control" id="vlanIp" placeholder="192.168.100.1/24">
+      </div>
+    </div>
+    <div id="vlanModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveVlan">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- Host Modal -->
+<div class="modal-overlay" id="hostModal" style="display:none">
+  <div class="modal-box" style="width:460px">
+    <h3 id="hostModalTitle">Добавить запись хоста</h3>
+    <div class="form-group">
+      <label class="form-label">IP-адрес</label>
+      <input type="text" class="form-control" id="hostIp" placeholder="192.168.1.50">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Имя хоста</label>
+      <input type="text" class="form-control" id="hostName" placeholder="nas-backup">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Псевдонимы <span class="net-muted">(через пробел)</span></label>
+      <input type="text" class="form-control" id="hostAliases" placeholder="nas-bak backup">
+    </div>
+    <div id="hostModalError" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveHost">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirmModal" style="display:none">
+  <div class="modal-box" style="width:400px">
+    <h3 id="confirmTitle">Подтверждение</h3>
+    <p id="confirmMsg"></p>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-danger" id="btnConfirmOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Let's Encrypt Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="leModal" style="display:none">
+  <div class="modal-box" style="width:540px">
+    <h3>🔒 Получить сертификат Let's Encrypt</h3>
+
+    <div class="net-alert net-alert-warn" style="margin-bottom:16px">
+      Для выпуска сертификата ваш сервер должен быть доступен из интернета по доменному имени (порт 80).
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Доменное имя</label>
+      <input type="text" class="form-control" id="leDomain" placeholder="nas.example.com">
+      <small class="net-muted">Должен указывать на этот сервер</small>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email (для уведомлений)</label>
+      <input type="email" class="form-control" id="leEmail" placeholder="admin@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Метод подтверждения</label>
+      <select class="form-control" id="leMethod">
+        <option value="webroot">HTTP-01 / Webroot (рекомендуется)</option>
+        <option value="standalone">HTTP-01 / Standalone (остановит Apache)</option>
+      </select>
+      <small class="net-muted" id="leMethodHint">Использует существующий Apache, путь /var/www/rusnas-landing</small>
+    </div>
+    <div class="form-group" id="leWebrootGroup">
+      <label class="form-label">Webroot путь</label>
+      <input type="text" class="form-control" id="leWebroot" value="/var/www/rusnas-landing">
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" id="leAgree" required>
+        Согласен с <a href="https://letsencrypt.org/documents/LE-SA-v1.3-September-21-2022.pdf" target="_blank">условиями использования Let's Encrypt</a>
+      </label>
+    </div>
+
+    <div id="leProgress" style="display:none">
+      <div class="net-diag-output-wrap" style="margin-bottom:8px">
+        <div class="net-diag-output-header"><span>Вывод certbot</span></div>
+        <div class="net-diag-output" id="leOutput" style="min-height:120px"></div>
+      </div>
+    </div>
+
+    <div id="leError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal" id="leCancelBtn">Отмена</button>
+      <button class="btn btn-primary" id="btnIssueLe">Получить сертификат</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Self-Signed Modal ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="selfSignedModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>🔑 Создать самоподписанный сертификат</h3>
+
+    <div class="form-group">
+      <label class="form-label">Доменное имя (CN)</label>
+      <input type="text" class="form-control" id="ssCommonName" placeholder="nas.local или 192.168.1.100">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Организация</label>
+      <input type="text" class="form-control" id="ssOrg" placeholder="My NAS" value="rusNAS">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Дополнительные домены / IP (SAN)</label>
+      <input type="text" class="form-control" id="ssSan" placeholder="nas.local, 192.168.1.100, 10.0.0.1">
+      <small class="net-muted">Через запятую — добавятся в Subject Alternative Names</small>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Срок действия</label>
+      <select class="form-control" id="ssDays">
+        <option value="365">1 год</option>
+        <option value="730" selected>2 года</option>
+        <option value="1825">5 лет</option>
+        <option value="3650">10 лет</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Длина ключа</label>
+      <select class="form-control" id="ssKeySize">
+        <option value="2048">RSA 2048</option>
+        <option value="4096" selected>RSA 4096</option>
+      </select>
+    </div>
+
+    <div id="ssError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnCreateSelfSigned">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Import Cert Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="importCertModal" style="display:none">
+  <div class="modal-box" style="width:560px">
+    <h3>📥 Импортировать сертификат</h3>
+
+    <div class="form-group">
+      <label class="form-label">Имя / идентификатор</label>
+      <input type="text" class="form-control" id="importName" placeholder="my-cert">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Сертификат (PEM)</label>
+      <textarea class="form-control" id="importCertPem" rows="5"
+        placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Приватный ключ (PEM)</label>
+      <textarea class="form-control" id="importKeyPem" rows="5"
+        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Цепочка / CA bundle <span class="net-muted">(необязательно)</span></label>
+      <textarea class="form-control" id="importChainPem" rows="3"
+        placeholder="-----BEGIN CERTIFICATE-----&#10;(промежуточные CA, если нужны)&#10;-----END CERTIFICATE-----"></textarea>
+    </div>
+
+    <div id="importCertError" class="net-alert net-alert-danger" style="display:none"></div>
+
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Отмена</button>
+      <button class="btn btn-primary" id="btnSaveImportCert">Импортировать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cert Details Modal ─────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="certDetailsModal" style="display:none">
+  <div class="modal-box" style="width:560px">
+    <h3 id="certDetailsTitle">Сертификат</h3>
+    <div id="certDetailsBody"></div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal">Закрыть</button>
+      <button class="btn btn-primary" id="btnCertRenew" style="display:none">🔄 Обновить</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/network.js"></script>
+</body>
+</html>

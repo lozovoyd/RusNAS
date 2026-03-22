@@ -1,0 +1,1375 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   rusNAS Network Page — Premium UI/UX
+   Style: Dimensional Layering + Executive Dashboard + Real-Time Monitoring
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Design tokens (extends style.css) ─────────────────────────────────────── */
+:root {
+  --net-card-shadow:     0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05);
+  --net-card-shadow-hover: 0 4px 16px rgba(0,0,0,0.1), 0 8px 32px rgba(0,0,0,0.07);
+  --net-card-radius:     10px;
+  --net-transition:      0.18s ease;
+  --net-up-color:        #16a34a;
+  --net-down-color:      #dc2626;
+  --net-up-bg:           #f0fdf4;
+  --net-down-bg:         #fef2f2;
+  --net-gradient-start:  #2563eb;
+  --net-gradient-end:    #3b82f6;
+}
+
+[data-theme="dark"] {
+  --net-card-shadow:     0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  --net-card-shadow-hover: 0 4px 20px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+  --net-up-bg:           rgba(22,163,74,0.12);
+  --net-down-bg:         rgba(220,38,38,0.12);
+}
+
+/* ── Page Header ─────────────────────────────────────────────────────────────── */
+.net-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--color-border);
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+}
+
+.net-page-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color);
+}
+
+.net-page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.net-page-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Status bar badges ─────────────────────────────────────────────────────── */
+.net-iface-statusbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.net-iface-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  padding: 3px 10px 3px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all var(--net-transition);
+}
+
+.net-iface-badge.up {
+  background: var(--net-up-bg);
+  color: var(--net-up-color);
+  border: 1px solid rgba(22,163,74,0.25);
+}
+
+.net-iface-badge.down {
+  background: var(--net-down-bg);
+  color: var(--net-down-color);
+  border: 1px solid rgba(220,38,38,0.2);
+}
+
+.net-iface-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.net-iface-badge.up .net-iface-badge-dot {
+  animation: net-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes net-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+.net-unsaved-warn {
+  font-size: 0.8rem;
+  color: var(--warning);
+  font-weight: 600;
+  padding: 4px 10px;
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  border-radius: 6px;
+}
+
+/* ── Tabs — используем advisor-tabs из style.css ───────────────────────── */
+/* Никаких кастомных стилей для табов — advisor-tabs + advisor-tab-btn
+   определены в style.css и работают корректно во всём плагине */
+
+/* ── Tab content ─────────────────────────────────────────────────────────── */
+.net-tab-content {
+  padding: 24px;
+  background: var(--bg);
+  min-height: calc(100vh - 140px);
+}
+
+/* ── Section boxes ───────────────────────────────────────────────────────── */
+.net-section {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--net-card-shadow);
+  transition: box-shadow var(--net-transition);
+}
+
+.net-section:hover {
+  box-shadow: var(--net-card-shadow-hover);
+}
+
+.net-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.net-section-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color);
+  letter-spacing: -0.01em;
+}
+
+/* ── Interface Cards ─────────────────────────────────────────────────────── */
+.net-iface-card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: var(--net-card-shadow);
+  transition: box-shadow var(--net-transition), border-color var(--net-transition);
+}
+
+.net-iface-card:hover {
+  box-shadow: var(--net-card-shadow-hover);
+  border-color: var(--primary-border);
+}
+
+.net-iface-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(135deg, var(--bg-th) 0%, var(--bg-card) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle left accent line */
+.net-iface-card-header::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+}
+
+.net-iface-card.status-down .net-iface-card-header::before {
+  background: var(--net-down-color);
+}
+
+.net-iface-card-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.02em;
+  color: var(--color);
+  padding-left: 6px;
+}
+
+.net-iface-card-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 14px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.net-iface-card-status.up {
+  background: var(--net-up-bg);
+  color: var(--net-up-color);
+  border: 1px solid rgba(22,163,74,0.3);
+}
+
+.net-iface-card-status.down {
+  background: var(--net-down-bg);
+  color: var(--net-down-color);
+  border: 1px solid rgba(220,38,38,0.2);
+}
+
+/* Card body — metadata grid */
+.net-iface-card-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  padding: 16px 20px;
+  gap: 0;
+}
+
+.net-iface-field {
+  padding: 8px 12px 8px 0;
+  border-right: 1px solid transparent;
+}
+
+.net-iface-field:not(:last-child) {
+  border-right: 1px solid var(--color-border);
+  margin-right: 16px;
+  padding-right: 16px;
+}
+
+.net-iface-field-label {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.net-iface-field-value {
+  font-size: 0.875rem;
+  font-family: 'Courier New', monospace;
+  color: var(--color);
+  word-break: break-all;
+  font-weight: 500;
+}
+
+/* Traffic section */
+.net-iface-card-traffic {
+  padding: 12px 20px 14px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: linear-gradient(to bottom, var(--bg-th), var(--bg-card));
+}
+
+.net-traffic-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+
+.net-traffic-label {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-width: 14px;
+  text-align: center;
+}
+
+.net-traffic-label.rx { color: #2563eb; }
+.net-traffic-label.tx { color: #16a34a; }
+
+.net-traffic-speed {
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  min-width: 72px;
+  color: var(--color);
+  font-weight: 600;
+}
+
+.net-sparkline {
+  display: inline-block;
+  opacity: 0.85;
+}
+
+/* Card footer */
+.net-iface-card-footer {
+  padding: 10px 20px 12px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  gap: 8px;
+  background: var(--bg-card);
+}
+
+/* Interface actions bar */
+.net-iface-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.net-table {
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.net-table thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--bg-th);
+  border-bottom: 1px solid var(--color-border) !important;
+  padding: 10px 14px !important;
+}
+
+.net-table thead th:first-child { border-radius: 6px 0 0 0; }
+.net-table thead th:last-child  { border-radius: 0 6px 0 0; }
+
+.net-table tbody td {
+  padding: 11px 14px !important;
+  font-size: 0.875rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--net-transition);
+}
+
+.net-table tbody tr:hover td {
+  background: var(--bg-row-hover);
+}
+
+.net-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+.net-form-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.net-form-row label {
+  min-width: 145px;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.net-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.net-input-sm  { width: 164px !important; }
+.net-input-md  { flex: 1; min-width: 200px; }
+.net-input-xs  { width: 82px !important; }
+.net-select-sm { width: 130px !important; }
+
+.net-radio-group {
+  display: flex;
+  gap: 22px;
+}
+
+.net-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: color var(--net-transition);
+}
+
+.net-radio-group label:hover { color: var(--primary); }
+
+/* ── Diagnostics ─────────────────────────────────────────────────────────── */
+.net-diag-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.net-tool-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--bg-card);
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--net-transition);
+  user-select: none;
+}
+
+.net-tool-btn:hover {
+  background: var(--bg-row-hover);
+  color: var(--color);
+  border-color: var(--primary-border);
+}
+
+.net-tool-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+
+.net-diag-form {
+  background: var(--bg-th);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.net-diag-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.net-diag-note {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+/* Terminal output */
+.net-diag-output-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  overflow: hidden;
+  box-shadow: var(--net-card-shadow);
+}
+
+.net-diag-output-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  background: var(--bg-th);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* Terminal dots (macOS style) */
+.net-diag-output-header::before {
+  content: '⬤ ⬤ ⬤';
+  font-size: 0.55rem;
+  letter-spacing: 3px;
+  color: var(--color-border);
+  margin-right: 8px;
+}
+
+.net-diag-output {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.82rem;
+  background: #0d1117;
+  color: #e6edf3;
+  padding: 14px 16px;
+  min-height: 200px;
+  max-height: 440px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.net-diag-output:empty::before {
+  content: '$ _';
+  color: #6e7681;
+  animation: net-cursor 1.2s step-end infinite;
+}
+
+@keyframes net-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Output color tokens */
+.net-diag-ok   { color: #3fb950; }
+.net-diag-err  { color: #f85149; }
+.net-diag-warn { color: #e3b341; }
+.net-diag-hop  { color: #8b949e; }
+.net-diag-hdr  { color: #58a6ff; font-weight: 700; }
+
+/* Mini diag (DNS test inline) */
+.net-diag-mini {
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  background: var(--bg-th);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+.net-alert {
+  padding: 11px 15px;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.4;
+}
+
+.net-alert-warn {
+  background: var(--warning-light);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-text-on-light);
+}
+
+.net-alert-danger {
+  background: var(--danger-light);
+  border: 1px solid var(--danger-border);
+  color: var(--danger-text-on-light);
+}
+
+/* ── DNS view ─────────────────────────────────────────────────────────────── */
+.net-dns-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.net-dns-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.net-dns-field-label {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.net-dns-field-value {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color);
+}
+
+/* ── Rollback Banner ─────────────────────────────────────────────────────── */
+.net-rollback-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 24px 0;
+}
+
+.net-rollback-icon { font-size: 1.4rem; flex-shrink: 0; }
+.net-rollback-text { flex: 1; font-size: 0.87rem; line-height: 1.5; }
+.net-rollback-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Safety Modal ────────────────────────────────────────────────────────── */
+.net-safety-changes {
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+}
+
+.net-safety-explain { font-size: 0.87rem; line-height: 1.6; }
+.net-safety-explain p { margin: 0 0 8px; }
+
+.net-safety-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.net-safety-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.net-safety-num {
+  background: var(--primary, #f97316);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@media (max-width: 768px) {
+  .net-rollback-banner { flex-direction: column; align-items: flex-start; margin: 8px 16px 0; }
+  .net-rollback-actions { width: 100%; }
+  .net-rollback-actions .btn { flex: 1; }
+}
+
+/* ── Countdown (IP change) ───────────────────────────────────────────────── */
+.net-countdown {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin: 16px 0;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 20px rgba(37,99,235,0.3);
+}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+.net-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  padding: 28px 0;
+  justify-content: center;
+}
+
+.net-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: net-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes net-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Skeleton shimmer for initial load */
+@keyframes net-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.net-skeleton {
+  background: linear-gradient(90deg,
+    var(--bg-th) 25%,
+    var(--bg-row-hover) 50%,
+    var(--bg-th) 75%);
+  background-size: 800px 100%;
+  animation: net-shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+  height: 14px;
+  width: 100%;
+}
+
+.net-status-loading {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+/* ── Utility ─────────────────────────────────────────────────────────────── */
+.net-muted {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.net-mono {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.net-badge-perm {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--badge-info-bg);
+  color: var(--badge-info-text);
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Default route row */
+.net-route-default td {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* ── Scrollbar (terminal) ────────────────────────────────────────────────── */
+.net-diag-output::-webkit-scrollbar       { width: 6px; }
+.net-diag-output::-webkit-scrollbar-track { background: #0d1117; }
+.net-diag-output::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+.net-diag-output::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+[data-theme="dark"] .net-iface-card-header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+}
+
+[data-theme="dark"] .net-iface-card-traffic {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.02), transparent);
+}
+
+[data-theme="dark"] .net-diag-output {
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+[data-theme="dark"] .net-tool-btn.active {
+  box-shadow: 0 2px 12px rgba(37,99,235,0.45);
+}
+
+[data-theme="dark"] .net-countdown {
+  text-shadow: 0 0 30px rgba(37,99,235,0.5);
+}
+
+/* ── Buttons — cursor + transitions ─────────────────────────────────────── */
+.btn,
+.net-tool-btn {
+  cursor: pointer;
+}
+
+.btn {
+  transition: background var(--net-transition), border-color var(--net-transition),
+              box-shadow var(--net-transition), color var(--net-transition);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .net-page-header      { padding: 14px 16px; }
+  .net-tab-content      { padding: 16px; }
+  .net-iface-card-body  { grid-template-columns: 1fr 1fr; }
+  .net-iface-field:not(:last-child) { border-right: none; margin-right: 0; padding-right: 0; }
+  .net-diag-inputs      { flex-direction: column; align-items: stretch; }
+  .net-input-sm, .net-input-md, .net-select-sm { width: 100% !important; }
+  .net-form-row         { flex-direction: column; align-items: flex-start; }
+  .net-form-row label   { min-width: unset; }
+  .net-dns-view         { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 480px) {
+  .net-iface-card-body  { grid-template-columns: 1fr; }
+  .net-dns-view         { grid-template-columns: 1fr; }
+  .net-iface-card-traffic { flex-direction: column; gap: 10px; }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .net-iface-badge.up .net-iface-badge-dot,
+  .net-spinner,
+  .net-skeleton,
+  .net-diag-output:empty::before { animation: none !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CERTIFICATES TAB
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Tab badge (expiring count) */
+.net-cert-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-left: 5px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Cert type badges */
+.net-cert-type {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.net-cert-le     { background: #dbeafe; color: #1e40af; }
+.net-cert-ss     { background: #fef3c7; color: #92400e; }
+.net-cert-custom { background: #f3e8ff; color: #6b21a8; }
+
+/* Cert status badges */
+.net-cert-status {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+}
+.net-cert-valid    { background: var(--badge-success-bg); color: var(--badge-success-text); }
+.net-cert-expiring { background: var(--badge-warning-bg); color: var(--badge-warning-text); }
+.net-cert-expired  { background: var(--badge-danger-bg);  color: var(--badge-danger-text); }
+
+/* Days left colors */
+.net-cert-days-ok       { color: var(--success); font-weight: 600; }
+.net-cert-days-warn     { color: var(--warning); font-weight: 700; }
+.net-cert-days-critical { color: var(--danger);  font-weight: 700; }
+.net-cert-days-expired  { color: var(--danger);  font-weight: 700; text-decoration: line-through; }
+
+/* Empty state */
+.net-certs-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--color-muted);
+}
+.net-certs-empty-icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.4; }
+.net-certs-empty-text { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: var(--color); }
+.net-certs-empty-sub  { font-size: 0.85rem; }
+
+/* Daemon info grid */
+.net-cert-daemon-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 24px;
+  margin-top: 4px;
+}
+.net-cert-daemon-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.net-cert-daemon-label {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.net-cert-daemon-status {
+  display: flex;
+  align-items: center;
+}
+
+/* Dark mode cert types */
+[data-theme="dark"] .net-cert-le     { background: rgba(37,99,235,0.2); color: #93c5fd; }
+[data-theme="dark"] .net-cert-ss     { background: rgba(217,119,6,0.2); color: #fcd34d; }
+[data-theme="dark"] .net-cert-custom { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Domain Tab Styles
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Mode selector */
+.domain-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.domain-mode-card {
+  border: 2px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all var(--net-transition);
+  background: var(--bg-card);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.domain-mode-card:hover {
+  border-color: var(--color-link);
+  box-shadow: var(--net-card-shadow-hover);
+}
+
+.domain-mode-card.active {
+  border-color: var(--color-link);
+  background: rgba(37,99,235,0.06);
+}
+
+[data-theme="dark"] .domain-mode-card.active {
+  background: rgba(59,130,246,0.1);
+}
+
+.domain-mode-radio {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--color-link);
+}
+
+.domain-mode-content { flex: 1; }
+
+.domain-mode-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  color: var(--color);
+}
+
+.domain-mode-desc {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+/* Domain status card */
+.domain-status-card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--net-card-shadow);
+}
+
+.domain-status-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.domain-status-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.domain-status-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color);
+}
+
+.domain-status-subtitle {
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.domain-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.domain-info-item {
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
+.domain-info-label {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.domain-info-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color);
+  word-break: break-all;
+}
+
+/* Services row */
+.domain-services-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.domain-svc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  background: var(--bg-th);
+  border: 1px solid var(--color-border);
+}
+
+.domain-svc-badge.active {
+  background: rgba(22,163,74,0.1);
+  color: #16a34a;
+  border-color: rgba(22,163,74,0.3);
+}
+
+.domain-svc-badge.inactive {
+  background: rgba(220,38,38,0.08);
+  color: #dc2626;
+  border-color: rgba(220,38,38,0.2);
+}
+
+.domain-svc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* FSMO roles */
+.domain-fsmo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.domain-fsmo-item {
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.domain-fsmo-role {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  min-width: 130px;
+}
+
+.domain-fsmo-holder {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color);
+}
+
+.domain-fsmo-self {
+  color: var(--color-link);
+}
+
+/* Progress steps */
+.domain-progress-steps {
+  margin: 16px 0;
+}
+
+.domain-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.domain-progress-step:last-child { border-bottom: none; }
+
+.domain-step-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  background: var(--bg-th);
+  color: var(--color-muted);
+  border: 2px solid var(--color-border);
+}
+
+.domain-step-icon.done {
+  background: rgba(22,163,74,0.15);
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+.domain-step-icon.error {
+  background: rgba(220,38,38,0.1);
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.domain-step-icon.running {
+  background: rgba(37,99,235,0.1);
+  color: var(--color-link);
+  border-color: var(--color-link);
+  animation: domain-spin 1s linear infinite;
+}
+
+@keyframes domain-spin {
+  to { transform: rotate(360deg); }
+}
+
+.domain-step-label {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--color);
+}
+
+.domain-step-status {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+/* Join form */
+.domain-join-section {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--net-card-shadow);
+}
+
+.domain-join-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--color);
+}
+
+/* DC provision wizard */
+.domain-wizard-card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 24px;
+  box-shadow: var(--net-card-shadow);
+}
+
+.domain-wizard-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color);
+}
+
+/* Domain tables */
+.domain-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+}
+
+.domain-table th {
+  background: var(--bg-th);
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.domain-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color);
+  vertical-align: middle;
+}
+
+.domain-table tr:last-child td { border-bottom: none; }
+.domain-table tr:hover td { background: var(--bg-th); }
+
+/* DNS records table */
+.domain-dns-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  overflow: hidden;
+  box-shadow: var(--net-card-shadow);
+  margin-bottom: 16px;
+}
+
+.domain-dns-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--bg-th);
+  flex-wrap: wrap;
+}
+
+/* User status badges */
+.domain-user-enabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  background: rgba(22,163,74,0.1);
+  color: #16a34a;
+}
+
+.domain-user-disabled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  background: var(--bg-th);
+  color: var(--color-muted);
+}
+
+/* Sub-tabs for domain modes */
+.domain-subtabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.domain-subtab-btn {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--color-muted);
+  transition: all 0.15s ease;
+}
+
+.domain-subtab-btn:hover { color: var(--color); }
+
+.domain-subtab-btn.active {
+  color: var(--color-link);
+  border-bottom-color: var(--color-link);
+}
+
+/* Permitted groups list */
+.domain-groups-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.domain-group-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 12px;
+  background: rgba(37,99,235,0.08);
+  border: 1px solid rgba(37,99,235,0.2);
+  border-radius: 16px;
+  font-size: 0.82rem;
+  color: var(--color-link);
+}
+
+.domain-group-tag button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  color: var(--color-muted);
+  font-size: 1rem;
+}
+
+.domain-group-tag button:hover { color: #dc2626; }
+
+/* Replication status */
+.domain-repl-card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--net-card-radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--net-card-shadow);
+}
+
+.domain-repl-table-wrap {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.domain-info-block {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: 0.83rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+.domain-info-block code {
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.8rem;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .domain-mode-selector { grid-template-columns: 1fr; }
+  .domain-info-grid { grid-template-columns: 1fr 1fr; }
+  .domain-fsmo-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .domain-info-grid { grid-template-columns: 1fr; }
+}

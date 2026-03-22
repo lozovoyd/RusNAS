@@ -564,3 +564,65 @@ Cockpit включает Red Hat Text:
 - `≤480px` — identity-bar condensed
 
 **Правило:** при добавлении новых страниц — добавить viewport meta + проверить на 390px.
+
+---
+
+## ⚠️ Правило: вкладки (табы) — ТОЛЬКО advisor-tabs
+
+### Проблема
+Cockpit v300+ использует **PatternFly 4**. Bootstrap-классы `nav nav-tabs`, `<ul><li><a>` и их CSS **НЕ работают** — рендерятся как обычный маркированный список.
+
+### ✅ Правильный паттерн
+
+**HTML:**
+```html
+<div class="advisor-tabs" id="myTabs">
+  <button class="advisor-tab-btn active" data-tab="tab1">Вкладка 1</button>
+  <button class="advisor-tab-btn" data-tab="tab2">Вкладка 2</button>
+  <button class="advisor-tab-btn" data-tab="tab3">Вкладка 3 <span class="badge" id="myBadge"></span></button>
+</div>
+
+<div class="tab-content" id="tab-tab1">...</div>
+<div class="tab-content" id="tab-tab2" style="display:none">...</div>
+<div class="tab-content" id="tab-tab3" style="display:none">...</div>
+```
+
+**JS — switchTab():**
+```javascript
+function switchTab(tabName) {
+    document.querySelectorAll(".tab-content").forEach(function(el) { el.style.display = "none"; });
+    document.querySelectorAll("#myTabs .advisor-tab-btn").forEach(function(btn) {
+        btn.classList.remove("active");
+    });
+    var content = document.getElementById("tab-" + tabName);
+    if (content) content.style.display = "";
+    var btn = document.querySelector('#myTabs .advisor-tab-btn[data-tab="' + tabName + '"]');
+    if (btn) btn.classList.add("active");
+}
+```
+
+**JS — навешивание обработчиков:**
+```javascript
+document.querySelectorAll("#myTabs .advisor-tab-btn[data-tab]").forEach(function(btn) {
+    btn.addEventListener("click", function() { switchTab(btn.dataset.tab); });
+});
+```
+
+### ❌ Запрещённые паттерны
+
+```html
+<!-- НЕ РАБОТАЕТ в Cockpit: -->
+<ul class="nav nav-tabs">
+  <li class="active"><a href="#" data-tab="...">...</a></li>
+</ul>
+```
+
+```javascript
+// НЕ ИСПОЛЬЗОВАТЬ:
+document.querySelectorAll("#tabs li")
+document.querySelectorAll("#tabs a[data-tab]")
+link.parentElement.classList.add("active")
+```
+
+### Ссылка на стили
+Классы `advisor-tabs` и `advisor-tab-btn` определены в `css/style.css`. **Не переопределять и не дублировать** их в других CSS-файлах страницы.
