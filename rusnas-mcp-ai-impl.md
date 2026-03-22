@@ -21,13 +21,18 @@
 ## Архитектура Session 1
 
 ```
-ai.html / ai.js  ──fetch()──▶  Anthropic Claude API (claude-sonnet-4-6)
-       │                              │ tool_use callback
+ai.html / ai.js  ──fetch()──▶  [Выбранный провайдер]
+       │                           ├── Anthropic API  (api.anthropic.com)
+       │                           ├── OpenAI-совмест. (openrouter.ai / api.openai.com / custom)
+       │                           └── Yandex GPT     (llm.api.cloud.yandex.net)
+       │                              │ tool callback
        │                              ▼
        └──cockpit.spawn──▶  mcp-api.py (Python, JSON stdio)
                                       │
                                  rusnas-snap / testparm / mdadm / smartctl / ...
 ```
+
+Провайдер выбирается в настройках UI. API ключ хранится в `localStorage` браузера — на VM не передаётся.
 
 ---
 
@@ -104,35 +109,147 @@ rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/share/cockpit/rusnas/scripts/mc
 }
 ```
 
-CSP — добавить в `content-security-policy`:
+CSP — добавить в `content-security-policy` широкий connect-src (покрывает любые провайдеры):
 ```
-connect-src 'self' https://api.anthropic.com ws://localhost wss://localhost;
+connect-src 'self' https: ws://localhost wss://localhost;
+```
+
+---
+
+## Провайдеры (Provider Abstraction Layer)
+
+Три типа провайдеров с разными форматами API:
+
+| Провайдер | Формат | Tool calling | Auth header |
+|-----------|--------|-------------|-------------|
+| **Anthropic** | Свой (`/v1/messages`) | Нативный (`tool_use`) | `x-api-key` |
+| **OpenAI-совместимый** | OpenAI (`/v1/chat/completions`) | Нативный (`tool_calls`) | `Authorization: Bearer` |
+| **Yandex GPT** | Свой (`/foundationModels/v1/completion`) | Нет → ReAct режим | `Authorization: Api-Key` |
+
+OpenRouter, Groq, локальный LM Studio, self-hosted vLLM — всё это **OpenAI-совместимый** тип, отличается только base URL.
+
+### Настройки провайдера (localStorage)
+
+```javascript
+rusnas_ai_provider    // "anthropic" | "openai" | "yandex"
+rusnas_ai_api_key     // API ключ выбранного провайдера
+rusnas_ai_base_url    // Только для openai-совместимого (https://openrouter.ai/api/v1 и т.п.)
+rusnas_ai_model       // Имя модели (зависит от провайдера)
+rusnas_ai_folder_id   // Только для Yandex (folder_id для modelUri)
+rusnas_ai_history     // История чата (последние 50 сообщений)
+```
+
+### Структура settings UI
+
+```
+Провайдер:   [▼ Anthropic Claude | OpenAI-совместимый | Yandex GPT]
+
+-- Anthropic --
+API Key:  [sk-ant-...]
+Модель:   [▼ claude-sonnet-4-6 | claude-haiku-4-5-20251001 | claude-opus-4-6]
+
+-- OpenAI-совместимый --
+Base URL: [https://openrouter.ai/api/v1]
+          [пресеты: OpenRouter | OpenAI | custom]
+API Key:  [sk-...]
+Модель:   [anthropic/claude-3.5-sonnet]  ← текстовый input
+
+-- Yandex GPT --
+API Key:   [AQVN...]
+Folder ID: [b1g...]
+Модель:    [▼ yandexgpt/latest | yandexgpt-lite/latest]
 ```
 
 ### Ключевые функции ai.js
 
 ```javascript
-// Вызов NAS инструмента
-function nasCmd(args) { /* cockpit.spawn → JSON parse */ }
-
-// Вызов Claude API (прямой fetch, API key из localStorage)
-async function callClaude(messages) { /* fetch api.anthropic.com/v1/messages */ }
-
-// Агентный цикл
-async function sendMessage(userText) {
-    while (resp.stop_reason === "tool_use") {
-        // Выполнить все tool_use блоки → tool_result → снова callClaude
-    }
+// Единая точка входа — выбирает адаптер по rusnas_ai_provider
+async function callLLM(messages) {
+    var p = localStorage.getItem("rusnas_ai_provider") || "anthropic";
+    if (p === "anthropic") return callAnthropic(messages);
+    if (p === "openai")    return callOpenAI(messages);
+    if (p === "yandex")    return callYandex(messages);
 }
 
-// Инструменты (TOOLS_SCHEMA) — 11 штук, mapped на mcp-api.py команды
+// Anthropic — нативный tool_use
+async function callAnthropic(messages) {
+    // POST api.anthropic.com/v1/messages
+    // headers: { "x-api-key": key, "anthropic-version": "2023-06-01" }
+    // body: { model, max_tokens, system, tools: TOOLS_SCHEMA_ANTHROPIC, messages }
+    // stop_reason === "tool_use" → tool_use блоки
+}
+
+// OpenAI-совместимый — tool_calls
+async function callOpenAI(messages) {
+    // POST baseUrl + "/chat/completions"
+    // headers: { "Authorization": "Bearer " + key }
+    // body: { model, messages, tools: TOOLS_SCHEMA_OPENAI }
+    // finish_reason === "tool_calls" → choices[0].message.tool_calls
+}
+
+// Yandex GPT — без нативных инструментов, ReAct через промпт
+async function callYandex(messages) {
+    // POST llm.api.cloud.yandex.net/foundationModels/v1/completion
+    // headers: { "Authorization": "Api-Key " + key }
+    // body: { modelUri: "gpt://<folder>/<model>", completionOptions: {...}, messages }
+    // Ответ: result.alternatives[0].message.text
+    // Парсить ACTION: tool_name(args) из текста → выполнить → передать результат
+}
+
+// Нормализация ответа в единый формат { text, toolCalls: [{id, name, args}] }
+function normalizeResponse(raw, provider) { ... }
+
+// Агентный цикл (универсальный)
+async function sendMessage(userText) {
+    while (true) {
+        var resp = await callLLM(_messages);
+        var norm = normalizeResponse(resp, getProvider());
+        if (!norm.toolCalls.length) { appendAssistant(norm.text); break; }
+        var results = await Promise.all(norm.toolCalls.map(executeTool));
+        appendToolResults(results);
+    }
+}
 ```
 
-### localStorage
+### ReAct промпт для Yandex GPT
 
-- `rusnas_claude_key` — API ключ (никогда не уходит на VM)
-- `rusnas_ai_model` — claude-sonnet-4-6 / claude-haiku-4-5-20251001
-- `rusnas_ai_history` — история чата (последние 50 сообщений)
+Когда `toolSupport === false` — добавляем в system prompt:
+
+```
+Если тебе нужна информация о NAS, используй инструменты в формате:
+ACTION: tool_name(arg1, arg2)
+
+Доступные инструменты:
+- get_status() — статус системы (CPU, RAM, диски)
+- list_disks() — список дисков и RAID
+- list_shares() — список сетевых папок
+- list_snapshots(subvol) — снапшоты подтома
+- ...
+
+После получения результата продолжи отвечать.
+```
+
+Парсинг: ищем `ACTION: (\w+)\(([^)]*)\)` в тексте ответа → выполняем → передаём результат.
+
+### TOOLS_SCHEMA — два формата
+
+```javascript
+// Anthropic format
+var TOOLS_SCHEMA_ANTHROPIC = [
+    { name: "get_status", description: "...", input_schema: { type: "object", properties: {} } },
+    ...
+];
+
+// OpenAI format
+var TOOLS_SCHEMA_OPENAI = [
+    { type: "function", function: { name: "get_status", description: "...", parameters: {...} } },
+    ...
+];
+
+function getToolsSchema() {
+    return getProvider() === "anthropic" ? TOOLS_SCHEMA_ANTHROPIC : TOOLS_SCHEMA_OPENAI;
+}
+```
 
 ---
 
@@ -161,13 +278,18 @@ echo "✓ MCP API deployed"
 ## Порядок реализации
 
 1. `mcp-api.py` — все 11 команд + логирование
-2. `ai.html` — layout страницы (viewport meta, структура)
-3. `ai.css` — стили чата и бабблов
-4. `ai.js` — TOOLS_SCHEMA + callClaude() + executeTool() + tool use loop + renderMessages()
-5. `manifest.json` — entry + CSP
+2. `ai.html` — layout + settings UI с переключением провайдеров
+3. `ai.css` — стили чата, бабблов, provider selector
+4. `ai.js`:
+   - TOOLS_SCHEMA (два формата: Anthropic + OpenAI)
+   - `callAnthropic()` / `callOpenAI()` / `callYandex()` + `normalizeResponse()`
+   - `callLLM()` — единая точка входа
+   - `executeTool()` + агентный цикл `sendMessage()`
+   - `renderMessages()` + settings save/load
+5. `manifest.json` — entry + CSP (`connect-src 'self' https:`)
 6. `install-mcp.sh`
 7. `./deploy.sh && ./install-mcp.sh`
-8. Тест: ai.html → API key → "Покажи состояние дисков"
+8. Тест с Anthropic → затем OpenRouter → затем Yandex GPT
 9. CLAUDE.md + project_history.MD
 
 ---
@@ -185,10 +307,11 @@ echo "✓ MCP API deployed"
 
 ## Что НЕ делаем в Session 1
 
-- Ollama (сложная установка, не критично для MVP)
+- Ollama (сложная установка, не критично — через OpenAI-совместимый режим если нужно)
 - HTTP SSE / внешний MCP транспорт → Session 2
 - `pip install mcp` SDK → Session 2
 - Создание/удаление SMB шар через AI (только read + snapshots)
+- Нативный Yandex tool calling (async API) — ReAct режима достаточно для MVP
 
 ---
 
