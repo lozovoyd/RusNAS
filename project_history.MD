@@ -1625,3 +1625,31 @@ python3 domain-api.py get-smb-global → {"ok": true, "settings": {...}}
 
 #### Ветка
 - `feature/network` → смержено в `main`
+
+---
+
+## Сессия N+3 — DC режим: dc-stop/dc-start/dc-deprovision + SMB статус в dashboard (2026-03-22)
+
+### Проблемы
+
+1. **"Unknown command: dc-stop"** — UI вызывал `dc-stop`/`dc-start`/`dc-deprovision` (network.js:2208), но эти команды отсутствовали в `domain-api.py`
+2. **SMB "Остановлен" при работающем DC** — dashboard смотрел только на `smbd`; при DC режиме `smbd` намеренно остановлена, `samba-ad-dc` предоставляет SMB на порту 445
+3. **smbd не поднималась после dc-stop** — `samba-tool domain provision` перезаписывает `/etc/samba/smb.conf` в DC-формат (`server role = active directory domain controller`); смбд с таким конфигом не стартует
+4. **Побочный баг**: smb.conf.bak содержал `guest ok = Yes[documents]` — inline-комментарий слипся со значением; исправлено на `guest ok = No`
+
+### Исправления
+
+#### domain-api.py
+- **dc-start**: `systemctl start samba-ad-dc`
+- **dc-stop**: `systemctl stop samba-ad-dc` + `_restore_smbd()`
+- **dc-deprovision**: stop+disable+mask samba-ad-dc, удалить DC smb.conf, `_restore_smbd()`
+- **dc-provision**: backup `smb.conf` → `smb.conf.pre-dc` ДО запуска provision; mask smbd/nmbd; restore smbd если provision упал
+- **_restore_smbd()**: хелпер — восстанавливает `smb.conf.pre-dc` (или пишет minimal fallback если нет бэкапа), unmask + start smbd/nmbd
+
+#### dashboard.js
+- SMB карточка теперь проверяет два сервиса: `smbd` (primary) и `samba-ad-dc` (fallback)
+- Статусы: "Активен" / "Активен (DC)" / "Остановлен"
+- Карточка не красная если SMB работает через DC режим
+
+### Ветка
+- Коммиты прямо в `main` (hotfix)
