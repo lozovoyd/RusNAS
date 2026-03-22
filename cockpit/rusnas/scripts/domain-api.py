@@ -458,6 +458,55 @@ def cmd_dc_provision(domain, netbios, adminpass, dns_backend, rfc2307):
     out({"ok": True, "output": combined.strip()[:200]})
 
 
+# ── dc-start / dc-stop ────────────────────────────────────────────────────────
+
+def cmd_dc_start():
+    rc, stdout, stderr = run(["systemctl", "start", "samba-ad-dc"])
+    if rc != 0:
+        out({"ok": False, "error": stderr.strip() or "systemctl start samba-ad-dc failed"})
+        return
+    out({"ok": True})
+
+
+def cmd_dc_stop():
+    rc, stdout, stderr = run(["systemctl", "stop", "samba-ad-dc"])
+    if rc != 0:
+        out({"ok": False, "error": stderr.strip() or "systemctl stop samba-ad-dc failed"})
+        return
+    out({"ok": True})
+
+
+# ── dc-deprovision ────────────────────────────────────────────────────────────
+
+def cmd_dc_deprovision():
+    """Stop and disable samba-ad-dc, remove Samba provisioning files."""
+    run(["systemctl", "stop", "samba-ad-dc"])
+    run(["systemctl", "disable", "samba-ad-dc"])
+    run(["systemctl", "mask", "samba-ad-dc"])
+
+    # Remove provisioned data
+    import shutil
+    for path in ["/var/lib/samba/private", "/etc/samba/smb.conf"]:
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            elif os.path.isfile(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+    # Restore krb5.conf backup if present
+    if os.path.exists("/etc/krb5.conf.bak"):
+        try:
+            if os.path.islink("/etc/krb5.conf") or os.path.exists("/etc/krb5.conf"):
+                os.remove("/etc/krb5.conf")
+            os.rename("/etc/krb5.conf.bak", "/etc/krb5.conf")
+        except Exception:
+            pass
+
+    out({"ok": True})
+
+
 # ── dc-user-list ──────────────────────────────────────────────────────────────
 
 def cmd_dc_user_list():
@@ -876,6 +925,12 @@ def main():
             cmd_dc_gpo_create(args[0])
         elif cmd == "dc-fsmo-show":
             cmd_dc_fsmo_show()
+        elif cmd == "dc-start":
+            cmd_dc_start()
+        elif cmd == "dc-stop":
+            cmd_dc_stop()
+        elif cmd == "dc-deprovision":
+            cmd_dc_deprovision()
         else:
             out({"ok": False, "error": "Unknown command: " + cmd})
     except IndexError as e:
