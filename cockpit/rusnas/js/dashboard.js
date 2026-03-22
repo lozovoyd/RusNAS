@@ -427,7 +427,7 @@ function loadSsdCacheStatus() {
 
 // ── Section A4: Services ──────────────────────────────────────────────────
 var SERVICES = [
-    { id: "smbd",       label: "SMB" },
+    { id: "smbd",       label: "SMB",    fallback: "samba-ad-dc", fallbackLabel: "DC" },
     { id: "nfs-server", label: "NFS" },
     { id: "vsftpd",     label: "FTP" },
     { id: "apache2",    label: "WebDAV" },
@@ -435,31 +435,52 @@ var SERVICES = [
 ];
 
 function loadServices() {
-    var statuses = {};
-    var done = 0;
+    var statuses  = {};   // id → true/false
+    var dcModes   = {};   // id → true if active via fallback
+    var pending   = 0;
+
+    // Count total checks needed (some services have a fallback)
+    SERVICES.forEach(function(svc) { pending++; if (svc.fallback) pending++; });
+
+    function checkDone() {
+        pending--;
+        if (pending === 0) renderServices(statuses, dcModes);
+    }
+
     SERVICES.forEach(function(svc) {
         cockpit.spawn(["bash", "-c", "systemctl is-active " + svc.id + " 2>/dev/null || true"], {err: "message"})
         .done(function(out) { statuses[svc.id] = out.trim() === "active"; })
         .fail(function() { statuses[svc.id] = false; })
-        .always(function() {
-            done++;
-            if (done === SERVICES.length) renderServices(statuses);
-        });
+        .always(function() { checkDone(); });
+
+        if (svc.fallback) {
+            cockpit.spawn(["bash", "-c", "systemctl is-active " + svc.fallback + " 2>/dev/null || true"], {err: "message"})
+            .done(function(out) { dcModes[svc.id] = out.trim() === "active"; })
+            .fail(function() { dcModes[svc.id] = false; })
+            .always(function() { checkDone(); });
+        }
     });
 }
 
-function renderServices(statuses) {
+function renderServices(statuses, dcModes) {
     var html = SERVICES.map(function(svc) {
-        var active = statuses[svc.id];
+        var primary  = statuses[svc.id];
+        var fallback = dcModes[svc.id];
+        var active   = primary || fallback;
         var ico = active ? "✅" : "🔴";
         var cls = active ? "db-ok" : "db-crit";
+        var lbl = primary  ? "Активен"
+                : fallback ? "Активен (" + svc.fallbackLabel + ")"
+                :            "Остановлен";
         return '<div class="db-svc-row">' +
             '<span class="db-svc-name">' + svc.label + '</span>' +
-            '<span class="' + cls + '">' + ico + ' ' + (active ? "Активен" : "Остановлен") + '</span>' +
+            '<span class="' + cls + '">' + ico + ' ' + lbl + '</span>' +
             '</div>';
     }).join("");
     el("services-list").innerHTML = html;
-    var anyDown = SERVICES.some(function(s){ return statuses[s.id] === false; });
+    var anyDown = SERVICES.some(function(s){
+        return !statuses[s.id] && !(dcModes[s.id]);
+    });
     el("card-shares").className = "db-card " + (anyDown ? "db-card-warn" : "db-card-ok");
     el("card-shares").style.cursor = "pointer";
 }

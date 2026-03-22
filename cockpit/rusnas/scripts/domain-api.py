@@ -435,9 +435,24 @@ def cmd_dc_provision(domain, netbios, adminpass, dns_backend, rfc2307):
     if rfc2307 == "yes":
         cmd.append("--use-rfc2307")
 
+    # Backup smb.conf and stop smbd BEFORE provision overwrites it
+    SMB_CONF     = "/etc/samba/smb.conf"
+    SMB_CONF_BAK = "/etc/samba/smb.conf.pre-dc"
+    import shutil as _shutil
+    if os.path.exists(SMB_CONF) and not os.path.exists(SMB_CONF_BAK):
+        try:
+            _shutil.copy2(SMB_CONF, SMB_CONF_BAK)
+        except Exception:
+            pass
+    run(["systemctl", "stop", "smbd", "nmbd"])
+    run(["systemctl", "mask", "smbd", "nmbd"])
+
     rc, stdout, stderr = run(cmd, timeout=120)
     combined = stdout + "\n" + stderr
     if rc != 0:
+        # Provision failed — restore smbd
+        run(["systemctl", "unmask", "smbd", "nmbd"])
+        run(["systemctl", "start", "smbd"])
         out({"ok": False, "error": combined.strip()[:500]})
         return
 
@@ -458,6 +473,44 @@ def cmd_dc_provision(domain, netbios, adminpass, dns_backend, rfc2307):
     out({"ok": True, "output": combined.strip()[:200]})
 
 
+# ── helpers for DC ↔ standalone SMB transition ───────────────────────────────
+
+def _restore_smbd():
+    """Restore pre-DC smb.conf and bring smbd/nmbd back up."""
+    import shutil as _shutil
+    SMB_CONF     = "/etc/samba/smb.conf"
+    SMB_CONF_BAK = "/etc/samba/smb.conf.pre-dc"
+
+    # Restore original smb.conf if backup exists; otherwise write a minimal one
+    if os.path.exists(SMB_CONF_BAK):
+        try:
+            _shutil.copy2(SMB_CONF_BAK, SMB_CONF)
+            os.remove(SMB_CONF_BAK)
+        except Exception:
+            pass
+    elif not os.path.exists(SMB_CONF):
+        # Write minimal workgroup smb.conf so smbd can start
+        minimal = (
+            "[global]\n"
+            "   workgroup = WORKGROUP\n"
+            "   server string = rusNAS\n"
+            "   server role = standalone server\n"
+            "   log file = /var/log/samba/log.%m\n"
+            "   max log size = 1000\n"
+            "   logging = file\n"
+            "   panic action = /usr/share/samba/panic-action %d\n"
+        )
+        try:
+            with open(SMB_CONF, "w") as f:
+                f.write(minimal)
+        except Exception:
+            pass
+
+    run(["systemctl", "unmask", "smbd", "nmbd"])
+    run(["systemctl", "enable", "smbd"])
+    run(["systemctl", "start", "smbd"])
+
+
 # ── dc-start / dc-stop ────────────────────────────────────────────────────────
 
 def cmd_dc_start():
@@ -473,27 +526,33 @@ def cmd_dc_stop():
     if rc != 0:
         out({"ok": False, "error": stderr.strip() or "systemctl stop samba-ad-dc failed"})
         return
+    _restore_smbd()
     out({"ok": True})
 
 
 # ── dc-deprovision ────────────────────────────────────────────────────────────
 
 def cmd_dc_deprovision():
-    """Stop and disable samba-ad-dc, remove Samba provisioning files."""
+    """Stop and disable samba-ad-dc, remove Samba provisioning files, restore smbd."""
+    import shutil as _shutil
+
     run(["systemctl", "stop", "samba-ad-dc"])
     run(["systemctl", "disable", "samba-ad-dc"])
     run(["systemctl", "mask", "samba-ad-dc"])
 
-    # Remove provisioned data
-    import shutil
-    for path in ["/var/lib/samba/private", "/etc/samba/smb.conf"]:
+    # Remove DC-specific samba data (smb.conf will be recreated by _restore_smbd)
+    for path in ["/var/lib/samba/private"]:
         try:
             if os.path.isdir(path):
-                shutil.rmtree(path)
-            elif os.path.isfile(path):
-                os.remove(path)
+                _shutil.rmtree(path)
         except Exception:
             pass
+
+    # Remove DC smb.conf so _restore_smbd will use backup or write minimal
+    try:
+        os.remove("/etc/samba/smb.conf")
+    except FileNotFoundError:
+        pass
 
     # Restore krb5.conf backup if present
     if os.path.exists("/etc/krb5.conf.bak"):
@@ -504,6 +563,7 @@ def cmd_dc_deprovision():
         except Exception:
             pass
 
+    _restore_smbd()
     out({"ok": True})
 
 
