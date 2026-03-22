@@ -1513,3 +1513,115 @@ storage-analyzer.css:
 
 ### Ветка
 - `feature/network` — активная разработка, задеплоено на VM
+
+---
+
+## Сессия N — Domain Services Tab (2026-03-22)
+
+### Реализовано: 6-я вкладка «🏢 Домен» в network.html
+
+#### Новые файлы
+- `cockpit/rusnas/scripts/domain-api.py` — 888 строк, 35 команд для обоих режимов
+
+#### Изменённые файлы
+- `network.html` — 6-я вкладка + mode selector + 11 sub-tabs + 7 modals
+- `js/network.js` — +1130 строк JS (domainApi, member mode, DC mode)
+- `css/network.css` — +457 строк стилей
+- `install-network.sh` — пакеты realmd/winbind/krb5 + sudoers
+
+#### Режим «Участник домена»
+- `detect-mode` → `status` → join/leave wizard (realm join/leave)
+- Список пользователей/групп через wbinfo
+- Управление разрешёнными группами (realm permit/deny)
+- Редактор [global] smb.conf
+
+#### Режим «Контроллер домена» (Samba AD DC)
+- DC provision wizard (samba-tool domain provision + krb5.conf)
+- CRUD пользователей + enable/disable + смена пароля
+- CRUD групп + управление участниками
+- Репликация: статус + sync (samba-tool drs)
+- DNS: query/add/delete записей (samba-tool dns)
+- GPO: список + создание (samba-tool gpo)
+- FSMO роли в обзоре
+
+#### API тест на VM (mode: none, services: winbind+smbd active)
+```
+python3 domain-api.py detect-mode → {"ok": true, "mode": "none"}
+python3 domain-api.py status → {"ok": true, "joined": false, ...}
+python3 domain-api.py dc-status → {"ok": true, "provisioned": false, ...}
+python3 domain-api.py get-smb-global → {"ok": true, "settings": {...}}
+```
+
+#### Ветка
+- `feature/network` — commit 5a13dc5
+
+---
+
+## Сессия N+1 — Документация Domain Services (2026-03-22)
+
+### Создан: rusnas-domain-task.md
+Полное ТЗ + архитектура Domain Services:
+- Схема detect-mode (samba-ad-dc → winbind → none)
+- Member mode: схема интеграции SMB + AD, NSSwitch, IDmap, realm join/leave
+- DC mode: samba-tool provision, структура smb.conf, FSMO роли, DNS backends, репликация
+- Таблица всех 35 backend-команд domain-api.py
+- Ограничения и нюансы (samba-ad-dc ≠ smbd, медленный dc-user-list при 1000+ юзеров и т.д.)
+
+### Обновлён: CLAUDE.md
+- Ссылка на rusnas-domain-task.md в шапке
+- Секция «✅ Domain Services» с key architecture notes, critical notes, JS state
+- Название Network раздела обновлено: «6 вкладок» вместо «5»
+
+### Обновлён: landing/index.html
+- Новая карточка «🏢 Active Directory» в features-grid
+- Новая карточка «🔒 TLS-сертификаты» в features-grid
+- Tech stack: добавлен «Samba AD DC + Winbind»
+- Comparison table: разделены строки «Участник AD» и «Контроллер домена»
+- Specs (User & Auth): добавлена строка «Контроллер домена AD»
+- Деплой: http://10.10.10.72/
+
+---
+
+## Сессия N+2 — Network Auto-Revert (Безопасное применение сетевых настроек) (2026-03-22)
+
+### Проблема
+При смене IP-адреса через UI изменения применялись мгновенно и необратимо. Инцидент: баг в `set-interface` (дублирование `allow-hotplug` + `auto`) оставил VM недоступной — пришлось логиниться через tty1 в UTM.
+
+### Решение: Commit-to-Revert (классический паттерн NetworkManager/pfSense)
+
+#### Изменённые файлы
+- `cockpit/rusnas/scripts/network-api.py` — backup + systemd transient timer + 4 новые команды
+- `cockpit/rusnas/js/network.js` — баннер с обратным отсчётом + safety modal + get-pending при загрузке
+- `cockpit/rusnas/network.html` — #netRollbackBanner + #netSafetyModal
+- `cockpit/rusnas/css/network.css` — стили баннера и safety modal
+
+#### Как работает
+
+1. `set-interface` делает `shutil.copy2(INTERFACES_FILE, bak_path)` ПЕРЕД записью нового конфига
+2. После успешного `ifup` запускает `systemd-run --on-active=90s --unit=rusnas-net-revert-{iface}` (python3 _revert-apply)
+3. Возвращает `{"ok": true, "pending": true, "seconds": 90}`
+4. Если `ifup` rc≠0 — немедленный автооткат через `_do_revert()`, возвращает `{"ok": false, "error": "..."}`
+5. Баннер показывается с таймером 90→0, кнопки: ✓ Подтвердить / ↩ Откатить
+6. Подтверждение: `systemctl stop rusnas-net-revert-{iface}.timer` + удаление .bak/.ts файлов
+7. Откат: восстановить .bak → ifdown → ifup → удалить файлы
+8. При reload страницы: `get-pending` для каждого интерфейса → восстанавливает баннер с оставшимся временем
+
+#### Safety Modal
+Показывается только при критичных изменениях (смена режима DHCP↔Static, смена IP, смена шлюза). Пошаговая инструкция на русском.
+
+#### Файлы состояния на VM
+```
+/etc/rusnas/net-rollback-<iface>.bak   ← копия /etc/network/interfaces до изменений
+/etc/rusnas/net-rollback-<iface>.ts    ← float unix timestamp истечения таймера
+```
+
+#### Новые команды network-api.py
+| Команда | Действие |
+|---------|---------|
+| `confirm-change <iface>` | Останавливает таймер, удаляет backup-файлы |
+| `revert-change <iface>` | Останавливает таймер, восстанавливает backup |
+| `get-pending <iface>` | Проверяет активный pending (is-active timer + оставшиеся секунды) |
+| `_revert-apply <iface>` | Вызывается systemd при истечении таймера — откатывает конфиг |
+
+#### Ветка
+- `feature/network` → смержено в `main`
