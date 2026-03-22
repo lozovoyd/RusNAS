@@ -435,6 +435,12 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | Guard detector not starting after reboot | Daemon service started but Detector thread required manual UI Start; fixed: `auto_start: true` (default) — `run()` calls `start_guard()` automatically |
 | Dashboard TX speed always 0 | `/proc/net/dev` regex captured field 8 (`RX_multicast` ≈0) instead of field 9 (`TX_bytes`); fixed: one extra `\s+\d+` skip group |
 | Dashboard snapshot count inflated | `storage-info` included stale btrfspool paths from DB; fixed: cross-reference with `schedule list` — show subvols with schedule OR non-zero snapshot count |
+| Network set-interface VM недоступна после смены настроек | Баг дублирования `allow-hotplug`+`auto` → ifup падал → VM offline; исправлено + реализован Auto-Revert |
+| Network: нет защиты от потери связи при смене IP | Изменения применялись необратимо; исправлено: Commit-to-Revert — backup + systemd transient timer 90 сек + баннер |
+| DC: "Unknown command: dc-stop/dc-start/dc-deprovision" | Команды вызывались из network.js но отсутствовали в domain-api.py; добавлены |
+| DC: smbd не поднимается после dc-stop | `samba-tool provision` перезаписывает smb.conf в DC-формат; исправлено: `dc-provision` делает backup → `smb.conf.pre-dc`; `dc-stop` вызывает `_restore_smbd()` |
+| Dashboard: SMB "Остановлен" при работающем DC | dashboard смотрел только на `smbd`; при DC режиме smbd остановлена намеренно; исправлено: fallback на `samba-ad-dc`, статус "Активен (DC)" |
+| smb.conf.bak: `guest ok = Yes[documents]` | inline-комментарий слипся со значением boolean → smbd не стартовала; исправлено вручную: `guest ok = No` |
 
 ## FTP and WebDAV settings (app.js / index.html)
 
@@ -746,11 +752,11 @@ Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (mdadm RAID HDD) + 
 - Storage Analyzer: кнопки «Открыть» → FileBrowser deep-links
 - Dashboard: карточка статуса FileBrowser в grid-4
 
-### ✅ Network module + Certificates (реализовано 2026-03-21, ветка feature/network)
+### ✅ Network module + Certificates + Domain Services + Auto-Revert (реализовано 2026-03-21/22, ветка feature/network)
 
 Управление сетевыми настройками через ifupdown (не NetworkManager). Страница: `/rusnas/network.html`.
 
-**5 вкладок:** Интерфейсы, DNS и хосты, Маршруты, Диагностика, Сертификаты
+**6 вкладок:** Интерфейсы, DNS и хосты, Маршруты, Диагностика, Сертификаты, **🏢 Домен**
 
 **Key architecture notes:**
 - Root cause: enp0s1 управляется ifupdown (`/etc/network/interfaces`), NM считает "unmanaged" → Cockpit's /network read-only
@@ -764,13 +770,95 @@ Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (mdadm RAID HDD) + 
 - 2 stanza для одного интерфейса (inet + inet6): prefer `inet` for config_mode; inet6 → `method6`
 - `allow-hotplug` = `auto` (VM использует `allow-hotplug enp0s1`)
 
+**Auto-Revert (Commit-to-Revert) — безопасное применение настроек:**
+- `set-interface` делает backup `/etc/network/interfaces` → `/etc/rusnas/net-rollback-<iface>.bak` ДО записи
+- После успешного `ifup` — `systemd-run --on-active=90s --unit=rusnas-net-revert-<iface>` (python3 `_revert-apply`)
+- Возвращает `{"ok": true, "pending": true, "seconds": 90}` → JS показывает баннер с таймером
+- Если `ifup` rc≠0 — немедленный автооткат через `_do_revert()`, возвращает `{"ok": false, "error": "..."}`
+- Подтверждение: `confirm-change` → `systemctl stop <unit>.timer` + удаление `.bak`/`.ts`
+- Ручной откат: `revert-change` → восстанавливает `.bak` + ifdown/ifup
+- При reload страницы: `get-pending` в `loadInterfaces()` восстанавливает баннер с оставшимся временем
+- Файлы состояния: `/etc/rusnas/net-rollback-<iface>.bak` + `/etc/rusnas/net-rollback-<iface>.ts`
+- `REVERT_SECONDS = 90` — константа в `network-api.py`
+
 **Critical network.js notes:**
 - Port check: `/bin/nc` (netcat-openbsd), НЕ `/usr/bin/ncat`
 - Cert SAN: `DNS:` prefix для hostname, `IP:` для IPv4 (автоопределение по regex)
 - Sparkline: pure SVG polyline, delta от /proc/net/dev каждую секунду
+- `_rollbackState = {iface, timer}` — глобальное состояние активного авто-отката
+- `startRollbackCountdown(iface, seconds)` — запускает JS countdown + показывает баннер
+- `showNetSafetyModal(oldIface, cfg, seconds)` — показывает modal при критичных изменениях
 
-### MCP Server + AI Agent (после репликации)
+## ✅ Domain Services (реализовано 2026-03-22, ветка feature/network)
+
+Вкладка «🏢 Домен» в `network.html`. Два взаимоисключающих режима. Полное ТЗ: [rusnas-domain-task.md](./rusnas-domain-task.md)
+
+**Key architecture notes:**
+- `detect-mode`: samba-ad-dc active → dc; winbind active + wbinfo --own-domain не WORKGROUP → member; иначе → none
+- Backend: `domain-api.py` — 35+ команд, запускается через `sudo -n python3`
+- Member mode: `realmd` + `winbind` — `realm join/leave`, `wbinfo -u/-g`, `realm permit/deny`
+- DC mode: `samba-tool domain provision` + автонастройка `/etc/krb5.conf` + `samba-ad-dc.service`
+- Судоерс: `/etc/sudoers.d/rusnas-domain` — realm, wbinfo, samba-tool, systemctl winbind
+- Пакеты: `realmd adcli winbind libnss-winbind libpam-winbind krb5-user samba-common-bin`
+- **DC конфликт:** `samba-ad-dc` и `smbd`/`nmbd` не могут работать одновременно
+- `dc-provision`: backup `smb.conf` → `smb.conf.pre-dc`, mask smbd/nmbd до provision
+- `dc-stop` / `dc-deprovision`: вызывают `_restore_smbd()` — восстанавливают `smb.conf.pre-dc` + start smbd
+- `_restore_smbd()`: restore backup (или minimal fallback), unmask + enable + start smbd
+
+**Critical domain-api.py notes:**
+- `join/leave`: пароль передаётся через sys.argv (не stdin) — так проще из Cockpit spawn
+- `dc-user-list`: вызывает `samba-tool user show` per-user → медленно при большой базе
+- `detect-mode` повторно вызывает `wbinfo --own-domain` — рефактор не делался намеренно
+- `dc-status` когда samba-ad-dc не установлен → возвращает `provisioned: false` без ошибки
+- `get-smb-global` стрипает inline-комментарии из значений (`value ; comment` → `value`)
+- smb.conf.bak может содержать баги (напр. `guest ok = Yes[documents]`) — проверять через `testparm -s`
+
+**JS state:**
+```javascript
+_domainMode   // null | "member" | "dc" | "none"
+_domainState  // { joined, domain, workgroup, dc, method, services, kerberos_tgt }
+_dcState      // { provisioned, domain, realm, netbios, dc_hostname, fsmo }
+_domainTabLoaded  // bool — lazy init (initDomainTab вызывается один раз)
+```
+
+### ✅ MCP Server + AI Agent Session 1 (реализовано 2026-03-22, ветка feature/mcp-ai)
 Полное ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)
-- MCP-сервер на Python, инструменты для всех функций NAS
-- Встроенный AI-чат в Cockpit (Ollama / Claude API)
-- HTTP-транспорт для внешних клиентов (Claude Desktop, Cursor)
+
+**Реализованные компоненты:**
+- `cockpit/rusnas/scripts/mcp-api.py` — NAS command dispatcher (11 команд, JSON stdio)
+- `cockpit/rusnas/ai.html` + `js/ai.js` + `css/ai.css` — страница AI-чата
+- `install-mcp.sh` — деплой backend + sudoers
+- Меню: "AI Ассистент 🤖" (order 11) в manifest.json
+
+**Архитектура (Session 1):**
+```
+ai.html / ai.js ──fetch()──▶ Anthropic Claude API (claude-sonnet-4-6)
+      │                              │ tool_use
+      └──cockpit.spawn──▶ mcp-api.py → rusnas-snap / mdadm / smartctl / ...
+```
+
+**Key architecture notes:**
+- API ключ хранится в localStorage браузера — не уходит на VM
+- Tool calling: agentic loop `while stop_reason === "tool_use"`, параллельный Promise.all
+- Sudoers: `/etc/sudoers.d/rusnas-mcp` — NOPASSWD `/usr/bin/python3 /usr/share/cockpit/rusnas/scripts/mcp-api.py *`
+- Логирование мутирующих команд: `/var/log/rusnas/ai-actions.jsonl`
+- Системный промпт включает NAS контекст (get-status + list-disks, загружается при старте)
+- История чата: localStorage `rusnas_ai_history` (последние 50 сообщений), восстанавливается при перезагрузке
+
+**mcp-api.py команды:**
+
+| Команда | Что делает |
+|---------|-----------|
+| `get-status` | uptime, loadavg, /proc/meminfo, df -h |
+| `list-shares` | testparm -s (SMB) + /etc/exports (NFS) |
+| `list-disks` | lsblk -J + /proc/mdstat |
+| `list-raid` | mdadm --detail /dev/md* |
+| `list-snapshots <subvol>` | rusnas-snap list |
+| `create-snapshot <subvol> <label>` | rusnas-snap create (+ log) |
+| `delete-snapshot <subvol> <name>` | rusnas-snap delete (+ log) |
+| `list-users` | getent passwd uid 1000–60000 |
+| `get-events [limit]` | tail /var/log/rusnas-guard/events.jsonl |
+| `run-smart-test <dev>` | smartctl -t short (+ log) |
+| `get-smart <dev>` | smartctl -a |
+
+**Session 2 (следующая):** HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor + `pip install mcp` SDK + Ollama

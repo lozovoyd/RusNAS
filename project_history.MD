@@ -1653,3 +1653,50 @@ python3 domain-api.py get-smb-global → {"ok": true, "settings": {...}}
 
 ### Ветка
 - Коммиты прямо в `main` (hotfix)
+
+---
+
+## Сессия MCP-AI — AI Ассистент (Session 1) (2026-03-22)
+
+### Что было сделано
+
+Реализован AI-ассистент прямо в Cockpit UI — страница для управления NAS на естественном языке.
+
+### Новые файлы
+
+- **`cockpit/rusnas/scripts/mcp-api.py`** — NAS command dispatcher (JSON stdio). 11 команд: get-status, list-shares, list-disks, list-raid, list-snapshots, create-snapshot, delete-snapshot, list-users, get-events, run-smart-test, get-smart. Логирование мутирующих команд в `/var/log/rusnas/ai-actions.jsonl`.
+- **`cockpit/rusnas/ai.html`** — страница AI-чата. Viewport meta, dark mode, suggestion chips.
+- **`cockpit/rusnas/js/ai.js`** — Claude API + tool calling loop. Tool schema (11 инструментов), agentic loop (while stop_reason === "tool_use"), localStorage для API ключа и истории, восстановление истории при перезагрузке.
+- **`cockpit/rusnas/css/ai.css`** — стили: chat bubbles, tool call blocks (collapsible), thinking indicator (animated dots), settings panel, responsive.
+- **`install-mcp.sh`** — деплой backend на VM (sudoers + log dir).
+
+### Изменения существующих файлов
+
+- **`manifest.json`**: добавлен entry "AI Ассистент 🤖" (order 11) + `connect-src https://api.anthropic.com` в CSP.
+
+### Архитектура
+
+```
+ai.html / ai.js ──fetch()──▶ Anthropic Claude API (claude-sonnet-4-6)
+      │                              │ tool_use callback
+      └──cockpit.spawn──▶ mcp-api.py (Python, JSON stdio)
+                                     │
+                          rusnas-snap / testparm / mdadm / smartctl / ...
+```
+
+### Технические детали
+
+- API ключ хранится в localStorage — никогда не уходит на VM
+- Tool calling loop: `while (resp.stop_reason === "tool_use") { executeTool() → push tool_result → callClaude() }`
+- Параллельное выполнение всех tool_use блоков одного ответа через `Promise.all()`
+- Системный промпт включает NAS контекст (get-status + list-disks), загружаемый при старте
+- Suggestion chips для быстрого старта
+- Sudoers: `/etc/sudoers.d/rusnas-mcp` — NOPASSWD для mcp-api.py
+
+### Ветка
+- `feature/mcp-ai` → будет слита в `main`
+
+### Следующая сессия (Session 2)
+- HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor
+- `pip install mcp` SDK
+- Ollama поддержка
