@@ -1,118 +1,178 @@
 // rusNAS AI Assistant
-// ai.js — Claude API + tool calling + NAS dispatch via mcp-api.py
+// ai.js — Multi-provider (Yandex GPT / Anthropic Claude) + NAS tool calling
 
 "use strict";
 
 var MCP_SCRIPT = "/usr/share/cockpit/rusnas/scripts/mcp-api.py";
+
+// Yandex AI Studio
+var YANDEX_API_BASE      = "https://ai.api.cloud.yandex.net/v1";
+var YANDEX_DEFAULT_KEY   = "";
+var YANDEX_DEFAULT_FOLDER= "b1g2ikacmpc41ubdbitv";
+var YANDEX_DEFAULT_MODEL = "yandexgpt-5-pro/latest";
+
+// Anthropic
 var ANTHROPIC_API = "https://api.anthropic.com/v1/messages";
-var HISTORY_KEY   = "rusnas_ai_history";
-var KEY_KEY       = "rusnas_claude_key";
-var MODEL_KEY     = "rusnas_ai_model";
-var MAXTOK_KEY    = "rusnas_ai_maxtokens";
-var MAX_HISTORY   = 50; // messages to keep
+var ANTHROPIC_DEFAULT_MODEL = "claude-sonnet-4-6";
 
-// ── Tool schema sent to Claude ─────────────────────────────────────────────────
+// localStorage keys
+var KEY_PROVIDER   = "rusnas_ai_provider";   // "yandex" | "anthropic"
+var KEY_YA_KEY     = "rusnas_yandex_key";
+var KEY_YA_FOLDER  = "rusnas_yandex_folder";
+var KEY_YA_MODEL   = "rusnas_yandex_model";
+var KEY_AN_KEY     = "rusnas_claude_key";
+var KEY_AN_MODEL   = "rusnas_ai_model";
+var KEY_MAXTOKENS  = "rusnas_ai_maxtokens";
+var KEY_HISTORY    = "rusnas_ai_history";
 
-var TOOLS_SCHEMA = [
+var MAX_HISTORY = 100; // max messages to keep
+
+// ── Tool schema (OpenAI / Yandex format) ──────────────────────────────────────
+
+var TOOLS_OPENAI = [
     {
-        name: "get_status",
-        description: "Получить системную информацию NAS: uptime, загрузка CPU, память, использование дисков (df).",
-        input_schema: { type: "object", properties: {}, required: [] }
-    },
-    {
-        name: "list_shares",
-        description: "Список SMB (Samba) и NFS шар на NAS.",
-        input_schema: { type: "object", properties: {}, required: [] }
-    },
-    {
-        name: "list_disks",
-        description: "Список физических дисков (lsblk) и состояние RAID (/proc/mdstat).",
-        input_schema: { type: "object", properties: {}, required: [] }
-    },
-    {
-        name: "list_raid",
-        description: "Детальная информация о RAID-массивах (mdadm --detail).",
-        input_schema: { type: "object", properties: {}, required: [] }
-    },
-    {
-        name: "list_snapshots",
-        description: "Список Btrfs снапшотов для указанного субволюма.",
-        input_schema: {
-            type: "object",
-            properties: {
-                subvol: { type: "string", description: "Имя субволюма, например: documents, homes" }
-            },
-            required: ["subvol"]
+        type: "function",
+        function: {
+            name: "get_status",
+            description: "Получить системную информацию NAS: uptime, загрузка CPU, память, использование дисков (df).",
+            parameters: { type: "object", properties: {}, required: [] }
         }
     },
     {
-        name: "create_snapshot",
-        description: "Создать Btrfs снапшот субволюма с заданной меткой.",
-        input_schema: {
-            type: "object",
-            properties: {
-                subvol: { type: "string", description: "Имя субволюма" },
-                label: { type: "string", description: "Метка снапшота (краткое описание)" }
-            },
-            required: ["subvol", "label"]
+        type: "function",
+        function: {
+            name: "list_shares",
+            description: "Список SMB (Samba) и NFS шар на NAS.",
+            parameters: { type: "object", properties: {}, required: [] }
         }
     },
     {
-        name: "delete_snapshot",
-        description: "Удалить конкретный Btrfs снапшот.",
-        input_schema: {
-            type: "object",
-            properties: {
-                subvol: { type: "string", description: "Имя субволюма" },
-                snap_name: { type: "string", description: "Полное имя снапшота (например @2026-03-22_10-00-00_manual)" }
-            },
-            required: ["subvol", "snap_name"]
+        type: "function",
+        function: {
+            name: "list_disks",
+            description: "Список физических дисков (lsblk) и состояние RAID (/proc/mdstat).",
+            parameters: { type: "object", properties: {}, required: [] }
         }
     },
     {
-        name: "list_users",
-        description: "Список системных пользователей NAS (uid 1000–60000).",
-        input_schema: { type: "object", properties: {}, required: [] }
-    },
-    {
-        name: "get_events",
-        description: "Последние события Guard (антишифровальщик): обнаруженные угрозы, заблокированные процессы.",
-        input_schema: {
-            type: "object",
-            properties: {
-                limit: { type: "integer", description: "Количество событий (по умолчанию 20, макс 500)" }
-            },
-            required: []
+        type: "function",
+        function: {
+            name: "list_raid",
+            description: "Детальная информация о RAID-массивах (mdadm --detail).",
+            parameters: { type: "object", properties: {}, required: [] }
         }
     },
     {
-        name: "run_smart_test",
-        description: "Запустить короткий S.M.A.R.T. тест диска (занимает ~2 мин).",
-        input_schema: {
-            type: "object",
-            properties: {
-                device: { type: "string", description: "Имя устройства без /dev/, например: sda, sdb, nvme0n1" }
-            },
-            required: ["device"]
+        type: "function",
+        function: {
+            name: "list_snapshots",
+            description: "Список Btrfs снапшотов для указанного субволюма.",
+            parameters: {
+                type: "object",
+                properties: {
+                    subvol: { type: "string", description: "Имя субволюма, например: documents, homes" }
+                },
+                required: ["subvol"]
+            }
         }
     },
     {
-        name: "get_smart",
-        description: "Получить полный отчёт S.M.A.R.T. для диска (модель, здоровье, атрибуты).",
-        input_schema: {
-            type: "object",
-            properties: {
-                device: { type: "string", description: "Имя устройства без /dev/, например: sda" }
-            },
-            required: ["device"]
+        type: "function",
+        function: {
+            name: "create_snapshot",
+            description: "Создать Btrfs снапшот субволюма с заданной меткой.",
+            parameters: {
+                type: "object",
+                properties: {
+                    subvol: { type: "string", description: "Имя субволюма" },
+                    label: { type: "string", description: "Метка снапшота (краткое описание)" }
+                },
+                required: ["subvol", "label"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "delete_snapshot",
+            description: "Удалить конкретный Btrfs снапшот.",
+            parameters: {
+                type: "object",
+                properties: {
+                    subvol: { type: "string", description: "Имя субволюма" },
+                    snap_name: { type: "string", description: "Полное имя снапшота, например @2026-03-22_10-00-00_manual" }
+                },
+                required: ["subvol", "snap_name"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "list_users",
+            description: "Список системных пользователей NAS (uid 1000–60000).",
+            parameters: { type: "object", properties: {}, required: [] }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_events",
+            description: "Последние события Guard (антишифровальщик): обнаруженные угрозы, заблокированные процессы.",
+            parameters: {
+                type: "object",
+                properties: {
+                    limit: { type: "integer", description: "Количество событий (по умолчанию 20, макс 500)" }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "run_smart_test",
+            description: "Запустить короткий S.M.A.R.T. тест диска (занимает ~2 мин).",
+            parameters: {
+                type: "object",
+                properties: {
+                    device: { type: "string", description: "Имя устройства без /dev/, например: sda, nvme0n1" }
+                },
+                required: ["device"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_smart",
+            description: "Получить полный отчёт S.M.A.R.T. для диска (модель, здоровье, атрибуты).",
+            parameters: {
+                type: "object",
+                properties: {
+                    device: { type: "string", description: "Имя устройства без /dev/, например: sda" }
+                },
+                required: ["device"]
+            }
         }
     }
 ];
 
-// ── Tool name → mcp-api.py command mapping ─────────────────────────────────────
+// Convert OpenAI tools → Anthropic tools
+function toAnthropicTools(tools) {
+    return tools.map(function(t) {
+        return {
+            name: t.function.name,
+            description: t.function.description,
+            input_schema: t.function.parameters
+        };
+    });
+}
 
-function toolToCmd(toolName, input) {
-    switch (toolName) {
+// ── Tool name → mcp-api.py command ────────────────────────────────────────────
+
+function toolToCmd(name, input) {
+    switch (name) {
         case "get_status":      return ["get-status"];
         case "list_shares":     return ["list-shares"];
         case "list_disks":      return ["list-disks"];
@@ -147,86 +207,233 @@ function nasCmd(args) {
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-var _messages  = [];   // conversation history (Claude format)
+// Messages stored in OpenAI format (native for Yandex, converted for Anthropic)
+var _messages  = [];
 var _thinking  = false;
 var _nasContext = "";
 
-// ── Claude API call ────────────────────────────────────────────────────────────
+// ── Settings accessors ─────────────────────────────────────────────────────────
 
-async function callClaude(messages) {
-    var key   = localStorage.getItem(KEY_KEY) || "";
-    var model = localStorage.getItem(MODEL_KEY) || "claude-sonnet-4-6";
-    var maxTok = parseInt(localStorage.getItem(MAXTOK_KEY) || "2048", 10);
+function getProvider()  { return localStorage.getItem(KEY_PROVIDER) || "yandex"; }
+function getMaxTokens() { return parseInt(localStorage.getItem(KEY_MAXTOKENS) || "2048", 10); }
 
-    if (!key) throw new Error("API ключ не задан. Откройте Настройки и введите Anthropic API Key.");
+function getYandexCreds() {
+    return {
+        key:    localStorage.getItem(KEY_YA_KEY)    || YANDEX_DEFAULT_KEY,
+        folder: localStorage.getItem(KEY_YA_FOLDER) || YANDEX_DEFAULT_FOLDER,
+        model:  localStorage.getItem(KEY_YA_MODEL)  || YANDEX_DEFAULT_MODEL
+    };
+}
 
-    var systemPrompt = "Ты AI-ассистент для управления NAS-сервером rusNAS на базе Debian Linux.\n" +
-        "Отвечай ТОЛЬКО на русском языке. Будь кратким и по делу.\n" +
-        "Используй инструменты для получения актуальных данных о системе.\n" +
-        "Форматируй ответы с переносами строк для читаемости. Размеры отображай в МБ/ГБ.\n" +
-        (_nasContext ? "\nТекущий контекст системы (загружен при старте):\n" + _nasContext : "");
+function getAnthropicCreds() {
+    return {
+        key:   localStorage.getItem(KEY_AN_KEY)   || "",
+        model: localStorage.getItem(KEY_AN_MODEL) || ANTHROPIC_DEFAULT_MODEL
+    };
+}
 
-    var resp = await fetch(ANTHROPIC_API, {
+// ── Yandex API call (OpenAI-compatible) ────────────────────────────────────────
+
+async function callYandex(messages) {
+    var creds = getYandexCreds();
+    if (!creds.key) throw new Error("Yandex API ключ не задан — откройте Настройки.");
+
+    var modelUri = "gpt://" + creds.folder + "/" + creds.model;
+    var systemPrompt = buildSystemPrompt();
+
+    // Yandex: system message via "system" role in messages array
+    var allMessages = [{ role: "system", content: systemPrompt }].concat(messages);
+
+    var resp = await fetch(YANDEX_API_BASE + "/chat/completions", {
         method: "POST",
         headers: {
-            "x-api-key": key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
+            "Authorization": "Bearer " + creds.key,
+            "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            model: model,
-            max_tokens: maxTok,
-            system: systemPrompt,
-            tools: TOOLS_SCHEMA,
-            messages: messages
+            model: modelUri,
+            messages: allMessages,
+            tools: TOOLS_OPENAI,
+            max_tokens: getMaxTokens()
         })
     });
 
     if (!resp.ok) {
         var errBody = await resp.text();
-        var errMsg = "API ошибка " + resp.status;
+        var errMsg = "Yandex API ошибка " + resp.status;
         try {
-            var errJson = JSON.parse(errBody);
-            errMsg += ": " + (errJson.error && errJson.error.message || errBody.substring(0, 200));
-        } catch (e) {
-            errMsg += ": " + errBody.substring(0, 200);
-        }
+            var j = JSON.parse(errBody);
+            errMsg += ": " + (j.error && (j.error.message || j.error) || errBody.substring(0, 300));
+        } catch (e) { errMsg += ": " + errBody.substring(0, 300); }
         throw new Error(errMsg);
     }
 
-    return resp.json();
-}
-
-// ── Execute a single tool call ─────────────────────────────────────────────────
-
-async function executeTool(toolBlock) {
-    var toolId   = toolBlock.id;
-    var toolName = toolBlock.name;
-    var input    = toolBlock.input || {};
-
-    var elId = "tool-" + toolId;
-    // update status to running
-    updateToolStatus(elId, "running");
-
-    var resultContent;
-    try {
-        var args = toolToCmd(toolName, input);
-        if (!args) throw new Error("Unknown tool: " + toolName);
-        var result = await nasCmd(args);
-        var resultStr = JSON.stringify(result, null, 2);
-        updateToolStatus(elId, "done", resultStr);
-        resultContent = resultStr;
-    } catch (ex) {
-        var errStr = JSON.stringify({ ok: false, error: ex.message || String(ex) });
-        updateToolStatus(elId, "error", errStr);
-        resultContent = errStr;
-    }
+    var data = await resp.json();
+    // Normalize to internal format
+    var choice = data.choices && data.choices[0];
+    if (!choice) throw new Error("Yandex: пустой ответ");
 
     return {
-        type: "tool_result",
-        tool_use_id: toolId,
-        content: resultContent
+        stopReason: choice.finish_reason,        // "stop" | "tool_calls"
+        text: choice.message.content || "",
+        toolCalls: choice.message.tool_calls || [], // [{id, type, function: {name, arguments}}]
+        rawMessage: choice.message                  // save for history
     };
+}
+
+// ── Anthropic API call ─────────────────────────────────────────────────────────
+
+async function callAnthropic(messages) {
+    var creds = getAnthropicCreds();
+    if (!creds.key) throw new Error("Anthropic API ключ не задан — откройте Настройки.");
+
+    var resp = await fetch(ANTHROPIC_API, {
+        method: "POST",
+        headers: {
+            "x-api-key": creds.key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            model: creds.model,
+            max_tokens: getMaxTokens(),
+            system: buildSystemPrompt(),
+            tools: toAnthropicTools(TOOLS_OPENAI),
+            messages: convertToAnthropicMessages(messages)
+        })
+    });
+
+    if (!resp.ok) {
+        var errBody = await resp.text();
+        var errMsg = "Anthropic API ошибка " + resp.status;
+        try {
+            var j = JSON.parse(errBody);
+            errMsg += ": " + (j.error && j.error.message || errBody.substring(0, 300));
+        } catch (e) { errMsg += ": " + errBody.substring(0, 300); }
+        throw new Error(errMsg);
+    }
+
+    var data = await resp.json();
+
+    // Convert Anthropic response → internal format
+    var text = "";
+    var toolCalls = [];
+    (data.content || []).forEach(function(block) {
+        if (block.type === "text") {
+            text += block.text;
+        } else if (block.type === "tool_use") {
+            toolCalls.push({
+                id: block.id,
+                type: "function",
+                function: {
+                    name: block.name,
+                    arguments: JSON.stringify(block.input || {})
+                }
+            });
+        }
+    });
+
+    // Build OpenAI-format message for history
+    var rawMessage = { role: "assistant", content: text };
+    if (toolCalls.length) rawMessage.tool_calls = toolCalls;
+
+    return {
+        stopReason: data.stop_reason === "tool_use" ? "tool_calls" : "stop",
+        text: text,
+        toolCalls: toolCalls,
+        rawMessage: rawMessage
+    };
+}
+
+// Convert OpenAI-format messages → Anthropic format
+function convertToAnthropicMessages(messages) {
+    var result = [];
+    var i = 0;
+    while (i < messages.length) {
+        var msg = messages[i];
+        if (msg.role === "user") {
+            result.push({ role: "user", content: msg.content });
+            i++;
+        } else if (msg.role === "assistant") {
+            if (msg.tool_calls && msg.tool_calls.length) {
+                // Assistant tool_calls → Anthropic content blocks
+                var blocks = [];
+                if (msg.content) blocks.push({ type: "text", text: msg.content });
+                msg.tool_calls.forEach(function(tc) {
+                    var input = {};
+                    try { input = JSON.parse(tc.function.arguments || "{}"); } catch(e) {}
+                    blocks.push({ type: "tool_use", id: tc.id, name: tc.function.name, input: input });
+                });
+                result.push({ role: "assistant", content: blocks });
+                // Collect following tool messages
+                i++;
+                var toolResults = [];
+                while (i < messages.length && messages[i].role === "tool") {
+                    toolResults.push({
+                        type: "tool_result",
+                        tool_use_id: messages[i].tool_call_id,
+                        content: messages[i].content
+                    });
+                    i++;
+                }
+                if (toolResults.length) {
+                    result.push({ role: "user", content: toolResults });
+                }
+            } else {
+                result.push({ role: "assistant", content: msg.content || "" });
+                i++;
+            }
+        } else {
+            i++; // skip stray tool messages
+        }
+    }
+    return result;
+}
+
+// ── Unified call ───────────────────────────────────────────────────────────────
+
+async function callAI(messages) {
+    return getProvider() === "anthropic"
+        ? callAnthropic(messages)
+        : callYandex(messages);
+}
+
+// ── System prompt ──────────────────────────────────────────────────────────────
+
+function buildSystemPrompt() {
+    return "Ты AI-ассистент для управления NAS-сервером rusNAS на базе Debian Linux.\n" +
+        "Отвечай ТОЛЬКО на русском языке. Будь кратким и конкретным.\n" +
+        "Используй инструменты для получения актуальных данных о системе.\n" +
+        "Форматируй ответы с переносами строк. Размеры отображай в МБ/ГБ.\n" +
+        "При получении данных через инструменты — суммаризируй ключевые факты.\n" +
+        (_nasContext ? "\nТекущий контекст системы (загружен при старте):\n" + _nasContext : "");
+}
+
+// ── Execute a tool call ────────────────────────────────────────────────────────
+
+async function executeTool(toolCall) {
+    var id   = toolCall.id;
+    var name = toolCall.function.name;
+    var input = {};
+    try { input = JSON.parse(toolCall.function.arguments || "{}"); } catch(e) {}
+
+    var elId = "tool-" + id;
+    updateToolStatus(elId, "running");
+
+    var resultStr;
+    try {
+        var args = toolToCmd(name, input);
+        if (!args) throw new Error("Unknown tool: " + name);
+        var result = await nasCmd(args);
+        resultStr = JSON.stringify(result, null, 2);
+        updateToolStatus(elId, "done", resultStr);
+    } catch(ex) {
+        resultStr = JSON.stringify({ ok: false, error: ex.message || String(ex) });
+        updateToolStatus(elId, "error", resultStr);
+    }
+
+    // OpenAI tool result format
+    return { role: "tool", tool_call_id: id, content: resultStr };
 }
 
 // ── Main send loop ─────────────────────────────────────────────────────────────
@@ -245,27 +452,27 @@ async function sendMessage(userText) {
 
     try {
         while (true) {
-            var resp = await callClaude(_messages);
+            var resp = await callAI(_messages);
 
-            // Remove thinking indicator before rendering response
             if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
             thinkingEl = null;
 
-            // Build assistant message from content blocks
-            _messages.push({ role: "assistant", content: resp.content });
-            appendAssistantContent(resp.content);
+            // Append assistant message to history (OpenAI format)
+            _messages.push(resp.rawMessage);
 
-            if (resp.stop_reason !== "tool_use") break;
+            // Render assistant content
+            if (resp.text) appendAssistantText(resp.text);
+            if (resp.toolCalls.length) appendToolCallBlocks(resp.toolCalls);
 
-            // Execute all tool calls in parallel
-            var toolBlocks = resp.content.filter(function(b) { return b.type === "tool_use"; });
-            var results = await Promise.all(toolBlocks.map(executeTool));
+            if (resp.stopReason !== "tool_calls" || !resp.toolCalls.length) break;
 
-            // Add tool results as user turn
-            _messages.push({ role: "user", content: results });
+            // Execute tools in parallel
+            var results = await Promise.all(resp.toolCalls.map(executeTool));
+            results.forEach(function(r) { _messages.push(r); });
+
             thinkingEl = appendThinking();
         }
-    } catch (ex) {
+    } catch(ex) {
         if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
         showError(ex.message || String(ex));
     }
@@ -273,9 +480,8 @@ async function sendMessage(userText) {
     _thinking = false;
     setSendDisabled(false);
 
-    // Trim and save history
-    if (_messages.length > MAX_HISTORY * 2) {
-        _messages = _messages.slice(-MAX_HISTORY * 2);
+    if (_messages.length > MAX_HISTORY) {
+        _messages = _messages.slice(-MAX_HISTORY);
     }
     saveHistory();
 }
@@ -296,42 +502,46 @@ function appendUserMsg(text) {
     scrollMessages();
 }
 
-function appendAssistantContent(contentBlocks) {
+function appendAssistantText(text) {
+    if (!text) return;
     var wrap = document.getElementById("ai-messages");
-    contentBlocks.forEach(function(block) {
-        if (block.type === "text" && block.text) {
-            var div = document.createElement("div");
-            div.className = "ai-msg ai-msg-assistant";
-            div.innerHTML = '<div class="ai-msg-label">AI Ассистент</div><div class="ai-bubble">' + formatMarkdown(block.text) + '</div>';
-            wrap.appendChild(div);
-        } else if (block.type === "tool_use") {
-            var tDiv = document.createElement("div");
-            tDiv.className = "ai-msg ai-msg-tool";
-            tDiv.innerHTML =
-                '<div class="ai-msg-label">Инструмент</div>' +
-                '<div class="ai-tool-block">' +
-                  '<div class="ai-tool-header" id="tool-' + esc(block.id) + '-hdr">' +
-                    '<span class="ai-tool-icon">🔧</span>' +
-                    '<span class="ai-tool-name">' + esc(block.name) + '</span>' +
-                    '<span class="ai-tool-status running" id="tool-' + esc(block.id) + '-status">Выполняется</span>' +
-                  '</div>' +
-                  '<div class="ai-tool-body" id="tool-' + esc(block.id) + '">' +
-                    'Аргументы: ' + esc(JSON.stringify(block.input)) +
-                  '</div>' +
-                '</div>';
-            wrap.appendChild(tDiv);
-            // toggle collapse on header click
-            (function(id) {
-                var hdr = document.getElementById("tool-" + id + "-hdr");
-                if (hdr) hdr.addEventListener("click", function() {
-                    var body = document.getElementById("tool-" + id);
-                    if (body) {
-                        body.classList.toggle("open");
-                        hdr.classList.toggle("open");
-                    }
-                });
-            })(block.id);
-        }
+    var div = document.createElement("div");
+    div.className = "ai-msg ai-msg-assistant";
+    div.innerHTML = '<div class="ai-msg-label">AI Ассистент</div><div class="ai-bubble">' + formatMarkdown(text) + '</div>';
+    wrap.appendChild(div);
+    scrollMessages();
+}
+
+function appendToolCallBlocks(toolCalls) {
+    var wrap = document.getElementById("ai-messages");
+    toolCalls.forEach(function(tc) {
+        var input = {};
+        try { input = JSON.parse(tc.function.arguments || "{}"); } catch(e) {}
+        var div = document.createElement("div");
+        div.className = "ai-msg ai-msg-tool";
+        div.innerHTML =
+            '<div class="ai-msg-label">Инструмент</div>' +
+            '<div class="ai-tool-block">' +
+              '<div class="ai-tool-header" id="tool-' + esc(tc.id) + '-hdr">' +
+                '<span class="ai-tool-icon">🔧</span>' +
+                '<span class="ai-tool-name">' + esc(tc.function.name) + '</span>' +
+                '<span class="ai-tool-status running" id="tool-' + esc(tc.id) + '-status">Выполняется</span>' +
+              '</div>' +
+              '<div class="ai-tool-body" id="tool-' + esc(tc.id) + '">' +
+                'Аргументы: ' + esc(JSON.stringify(input)) +
+              '</div>' +
+            '</div>';
+        wrap.appendChild(div);
+        (function(id) {
+            var hdr = document.getElementById("tool-" + id + "-hdr");
+            if (hdr) hdr.addEventListener("click", function() {
+                var body = document.getElementById("tool-" + id);
+                if (body) {
+                    body.classList.toggle("open");
+                    hdr.classList.toggle("open");
+                }
+            });
+        })(tc.id);
     });
     scrollMessages();
 }
@@ -343,9 +553,7 @@ function updateToolStatus(elId, status, resultText) {
         statusEl.className = "ai-tool-status " + status;
         statusEl.textContent = status === "running" ? "Выполняется" : (status === "done" ? "Готово" : "Ошибка");
     }
-    if (bodyEl && resultText) {
-        bodyEl.textContent = resultText;
-    }
+    if (bodyEl && resultText) bodyEl.textContent = resultText;
     scrollMessages();
 }
 
@@ -364,9 +572,9 @@ function scrollMessages() {
     if (wrap) wrap.scrollTop = wrap.scrollHeight;
 }
 
-function setSendDisabled(disabled) {
+function setSendDisabled(d) {
     var btn = document.getElementById("ai-send");
-    if (btn) btn.disabled = disabled;
+    if (btn) btn.disabled = d;
 }
 
 function showError(msg) {
@@ -378,7 +586,6 @@ function showError(msg) {
     }
 }
 
-// Basic markdown-to-HTML: bold, code, newlines
 function formatMarkdown(text) {
     return esc(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -394,36 +601,131 @@ function esc(s) {
         .replace(/"/g, "&quot;");
 }
 
-// ── Status bar ────────────────────────────────────────────────────────────────
+// ── Status bar ─────────────────────────────────────────────────────────────────
 
 function setStatus(state, text) {
     var dot  = document.getElementById("ai-status-dot");
     var span = document.getElementById("ai-status-text");
-    if (dot)  { dot.className = "ai-status-dot " + state; }
-    if (span) { span.textContent = text; }
+    if (dot)  dot.className = "ai-status-dot " + state;
+    if (span) span.textContent = text;
 }
 
 function updateModelBadge() {
     var badge = document.getElementById("ai-model-badge");
-    var model = localStorage.getItem(MODEL_KEY) || "claude-sonnet-4-6";
-    // Shorten for display
-    var short = model.replace("claude-", "").replace("-20251001", "").replace("-4-6", " 4.6").replace("-4-5", " 4.5");
-    if (badge) badge.textContent = short;
+    if (!badge) return;
+    var provider = getProvider();
+    if (provider === "yandex") {
+        var model = localStorage.getItem(KEY_YA_MODEL) || YANDEX_DEFAULT_MODEL;
+        badge.textContent = "YandexGPT · " + model.replace("/latest", "");
+    } else {
+        var model = localStorage.getItem(KEY_AN_MODEL) || ANTHROPIC_DEFAULT_MODEL;
+        badge.textContent = "Claude · " + model.replace("claude-", "").replace("-4-6", " 4.6");
+    }
 }
 
-// ── History persist ────────────────────────────────────────────────────────────
+function updateStatusFromSettings() {
+    var provider = getProvider();
+    if (provider === "yandex") {
+        var key = localStorage.getItem(KEY_YA_KEY) || YANDEX_DEFAULT_KEY;
+        setStatus(key ? "ok" : "warn", key ? "Готов · Yandex GPT" : "Yandex API ключ не задан");
+    } else {
+        var key = localStorage.getItem(KEY_AN_KEY) || "";
+        setStatus(key ? "ok" : "warn", key ? "Готов · Anthropic Claude" : "Anthropic API ключ не задан — Настройки");
+    }
+}
+
+// ── Settings UI ────────────────────────────────────────────────────────────────
+
+function loadSettingsToUI() {
+    var provider = getProvider();
+    var ya = getYandexCreds();
+    var an = getAnthropicCreds();
+    var maxTok = localStorage.getItem(KEY_MAXTOKENS) || "2048";
+
+    var provSel = document.getElementById("ai-provider-select");
+    if (provSel) provSel.value = provider;
+
+    var yaKey    = document.getElementById("ai-ya-key");
+    var yaFolder = document.getElementById("ai-ya-folder");
+    var yaModel  = document.getElementById("ai-ya-model");
+    if (yaKey)    yaKey.value    = ya.key;
+    if (yaFolder) yaFolder.value = ya.folder;
+    if (yaModel)  yaModel.value  = ya.model;
+
+    var anKey   = document.getElementById("ai-an-key");
+    var anModel = document.getElementById("ai-an-model");
+    if (anKey)   anKey.value   = an.key;
+    if (anModel) anModel.value = an.model;
+
+    var maxTokSel = document.getElementById("ai-maxtokens-select");
+    if (maxTokSel) maxTokSel.value = maxTok;
+
+    switchProviderFields(provider);
+}
+
+function switchProviderFields(provider) {
+    var yandexFields    = document.getElementById("ai-yandex-fields");
+    var anthropicFields = document.getElementById("ai-anthropic-fields");
+    if (yandexFields)    yandexFields.style.display = provider === "yandex"    ? "" : "none";
+    if (anthropicFields) anthropicFields.style.display = provider === "anthropic" ? "" : "none";
+}
+
+function saveSettings() {
+    var provider = (document.getElementById("ai-provider-select") || {}).value || "yandex";
+    localStorage.setItem(KEY_PROVIDER, provider);
+
+    var yaKey    = (document.getElementById("ai-ya-key")    || {}).value || "";
+    var yaFolder = (document.getElementById("ai-ya-folder") || {}).value || "";
+    var yaModel  = (document.getElementById("ai-ya-model")  || {}).value || YANDEX_DEFAULT_MODEL;
+    if (yaKey)    localStorage.setItem(KEY_YA_KEY, yaKey);
+    if (yaFolder) localStorage.setItem(KEY_YA_FOLDER, yaFolder);
+    if (yaModel)  localStorage.setItem(KEY_YA_MODEL, yaModel);
+
+    var anKey   = (document.getElementById("ai-an-key")   || {}).value || "";
+    var anModel = (document.getElementById("ai-an-model") || {}).value || ANTHROPIC_DEFAULT_MODEL;
+    if (anKey)   localStorage.setItem(KEY_AN_KEY, anKey);
+    if (anModel) localStorage.setItem(KEY_AN_MODEL, anModel);
+
+    var maxTok = (document.getElementById("ai-maxtokens-select") || {}).value || "2048";
+    localStorage.setItem(KEY_MAXTOKENS, maxTok);
+
+    updateModelBadge();
+    updateStatusFromSettings();
+}
+
+async function testConnection() {
+    saveSettings();
+    var btn = document.getElementById("ai-settings-test");
+    if (btn) { btn.disabled = true; btn.textContent = "Проверка..."; }
+    setStatus("", "Проверка соединения...");
+    try {
+        // Simple test: single message, no tools
+        var provider = getProvider();
+        var testMsg = [{ role: "user", content: "Ответь одним словом: ОК" }];
+        if (provider === "yandex") {
+            await callYandex(testMsg);
+        } else {
+            await callAnthropic(testMsg);
+        }
+        setStatus("ok", "Соединение работает ✓");
+    } catch(ex) {
+        setStatus("err", "Ошибка: " + ex.message);
+        showError(ex.message);
+    }
+    if (btn) { btn.disabled = false; btn.textContent = "Проверить соединение"; }
+}
+
+// ── History ────────────────────────────────────────────────────────────────────
 
 function saveHistory() {
-    try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(_messages));
-    } catch (e) {}
+    try { localStorage.setItem(KEY_HISTORY, JSON.stringify(_messages)); } catch(e) {}
 }
 
 function loadHistory() {
     try {
-        var raw = localStorage.getItem(HISTORY_KEY);
+        var raw = localStorage.getItem(KEY_HISTORY);
         if (raw) return JSON.parse(raw);
-    } catch (e) {}
+    } catch(e) {}
     return [];
 }
 
@@ -431,73 +733,20 @@ function restoreHistoryToDOM() {
     if (!_messages.length) return;
     hideEmpty();
     _messages.forEach(function(msg) {
-        if (msg.role === "user") {
-            if (Array.isArray(msg.content)) {
-                // tool_result blocks — skip visual restore (already shown via tool blocks)
-            } else {
-                appendUserMsg(msg.content);
-            }
+        if (msg.role === "user" && typeof msg.content === "string") {
+            appendUserMsg(msg.content);
         } else if (msg.role === "assistant") {
-            var blocks = Array.isArray(msg.content) ? msg.content : [{ type: "text", text: msg.content }];
-            appendAssistantContent(blocks);
-            // Mark tool statuses as done (we don't have results anymore for restored session)
-            blocks.forEach(function(b) {
-                if (b.type === "tool_use") {
-                    updateToolStatus("tool-" + b.id, "done");
-                }
-            });
+            if (msg.content) appendAssistantText(msg.content);
+            if (msg.tool_calls && msg.tool_calls.length) {
+                appendToolCallBlocks(msg.tool_calls);
+                // Mark as done (results already in history, just show status)
+                msg.tool_calls.forEach(function(tc) {
+                    updateToolStatus("tool-" + tc.id, "done");
+                });
+            }
         }
+        // "tool" role messages are not rendered (they're shown inline in tool blocks)
     });
-}
-
-// ── Settings ───────────────────────────────────────────────────────────────────
-
-function loadSettings() {
-    var keyInput   = document.getElementById("ai-key-input");
-    var modelSel   = document.getElementById("ai-model-select");
-    var maxTokSel  = document.getElementById("ai-maxtokens-select");
-
-    if (keyInput && localStorage.getItem(KEY_KEY))
-        keyInput.value = localStorage.getItem(KEY_KEY);
-    if (modelSel && localStorage.getItem(MODEL_KEY))
-        modelSel.value = localStorage.getItem(MODEL_KEY);
-    if (maxTokSel && localStorage.getItem(MAXTOK_KEY))
-        maxTokSel.value = localStorage.getItem(MAXTOK_KEY);
-}
-
-function saveSettings() {
-    var key    = (document.getElementById("ai-key-input")      || {}).value || "";
-    var model  = (document.getElementById("ai-model-select")   || {}).value || "claude-sonnet-4-6";
-    var maxTok = (document.getElementById("ai-maxtokens-select") || {}).value || "2048";
-
-    if (key)    localStorage.setItem(KEY_KEY, key);
-    if (model)  localStorage.setItem(MODEL_KEY, model);
-    if (maxTok) localStorage.setItem(MAXTOK_KEY, maxTok);
-    updateModelBadge();
-    updateStatusFromKey();
-}
-
-function updateStatusFromKey() {
-    var key = localStorage.getItem(KEY_KEY) || "";
-    if (!key) {
-        setStatus("warn", "API ключ не задан — откройте Настройки");
-    } else {
-        setStatus("ok", "Готов к работе");
-    }
-}
-
-async function testConnection() {
-    var btn = document.getElementById("ai-settings-test");
-    if (btn) { btn.disabled = true; btn.textContent = "Проверка..."; }
-    setStatus("", "Проверка соединения...");
-    try {
-        var resp = await callClaude([{ role: "user", content: "Reply with just: OK" }]);
-        setStatus("ok", "Соединение работает ✓");
-    } catch (ex) {
-        setStatus("err", "Ошибка: " + ex.message);
-        showError(ex.message);
-    }
-    if (btn) { btn.disabled = false; btn.textContent = "Проверить соединение"; }
 }
 
 // ── Load initial NAS context ───────────────────────────────────────────────────
@@ -509,32 +758,33 @@ async function loadNasContext() {
         _nasContext = "Хост: " + (status.hostname || "?") +
             ", Uptime: " + (status.uptime || "?") +
             ", RAM: " + ((status.memory || {}).used_mb || "?") + "/" + ((status.memory || {}).total_mb || "?") + " MB" +
-            "\nNagрузка: " + JSON.stringify((status.load || {})) +
-            "\nmdstat: " + (disks.mdstat || "N/A").substring(0, 500);
-        setStatus("ok", "Контекст загружен · " + (status.hostname || "NAS"));
-    } catch (ex) {
+            "\nНагрузка: " + JSON.stringify(status.load || {}) +
+            "\nmdstat: " + String(disks.mdstat || "N/A").substring(0, 500);
+    } catch(ex) {
         _nasContext = "";
-        setStatus("warn", "Контекст не загружен (NAS недоступен)");
     }
-    updateStatusFromKey();
+    updateStatusFromSettings();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Restore history
+    // Pre-fill Yandex defaults if not yet stored
+    if (!localStorage.getItem(KEY_YA_KEY))    localStorage.setItem(KEY_YA_KEY,    YANDEX_DEFAULT_KEY);
+    if (!localStorage.getItem(KEY_YA_FOLDER)) localStorage.setItem(KEY_YA_FOLDER, YANDEX_DEFAULT_FOLDER);
+    if (!localStorage.getItem(KEY_YA_MODEL))  localStorage.setItem(KEY_YA_MODEL,  YANDEX_DEFAULT_MODEL);
+    if (!localStorage.getItem(KEY_PROVIDER))  localStorage.setItem(KEY_PROVIDER,  "yandex");
+
     _messages = loadHistory();
     restoreHistoryToDOM();
 
-    // Load settings
-    loadSettings();
+    loadSettingsToUI();
     updateModelBadge();
-    updateStatusFromKey();
+    updateStatusFromSettings();
 
-    // Load NAS context
     loadNasContext();
 
-    // Send button
+    // Send
     document.getElementById("ai-send").addEventListener("click", function() {
         var inp = document.getElementById("ai-input");
         var text = inp.value.trim();
@@ -544,7 +794,7 @@ document.addEventListener("DOMContentLoaded", function() {
         sendMessage(text);
     });
 
-    // Enter to send (Shift+Enter = newline)
+    // Enter = send, Shift+Enter = newline
     document.getElementById("ai-input").addEventListener("keydown", function(e) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -558,29 +808,16 @@ document.addEventListener("DOMContentLoaded", function() {
         this.style.height = Math.min(this.scrollHeight, 140) + "px";
     });
 
-    // Clear button
+    // Clear history
     document.getElementById("ai-clear").addEventListener("click", function() {
         if (!confirm("Очистить историю чата?")) return;
         _messages = [];
-        localStorage.removeItem(HISTORY_KEY);
+        localStorage.removeItem(KEY_HISTORY);
         var wrap = document.getElementById("ai-messages");
         wrap.innerHTML = "";
-        // Re-add empty state
         var empty = document.createElement("div");
-        empty.id = "ai-empty";
-        empty.className = "ai-empty";
-        empty.innerHTML =
-            '<div class="ai-empty-icon">🤖</div>' +
-            '<div class="ai-empty-title">Привет! Я AI-ассистент rusNAS</div>' +
-            '<div class="ai-empty-hint">Задайте вопрос на русском языке или выберите команду ниже.</div>' +
-            '<div class="ai-suggestion-chips">' +
-            '<div class="ai-chip" id="chip-status">📊 Состояние системы</div>' +
-            '<div class="ai-chip" id="chip-disks">💿 Покажи диски и RAID</div>' +
-            '<div class="ai-chip" id="chip-shares">📂 Список шар</div>' +
-            '<div class="ai-chip" id="chip-snap">📸 Снапшоты documents</div>' +
-            '<div class="ai-chip" id="chip-users">👥 Список пользователей</div>' +
-            '<div class="ai-chip" id="chip-events">🛡️ Последние события Guard</div>' +
-            '</div>';
+        empty.id = "ai-empty"; empty.className = "ai-empty";
+        empty.innerHTML = buildEmptyHTML();
         wrap.appendChild(empty);
         bindChips();
     });
@@ -591,6 +828,11 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("ai-settings-panel").classList.toggle("open");
     });
 
+    // Provider switch
+    document.getElementById("ai-provider-select").addEventListener("change", function() {
+        switchProviderFields(this.value);
+    });
+
     // Settings save
     document.getElementById("ai-settings-save").addEventListener("click", function() {
         saveSettings();
@@ -599,14 +841,24 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // Settings test
-    document.getElementById("ai-settings-test").addEventListener("click", function() {
-        saveSettings();
-        testConnection();
-    });
+    document.getElementById("ai-settings-test").addEventListener("click", testConnection);
 
-    // Suggestion chips
     bindChips();
 });
+
+function buildEmptyHTML() {
+    return '<div class="ai-empty-icon">🤖</div>' +
+        '<div class="ai-empty-title">Привет! Я AI-ассистент rusNAS</div>' +
+        '<div class="ai-empty-hint">Задайте вопрос или выберите команду ниже.</div>' +
+        '<div class="ai-suggestion-chips">' +
+        '<div class="ai-chip" id="chip-status">📊 Состояние системы</div>' +
+        '<div class="ai-chip" id="chip-disks">💿 Диски и RAID</div>' +
+        '<div class="ai-chip" id="chip-shares">📂 Список шар</div>' +
+        '<div class="ai-chip" id="chip-snap">📸 Снапшоты documents</div>' +
+        '<div class="ai-chip" id="chip-users">👥 Пользователи</div>' +
+        '<div class="ai-chip" id="chip-events">🛡️ События Guard</div>' +
+        '</div>';
+}
 
 function bindChips() {
     var chips = {
@@ -620,12 +872,12 @@ function bindChips() {
     Object.keys(chips).forEach(function(id) {
         var el = document.getElementById(id);
         if (el) {
-            el.addEventListener("click", function() {
+            // Clone to remove old listeners
+            var newEl = el.cloneNode(true);
+            el.parentNode.replaceChild(newEl, el);
+            newEl.addEventListener("click", function() {
                 var inp = document.getElementById("ai-input");
-                if (inp) {
-                    inp.value = chips[id];
-                    document.getElementById("ai-send").click();
-                }
+                if (inp) { inp.value = chips[id]; document.getElementById("ai-send").click(); }
             });
         }
     });
