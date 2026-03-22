@@ -526,6 +526,7 @@ def cmd_dc_stop():
     if rc != 0:
         out({"ok": False, "error": stderr.strip() or "systemctl stop samba-ad-dc failed"})
         return
+    run(["systemctl", "reset-failed", "samba-ad-dc"])  # clear "failed" status display
     _restore_smbd()
     out({"ok": True})
 
