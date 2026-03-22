@@ -6,7 +6,7 @@
 var MCP_SCRIPT = "/usr/share/cockpit/rusnas/scripts/mcp-api.py";
 
 // Yandex AI Studio
-var YANDEX_API_BASE      = "https://ai.api.cloud.yandex.net/v1";
+// AI calls go through mcp-api.py proxy on VM — no CORS restrictions
 var YANDEX_DEFAULT_KEY   = "";
 var YANDEX_DEFAULT_FOLDER= "b1g2ikacmpc41ubdbitv";
 var YANDEX_DEFAULT_MODEL = "yandexgpt-5-pro/latest";
@@ -232,117 +232,106 @@ function getAnthropicCreds() {
     };
 }
 
-// ── Yandex API call (OpenAI-compatible) ────────────────────────────────────────
+// ── AI call via mcp-api.py proxy (bypasses CORS) ─────────────────────────────
+// Flow: write JSON payload → /tmp/rusnas-ai-req.json via cockpit.file()
+//       → spawn mcp-api.py ai-chat /tmp/rusnas-ai-req.json
+// This avoids cockpit.spawn stdin issues and bypasses browser CORS restrictions.
 
-async function callYandex(messages) {
-    var creds = getYandexCreds();
-    if (!creds.key) throw new Error("Yandex API ключ не задан — откройте Настройки.");
+var AI_TMP_FILE = "/tmp/rusnas-ai-req.json";
 
-    var modelUri = "gpt://" + creds.folder + "/" + creds.model;
-    var systemPrompt = buildSystemPrompt();
+function callViaProxy(messages) {
+    return new Promise(function(resolve, reject) {
+        var provider = getProvider();
+        var payload;
 
-    // Yandex: system message via "system" role in messages array
-    var allMessages = [{ role: "system", content: systemPrompt }].concat(messages);
+        if (provider === "yandex") {
+            var creds = getYandexCreds();
+            if (!creds.key) { reject(new Error("Yandex API ключ не задан — откройте Настройки.")); return; }
+            payload = {
+                provider:   "yandex",
+                key:        creds.key,
+                folder:     creds.folder,
+                model:      creds.model,
+                system:     buildSystemPrompt(),
+                messages:   messages,
+                tools:      TOOLS_OPENAI,
+                max_tokens: getMaxTokens()
+            };
+        } else {
+            var creds = getAnthropicCreds();
+            if (!creds.key) { reject(new Error("Anthropic API ключ не задан — откройте Настройки.")); return; }
+            payload = {
+                provider:        "anthropic",
+                key:             creds.key,
+                model:           creds.model,
+                system:          buildSystemPrompt(),
+                messages:        convertToAnthropicMessages(messages),
+                anthropic_tools: toAnthropicTools(TOOLS_OPENAI),
+                max_tokens:      getMaxTokens()
+            };
+        }
 
-    var resp = await fetch(YANDEX_API_BASE + "/chat/completions", {
-        method: "POST",
-        headers: {
-            "Authorization": "Bearer " + creds.key,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            model: modelUri,
-            messages: allMessages,
-            tools: TOOLS_OPENAI,
-            max_tokens: getMaxTokens()
-        })
+        // Step 1: write payload to temp file (cockpit.file runs as rusnas user, /tmp is world-writable)
+        cockpit.file(AI_TMP_FILE).replace(JSON.stringify(payload))
+            .then(function() {
+                // Step 2: spawn mcp-api.py with file path
+                var out = "";
+                cockpit.spawn(["sudo", "-n", "python3", MCP_SCRIPT, "ai-chat", AI_TMP_FILE],
+                              { err: "message" })
+                    .stream(function(data) { out += data; })
+                    .done(function() {
+                        // Clean up temp file (best-effort)
+                        cockpit.file(AI_TMP_FILE).replace(null).catch(function(){});
+                        try {
+                            var raw = JSON.parse(out);
+                            if (raw.ok === false) { reject(new Error(raw.error || "AI proxy error")); return; }
+                            resolve(normalizeResponse(raw, provider));
+                        } catch(e) {
+                            reject(new Error("AI proxy JSON parse error: " + out.substring(0, 300)));
+                        }
+                    })
+                    .fail(function(ex) {
+                        reject(new Error("cockpit.spawn error: " + (ex.message || String(ex))));
+                    });
+            })
+            .catch(function(ex) {
+                reject(new Error("Failed to write AI request: " + (ex.message || ex)));
+            });
     });
-
-    if (!resp.ok) {
-        var errBody = await resp.text();
-        var errMsg = "Yandex API ошибка " + resp.status;
-        try {
-            var j = JSON.parse(errBody);
-            errMsg += ": " + (j.error && (j.error.message || j.error) || errBody.substring(0, 300));
-        } catch (e) { errMsg += ": " + errBody.substring(0, 300); }
-        throw new Error(errMsg);
-    }
-
-    var data = await resp.json();
-    // Normalize to internal format
-    var choice = data.choices && data.choices[0];
-    if (!choice) throw new Error("Yandex: пустой ответ");
-
-    return {
-        stopReason: choice.finish_reason,        // "stop" | "tool_calls"
-        text: choice.message.content || "",
-        toolCalls: choice.message.tool_calls || [], // [{id, type, function: {name, arguments}}]
-        rawMessage: choice.message                  // save for history
-    };
 }
 
-// ── Anthropic API call ─────────────────────────────────────────────────────────
-
-async function callAnthropic(messages) {
-    var creds = getAnthropicCreds();
-    if (!creds.key) throw new Error("Anthropic API ключ не задан — откройте Настройки.");
-
-    var resp = await fetch(ANTHROPIC_API, {
-        method: "POST",
-        headers: {
-            "x-api-key": creds.key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
-        body: JSON.stringify({
-            model: creds.model,
-            max_tokens: getMaxTokens(),
-            system: buildSystemPrompt(),
-            tools: toAnthropicTools(TOOLS_OPENAI),
-            messages: convertToAnthropicMessages(messages)
-        })
-    });
-
-    if (!resp.ok) {
-        var errBody = await resp.text();
-        var errMsg = "Anthropic API ошибка " + resp.status;
-        try {
-            var j = JSON.parse(errBody);
-            errMsg += ": " + (j.error && j.error.message || errBody.substring(0, 300));
-        } catch (e) { errMsg += ": " + errBody.substring(0, 300); }
-        throw new Error(errMsg);
+// Normalize provider response → internal format {stopReason, text, toolCalls, rawMessage}
+function normalizeResponse(data, provider) {
+    if (provider === "yandex") {
+        var choice = data.choices && data.choices[0];
+        if (!choice) throw new Error("Yandex: пустой ответ");
+        var msg = choice.message;
+        return {
+            stopReason: choice.finish_reason,
+            text:       msg.content || "",
+            toolCalls:  msg.tool_calls || [],
+            rawMessage: msg
+        };
+    } else {
+        // Anthropic → convert to OpenAI-format internally
+        var text = "", toolCalls = [];
+        (data.content || []).forEach(function(block) {
+            if (block.type === "text") {
+                text += block.text;
+            } else if (block.type === "tool_use") {
+                toolCalls.push({
+                    id: block.id, type: "function",
+                    function: { name: block.name, arguments: JSON.stringify(block.input || {}) }
+                });
+            }
+        });
+        var rawMessage = { role: "assistant", content: text };
+        if (toolCalls.length) rawMessage.tool_calls = toolCalls;
+        return {
+            stopReason: data.stop_reason === "tool_use" ? "tool_calls" : "stop",
+            text: text, toolCalls: toolCalls, rawMessage: rawMessage
+        };
     }
-
-    var data = await resp.json();
-
-    // Convert Anthropic response → internal format
-    var text = "";
-    var toolCalls = [];
-    (data.content || []).forEach(function(block) {
-        if (block.type === "text") {
-            text += block.text;
-        } else if (block.type === "tool_use") {
-            toolCalls.push({
-                id: block.id,
-                type: "function",
-                function: {
-                    name: block.name,
-                    arguments: JSON.stringify(block.input || {})
-                }
-            });
-        }
-    });
-
-    // Build OpenAI-format message for history
-    var rawMessage = { role: "assistant", content: text };
-    if (toolCalls.length) rawMessage.tool_calls = toolCalls;
-
-    return {
-        stopReason: data.stop_reason === "tool_use" ? "tool_calls" : "stop",
-        text: text,
-        toolCalls: toolCalls,
-        rawMessage: rawMessage
-    };
 }
 
 // Convert OpenAI-format messages → Anthropic format
@@ -393,9 +382,7 @@ function convertToAnthropicMessages(messages) {
 // ── Unified call ───────────────────────────────────────────────────────────────
 
 async function callAI(messages) {
-    return getProvider() === "anthropic"
-        ? callAnthropic(messages)
-        : callYandex(messages);
+    return callViaProxy(messages);
 }
 
 // ── System prompt ──────────────────────────────────────────────────────────────
@@ -699,14 +686,7 @@ async function testConnection() {
     if (btn) { btn.disabled = true; btn.textContent = "Проверка..."; }
     setStatus("", "Проверка соединения...");
     try {
-        // Simple test: single message, no tools
-        var provider = getProvider();
-        var testMsg = [{ role: "user", content: "Ответь одним словом: ОК" }];
-        if (provider === "yandex") {
-            await callYandex(testMsg);
-        } else {
-            await callAnthropic(testMsg);
-        }
+        await callViaProxy([{ role: "user", content: "Ответь одним словом: ОК" }]);
         setStatus("ok", "Соединение работает ✓");
     } catch(ex) {
         setStatus("err", "Ошибка: " + ex.message);

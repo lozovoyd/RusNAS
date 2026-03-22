@@ -4,7 +4,7 @@
 # Called via: cockpit.spawn(['sudo', '-n', 'python3', SCRIPT, cmd, ...args])
 # All output as JSON to stdout.
 
-import os, sys, json, subprocess, re, datetime
+import os, sys, json, subprocess, re, datetime, urllib.request, urllib.error, ssl
 
 LOG_FILE = "/var/log/rusnas/ai-actions.jsonl"
 GUARD_LOG = "/var/log/rusnas-guard/events.jsonl"
@@ -272,6 +272,92 @@ def cmd_get_smart(args):
     out, rc = run(["smartctl", "-a", dev_path], timeout=15)
     ok({"ok": True, "device": device, "output": out, "rc": rc})
 
+def cmd_ai_chat(args):
+    """Proxy AI API call from browser → VM (bypasses CORS).
+    Reads JSON request from a temp file (argv[0]) or stdin.
+    Input JSON: {provider, key, folder, model, system, messages, tools, max_tokens}
+    """
+    try:
+        if args:
+            # Primary: read from temp file written by cockpit.file()
+            with open(args[0]) as f:
+                raw = f.read()
+        else:
+            # Fallback: stdin
+            raw = sys.stdin.read()
+        req = json.loads(raw)
+    except Exception as e:
+        err(f"ai-chat: failed to parse request JSON: {e}")
+        return
+
+    provider   = req.get("provider", "yandex")
+    messages   = req.get("messages", [])
+    tools      = req.get("tools", [])
+    max_tokens = req.get("max_tokens", 2048)
+    system_txt = req.get("system", "")
+
+    try:
+        if provider == "yandex":
+            key    = req.get("key", "")
+            folder = req.get("folder", "")
+            model  = req.get("model", "yandexgpt-5-pro/latest")
+            model_uri = f"gpt://{folder}/{model}"
+
+            all_messages = []
+            if system_txt:
+                all_messages.append({"role": "system", "content": system_txt})
+            all_messages.extend(messages)
+
+            payload = {
+                "model": model_uri,
+                "messages": all_messages,
+                "tools": tools,
+                "max_tokens": max_tokens
+            }
+            url     = "https://ai.api.cloud.yandex.net/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            }
+
+        elif provider == "anthropic":
+            key      = req.get("key", "")
+            model    = req.get("model", "claude-sonnet-4-6")
+            an_tools = req.get("anthropic_tools", tools)
+
+            payload = {
+                "model": model,
+                "max_tokens": max_tokens,
+                "system": system_txt,
+                "tools": an_tools,
+                "messages": messages
+            }
+            url     = "https://api.anthropic.com/v1/messages"
+            headers = {
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            }
+
+        else:
+            err(f"ai-chat: unknown provider '{provider}'")
+            return
+
+        body = json.dumps(payload).encode("utf-8")
+        http_req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        ssl_ctx  = ssl.create_default_context()
+
+        with urllib.request.urlopen(http_req, context=ssl_ctx, timeout=60) as resp:
+            response_data = resp.read().decode("utf-8")
+
+        ok(json.loads(response_data))
+
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        err(f"ai-chat HTTP {e.code}: {body[:400]}")
+    except Exception as e:
+        err(f"ai-chat error: {e}")
+
 # ── dispatch ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -294,6 +380,7 @@ if __name__ == "__main__":
         "get-events":        lambda: cmd_get_events(args),
         "run-smart-test":    lambda: cmd_run_smart_test(args),
         "get-smart":         lambda: cmd_get_smart(args),
+        "ai-chat":           lambda: cmd_ai_chat(args),
     }
 
     handler = dispatch.get(cmd)
