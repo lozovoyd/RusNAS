@@ -25,6 +25,20 @@
   </div>
 </div>
 
+<!-- ── Rollback Banner ──────────────────────────────────────────────────────── -->
+<div id="netRollbackBanner" class="net-rollback-banner" style="display:none">
+  <div class="net-rollback-icon">⚠️</div>
+  <div class="net-rollback-text">
+    <strong>Настройки применены для <span id="rollbackIfaceName"></span>.</strong>
+    Автооткат через <strong><span id="rollbackCountdown">90</span> сек</strong>.
+    <br>Убедитесь, что соединение работает, и подтвердите изменения.
+  </div>
+  <div class="net-rollback-actions">
+    <button class="btn btn-success btn-sm" id="btnConfirmNetChange">✓ Подтвердить</button>
+    <button class="btn btn-danger btn-sm" id="btnRevertNetChange">↩ Откатить</button>
+  </div>
+</div>
+
 <!-- ── Tabs ─────────────────────────────────────────────────────────────────── -->
 <div class="advisor-tabs" id="netTabs">
   <button class="advisor-tab-btn active" data-tab="interfaces">Интерфейсы</button>
@@ -722,6 +736,26 @@
   </div>
 </div>
 
+<!-- Deprovision DC Modal -->
+<div class="modal-overlay" id="dcDeprovisionModal" style="display:none">
+  <div class="modal-box" style="width:480px">
+    <h3>⚠️ Удалить домен?</h3>
+    <p>Это действие <strong>необратимо</strong>. Будет выполнено:</p>
+    <ul style="margin:8px 0 12px;padding-left:20px;font-size:0.88rem">
+      <li>Остановка и отключение samba-ad-dc</li>
+      <li>Удаление базы данных домена (/var/lib/samba/private/)</li>
+      <li>Восстановление smb.conf из резервной копии (если есть)</li>
+    </ul>
+    <p style="font-size:0.88rem">Введите имя домена для подтверждения:</p>
+    <input id="dcDeprovisionConfirm" type="text" placeholder="corp.local" class="form-control" style="margin-bottom:10px">
+    <div id="dcDeprovisionErr" class="net-alert net-alert-danger" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn" id="btnCancelDeprovision">Отмена</button>
+      <button class="btn btn-danger" id="btnConfirmDeprovision">🗑 Удалить домен</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
 <!-- MODALS -->
 <!-- ══════════════════════════════════════════════════════════════════════════ -->
@@ -803,6 +837,36 @@
     <div class="modal-footer">
       <button class="btn" id="btnIpWarnCancel">Отмена</button>
       <button class="btn btn-danger" id="btnIpWarnConfirm">Всё равно применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Net Safety Modal (auto-revert explanation) -->
+<div class="modal-overlay" id="netSafetyModal" style="display:none">
+  <div class="modal-box" style="width:500px">
+    <h3>🛡 Настройки применены — запущен авто-откат</h3>
+    <div class="net-safety-changes" id="netSafetyChanges"></div>
+    <div class="net-safety-explain">
+      <p>Изменение сетевых настроек может <strong>разорвать соединение</strong> с сервером.</p>
+      <p>Запущен <strong>таймер автоотката на <span id="netSafetySeconds">90</span> секунд</strong>.
+         Если вы не подтвердите изменения в течение этого времени — настройки вернутся к предыдущим автоматически.</p>
+      <div class="net-safety-steps">
+        <div class="net-safety-step">
+          <span class="net-safety-num">1</span>
+          Убедитесь, что соединение с сервером работает
+        </div>
+        <div class="net-safety-step">
+          <span class="net-safety-num">2</span>
+          Вернитесь в Cockpit и нажмите <strong>«✓ Подтвердить»</strong> в баннере вверху страницы
+        </div>
+        <div class="net-safety-step">
+          <span class="net-safety-num">3</span>
+          Если что-то пошло не так — нажмите <strong>«↩ Откатить»</strong> или подождите <span id="netSafetySeconds2">90</span> сек — откат произойдёт автоматически
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btnNetSafetyOk">Понятно — слежу за соединением</button>
     </div>
   </div>
 </div>

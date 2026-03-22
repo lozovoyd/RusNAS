@@ -14,6 +14,7 @@ var _hostEditIdx   = -1;       // index in _netHosts for edit mode, -1 = new
 var _confirmCb     = null;     // callback for generic confirm modal
 var _ifacePendingCfg = null;   // pending iface config waiting for IP-warn confirm
 var _wolHistory    = [];
+var _rollbackState = null;     // { iface, timer } | null — active auto-revert session
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +126,17 @@ function loadInterfaces() {
         renderIfaceCards();
         renderStatusBar();
         populateWolIfaceSelect();
+
+        // Check if any interface has a pending auto-revert (e.g. after page reload)
+        if (!_rollbackState) {
+            _netInterfaces.forEach(function(iface) {
+                netApi(["get-pending", iface.name]).then(function(r) {
+                    if (r.pending && !_rollbackState) {
+                        startRollbackCountdown(iface.name, r.seconds);
+                    }
+                }).catch(function() {});
+            });
+        }
     }).catch(function(e) {
         document.getElementById("ifaceCards").innerHTML =
             '<div class="net-loading" style="color:var(--danger)">Ошибка загрузки: ' + escHtml(String(e)) + '</div>';
@@ -370,15 +382,86 @@ function doSaveIface(name, cfg) {
     netApi(["set-interface", name, JSON.stringify(cfg)]).then(function(data) {
         if (!data.ok) {
             alert("Ошибка: " + (data.error || "неизвестная ошибка"));
+            loadInterfaces();
             return;
         }
         if (data.warn) {
             console.warn(data.warn);
         }
+        if (data.pending) {
+            startRollbackCountdown(name, data.seconds || REVERT_TIMEOUT_SECS);
+            // Show safety modal for critical changes
+            var oldIface = _netInterfaces.find(function(i){ return i.name === name; });
+            if (oldIface) {
+                var oldMode = oldIface.config_mode || "dhcp";
+                var oldIp   = oldIface.ipv4[0] ? oldIface.ipv4[0].ip : "";
+                var oldGw   = oldIface.gateway || "";
+                var isCritical = (cfg.mode !== oldMode)
+                              || (cfg.mode === "static" && cfg.ip && oldIp && cfg.ip !== oldIp)
+                              || (cfg.gateway && cfg.gateway !== oldGw);
+                if (isCritical) {
+                    showNetSafetyModal(oldIface, cfg, data.seconds || REVERT_TIMEOUT_SECS);
+                }
+            }
+        }
         loadInterfaces();
     }).catch(function(e) {
         alert("Ошибка: " + String(e));
     });
+}
+
+var REVERT_TIMEOUT_SECS = 90;
+
+function startRollbackCountdown(iface, seconds) {
+    if (_rollbackState && _rollbackState.timer) {
+        clearInterval(_rollbackState.timer);
+    }
+    var count = parseInt(seconds) || REVERT_TIMEOUT_SECS;
+    var bannerEl = document.getElementById("netRollbackBanner");
+    document.getElementById("rollbackIfaceName").textContent = iface;
+    document.getElementById("rollbackCountdown").textContent = count;
+    bannerEl.style.display = "flex";
+
+    _rollbackState = {
+        iface: iface,
+        timer: setInterval(function() {
+            count--;
+            var el = document.getElementById("rollbackCountdown");
+            if (el) el.textContent = count;
+            if (count <= 0) {
+                clearInterval(_rollbackState.timer);
+                _rollbackState = null;
+                bannerEl.style.display = "none";
+                loadInterfaces();  // show reverted config
+            }
+        }, 1000)
+    };
+}
+
+function showNetSafetyModal(oldIface, newCfg, seconds) {
+    var changes = [];
+    var oldMode = oldIface.config_mode || "dhcp";
+    var oldIp   = oldIface.ipv4[0] ? oldIface.ipv4[0].ip : "—";
+    var oldGw   = oldIface.gateway || "—";
+
+    if (oldMode !== newCfg.mode) {
+        changes.push("Режим: <b>" + escHtml(oldMode) + "</b> → <b>" + escHtml(newCfg.mode) + "</b>");
+    }
+    if (newCfg.mode === "static" && newCfg.ip && newCfg.ip !== oldIp) {
+        changes.push("IP: <b>" + escHtml(oldIp) + "</b> → <b>" + escHtml(newCfg.ip + "/" + (newCfg.prefix || 24)) + "</b>");
+    }
+    if (newCfg.gateway && newCfg.gateway !== oldGw) {
+        changes.push("Шлюз: <b>" + escHtml(oldGw) + "</b> → <b>" + escHtml(newCfg.gateway) + "</b>");
+    }
+
+    var changesHtml = changes.length
+        ? "<ul style='margin:4px 0 0 16px;padding:0'>" + changes.map(function(c){ return "<li>" + c + "</li>"; }).join("") + "</ul>"
+        : "<p style='margin:0'>Настройки применены.</p>";
+
+    document.getElementById("netSafetyChanges").innerHTML = changesHtml;
+    document.getElementById("netSafetySeconds").textContent  = seconds;
+    document.getElementById("netSafetySeconds2").textContent = seconds;
+    document.getElementById("netSafetyModal").style.display  = "flex";
 }
 
 function doIfdown(name) {
@@ -1416,6 +1499,34 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 
+    // Rollback banner buttons
+    document.getElementById("btnConfirmNetChange").addEventListener("click", function() {
+        if (!_rollbackState) return;
+        var iface = _rollbackState.iface;
+        netApi(["confirm-change", iface]).then(function() {
+            if (_rollbackState) clearInterval(_rollbackState.timer);
+            _rollbackState = null;
+            document.getElementById("netRollbackBanner").style.display = "none";
+        }).catch(function() {});
+    });
+
+    document.getElementById("btnRevertNetChange").addEventListener("click", function() {
+        if (!_rollbackState) return;
+        clearInterval(_rollbackState.timer);
+        var iface = _rollbackState.iface;
+        _rollbackState = null;
+        document.getElementById("netRollbackBanner").style.display = "none";
+        netApi(["revert-change", iface]).then(function(r) {
+            if (r && !r.ok) alert("Ошибка отката: " + (r.error || ""));
+            loadInterfaces();
+        }).catch(function() { loadInterfaces(); });
+    });
+
+    // Safety modal — close button
+    document.getElementById("btnNetSafetyOk").addEventListener("click", function() {
+        document.getElementById("netSafetyModal").style.display = "none";
+    });
+
     // Confirm modal
     document.getElementById("btnConfirmOk").addEventListener("click", function() {
         document.getElementById("confirmModal").style.display = "none";
@@ -2044,6 +2155,16 @@ function renderDcOverview(r, el) {
                     + '</div>';
             });
             html += '</div>';
+
+            // Info block — SMB shares work natively in DC mode
+            html += '<div class="domain-info-block">'
+                + '<div style="font-size:1.1rem;flex-shrink:0">ℹ️</div>'
+                + '<div><strong>SMB-шары работают нативно</strong><br>'
+                + 'Когда rusNAS является контроллером домена, пользователи домена <code>CORP\\имя</code> '
+                + 'подключаются к SMB-шарам напрямую — samba-ad-dc аутентифицирует их самостоятельно. '
+                + 'Режим «Участник домена» (Winbind) недоступен одновременно с DC: '
+                + 'DC сам выполняет роль, которую выполнял бы Winbind на member-сервере.</div>'
+                + '</div>';
         }
     } else {
         html += '<div class="domain-status-header">'
@@ -2059,11 +2180,17 @@ function renderDcOverview(r, el) {
         return '<span class="domain-svc-badge ' + (st === "active" ? "active" : "inactive") + '">'
             + '<span class="domain-svc-dot"></span>' + escHtml(name) + ' ' + escHtml(st) + '</span>';
     }
+    var dcActive = (svcs.samba_ad_dc === "active");
     html += '<div class="domain-services-row">'
         + svcBadge("samba-ad-dc", "samba_ad_dc")
         + svcBadge("bind9 (DNS)", "bind9")
-        + '<button class="btn btn-default btn-sm" id="btnRefreshDcOverview">↻ Обновить</button>'
-        + '</div>';
+        + '<button class="btn btn-default btn-sm" id="btnRefreshDcOverview">↻ Обновить</button>';
+    if (provisioned) {
+        html += '<button class="btn btn-default btn-sm" id="btnToggleDc">'
+            + (dcActive ? "⏹ Остановить DC" : "▶ Запустить DC") + '</button>'
+            + '<button class="btn btn-danger btn-sm" id="btnDeprovisionDc">🗑 Удалить домен</button>';
+    }
+    html += '</div>';
 
     html += '</div>';
     el.innerHTML = html;
@@ -2075,6 +2202,70 @@ function renderDcOverview(r, el) {
             document.querySelector('[data-subtab="dc-provision"]').click();
         });
     }
+    var btnToggle = document.getElementById("btnToggleDc");
+    if (btnToggle) {
+        btnToggle.addEventListener("click", function() {
+            var cmd = dcActive ? "dc-stop" : "dc-start";
+            btnToggle.disabled = true;
+            domainApi([cmd]).then(function(r) {
+                if (!r.ok) { alert(r.error || "Ошибка"); }
+                loadDcOverview();
+            }).catch(function(e) {
+                alert(e.message || "Ошибка");
+                loadDcOverview();
+            });
+        });
+    }
+    var btnDepr = document.getElementById("btnDeprovisionDc");
+    if (btnDepr) {
+        btnDepr.addEventListener("click", function() {
+            document.getElementById("dcDeprovisionConfirm").value = "";
+            document.getElementById("dcDeprovisionErr").style.display = "none";
+            document.getElementById("dcDeprovisionModal").style.display = "flex";
+        });
+    }
+}
+
+// ── DC Deprovision ─────────────────────────────────────────────────────────
+
+function initDcDeprovisionModal() {
+    var modal = document.getElementById("dcDeprovisionModal");
+    if (!modal) return;
+    document.getElementById("btnCancelDeprovision").addEventListener("click", function() {
+        modal.style.display = "none";
+    });
+    document.getElementById("btnConfirmDeprovision").addEventListener("click", function() {
+        var entered = (document.getElementById("dcDeprovisionConfirm").value || "").trim().toLowerCase();
+        var expected = (_dcState && _dcState.domain ? _dcState.domain.toLowerCase() : "");
+        var errEl = document.getElementById("dcDeprovisionErr");
+        if (!entered) {
+            errEl.textContent = "Введите имя домена для подтверждения";
+            errEl.style.display = "";
+            return;
+        }
+        if (entered !== expected) {
+            errEl.textContent = "Имя домена не совпадает. Ожидается: " + (_dcState.domain || "—");
+            errEl.style.display = "";
+            return;
+        }
+        errEl.style.display = "none";
+        document.getElementById("btnConfirmDeprovision").disabled = true;
+        domainApi(["dc-deprovision"]).then(function(r) {
+            modal.style.display = "none";
+            document.getElementById("btnConfirmDeprovision").disabled = false;
+            if (!r.ok) {
+                alert("Ошибка при удалении домена: " + (r.error || "неизвестная ошибка"));
+            }
+            _domainTabLoaded = false;
+            initDomainTab();
+        }).catch(function(e) {
+            modal.style.display = "none";
+            document.getElementById("btnConfirmDeprovision").disabled = false;
+            alert("Ошибка: " + (e.message || e));
+            _domainTabLoaded = false;
+            initDomainTab();
+        });
+    });
 }
 
 // ── DC Provision ───────────────────────────────────────────────────────────
@@ -2084,8 +2275,10 @@ function initDcProvision() {
     var nbEl = document.getElementById("dcNetbiosName");
     if (fqdnEl && nbEl) {
         fqdnEl.addEventListener("input", function() {
-            var val = this.value.split(".")[0].toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,15);
-            nbEl.value = val;
+            var first = this.value.split(".")[0].toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,15);
+            // NetBIOS must differ from server hostname — append suffix if equal
+            var hostname = (typeof location !== "undefined" ? location.hostname : "").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,15);
+            nbEl.value = (first && hostname && first === hostname) ? first.slice(0,13) + "AD" : first;
         });
     }
 
@@ -2103,6 +2296,13 @@ function initDcProvision() {
 
         if (!fqdn) { errEl.textContent = "Введите имя домена"; errEl.style.display = ""; return; }
         if (!nb) { errEl.textContent = "Введите NetBIOS имя"; errEl.style.display = ""; return; }
+        // NetBIOS must not equal the server's short hostname
+        var hostname = (typeof location !== "undefined" ? location.hostname : "").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,15);
+        if (hostname && nb.toUpperCase() === hostname) {
+            errEl.textContent = "NetBIOS имя домена не может совпадать с именем сервера (" + hostname + "). Используйте другое имя, например: " + nb.slice(0,13) + "AD";
+            errEl.style.display = "";
+            return;
+        }
         if (!pass) { errEl.textContent = "Введите пароль"; errEl.style.display = ""; return; }
         if (pass !== passC) { errEl.textContent = "Пароли не совпадают"; errEl.style.display = ""; return; }
 
@@ -2623,6 +2823,7 @@ function initDomainTab() {
     initSubtabs("#memberSubtabs", "member");
     initSubtabs("#dcSubtabs", "dc");
     initDcProvision();
+    initDcDeprovisionModal();
     initDomainModals();
     loadDomain();
 }

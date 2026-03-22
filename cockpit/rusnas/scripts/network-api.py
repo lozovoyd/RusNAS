@@ -4,11 +4,13 @@
 # Called via: cockpit.spawn(['sudo', '-n', 'python3', SCRIPT, mode, ...args])
 # All output as JSON to stdout.
 
-import os, sys, json, subprocess, re, shutil, tempfile
+import os, sys, json, subprocess, re, shutil, tempfile, time
 
 INTERFACES_FILE = "/etc/network/interfaces"
 RESOLV_CONF     = "/etc/resolv.conf"
 HOSTS_FILE      = "/etc/hosts"
+BAK_DIR         = "/etc/rusnas"
+REVERT_SECONDS  = 90
 
 # System hosts entries to preserve but not show in UI
 SYSTEM_HOSTS_PREFIXES = ("127.", "::1", "ff02::", "fe00::")
@@ -42,6 +44,7 @@ def parse_interfaces(path=INTERFACES_FILE):
     ifaces = {}
     current = None
     auto_set = set()
+    auto_keywords = {}   # name → "auto" | "allow-hotplug"
 
     try:
         with open(path) as f:
@@ -55,8 +58,10 @@ def parse_interfaces(path=INTERFACES_FILE):
             continue
 
         if line_s.startswith("auto ") or line_s.startswith("allow-hotplug "):
+            keyword = line_s.split()[0]   # "auto" or "allow-hotplug"
             for name in line_s.split()[1:]:
                 auto_set.add(name)
+                auto_keywords[name] = keyword
 
         elif line_s.startswith("iface "):
             parts = line_s.split()
@@ -94,6 +99,7 @@ def parse_interfaces(path=INTERFACES_FILE):
     for name in auto_set:
         if name in ifaces:
             ifaces[name]["auto"] = True
+            ifaces[name]["auto_keyword"] = auto_keywords.get(name, "auto")
 
     return ifaces
 
@@ -412,6 +418,24 @@ def _persist_route_del(network, gateway):
         pass
 
 
+def _cleanup_rollback_files(iface):
+    for path in [f"{BAK_DIR}/net-rollback-{iface}.bak",
+                 f"{BAK_DIR}/net-rollback-{iface}.ts"]:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+
+
+def _do_revert(iface):
+    bak = f"{BAK_DIR}/net-rollback-{iface}.bak"
+    if os.path.exists(bak):
+        shutil.copy2(bak, INTERFACES_FILE)
+        run(["/usr/sbin/ifdown", iface])
+        run(["/usr/sbin/ifup", iface], timeout=15)
+    _cleanup_rollback_files(iface)
+
+
 def cmd_set_interface(iface_name, config_json):
     """
     Rewrite the iface block for iface_name in /etc/network/interfaces.
@@ -427,7 +451,12 @@ def cmd_set_interface(iface_name, config_json):
     mode = cfg.get("mode", "dhcp")
     mtu  = cfg.get("mtu", "")
 
-    lines = [f"\nauto {iface_name}\n"]
+    # Read existing config first — preserve auto_keyword and post-up routes
+    ifaces_cfg = parse_interfaces()
+    existing = ifaces_cfg.get(iface_name, {})
+    auto_keyword = existing.get("auto_keyword", "auto")
+
+    lines = [f"\n{auto_keyword} {iface_name}\n"]
     lines.append(f"iface {iface_name} inet {mode}\n")
 
     if mode == "static":
@@ -445,9 +474,6 @@ def cmd_set_interface(iface_name, config_json):
     if mtu and str(mtu) != "1500":
         lines.append(f"\tmtu {mtu}\n")
 
-    # Preserve existing post-up routes
-    ifaces_cfg = parse_interfaces()
-    existing = ifaces_cfg.get(iface_name, {})
     for pu in existing.get("post_up", []):
         lines.append(f"\tpost-up {pu}\n")
 
@@ -465,13 +491,22 @@ def cmd_set_interface(iface_name, config_json):
 
     new_block = "".join(lines)
 
+    bak_path = f"{BAK_DIR}/net-rollback-{iface_name}.bak"
+    ts_path  = f"{BAK_DIR}/net-rollback-{iface_name}.ts"
+
+    # Save backup BEFORE any changes
+    try:
+        os.makedirs(BAK_DIR, exist_ok=True)
+        shutil.copy2(INTERFACES_FILE, bak_path)
+    except Exception:
+        pass  # non-fatal
+
     try:
         with open(INTERFACES_FILE) as f:
             content = f.read()
 
-        # Remove existing auto + iface blocks for this interface
-        # auto line
-        content = re.sub(r"\bauto\s+" + re.escape(iface_name) + r"[ \t]*\n", "", content)
+        # Remove existing auto/allow-hotplug + iface blocks for this interface
+        content = re.sub(r"\b(?:auto|allow-hotplug)\s+" + re.escape(iface_name) + r"[ \t]*\n", "", content)
         # iface block(s)
         content = re.sub(
             r"iface\s+" + re.escape(iface_name) + r"\s+inet6?\s+\S+(?:\n(?:[ \t]+\S.*|\n))*",
@@ -485,17 +520,78 @@ def cmd_set_interface(iface_name, config_json):
             f.write(content)
         os.rename(tmp, INTERFACES_FILE)
     except Exception as e:
+        _cleanup_rollback_files(iface_name)
         err(f"Write error: {e}")
         return
 
     # Apply: ifdown + ifup
-    run(["sudo", "-n", "/usr/sbin/ifdown", iface_name])
-    _, rc = run(["sudo", "-n", "/usr/sbin/ifup", iface_name], timeout=15)
+    run(["/usr/sbin/ifdown", iface_name])
+    _, rc = run(["/usr/sbin/ifup", iface_name], timeout=15)
     if rc != 0:
-        # not fatal — config was written, interface may come up on next boot
-        ok({"ok": True, "warn": f"Interface applied but ifup returned rc={rc}"})
+        # ifup failed — auto-revert immediately
+        _do_revert(iface_name)
+        ok({"ok": False, "error": f"ifup failed (rc={rc}), config reverted automatically"})
         return
 
+    # Arm auto-revert timer
+    expires_at = time.time() + REVERT_SECONDS
+    try:
+        with open(ts_path, "w") as f:
+            f.write(str(expires_at))
+    except Exception:
+        pass
+
+    unit_name  = f"rusnas-net-revert-{iface_name}"
+    revert_cmd = ["python3", "/usr/share/cockpit/rusnas/scripts/network-api.py",
+                  "_revert-apply", iface_name]
+    run(["systemd-run",
+         f"--on-active={REVERT_SECONDS}s",
+         f"--unit={unit_name}",
+         "--description=rusNAS network auto-revert",
+         "--"] + revert_cmd)
+
+    ok({"ok": True, "pending": True, "seconds": REVERT_SECONDS})
+
+
+def cmd_confirm_change(iface):
+    unit = f"rusnas-net-revert-{iface}"
+    run(["systemctl", "stop", f"{unit}.timer"])
+    run(["systemctl", "stop", f"{unit}.service"])
+    _cleanup_rollback_files(iface)
+    ok({"ok": True})
+
+
+def cmd_revert_change(iface):
+    unit = f"rusnas-net-revert-{iface}"
+    run(["systemctl", "stop", f"{unit}.timer"])
+    run(["systemctl", "stop", f"{unit}.service"])
+    _do_revert(iface)
+    ok({"ok": True})
+
+
+def cmd_get_pending(iface):
+    bak  = f"{BAK_DIR}/net-rollback-{iface}.bak"
+    ts_f = f"{BAK_DIR}/net-rollback-{iface}.ts"
+    if not os.path.exists(bak):
+        ok({"ok": True, "pending": False})
+        return
+    _, rc = run(["systemctl", "is-active", f"rusnas-net-revert-{iface}.timer"])
+    if rc != 0:
+        _cleanup_rollback_files(iface)
+        ok({"ok": True, "pending": False})
+        return
+    remaining = REVERT_SECONDS
+    try:
+        expires = float(open(ts_f).read())
+        remaining = max(0, int(expires - time.time()))
+    except Exception:
+        pass
+    ok({"ok": True, "pending": True, "seconds": remaining})
+
+
+def cmd_revert_apply(iface):
+    """Called by systemd transient timer when admin doesn't confirm."""
+    _do_revert(iface)
     ok({"ok": True})
 
 
@@ -541,8 +637,12 @@ if __name__ == "__main__":
             args[0] if len(args)>0 else "",
             args[1] if len(args)>1 else "{}",
         ),
-        "ifdown":         lambda: cmd_ifdown(args[0] if args else ""),
-        "ifup":           lambda: cmd_ifup(args[0] if args else ""),
+        "ifdown":           lambda: cmd_ifdown(args[0] if args else ""),
+        "ifup":             lambda: cmd_ifup(args[0] if args else ""),
+        "confirm-change":   lambda: cmd_confirm_change(args[0] if args else ""),
+        "revert-change":    lambda: cmd_revert_change(args[0] if args else ""),
+        "get-pending":      lambda: cmd_get_pending(args[0] if args else ""),
+        "_revert-apply":    lambda: cmd_revert_apply(args[0] if args else ""),
     }
 
     if cmd in dispatch:

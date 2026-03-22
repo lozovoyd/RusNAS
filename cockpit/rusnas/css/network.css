@@ -582,6 +582,74 @@
   color: var(--color);
 }
 
+/* ── Rollback Banner ─────────────────────────────────────────────────────── */
+.net-rollback-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 12px 24px 0;
+}
+
+.net-rollback-icon { font-size: 1.4rem; flex-shrink: 0; }
+.net-rollback-text { flex: 1; font-size: 0.87rem; line-height: 1.5; }
+.net-rollback-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── Safety Modal ────────────────────────────────────────────────────────── */
+.net-safety-changes {
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+}
+
+.net-safety-explain { font-size: 0.87rem; line-height: 1.6; }
+.net-safety-explain p { margin: 0 0 8px; }
+
+.net-safety-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.net-safety-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-th);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.net-safety-num {
+  background: var(--primary, #f97316);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+@media (max-width: 768px) {
+  .net-rollback-banner { flex-direction: column; align-items: flex-start; margin: 8px 16px 0; }
+  .net-rollback-actions { width: 100%; }
+  .net-rollback-actions .btn { flex: 1; }
+}
+
 /* ── Countdown (IP change) ───────────────────────────────────────────────── */
 .net-countdown {
   font-size: 3.5rem;
@@ -1273,6 +1341,26 @@
 .domain-repl-table-wrap {
   overflow-x: auto;
   margin: 12px 0;
+}
+
+.domain-info-block {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: 0.83rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+.domain-info-block code {
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.8rem;
 }
 
 /* Mobile */
