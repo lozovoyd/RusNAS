@@ -895,6 +895,8 @@ header{
       <div class="feat-card"><div class="feat-icon">📡</div><div class="feat-title">Мониторинг и алёрты</div><div class="feat-desc">Встроенный Prometheus-endpoint и JSON API (порт 9100). Готово для Zabbix и Grafana. Метрики CPU, RAM, дискового I/O, сети, SMART и ИБП в реальном времени.</div></div>
       <div class="feat-card" style="border-color:rgba(156,39,176,0.2);"><div class="feat-icon" style="background:rgba(156,39,176,0.1);border-color:rgba(156,39,176,0.2);">🔍</div><div class="feat-title">Анализатор пространства</div><div class="feat-desc">Визуализация занятости дисков: интерактивная тримап, прогноз заполнения, разбивка по шарам, пользователям и типам файлов. Фильтрация по типу (бэкапы, видео, документы) с рекурсивным поиском. История роста за 30 дней.</div></div>
       <div class="feat-card" style="border-color:rgba(255,152,0,0.2);"><div class="feat-icon" style="background:rgba(255,152,0,0.1);border-color:rgba(255,152,0,0.2);">⚡</div><div class="feat-title">SSD-кеширование</div><div class="feat-desc">Ускорение HDD RAID через LVM dm-cache. SSD действует как кеш горячих данных перед массивом. Безопасный и быстрый режимы, мониторинг hit-rate в реальном времени.</div></div>
+      <div class="feat-card" style="border-color:rgba(63,81,181,0.2);"><div class="feat-icon" style="background:rgba(63,81,181,0.1);border-color:rgba(63,81,181,0.2);">🏢</div><div class="feat-title">Active Directory</div><div class="feat-desc">Два режима: Участник домена (Winbind/SSSD) или собственный Контроллер домена (Samba AD DC). Управление пользователями, группами, DNS, GPO и репликацией прямо из UI — без командной строки.</div></div>
+      <div class="feat-card" style="border-color:rgba(0,188,212,0.2);"><div class="feat-icon" style="background:rgba(0,188,212,0.1);border-color:rgba(0,188,212,0.2);">🔒</div><div class="feat-title">TLS-сертификаты</div><div class="feat-desc">Автовыпуск Let's Encrypt (certbot 4.0), самоподписанные с SAN, импорт готовых PEM. Авто-обновление по таймеру (daily 03:30). Управление из браузера без CLI.</div></div>
     </div>
   </div>
 </section>
@@ -918,6 +920,7 @@ header{
       <div class="tech-item"><div class="tech-name">Ansible + deb-репо</div><div class="tech-desc">Автоматизированное развёртывание и обновление парка. IaC-подход.</div></div>
       <div class="tech-item"><div class="tech-name">NUT 2.8</div><div class="tech-desc">Network UPS Tools. Мониторинг ИБП любого производителя. Авто-завершение при разряде батареи.</div></div>
       <div class="tech-item"><div class="tech-name">duperemove + Prometheus</div><div class="tech-desc">Блочная дедупликация + встроенный metrics-сервер для Prometheus, Zabbix и Grafana.</div></div>
+      <div class="tech-item"><div class="tech-name">Samba AD DC + Winbind</div><div class="tech-desc">Active Directory контроллер домена или участник домена. Kerberos, LDAP, DNS, GPO — полный стек без Windows Server.</div></div>
     </div>
     <p class="tech-note">Стандартные пакеты Debian. Без вендорных зависимостей. Без проприетарных компонентов в ядре системы.</p>
   </div>
@@ -1364,8 +1367,12 @@ header{
             <div class="ds-val"><span class="chk">✓</span> Btrfs qgroups · на пользователя и группу</div>
           </div>
           <div class="ds-row">
-            <div class="ds-param">Active Directory (AD)</div>
-            <div class="ds-val"><span class="chk">✓</span> Winbind · прозрачная интеграция · Kerberos SSO</div>
+            <div class="ds-param">Участник домена AD</div>
+            <div class="ds-val"><span class="chk">✓</span> Winbind / SSSD · Kerberos SSO · wizard Join в UI</div>
+          </div>
+          <div class="ds-row">
+            <div class="ds-param">Контроллер домена AD</div>
+            <div class="ds-val"><span class="chk">✓</span> Samba AD DC · пользователи, группы, DNS, GPO, репликация — без Windows Server</div>
           </div>
           <div class="ds-row">
             <div class="ds-param">LDAP</div>
@@ -2565,7 +2572,8 @@ header{
         <tr><td>SMB</td><td class="c-syn yes">✅ SMB 1/2/3</td><td class="c-rus yes">✅ SMB 2/3/3.1.1</td></tr>
         <tr><td>NFS</td><td class="c-syn yes">✅ v3/v4</td><td class="c-rus yes">✅ v3/v4/v4.1</td></tr>
         <tr><td>iSCSI · FTP · WebDAV · Rsync · AFP</td><td class="c-syn yes">✅</td><td class="c-rus yes">✅</td></tr>
-        <tr><td>Active Directory / LDAP</td><td class="c-syn yes">✅</td><td class="c-rus yes">✅ Winbind / SSSD</td></tr>
+        <tr><td>Участник Active Directory</td><td class="c-syn yes">✅ DSM Join Domain</td><td class="c-rus yes">✅ Winbind / SSSD — wizard в UI</td></tr>
+        <tr class="hl"><td>Собственный AD DC (Samba)</td><td class="c-syn no">❌ Только клиент</td><td class="c-rus yes">✅ Samba AD DC — provision, пользователи, GPO, DNS, репликация</td></tr>
         <tr><td>Макс. пользователей</td><td class="c-syn">2 048</td><td class="c-rus">2 048</td></tr>
         <tr><td>Макс. общих папок</td><td class="c-syn">512</td><td class="c-rus">512</td></tr>
         <tr><td>S.M.A.R.T. мониторинг</td><td class="c-syn yes">✅</td><td class="c-rus yes">✅ smartmontools</td></tr>
