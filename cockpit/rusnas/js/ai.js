@@ -7,8 +7,8 @@ var MCP_SCRIPT = "/usr/share/cockpit/rusnas/scripts/mcp-api.py";
 
 // Yandex AI Studio
 // AI calls go through mcp-api.py proxy on VM — no CORS restrictions
-var YANDEX_DEFAULT_KEY   = "";
-var YANDEX_DEFAULT_FOLDER= "b1g2ikacmpc41ubdbitv";
+var YANDEX_DEFAULT_KEY   = "";   // configure via AI Settings page
+var YANDEX_DEFAULT_FOLDER= "";  // configure via AI Settings page
 var YANDEX_DEFAULT_MODEL = "yandexgpt-5-pro/latest";
 
 // Anthropic
