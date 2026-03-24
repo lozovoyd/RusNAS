@@ -30,6 +30,89 @@
 <!-- ── Alert Banner ──────────────────────────────────────────────────────── -->
 <div id="db-alert-banner" class="db-alert-banner hidden"></div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- NIGHT REPORT WIDGET                                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div id="night-report" class="db-night-report" style="display:none">
+
+  <!-- Header -->
+  <div class="nr-header">
+    <div class="nr-header-left">
+      <span class="nr-title">🌙 Ночной отчёт</span>
+      <span class="nr-period" id="nr-period"></span>
+    </div>
+    <div class="nr-status" id="nr-status"></div>
+  </div>
+
+  <!-- Summary row: 5 ключевых метрик -->
+  <div class="nr-summary-row">
+    <div class="nr-stat">
+      <div class="nr-stat-label">Снэпшоты</div>
+      <div class="nr-stat-value" id="nrv-snapshots">—</div>
+      <div class="nr-stat-sub" id="nrs-snapshots-sub"></div>
+    </div>
+    <div class="nr-stat">
+      <div class="nr-stat-label">Guard события</div>
+      <div class="nr-stat-value" id="nrv-guard">—</div>
+      <div class="nr-stat-sub" id="nrs-guard-sub"></div>
+    </div>
+    <div class="nr-stat">
+      <div class="nr-stat-label">Сэкономлено</div>
+      <div class="nr-stat-value" id="nrv-dedup">—</div>
+      <div class="nr-stat-sub">дедупликация</div>
+    </div>
+    <div class="nr-stat">
+      <div class="nr-stat-label">Рост данных</div>
+      <div class="nr-stat-value" id="nrv-growth">—</div>
+      <div class="nr-stat-sub" id="nrs-growth-sub"></div>
+    </div>
+    <div class="nr-stat">
+      <div class="nr-stat-label">Health Score</div>
+      <div class="nr-stat-value" id="nrv-health">—</div>
+      <div class="nr-stat-sub" id="nrs-health-sub"></div>
+    </div>
+  </div>
+
+  <!-- Body: 3 колонки -->
+  <div class="nr-body">
+
+    <!-- Колонка 1: Лента событий -->
+    <div class="nr-col">
+      <div class="nr-col-title">Лента событий</div>
+      <div id="nr-events"></div>
+    </div>
+
+    <!-- Колонка 2: Guard + Снэпшоты -->
+    <div class="nr-col">
+      <div class="nr-col-title">Guard &amp; защита</div>
+      <div class="nr-guard-block" id="nr-guard-block"></div>
+      <div class="nr-col-divider"></div>
+      <div class="nr-col-title">Снэпшоты</div>
+      <div id="nr-snaps"></div>
+    </div>
+
+    <!-- Колонка 3: Хранилище -->
+    <div class="nr-col">
+      <div class="nr-col-title">Дедупликация</div>
+      <div id="nr-dedup-list"></div>
+      <div class="nr-col-divider"></div>
+      <div class="nr-col-title">Изменения томов</div>
+      <div id="nr-storage-changes"></div>
+      <div id="nr-alerts-block"></div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="nr-footer">
+    <span class="nr-footer-info" id="nr-gen-time"></span>
+    <div class="nr-footer-actions">
+      <button class="nr-btn" id="btn-nr-refresh">↺ Обновить</button>
+    </div>
+  </div>
+
+</div>
+
 <!-- ── Section A: Storage Overview ──────────────────────────────────────── -->
 <div class="db-grid-4" style="margin-bottom:14px">
 

@@ -1530,6 +1530,11 @@ document.addEventListener("DOMContentLoaded", function() {
     loadSsdCacheStatus();
     loadFbDashStatus();
 
+    // Night Report — delayed init so it doesn't block main dashboard metrics
+    setTimeout(initNightReport, 800);
+
+    document.getElementById("btn-nr-refresh").addEventListener("click", refreshNightReport);
+
     // Recurring ticks
     var _timerFast    = setInterval(tickFast,    TICK_FAST);
     var _timerStorage = setInterval(tickStorage, TICK_STORAGE);
@@ -1559,3 +1564,371 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NIGHT REPORT WIDGET — "Утренняя газета для инфраструктуры"
+// ══════════════════════════════════════════════════════════════════════════════
+
+var NR_HOURS = 8;
+var _nrData  = null;
+
+function shouldShowNightReport() {
+    var hour = new Date().getHours();
+    return hour >= 5 && hour <= 18;  // show in working hours, hide overnight
+}
+
+function initNightReport() {
+    var widget = document.getElementById("night-report");
+    if (!widget) return;
+    if (!shouldShowNightReport()) return;
+
+    var now     = new Date();
+    var fromTs  = Date.now() - NR_HOURS * 3600000;
+    var fromDate = new Date(fromTs);
+    var pad = function(n) { return String(n).padStart(2, "0"); };
+
+    el("nr-period").textContent =
+        pad(fromDate.getHours()) + ":" + pad(fromDate.getMinutes()) +
+        " — " + pad(now.getHours()) + ":" + pad(now.getMinutes()) +
+        " · " + now.toLocaleDateString("ru-RU", {day:"numeric", month:"long"});
+
+    // Collect data in parallel
+    Promise.all([
+        nrCollectSnapshots(fromTs),
+        nrCollectGuard(fromTs),
+        nrCollectStorage(),
+        nrCollectDedup(),
+        nrCollectSmartAlerts()
+    ]).then(function(results) {
+        _nrData = {
+            snapshots: results[0],
+            guard:     results[1],
+            storage:   results[2],
+            dedup:     results[3],
+            smart:     results[4]
+        };
+        nrRender(_nrData);
+        widget.style.display = "block";
+        el("nr-gen-time").textContent = "Сформирован в " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+    });
+}
+
+function refreshNightReport() {
+    var widget = document.getElementById("night-report");
+    if (widget) { widget.style.opacity = "0.5"; widget.style.transition = "opacity 0.2s"; }
+    setTimeout(function() {
+        initNightReport();
+        if (widget) { widget.style.opacity = "1"; }
+    }, 200);
+}
+
+// ── Data collectors ───────────────────────────────────────────────────────────
+
+function nrCollectSnapshots(fromTs) {
+    // Read snapshot events from rusnas-snap events, filter by time
+    return new Promise(function(res) {
+        cockpit.spawn(["sudo", "-n", "rusnas-snap", "events"], {err: "message"})
+        .done(function(out) {
+            try {
+                var data = JSON.parse(out);
+                var events = data.events || data || [];
+                var fromSec = fromTs / 1000;
+                var snaps = events.filter(function(e) {
+                    return (e.action === "create" || e.type === "created") && (e.created_at || e.ts || 0) >= fromSec;
+                });
+                var items = snaps.slice(0, 8).map(function(e) {
+                    var d = new Date((e.created_at || e.ts || 0) * 1000);
+                    var hm = String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+                    var vol = (e.subvol_path || e.volume || "").split("/").pop() || "—";
+                    return { volume: vol, name: e.snapshot_name || e.name || "snap", time: hm };
+                });
+                res({ count: items.length, items: items });
+            } catch(e) { res({ count: 0, items: [] }); }
+        })
+        .fail(function() { res({ count: 0, items: [] }); });
+    });
+}
+
+function nrCollectGuard(fromTs) {
+    return new Promise(function(res) {
+        cockpit.spawn(["sudo", "-n", "tail", "-n", "500", "/var/log/rusnas-guard/events.jsonl"], {err: "message"})
+        .done(function(out) {
+            var events = [];
+            (out || "").trim().split("\n").forEach(function(line) {
+                if (!line.trim()) return;
+                try {
+                    var e = JSON.parse(line);
+                    if ((e.ts || 0) >= fromTs / 1000) events.push(e);
+                } catch(e) {}
+            });
+            var blocked   = events.filter(function(e) { return e.action === "block" || e.blocked; }).length;
+            var attacks   = events.filter(function(e) { return e.severity === "critical" || e.is_attack; }).length;
+            var allOps    = events.reduce(function(s,e) { return s + (e.ops_count || 0); }, 0);
+            var encrypted = events.filter(function(e) { return e.method === "entropy"; }).length;
+            res({ blocked: blocked, attacks: attacks, allOps: allOps, encrypted: encrypted,
+                  recentEvents: events.slice(-5) });
+        })
+        .fail(function() { res({ blocked: 0, attacks: 0, allOps: 0, encrypted: 0, recentEvents: [] }); });
+    });
+}
+
+function nrCollectStorage() {
+    return new Promise(function(res) {
+        cockpit.spawn(["df", "--output=target,used,avail", "-BM", "-t", "btrfs"], {err: "message"})
+        .done(function(out) {
+            var changes = [];
+            (out || "").trim().split("\n").slice(1).forEach(function(line) {
+                var parts = line.trim().split(/\s+/);
+                if (parts.length < 3) return;
+                var mount = parts[0], used = parseInt(parts[1]) * 1024 * 1024;
+                if (!mount.startsWith("/mnt/") && mount !== "/") return;
+                changes.push({ vol: mount.split("/").pop() || mount, used: used, delta: 0 });
+            });
+            res({ changes: changes.slice(0, 5), totalGrowth: 0 });
+        })
+        .fail(function() { res({ changes: [], totalGrowth: 0 }); });
+    });
+}
+
+function nrCollectDedup() {
+    return new Promise(function(res) {
+        cockpit.spawn(["cat", "/var/lib/rusnas/dedup-last.json"], {err: "message"})
+        .done(function(out) {
+            try {
+                var d = JSON.parse(out);
+                var saved = d.saved_bytes || 0;
+                var vols = d.volumes ? d.volumes.map(function(v) {
+                    return { name: v.name || v.path.split("/").pop(), ratio: v.ratio || 1, saved: v.saved_bytes || 0 };
+                }) : [{ name: "data", ratio: d.ratio || 1, saved: saved }];
+                res({ volumes: vols, totalSaved: saved });
+            } catch(e) { res(null); }
+        })
+        .fail(function() { res(null); });
+    });
+}
+
+function nrCollectSmartAlerts() {
+    return new Promise(function(res) {
+        cockpit.spawn(["bash", "-c",
+            "ls /sys/block | grep -E '^(sd[a-z]|nvme)' | head -8"
+        ], {err: "message"})
+        .done(function(out) {
+            var disks = (out || "").trim().split("\n").filter(Boolean);
+            var alerts = [];
+            var pending = disks.length;
+            if (!pending) { res({ alerts: [] }); return; }
+            disks.forEach(function(disk) {
+                cockpit.spawn(["sudo", "-n", "smartctl", "-A", "/dev/" + disk], {err: "message"})
+                .done(function(smart) {
+                    // Check for reallocated sectors (id 5) or pending sectors (id 197) in text output
+                    if (/Reallocated.*?([1-9]\d*)/i.test(smart)) {
+                        var m = smart.match(/Reallocated.*?([1-9]\d*)/i);
+                        if (m) alerts.push({ disk: disk, type: "warn",
+                            msg: disk + ": " + m[1] + " переаллоцированных сектора" });
+                    }
+                    if (/Current_Pending_Sector\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+([1-9]\d*)/i.test(smart)) {
+                        var m2 = smart.match(/Current_Pending_Sector\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+([1-9]\d*)/i);
+                        if (m2) alerts.push({ disk: disk, type: "warn",
+                            msg: disk + ": " + m2[1] + " нестабильных секторов" });
+                    }
+                })
+                .always(function() {
+                    if (--pending === 0) res({ alerts: alerts });
+                });
+            });
+        })
+        .fail(function() { res({ alerts: [] }); });
+    });
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+
+function nrRender(data) {
+    nrRenderSummary(data);
+    nrRenderStatus(data);
+    nrRenderEvents(data);
+    nrRenderGuard(data.guard);
+    nrRenderSnaps(data.snapshots);
+    nrRenderDedup(data.dedup);
+    nrRenderStorage(data.storage, data.smart);
+}
+
+function nrSetStat(id, value, sub, colorClass) {
+    var valEl = document.getElementById("nrv-" + id);
+    var subEl = document.getElementById("nrs-" + id + "-sub");
+    if (valEl) { valEl.textContent = value; valEl.className = "nr-stat-value " + (colorClass || ""); }
+    if (subEl) subEl.textContent = sub || "";
+}
+
+function nrCalcHealth(data) {
+    var score = 100;
+    if (data.guard) {
+        if (data.guard.attacks > 0)    score -= 20;
+        if (data.guard.blocked > 5)    score -= 5;
+    }
+    if (data.smart && data.smart.alerts) score -= data.smart.alerts.length * 8;
+    if (data.snapshots && data.snapshots.count === 0) score -= 10;
+    if (!data.dedup || !data.dedup.totalSaved) score -= 2;
+    return Math.max(0, Math.min(100, score));
+}
+
+function nrRenderSummary(data) {
+    var snap = data.snapshots;
+    var guard = data.guard;
+    var dedup = data.dedup;
+    var storage = data.storage;
+
+    nrSetStat("snapshots",
+        snap ? snap.count : "—",
+        snap ? (snap.count + " за " + NR_HOURS + " ч") : "нет данных",
+        snap && snap.count > 0 ? "nr-v-green" : "nr-v-muted");
+
+    nrSetStat("guard",
+        guard ? guard.blocked : "—",
+        guard ? (guard.attacks > 0 ? guard.attacks + " атак!" : "заблокировано") : "нет данных",
+        guard && guard.attacks > 0 ? "nr-v-red" : "nr-v-purple");
+
+    nrSetStat("dedup",
+        dedup ? fmtBytes(dedup.totalSaved) : "—",
+        "сэкономлено",
+        dedup && dedup.totalSaved > 0 ? "nr-v-cyan" : "nr-v-muted");
+
+    nrSetStat("growth", "—", "за " + NR_HOURS + " ч", "nr-v-muted");  // delta requires history
+
+    var score = nrCalcHealth(data);
+    var prevScore = parseInt(localStorage.getItem("nr_last_health") || score);
+    var delta = score - prevScore;
+    localStorage.setItem("nr_last_health", score);
+    nrSetStat("health", score,
+        delta !== 0 ? (delta > 0 ? "↑" + delta + " за ночь" : "↓" + Math.abs(delta) + " за ночь") : "без изменений",
+        score >= 90 ? "nr-v-green" : score >= 70 ? "nr-v-amber" : "nr-v-red");
+}
+
+function nrRenderStatus(data) {
+    var guard = data.guard;
+    var smart = data.smart;
+    var level = "ok", label = "Всё в порядке";
+    if (smart && smart.alerts && smart.alerts.some(function(a) { return a.type === "critical"; })) {
+        level = "critical"; label = "Требуется внимание";
+    } else if (guard && guard.attacks > 0) {
+        level = "critical"; label = guard.attacks + " атак заблокировано";
+    } else if ((smart && smart.alerts && smart.alerts.length > 0) || (guard && guard.blocked > 0)) {
+        level = "warn"; label = "Есть предупреждения";
+    }
+    el("nr-status").innerHTML = "<div class='nr-status-" + level + "'>" +
+        "<span class='nr-status-dot'></span><span>" + label + "</span></div>";
+}
+
+function nrRenderEvents(data) {
+    var container = el("nr-events");
+    if (!container) return;
+    var events = [];
+
+    if (data.guard && data.guard.recentEvents) {
+        data.guard.recentEvents.slice(-3).forEach(function(e) {
+            events.push({ type: e.blocked ? "guard" : "warn", icon: "⚠",
+                msg: "<strong>Guard:</strong> " + escHtml(e.method || e.description || "событие"),
+                time: e.ts ? (new Date(e.ts*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})) : "",
+                ts: e.ts || 0 });
+        });
+    }
+    if (data.snapshots && data.snapshots.items) {
+        data.snapshots.items.slice(0, 2).forEach(function(s) {
+            events.push({ type: "snap", icon: "◆",
+                msg: "Снэпшот <strong>" + escHtml(s.name) + "</strong> → <code>" + escHtml(s.volume) + "</code>",
+                time: s.time, ts: 0 });
+        });
+    }
+    if (data.smart && data.smart.alerts) {
+        data.smart.alerts.forEach(function(a) {
+            events.push({ type: "error", icon: "!", msg: escHtml(a.msg), time: "", ts: -2 });
+        });
+    }
+    events.sort(function(a, b) { return b.ts - a.ts; });
+    if (!events.length) {
+        container.innerHTML = "<div style='font-size:12px;color:var(--color-muted)'>Событий за период не зафиксировано</div>";
+        return;
+    }
+    container.innerHTML = events.slice(0, 7).map(function(e) {
+        return "<div class='nr-event-item'>" +
+            "<div class='nr-event-icon nr-ei-" + e.type + "'>" + e.icon + "</div>" +
+            "<div><div class='nr-event-msg'>" + e.msg + "</div>" +
+            "<div class='nr-event-time'>" + e.time + "</div></div></div>";
+    }).join("");
+}
+
+function nrRenderGuard(guard) {
+    var container = el("nr-guard-block");
+    if (!container) return;
+    if (!guard) { container.innerHTML = "<span style='font-size:11px;color:var(--color-muted)'>Нет данных Guard</span>"; return; }
+    var modeMap = { monitor: "Мониторинг", active: "Активный", super_safe: "Супер-защита" };
+    var modeName = modeMap[guard.mode] || (guard.mode || "Неизвестно");
+    container.innerHTML =
+        "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px'>" +
+        "<span style='font-size:10px;color:var(--color-muted)'>За период (" + NR_HOURS + " ч)</span>" +
+        "<span style='font-size:10px;color:" + (guard.attacks > 0 ? "#ef4444" : "#a855f7") + ";font-weight:500'>" + modeName + "</span></div>" +
+        "<div class='nr-guard-grid'>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.blocked > 0 ? "nr-v-purple" : "nr-v-muted") + "'>" + guard.blocked + "</span><span class='nr-guard-mini-label'>заблок.</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.attacks > 0 ? "nr-v-red" : "nr-v-muted") + "'>" + guard.attacks + "</span><span class='nr-guard-mini-label'>атак</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val nr-v-cyan'>" + (guard.allOps > 9999 ? (guard.allOps/1000).toFixed(1)+"k" : guard.allOps) + "</span><span class='nr-guard-mini-label'>операций</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.encrypted > 0 ? "nr-v-red" : "nr-v-muted") + "'>" + (guard.encrypted || "∅") + "</span><span class='nr-guard-mini-label'>шифров.</span></div>" +
+        "</div>";
+}
+
+function nrRenderSnaps(snapshots) {
+    var container = el("nr-snaps");
+    if (!container) return;
+    if (!snapshots || !snapshots.items || !snapshots.items.length) {
+        container.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет снэпшотов за период</div>";
+        return;
+    }
+    container.innerHTML = snapshots.items.map(function(s) {
+        return "<div class='nr-snap-row'>" +
+            "<span class='nr-snap-vol'>" + escHtml(s.volume) + "</span>" +
+            "<span class='nr-snap-time'>" + escHtml(s.time) + "</span>" +
+            "<span class='nr-snap-ok'>✓</span></div>";
+    }).join("") +
+    "<div style='font-size:10px;color:var(--color-muted);margin-top:8px;text-align:right'>" +
+    "Всего: <span style='color:#3b82f6'>" + snapshots.count + " снэпшотов</span></div>";
+}
+
+function nrRenderDedup(dedup) {
+    var container = el("nr-dedup-list");
+    if (!container) return;
+    if (!dedup || !dedup.volumes || !dedup.volumes.length) {
+        container.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет данных дедупликации</div>";
+        return;
+    }
+    var colors = ["#06b6d4", "#a855f7", "#3b82f6", "#22c55e"];
+    container.innerHTML = dedup.volumes.map(function(v, i) {
+        var pct = v.ratio > 1 ? Math.min(95, ((v.ratio - 1) / v.ratio) * 100).toFixed(1) : 0;
+        return "<div class='nr-dedup-item'>" +
+            "<div class='nr-dedup-header'><span class='nr-dedup-vol'>" + escHtml(v.name) + "</span>" +
+            "<span class='nr-dedup-ratio'>" + (v.ratio || 1).toFixed(1) + "×</span></div>" +
+            "<div class='nr-dedup-bar-wrap'><div class='nr-dedup-bar-fill' style='width:" + pct + "%;background:" + colors[i % colors.length] + "'></div></div>" +
+            "<div class='nr-dedup-meta'>Сэкономлено " + fmtBytes(v.saved || 0) + "</div></div>";
+    }).join("");
+}
+
+function nrRenderStorage(storage, smart) {
+    var changesEl = el("nr-storage-changes");
+    var alertsEl  = el("nr-alerts-block");
+
+    if (changesEl) {
+        if (!storage || !storage.changes || !storage.changes.length) {
+            changesEl.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет данных о томах</div>";
+        } else {
+            changesEl.innerHTML = storage.changes.map(function(c) {
+                return "<div class='nr-sc-row'>" +
+                    "<span class='nr-sc-vol'>" + escHtml(c.vol) + "</span>" +
+                    "<span style='font-size:10px;color:var(--color-muted)'>" + fmtBytes(c.used) + "</span></div>";
+            }).join("");
+        }
+    }
+
+    if (alertsEl && smart && smart.alerts && smart.alerts.length) {
+        alertsEl.innerHTML = smart.alerts.map(function(a) {
+            return "<div class='nr-alert-item nr-alert-" + (a.type || "warn") + "'>" + escHtml(a.msg) + "</div>";
+        }).join("");
+    }
+}
