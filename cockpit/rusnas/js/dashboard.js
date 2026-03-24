@@ -305,7 +305,14 @@ function loadRaid() {
         var html = "", tagHtml = "";
 
         arrays.forEach(function(a) {
-            if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status;
+            // "inactive" has higher severity than "degraded" — don't overwrite with lower priority
+            if (a.status === "inactive") {
+                worstStatus = "inactive";
+            } else if (a.status === "degraded" && worstStatus !== "inactive") {
+                worstStatus = "degraded";
+            } else if (a.status === "resyncing" && worstStatus === "active") {
+                worstStatus = "resyncing";
+            }
             var ico      = a.status === "active"    ? "✅"
                          : a.status === "resyncing" ? "🔄"
                          : a.status === "degraded"  ? "⚠️"
@@ -357,9 +364,13 @@ function loadRaid() {
 
         var card = el("card-raid");
         card.className = "db-card " + (
-            worstStatus === "active"   ? "db-card-ok" :
-            worstStatus === "degraded" ? "db-card-warn" : "db-card-crit");
+            worstStatus === "active"    ? "db-card-ok" :
+            worstStatus === "resyncing" ? "db-card-info" :
+            worstStatus === "degraded"  ? "db-card-warn" : "db-card-crit");
         card.style.cursor = "pointer";
+    }).catch(function() {
+        var listEl = el("raid-list");
+        if (listEl) listEl.innerHTML = '<span class="text-muted" style="font-size:12px">Ошибка чтения RAID</span>';
     });
 }
 
@@ -425,13 +436,15 @@ function loadDiskHealth() {
             el("disk-summary").textContent = "Нет дисков";
             return;
         }
-        var results = [];
+        // Use indexed array to avoid race condition where results.push() can
+        // produce wrong order if .done() callbacks arrive out of order
+        var results = new Array(devs.length);
         var done = 0;
-        devs.forEach(function(dev) {
+        devs.forEach(function(dev, idx) {
             var devName = dev.replace("/dev/", "");
             var now = Date.now();
             if (smartCache[devName] && (now - smartCache[devName].time) < TICK_SMART) {
-                results.push({ dev: devName, ok: smartCache[devName].ok });
+                results[idx] = { dev: devName, ok: smartCache[devName].ok };
                 done++;
                 if (done === devs.length) renderDiskHealth(results);
                 return;
@@ -441,10 +454,10 @@ function loadDiskHealth() {
             .done(function(sout) {
                 var ok = sout.toLowerCase().indexOf("passed") !== -1 || sout.toLowerCase().indexOf("ok") !== -1;
                 smartCache[devName] = { time: Date.now(), ok: ok };
-                results.push({ dev: devName, ok: ok });
+                results[idx] = { dev: devName, ok: ok };
             })
             .fail(function() {
-                results.push({ dev: devName, ok: null });
+                results[idx] = { dev: devName, ok: null };
             })
             .always(function() {
                 done++;
@@ -848,6 +861,10 @@ function loadSnapshots() {
                 '</div>';
         }).join("");
         el("snap-list").innerHTML = html;
+    }).catch(function(e) {
+        var listEl = el("snap-list");
+        if (listEl) listEl.innerHTML = '<span class="text-muted">Ошибка загрузки снапшотов</span>';
+        console.error("loadSnapshots error:", e);
     });
 }
 

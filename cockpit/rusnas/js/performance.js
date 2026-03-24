@@ -754,6 +754,7 @@ function applySingleItem(id) {
     if (!item) return;
 
     var actEl = document.getElementById("perf-act-" + id);
+    if (!actEl) return;
     actEl.innerHTML = "<span class='perf-status-spin'>⏳ Применяется…</span>";
 
     var rec = item._recommendedValue;

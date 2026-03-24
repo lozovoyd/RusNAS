@@ -64,6 +64,8 @@ fi
 # 3. Директории
 log "Создаём директории..."
 mkdir -p "$FB_CONFIG_DIR" "$FB_DATA_DIR" "$FB_LOG_DIR"
+# /var/lib/rusnas must have execute for "other" so rusnas-fb can traverse into its subdir
+chmod o+x /var/lib/rusnas
 chown rusnas-fb:rusnas-fb "$FB_DATA_DIR"
 chmod 755 "$FB_CONFIG_DIR" "$FB_DATA_DIR" "$FB_LOG_DIR"
 
