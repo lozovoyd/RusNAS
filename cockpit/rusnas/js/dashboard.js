@@ -16,6 +16,8 @@ var sparkNetR = new Array(HISTORY).fill(0);
 var sparkNetT = new Array(HISTORY).fill(0);
 var sparkIoR  = new Array(HISTORY).fill(0);
 var sparkIoW  = new Array(HISTORY).fill(0);
+var sparkIopsR = new Array(HISTORY).fill(0);
+var sparkIopsW = new Array(HISTORY).fill(0);
 
 // ── Metrics HTTP client (reused across calls) ─────────────────────────────
 var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
@@ -47,6 +49,10 @@ function fmtSpeed(bps) {
     if (bps < 1024) return bps.toFixed(0) + " Б/с";
     if (bps < 1048576) return (bps / 1024).toFixed(1) + " КБ/с";
     return (bps / 1048576).toFixed(1) + " МБ/с";
+}
+function fmtIops(n) {
+    if (n < 1000) return Math.round(n) + " IOPS";
+    return (n / 1000).toFixed(1) + "k IOPS";
 }
 
 function fmtUptime(sec) {
@@ -220,39 +226,70 @@ function loadStorage() {
     ], {err: "message"})
     .done(function(out) {
         var lines = out.trim().split("\n").filter(Boolean);
-        var totalUsed = 0, totalSize = 0, worstPct = 0;
-        var relevant = lines.filter(function(l) {
-            return l.match(/\/dev\/md|\/dev\/sd|\/dev\/nvme|btrfs|ext4/i) && !l.match(/\s\/boot/);
-        });
-        relevant.forEach(function(l) {
+        var dataUsed = 0, dataSize = 0;
+        var sysUsed  = 0, sysSize  = 0;
+
+        lines.forEach(function(l) {
             var p = l.trim().split(/\s+/);
-            if (p.length >= 5) {
-                var size = parseInt(p[2]) * 1024;
-                var used = parseInt(p[3]) * 1024;
-                totalSize += size;
-                totalUsed += used;
-                if (size > 0) worstPct = Math.max(worstPct, Math.floor(used/size*100));
+            if (p.length < 6) return;
+            var size = parseInt(p[2]) * 1024;
+            var used = parseInt(p[3]) * 1024;
+            var mp   = p[5];
+            if (mp && mp.startsWith('/mnt/')) {
+                dataUsed += used;
+                dataSize += size;
+            } else if (mp === '/') {
+                sysUsed = used;
+                sysSize = size;
             }
         });
-        var pct = totalSize > 0 ? Math.floor(totalUsed / totalSize * 100) : 0;
-        el("storage-used-pct").textContent = pct + "%";
-        el("storage-used-pct").className = "db-card-metric " + pctClass(pct);
-        el("storage-detail").textContent = fmtBytes(totalUsed) + " / " + fmtBytes(totalSize);
+
+        // — Data volumes (primary) —
+        var pct = dataSize > 0 ? Math.floor(dataUsed / dataSize * 100) : 0;
+        el("storage-used-pct").textContent = dataSize > 0 ? pct + "%" : "—";
+        el("storage-used-pct").className   = "db-card-metric " + pctClass(pct);
+        el("storage-detail").textContent   = dataSize > 0
+            ? fmtBytes(dataUsed) + " / " + fmtBytes(dataSize)
+            : "нет томов";
         var bar = el("storage-bar");
-        bar.style.width = pct + "%";
-        bar.className = "db-progress-fill " + pctBarClass(pct);
+        bar.style.width  = pct + "%";
+        bar.className    = "db-progress-fill " + pctBarClass(pct);
         var card = el("card-storage");
-        card.className = "db-card " + (pct >= 95 ? "db-card-crit" : pct >= 80 ? "db-card-warn" : "db-card-ok");
+        card.className   = "db-card " + (pct >= 95 ? "db-card-crit" : pct >= 80 ? "db-card-warn" : "db-card-ok");
         card.style.cursor = "pointer";
+
+        // — System disk (secondary) —
+        var sysRow = el("storage-sys-row");
+        if (sysSize > 0 && sysRow) {
+            var sysPct = Math.floor(sysUsed / sysSize * 100);
+            sysRow.style.display = "";
+            el("storage-sys-pct").textContent    = sysPct + "%";
+            el("storage-sys-detail").textContent = fmtBytes(sysUsed) + " / " + fmtBytes(sysSize);
+            var sysBar = el("storage-sys-bar");
+            sysBar.style.width  = sysPct + "%";
+            sysBar.className    = "db-progress-fill " + pctBarClass(sysPct);
+        }
     });
 }
 
 // ── Section A2: RAID ──────────────────────────────────────────────────────
 function loadRaid() {
-    cockpit.spawn(["bash", "-c", "cat /proc/mdstat"], {err: "message"})
-    .done(function(out) {
-        var arrays = parseMdstat(out);
-        var listEl = el("raid-list");
+    var mdstatP = new Promise(function(res, rej) {
+        cockpit.spawn(["bash", "-c", "cat /proc/mdstat"], {err: "message"}).done(res).fail(rej);
+    });
+    var mountP = new Promise(function(res) {
+        cockpit.spawn(["bash", "-c", "findmnt -rno SOURCE,TARGET 2>/dev/null"], {err: "message"})
+            .done(res).fail(function() { res(""); });
+    });
+    Promise.all([mdstatP, mountP]).then(function(results) {
+        var arrays   = parseMdstat(results[0]);
+        var mountMap = {};
+        results[1].trim().split("\n").forEach(function(l) {
+            var p = l.trim().split(/\s+/);
+            if (p.length >= 2) mountMap[p[0]] = p[1];
+        });
+
+        var listEl  = el("raid-list");
         var raidsEl = el("storage-raids");
 
         if (arrays.length === 0) {
@@ -263,58 +300,114 @@ function loadRaid() {
         }
 
         var worstStatus = "active";
-        var html = "";
-        var tagHtml = "";
+        var html = "", tagHtml = "";
+
         arrays.forEach(function(a) {
             if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status;
-            var ico = a.status === "active" ? "✅" : (a.status === "degraded" ? "⚠" : "🔴");
-            var color = a.status === "active" ? "db-ok" : (a.status === "degraded" ? "db-warn" : "db-crit");
+            var ico      = a.status === "active"    ? "✅"
+                         : a.status === "resyncing" ? "🔄"
+                         : a.status === "degraded"  ? "⚠️"
+                         : "🔴";
+            var icoClass = a.status === "active"    ? "db-ok"
+                         : a.status === "resyncing" ? "db-info"
+                         : a.status === "degraded"  ? "db-warn"
+                         : "db-crit";
+
+            var mount   = mountMap["/dev/" + a.name] || "—";
+            var sizeStr = a.sizeGB !== "?" ? a.sizeGB + " ГБ" : "";
+
             html += '<div class="db-raid-row">' +
+                '<span>' + ico + '</span>' +
                 '<span class="db-raid-name">' + a.name + '</span>' +
-                '<span style="font-size:11px;color:var(--color-muted)">' + (a.level || "?") + '</span>' +
-                '<span class="' + color + '">' + ico + ' ' + a.status + '</span>' +
-                '<span style="font-size:11px">' + a.activeDevices + '/' + a.totalDevices + ' дисков</span>' +
+                '<span style="font-size:11px;color:var(--color-muted)">' + a.level + '</span>' +
+                (sizeStr ? '<span style="font-size:11px;color:var(--color-muted)">' + sizeStr + '</span>' : '') +
+                '<span style="font-size:11px;color:var(--color-muted);margin-left:auto">' + mount + '</span>' +
                 '</div>';
-            if (a.syncPct !== null) {
+
+            var maskHtml = a.mask
+                ? '<span class="db-raid-mask">[' +
+                  a.mask.split("").map(function(c) {
+                      return '<span style="color:' + (c === "U" ? "var(--success)" : "var(--danger)") + '">' + c + '</span>';
+                  }).join("") + ']</span>'
+                : '';
+
+            if (a.resyncing) {
+                html += '<div class="db-raid-sub">' + maskHtml +
+                    '<span class="' + icoClass + '">' +
+                    (a.resyncType === "reshape" ? "Перестройка" : "Ресинк") +
+                    ' ' + a.resyncPct.toFixed(1) + '%' +
+                    (a.resyncEta ? ' · ещё ' + a.resyncEta : '') +
+                    '</span></div>';
                 html += '<div class="db-raid-progress" style="margin-bottom:4px">' +
-                    '<div class="db-raid-progress-fill" style="width:' + a.syncPct + '%"></div></div>' +
-                    '<div style="font-size:10px;color:var(--color-muted);margin-bottom:4px">Sync: ' + a.syncPct.toFixed(1) + '% ' + (a.syncSpeed || '') + '</div>';
+                    '<div class="db-raid-progress-fill" style="width:' + a.resyncPct + '%"></div></div>';
+            } else {
+                var diskLabel = a.total > 0 ? a.active + '/' + a.total + ' дисков' : a.status;
+                html += '<div class="db-raid-sub">' + maskHtml +
+                    '<span class="' + icoClass + '">' + diskLabel + '</span></div>';
             }
+
             tagHtml += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:var(--bg-th)">' +
                 a.name + ' ' + ico + '</span>';
         });
-        listEl.innerHTML = html;
+
+        listEl.innerHTML  = html;
         raidsEl.innerHTML = tagHtml;
 
         var card = el("card-raid");
-        card.className = "db-card " + (worstStatus === "active" ? "db-card-ok" : worstStatus === "degraded" ? "db-card-warn" : "db-card-crit");
+        card.className = "db-card " + (
+            worstStatus === "active"   ? "db-card-ok" :
+            worstStatus === "degraded" ? "db-card-warn" : "db-card-crit");
         card.style.cursor = "pointer";
     });
 }
 
 function parseMdstat(text) {
     var result = [];
-    var lines = text.split("\n");
+    var lines  = text.split("\n");
     for (var i = 0; i < lines.length; i++) {
-        var m = lines[i].match(/^(md\w+)\s*:\s*(active|inactive)\s+(?:(\w+)\s+)?(.+)/);
+        var m = lines[i].match(/^(md\w+)\s*:\s*(\S+(?:\s*\(auto-read-only\))?)\s+(\w+)\s+(.*)/);
         if (!m) continue;
-        var name = m[1];
-        var active = m[2];
-        var level = m[3] || "";
+        var name  = m[1];
+        var state = m[2].replace("(auto-read-only)", "").trim();
+        var level = m[3];
+
         var statusLine = lines[i + 1] || "";
-        var statusM = statusLine.match(/(\d+) blocks.*\[(\d+)\/(\d+)\]/);
-        var total = statusM ? parseInt(statusM[2]) : 0;
-        var avail = statusM ? parseInt(statusM[3]) : 0;
-        var syncPct = null, syncSpeed = "";
-        for (var j = i; j < Math.min(i + 5, lines.length); j++) {
-            var sm = lines[j].match(/=\s+([\d.]+)%.*?(\d+K\/sec)?/);
-            if (sm) { syncPct = parseFloat(sm[1]); syncSpeed = sm[2] || ""; break; }
+        var blocksM = statusLine.match(/(\d+) blocks/);
+        var sizeGB  = blocksM ? (parseInt(blocksM[1]) * 1024 / 1e9).toFixed(1) : "?";
+        var slotM   = statusLine.match(/\[(\d+)\/(\d+)\]/);
+        var total   = slotM ? parseInt(slotM[1]) : 0;
+        var active  = slotM ? parseInt(slotM[2]) : 0;
+        var maskM   = statusLine.match(/\[([U_]+)\]/);
+        var mask    = maskM ? maskM[1] : "";
+
+        var resyncing = false, resyncPct = 0, resyncEta = "", resyncType = "";
+        for (var j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            var rm = lines[j].match(/[>=]\s+([\d.]+)%.*finish=([\d.]+)min/);
+            if (rm) {
+                resyncing = true;
+                resyncPct = parseFloat(rm[1]);
+                var mins  = parseFloat(rm[2]);
+                resyncEta = mins >= 60
+                    ? Math.floor(mins / 60) + "ч " + Math.round(mins % 60) + "м"
+                    : Math.round(mins) + " мин";
+                resyncType = (lines[j].indexOf("reshape") !== -1) ? "reshape" : "resync";
+                break;
+            }
         }
-        var status = active === "inactive" ? "inactive"
-            : (avail < total) ? "degraded" : "active";
-        if (lines[i].match(/resync|reshape|recover/)) status = "resyncing";
-        result.push({ name: name, level: level, status: status,
-            activeDevices: avail, totalDevices: total, syncPct: syncPct, syncSpeed: syncSpeed });
+
+        var degraded = (state === "active" || state === "clean") && active < total;
+        var status   = state === "inactive" ? "inactive"
+            : resyncing ? "resyncing"
+            : degraded  ? "degraded"
+            : "active";
+
+        result.push({
+            name: name, level: level, state: state, sizeGB: sizeGB,
+            total: total, active: active, mask: mask,
+            resyncing: resyncing, resyncPct: resyncPct,
+            resyncEta: resyncEta, resyncType: resyncType,
+            status: status
+        });
     }
     return result;
 }
@@ -341,7 +434,7 @@ function loadDiskHealth() {
                 if (done === devs.length) renderDiskHealth(results);
                 return;
             }
-            cockpit.spawn(["bash", "-c", "sudo smartctl -H " + dev + " 2>/dev/null | grep -i 'health\\|result\\|test result'"],
+            cockpit.spawn(["sudo", "-n", "smartctl", "-H", dev],
                 {err: "message"})
             .done(function(sout) {
                 var ok = sout.toLowerCase().indexOf("passed") !== -1 || sout.toLowerCase().indexOf("ok") !== -1;
@@ -597,6 +690,7 @@ function loadDiskIO() {
         var lines = out.trim().split("\n");
         var now = Date.now();
         var totalR = 0, totalW = 0;
+        var totalIopsR = 0, totalIopsW = 0;
         var perDisk = [];
 
         lines.forEach(function(l) {
@@ -606,30 +700,45 @@ function loadDiskIO() {
             if (!dev.match(/^(sd[a-z]|nvme\d+n\d+|md\d+)$/)) return;
             var rSect = parseInt(f[5]);
             var wSect = parseInt(f[9]);
+            var rIos  = parseInt(f[3]);
+            var wIos  = parseInt(f[7]);
 
-            var rSpeed = 0, wSpeed = 0;
+            var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
             if (prevDisk[dev]) {
                 var dt = (now - prevDisk[dev].time) / 1000;
                 if (dt > 0) {
                     rSpeed = (rSect - prevDisk[dev].r) * 512 / dt;
                     wSpeed = (wSect - prevDisk[dev].w) * 512 / dt;
+                    riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
+                    wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
                 }
             }
-            prevDisk[dev] = { r: rSect, w: wSect, time: now };
+            prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
 
-            if (dev.match(/^sd/)) { totalR += rSpeed; totalW += wSpeed; }
-            if (rSpeed > 0 || wSpeed > 0) perDisk.push({ dev: dev, r: rSpeed, w: wSpeed });
+            if (dev.match(/^sd/)) {
+                totalR += rSpeed; totalW += wSpeed;
+                totalIopsR += riops; totalIopsW += wiops;
+            }
+            if (rSpeed > 0 || wSpeed > 0 || riops > 0 || wiops > 0) {
+                perDisk.push({ dev: dev, r: rSpeed, w: wSpeed, ri: riops, wi: wiops });
+            }
         });
 
         pushHistory(sparkIoR, totalR);
         pushHistory(sparkIoW, totalW);
-        renderDualSparkline("spark-io", sparkIoR, "#3b82f6", sparkIoW, "#f97316");
-        el("io-read").textContent  = fmtSpeed(Math.max(0, totalR));
-        el("io-write").textContent = fmtSpeed(Math.max(0, totalW));
+        pushHistory(sparkIopsR, totalIopsR);
+        pushHistory(sparkIopsW, totalIopsW);
+        renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
+        renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
+        el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
+        el("io-write").textContent  = fmtSpeed(Math.max(0, totalW));
+        el("iops-read").textContent  = fmtIops(Math.max(0, totalIopsR));
+        el("iops-write").textContent = fmtIops(Math.max(0, totalIopsW));
 
         if (perDisk.length > 0) {
             el("io-per-disk").textContent = perDisk.map(function(d) {
-                return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w);
+                return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w) +
+                       " (" + Math.round(d.ri) + "/" + Math.round(d.wi) + " IOPS)";
             }).join("  |  ");
         }
     });

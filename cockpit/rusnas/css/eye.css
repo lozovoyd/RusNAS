@@ -1,0 +1,208 @@
+/* rusNAS openEYE Agent — compact floating chat widget */
+
+/* ── FAB button ────────────────────────────────────────────────────────────── */
+#eye-fab {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 9999;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-accent, #0066cc);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,.28);
+    transition: transform .15s, box-shadow .15s;
+}
+#eye-fab:hover     { transform: scale(1.1); box-shadow: 0 4px 16px rgba(0,0,0,.32); }
+#eye-fab.analyzing { animation: eye-pulse 1.2s infinite; }
+@keyframes eye-pulse {
+    0%, 100% { box-shadow: 0 2px 10px rgba(0,102,204,.4); }
+    50%       { box-shadow: 0 2px 20px rgba(0,102,204,.85); }
+}
+
+/* ── Compact widget ─────────────────────────────────────────────────────────── */
+#eye-panel {
+    position: fixed;
+    bottom: 68px;        /* just above FAB */
+    left: 16px;
+    width: 292px;
+    max-height: 420px;
+    z-index: 9998;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 12px;
+    box-shadow: 0 6px 28px rgba(0,0,0,.18);
+    display: flex;
+    flex-direction: column;
+    font-size: 12.5px;
+
+    /* Hidden state */
+    opacity: 0;
+    transform: translateY(12px) scale(.96);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+#eye-panel.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+#eye-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 10px 8px;
+    background: var(--color-accent, #0066cc);
+    color: #fff;
+    border-radius: 11px 11px 0 0;
+    flex-shrink: 0;
+}
+#eye-panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#eye-panel-page {
+    font-size: 10.5px;
+    opacity: .75;
+    white-space: nowrap;
+}
+#eye-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,.85);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+#eye-close-btn:hover { color: #fff; }
+
+/* ── Status bar ─────────────────────────────────────────────────────────────── */
+#eye-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    font-size: 10.5px;
+    color: var(--color-muted, #777);
+    background: var(--bg-th, #f5f5f5);
+    border-bottom: 1px solid var(--color-border, #ddd);
+    flex-shrink: 0;
+}
+#eye-status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #aaa;
+    flex-shrink: 0;
+}
+#eye-status-dot.analyzing { background: #f0ab00; animation: eye-dot-blink .8s infinite; }
+#eye-status-dot.done      { background: #3e8635; }
+#eye-status-dot.error     { background: #c9190b; }
+@keyframes eye-dot-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Body (scrollable) ──────────────────────────────────────────────────────── */
+#eye-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+    min-height: 40px;
+}
+
+/* Loading spinner */
+.eye-loading {
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--color-muted, #777);
+    font-size: 12px;
+    align-items: center;
+}
+.eye-loading-dots span {
+    display: inline-block;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--color-accent, #06c);
+    animation: eye-dot-bounce 1.1s infinite both;
+    margin: 0 2px;
+}
+.eye-loading-dots span:nth-child(2) { animation-delay: .18s; }
+.eye-loading-dots span:nth-child(3) { animation-delay: .36s; }
+@keyframes eye-dot-bounce {
+    0%,80%,100%{ transform:scale(.5); opacity:.4 }
+    40%        { transform:scale(1);  opacity:1 }
+}
+
+/* Finding items — compact single-line style */
+.eye-section { padding: 0 8px 4px; }
+.eye-section-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--color-muted, #999);
+    padding: 4px 4px 2px;
+}
+.eye-finding {
+    display: flex;
+    gap: 7px;
+    align-items: flex-start;
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    line-height: 1.4;
+    border-left: 2px solid transparent;
+}
+.eye-finding:hover { background: var(--bg-th, #f5f5f5); }
+.eye-finding.critical { background: rgba(201,25,11,.06);  border-left-color: #c9190b; }
+.eye-finding.warning  { background: rgba(240,171,0,.06);  border-left-color: #f0ab00; }
+.eye-finding.info     { background: rgba(0,102,204,.05);  border-left-color: #0066cc; }
+.eye-finding.ok       { background: rgba(62,134,53,.05);  border-left-color: #3e8635; }
+.eye-finding-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.eye-finding-text { font-size: 12px; color: inherit; }
+
+.eye-empty {
+    padding: 18px 14px;
+    text-align: center;
+    color: var(--color-muted, #888);
+    font-size: 12px;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+#eye-panel-footer {
+    padding: 6px 8px;
+    border-top: 1px solid var(--color-border, #ddd);
+    flex-shrink: 0;
+}
+#eye-rerun-btn {
+    width: 100%;
+    padding: 5px 10px;
+    font-size: 11px;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 5px;
+    background: var(--bg-th, #f5f5f5);
+    cursor: pointer;
+    color: inherit;
+}
+#eye-rerun-btn:hover    { background: var(--color-border, #ddd); }
+#eye-rerun-btn:disabled { opacity: .45; cursor: default; }
+
+/* ── Mobile ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    #eye-panel { width: calc(100vw - 32px); max-height: 55vh; }
+    #eye-fab   { bottom: 16px; left: 16px; width: 36px; height: 36px; font-size: 15px; }
+}

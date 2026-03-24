@@ -8,6 +8,7 @@
     <script src="../base1/cockpit.js"></script>
     <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/eye.css">
 </head>
 <body>
     <h1>rusNAS — Диски и RAID</h1>
@@ -114,6 +115,36 @@
         </div>
     </div>
 
+    <!-- Modal: RAID level upgrade (e.g. RAID 5 → RAID 6) -->
+    <div class="modal-overlay hidden" id="modal-upgrade-raid">
+        <div class="modal-box">
+            <h3 id="upgrade-raid-title">Апгрейд уровня RAID</h3>
+            <input type="hidden" id="upgrade-raid-array">
+            <input type="hidden" id="upgrade-raid-target-level">
+            <input type="hidden" id="upgrade-raid-target-devices">
+
+            <div id="upgrade-raid-info" style="margin-bottom:14px;padding:10px 12px;border-radius:6px;
+                 background:var(--bg-th);border:1px solid var(--color-border);font-size:13px;line-height:1.6"></div>
+
+            <div class="form-group">
+                <label>Добавить диск (для нового уровня)</label>
+                <select id="upgrade-raid-disk-select"></select>
+            </div>
+            <div id="upgrade-raid-disk-info" class="text-muted" style="font-size:13px;margin-bottom:12px;"></div>
+
+            <div class="eject-warning">
+                ⚠ <b>Внимание:</b><br>
+                • Все данные на <b>добавляемом диске</b> будут уничтожены<br>
+                • Идёт длительный reshape (часы/сутки) — <b>не выключайте сервер</b><br>
+                • Файловая система будет расширена автоматически после завершения
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="btn-upgrade-raid-confirm">▶ Запустить апгрейд</button>
+                <button class="btn btn-default" id="btn-upgrade-raid-cancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Safe eject -->
     <div class="modal-overlay hidden" id="eject-disk-modal">
         <div class="modal-box">
@@ -211,9 +242,15 @@
                 ⚠ <b>Все данные на массиве <span id="delete-array-label"></span> будут уничтожены безвозвратно!</b><br>
                 Диски: <span id="delete-array-disks"></span>
             </div>
-            <div id="delete-array-log" class="hidden" style="font-family:monospace;font-size:12px;background:var(--color-bg-secondary,#f5f5f5);border-radius:4px;padding:10px;max-height:200px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px"></div>
+            <!-- Related resources that will also be removed -->
+            <div id="delete-array-deps" class="hidden" style="margin-bottom:12px;padding:10px 12px;border-radius:6px;
+                 background:rgba(201,25,11,.06);border:1px solid rgba(201,25,11,.25);font-size:13px">
+                <div style="font-weight:600;margin-bottom:6px;color:#c9190b">🔗 Будут удалены связанные ресурсы:</div>
+                <div id="delete-array-deps-list"></div>
+            </div>
+            <div id="delete-array-log" class="hidden" style="font-family:monospace;font-size:12px;background:var(--bg-th,#f5f5f5);border-radius:4px;padding:10px;max-height:200px;overflow-y:auto;white-space:pre-wrap;margin-bottom:12px"></div>
             <div class="modal-footer" id="delete-array-footer">
-                <button class="btn btn-danger" id="delete-array-confirm">Да, удалить</button>
+                <button class="btn btn-danger" id="delete-array-confirm">Да, удалить всё</button>
                 <button class="btn btn-default" id="delete-array-cancel">Отмена</button>
             </div>
         </div>
@@ -374,6 +411,106 @@
         </div>
     </div>
 
+    <!-- Modal: SMART Detail -->
+    <div class="modal-overlay hidden" id="smart-detail-modal">
+        <div class="modal-box" style="width:680px;max-width:95vw">
+            <h3>🔍 S.M.A.R.T. — <span id="smart-modal-disk">/dev/sda</span></h3>
+
+            <!-- Health badge -->
+            <div id="smart-modal-health" style="margin-bottom:16px"></div>
+
+            <!-- Device info grid -->
+            <div id="smart-modal-info" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:13px;margin-bottom:16px;padding:12px;background:var(--bg-th);border-radius:6px"></div>
+
+            <!-- Attributes table -->
+            <div id="smart-modal-attrs-wrap" style="margin-bottom:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--color-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Атрибуты S.M.A.R.T.</div>
+                <div style="overflow-x:auto">
+                    <table id="smart-modal-attrs" style="width:100%;border-collapse:collapse;font-size:12px">
+                        <thead>
+                            <tr style="background:var(--bg-th);color:var(--color-muted);text-transform:uppercase;font-size:10px">
+                                <th style="padding:5px 8px;text-align:left">ID</th>
+                                <th style="padding:5px 8px;text-align:left">Атрибут</th>
+                                <th style="padding:5px 8px;text-align:center">Знач.</th>
+                                <th style="padding:5px 8px;text-align:center">Мин.</th>
+                                <th style="padding:5px 8px;text-align:center">Порог</th>
+                                <th style="padding:5px 8px;text-align:left">Тип</th>
+                                <th style="padding:5px 8px;text-align:right">Сырое значение</th>
+                                <th style="padding:5px 8px;text-align:center">Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="smart-modal-attrs-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Error log -->
+            <div id="smart-modal-errors-wrap" style="margin-bottom:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--color-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Журнал ошибок</div>
+                <div id="smart-modal-errors" style="font-size:12px;font-family:monospace;background:var(--bg-th);border-radius:4px;padding:10px;max-height:120px;overflow-y:auto;white-space:pre-wrap;line-height:1.5"></div>
+            </div>
+
+            <!-- Self-test log -->
+            <div id="smart-modal-tests-wrap" style="margin-bottom:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--color-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">История тестов</div>
+                <div id="smart-modal-tests" style="font-size:12px;background:var(--bg-th);border-radius:4px;padding:10px;overflow-x:auto;line-height:1.5"></div>
+            </div>
+
+            <!-- Schedule -->
+            <div id="smart-modal-schedule" style="margin-bottom:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--color-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Расписание автотестов</div>
+                <div style="display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--bg-th);border-radius:6px;font-size:13px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="checkbox" id="smart-sched-short-en" style="width:15px;height:15px">
+                        <span>Краткий тест — каждый</span>
+                        <select id="smart-sched-short-dow" style="padding:2px 6px">
+                            <option value="1">понедельник</option>
+                            <option value="2">вторник</option>
+                            <option value="3">среду</option>
+                            <option value="4">четверг</option>
+                            <option value="5">пятницу</option>
+                            <option value="6">субботу</option>
+                            <option value="7" selected>воскресенье</option>
+                        </select>
+                        <span>в</span>
+                        <select id="smart-sched-short-hour" style="padding:2px 6px">
+                            <option value="00">00:00</option><option value="01">01:00</option>
+                            <option value="02" selected>02:00</option><option value="03">03:00</option>
+                            <option value="04">04:00</option><option value="05">05:00</option>
+                            <option value="06">06:00</option>
+                        </select>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+                        <input type="checkbox" id="smart-sched-long-en" style="width:15px;height:15px">
+                        <span>Расширенный тест — каждое</span>
+                        <select id="smart-sched-long-day" style="padding:2px 6px">
+                            <option value="01" selected>1-е</option><option value="07">7-е</option>
+                            <option value="15">15-е</option><option value="21">21-е</option>
+                        </select>
+                        <span>число месяца в</span>
+                        <select id="smart-sched-long-hour" style="padding:2px 6px">
+                            <option value="00">00:00</option><option value="01">01:00</option>
+                            <option value="02">02:00</option><option value="03" selected>03:00</option>
+                            <option value="04">04:00</option><option value="05">05:00</option>
+                            <option value="06">06:00</option>
+                        </select>
+                    </label>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <button class="btn btn-primary" id="btn-smart-save-schedule" style="padding:4px 14px;font-size:12px">Сохранить</button>
+                        <span id="smart-sched-status" style="font-size:12px;color:var(--color-muted)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-smart-run-short">▶ Краткий (~2 мин)</button>
+                <button class="btn btn-secondary" id="btn-smart-run-long">▶ Расширенный (~60 мин)</button>
+                <button class="btn btn-default" id="btn-smart-close">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/disks.js"></script>
+<script src="js/eye.js"></script>
 </body>
 </html>

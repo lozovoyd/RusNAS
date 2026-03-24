@@ -48,6 +48,10 @@
     "ai": {
       "label": "AI Ассистент 🤖",
       "order": 11
+    },
+    "performance": {
+      "label": "Performance ⚡",
+      "order": 12
     }
   },
   "superuser": {

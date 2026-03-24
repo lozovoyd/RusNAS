@@ -32,17 +32,40 @@ class SocketServer:
         self._thread  = None
 
     def start(self):
+        self._bind_socket()
+        self._thread = threading.Thread(target=self._accept_loop, daemon=True)
+        self._thread.start()
+        watchdog = threading.Thread(target=self._socket_watchdog, daemon=True)
+        watchdog.start()
+        logger.info("Socket server listening on %s", SOCK_PATH)
+
+    def _bind_socket(self):
         os.makedirs(os.path.dirname(SOCK_PATH), exist_ok=True)
         if os.path.exists(SOCK_PATH):
             os.unlink(SOCK_PATH)
-
         self._server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._server.bind(SOCK_PATH)
         os.chmod(SOCK_PATH, 0o666)
         self._server.listen(5)
-        self._thread = threading.Thread(target=self._accept_loop, daemon=True)
-        self._thread.start()
-        logger.info("Socket server listening on %s", SOCK_PATH)
+
+    def _socket_watchdog(self):
+        """Periodically check socket file exists; recreate if deleted."""
+        while True:
+            time.sleep(30)
+            if not os.path.exists(SOCK_PATH):
+                logger.warning("Socket file missing, recreating: %s", SOCK_PATH)
+                try:
+                    if self._server:
+                        try:
+                            self._server.close()
+                        except Exception:
+                            pass
+                    self._bind_socket()
+                    self._thread = threading.Thread(target=self._accept_loop, daemon=True)
+                    self._thread.start()
+                    logger.info("Socket server re-created on %s", SOCK_PATH)
+                except Exception as e:
+                    logger.error("Failed to recreate socket: %s", e)
 
     def stop(self):
         if self._server:

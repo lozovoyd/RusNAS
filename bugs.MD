@@ -263,3 +263,60 @@
 ### SA-NOTE-03 — dashboard.html: Storage card переключена с `/rusnas/disks` на `/rusnas/storage-analyzer`
 **Реализовано** — кнопка RAID на дашборде ведёт на /rusnas/disks (неизменна).
 
+---
+
+## Сессия 2026-03-23 — RAID Upgrade, Array Deletion Cleanup, Stale Resources
+
+### BUG-14 — Guard: `sudo rusnas-guard --reset-pin` — команда не найдена (повтор)
+**Страница:** /rusnas/guard (диалог PIN)
+**Статус:** ✅ Исправлено на VM
+**Описание:** После обновления `guard.py` через `scp` без `install-guard.sh` бит исполнения терялся. Команда `sudo rusnas-guard --reset-pin` возвращала "команда не найдена".
+**Root cause:** `scp` копирует файл с правами 644 (без `+x`). `install-guard.sh` правильно делает `chmod 755 guard.py`, но запускался не при каждом деплое.
+**Fix:** `chmod +x /usr/lib/rusnas-guard/guard.py` вручную на VM. `install-guard.sh` уже содержит верный `chmod 755` — нужно запускать его при каждом обновлении guard.py.
+
+---
+
+### BUG-15 — Хранилище: шары с несуществующим путём показываются как активные
+**Страница:** /rusnas (вкладка Шары)
+**Статус:** ✅ Исправлено
+**Описание:** После удаления RAID-массива (или ручного удаления директории) SMB/NFS шары продолжали отображаться в таблице как обычные активные шары. Кнопка "📂 Файлы" вела в FileBrowser на несуществующий путь.
+**Root cause:** `loadAllShares()` читал smb.conf и /etc/exports без проверки существования физического пути.
+**Fix:** После merge SMB+NFS шар — одна bash-команда проверяет все пути (`[ -d path ]`) за один spawn. Шары с `pathExists=false` отображаются с opacity 0.6, путь красным, бейдж `⚠ путь не найден`, кнопка "📂 Файлы" скрыта. Кнопка "Удалить" остаётся активной.
+**Файлы:** `app.js` — `loadAllShares()`, `renderSharesTable()`
+
+---
+
+### BUG-16 — Диски: удаление RAID-массива не удаляет связанные SMB шары, NFS экспорты, расписания снапшотов
+**Страница:** /rusnas/disks
+**Статус:** ✅ Исправлено
+**Описание:** После удаления массива в конфигах оставались "мёртвые" записи SMB шар, NFS экспортов и расписаний снапшотов — пользователь должен был вручную удалять их из нескольких разделов.
+**Root cause:** `doDeleteArray()` только останавливал массив и очищал суперблоки, не трогая зависимые конфиги.
+**Fix:**
+- `scanArrayDeps(mp, callback)` — новая функция, параллельно сканирует smb.conf (python3 через tmpfile), /etc/exports (grep), расписания снапшотов (rusnas-snap schedule list) по точке монтирования
+- `openDeleteArrayModal()` — вызывает scanArrayDeps, показывает секцию "🔗 Будут удалены связанные ресурсы" с иконками 📂/🔗/🕐 до подтверждения
+- `doDeleteArray()` — перед umount/stop: удаляет SMB секции (sed + systemctl reload smbd), NFS строки (sed + exportfs -ra), расписания (rusnas-snap schedule delete)
+**Файлы:** `disks.js` — `scanArrayDeps()`, `openDeleteArrayModal()`, `doDeleteArray()`; `disks.html` — `#delete-array-deps` секция
+
+---
+
+### BUG-17 — Снапшоты: offline-субволюм вызывает ошибку при попытке загрузить снапшоты
+**Страница:** /rusnas/snapshots
+**Статус:** ✅ Исправлено
+**Описание:** При клике на offline-субволюм (из удалённого/отмонтированного массива) `rusnas-snap list <path>` падал с ошибкой — UI показывал красный алерт "Ошибка:" без полезного контекста. Кнопка "Создать снапшот" оставалась активной.
+**Root cause:** Нет проверки является ли currentSubvol offline перед вызовом rusnas-snap.
+**Fix:**
+- `isSubvolOffline(path)` — хелпер, проверяет `subvolGroups[]`
+- `loadSnapshots()` — ранний return с жёлтым предупреждением и инструкцией удалить расписание если subvol offline; кнопка "Создать снапшот" disabled
+- `renderSchedules()` — для offline-субволюмов: бейдж `⚠ путь недоступен`, кнопки Изменить/Включить/Запустить сейчас disabled, кнопка Удалить активна
+**Файлы:** `snapshots.js` — `isSubvolOffline()`, `loadSnapshots()`, `renderSchedules()`
+
+---
+
+### FEAT-01 — Диски: добавлен апгрейд RAID 1 → RAID 5
+**Страница:** /rusnas/disks
+**Статус:** ✅ Реализовано
+**Описание:** Кнопка "⬆ Апгрейд" показывалась только для RAID 5 (→ RAID 6). RAID 1 → RAID 5 не был реализован.
+**Fix:** Добавлена запись `"raid1"` в `RAID_UPGRADES` map. Кнопка теперь динамически отображает `"⬆ Апгрейд → RAID 5"` / `"⬆ Апгрейд → RAID 6"` по содержимому map. Условие показа обобщено: `RAID_UPGRADES[arr.level]` вместо `arr.level === "raid5"`.
+**Описание апгрейда:** 3 диска RAID 5 дают 2× ёмкость одного диска вместо 1× при RAID 1.
+**Файлы:** `disks.js` — `RAID_UPGRADES`, upgradeBtn render
+

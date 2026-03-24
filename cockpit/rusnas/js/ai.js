@@ -647,6 +647,9 @@ function loadSettingsToUI() {
     var maxTokSel = document.getElementById("ai-maxtokens-select");
     if (maxTokSel) maxTokSel.value = maxTok;
 
+    var eyeToggle = document.getElementById("ai-eye-toggle");
+    if (eyeToggle) eyeToggle.checked = localStorage.getItem("rusnas_eye_enabled") === "true";
+
     switchProviderFields(provider);
 }
 
@@ -675,6 +678,9 @@ function saveSettings() {
 
     var maxTok = (document.getElementById("ai-maxtokens-select") || {}).value || "2048";
     localStorage.setItem(KEY_MAXTOKENS, maxTok);
+
+    var eyeToggle = document.getElementById("ai-eye-toggle");
+    if (eyeToggle) localStorage.setItem("rusnas_eye_enabled", eyeToggle.checked ? "true" : "false");
 
     updateModelBadge();
     updateStatusFromSettings();

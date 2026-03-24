@@ -1700,3 +1700,189 @@ ai.html / ai.js ──fetch()──▶ Anthropic Claude API (claude-sonnet-4-6)
 - HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor
 - `pip install mcp` SDK
 - Ollama поддержка
+
+---
+
+## Сессия MCP-AI-2 — Multi-provider AI + openEYE Agent + SMART fix (2026-03-23)
+
+### A. Multi-provider AI (YandexGPT + Anthropic)
+
+**Проблема:** Fetch из браузера (Cockpit iframe) к `ai.api.cloud.yandex.net` блокируется CORS (нет `Access-Control-Allow-Origin`). Прямой fetch из JS к Yandex невозможен.
+
+**Решение:** Все AI-вызовы идут через `mcp-api.py` на VM (Python не знает CORS). Паттерн:
+1. `cockpit.file("/tmp/rusnas-ai-req.json").replace(JSON.stringify(payload))` — записывает payload
+2. `cockpit.spawn(["sudo", "-n", "python3", MCP_SCRIPT, "ai-chat", tmpFile])` — `mcp-api.py` читает файл, вызывает AI API, возвращает ответ
+
+**Почему не stdin:** Cockpit 337 не закрывает stdin после записи через `input` option → `sys.stdin.read()` блокируется бесконечно. Файловый подход надёжен.
+
+#### YandexGPT (OpenAI-compatible format)
+- API: `https://ai.api.cloud.yandex.net/v1/chat/completions`
+- Авторизация: `Bearer <IAM-key>`, требует `folder_id` в `model_uri: "gpt://folder/model"`
+- Формат tool calling: OpenAI-совместимый (`tools[]`, `finish_reason: "tool_calls"`, `role: "tool"`)
+- Дефолт: `yandexgpt-5-pro/latest`, поддерживает function calling
+- Предзаполненные учётные данные (playground-ключ)
+
+#### Anthropic (нативный формат)
+- API: `https://api.anthropic.com/v1/messages`
+- `anthropic_tools`: `input_schema` вместо `parameters`, `tool_use`/`tool_result` блоки
+- `convertToAnthropicMessages()` — конвертация OpenAI-формата в Anthropic перед вызовом
+
+#### ai.js — ключевые изменения
+- `callViaProxy(messages)` — единый proxy через mcp-api.py для обоих провайдеров
+- `normalizeResponse(data, provider)` — нормализует ответ провайдера в `{stopReason, text, toolCalls, rawMessage}`
+- Внутренний формат сообщений: OpenAI (Yandex-native), `convertToAnthropicMessages()` конвертирует при Anthropic вызове
+- `TOOLS_SCHEMA` в OpenAI формате; `toAnthropicTools()` конвертирует schema для Anthropic
+- localStorage ключи: `rusnas_ai_provider`, `rusnas_yandex_key`, `rusnas_yandex_folder`, `rusnas_yandex_model`, `rusnas_claude_key`, `rusnas_ai_model`, `rusnas_ai_maxtokens`
+
+#### ai.html — изменения
+- Provider selector: `<select id="ai-provider-select">` — Yandex / Anthropic
+- Yandex fields: API Key, Folder ID, Model select
+- Anthropic fields: API Key, Model select (скрыты при Yandex-провайдере)
+
+### B. openEYE Agent
+
+**Концепция:** При открытии любой страницы rusNAS, если включено в настройках AI, автоматически анализирует текстовое содержимое страницы и показывает AI-выводы в левой выезжающей панели.
+
+#### Новые файлы
+- **`cockpit/rusnas/js/eye.js`** — IIFE-модуль. Активируется только при `localStorage.getItem("rusnas_eye_enabled") === "true"`. Ждёт 3500ms после DOMContentLoaded (чтобы JS успел отрисовать динамические данные). Извлекает `document.querySelector(".page-wrap")?.innerText` (до 5000 символов). Вызывает AI через тот же `cockpit.file().replace() → cockpit.spawn(mcp-api.py ai-chat)` proxy.
+- **`cockpit/rusnas/css/eye.css`** — Стили левой панели: FAB кнопка `#eye-fab` (нижний левый угол), панель `#eye-panel` (320px, `transform: translateX(-330px)` → `translateX(0)` с `.open`), findings с цветными левыми бордерами по уровню.
+
+#### Промпт к AI
+Запрашивает строго JSON: `{"findings":[{"level":"critical|warning|info|ok","text":"..."}]}`
+Уровни: critical (🔴 красный), warning (🟡 жёлтый), info (🔵 синий), ok (🟢 зелёный). Максимум 6 findings.
+
+#### Интеграция во все страницы
+`css/eye.css` + `js/eye.js` добавлены во все 10 HTML-страниц плагина (dashboard, index, disks, users, guard, snapshots, dedup, ups, storage-analyzer, network, ai).
+
+#### Настройка
+- Чекбокс "👁 openEYE Agent" в `ai.html` настройках → сохраняет `rusnas_eye_enabled = "true"` в localStorage
+- `ai.js`: `loadSettingsToUI()` и `saveSettings()` обрабатывают `#ai-eye-toggle`
+
+### C. SMART data fix
+
+**Проблема:** В разделе Дисков все показывают "нет данных" — `smartctl` не был в sudoers NOPASSWD + неправильный паттерн spawn.
+
+**Неправильный паттерн:**
+```javascript
+cockpit.spawn(["bash", "-c", "sudo smartctl -i -H /dev/sda 2>/dev/null | grep ..."])
+```
+bash запускается без привилегий → внутренний sudo требует пароль → команда падает.
+
+**Правильный паттерн:**
+```javascript
+cockpit.spawn(["sudo", "-n", "smartctl", "-i", "-H", "/dev/" + disk], {err: "message"})
+```
+
+**Исправления:**
+- `disks.js:327` `loadDiskInfo()` — `-i -H` без bash
+- `disks.js:503` `loadAddDiskInfo()` — `-i` без bash+grep (JS парсинг)
+- `disks.js:544` `openEjectDisk()` — `-i` без bash+grep (JS парсинг)
+- `dashboard.js:344` `loadDiskHealth()` — `-H /dev/dev` без bash+grep (JS indexOf)
+
+**Судоерс:** `/etc/sudoers.d/rusnas-smart`
+```
+rusnas ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
+```
+
+**Регулярный мониторинг:** `smartmontools.service` (smartd) предустановлен и включён на VM — работает на реальном железе. Dashboard опрашивает `smartctl -H` каждые 5 минут (`TICK_SMART = 300000ms`) с кэшированием.
+
+### Ветка
+- `feature/mcp-ai`
+
+
+
+---
+
+## Сессия 2026-03-23 — RAID Upgrade, Array Deletion Cleanup, Stale Resources
+
+**Ветка:** `feature/mcp-ai`
+
+### Выполнено
+
+#### 1. RAID 1→5 апгрейд (disks.js)
+- Добавлена запись `"raid1"` в `RAID_UPGRADES` map с описанием (3 диска RAID 5 = 2× ёмкость vs 1× у RAID 1)
+- Кнопка "⬆ Апгрейд" теперь динамическая — проверяет `RAID_UPGRADES[arr.level]` и показывает целевой уровень
+- Ранее работал только RAID 5→6
+
+#### 2. Очистка зависимостей при удалении RAID-массива (disks.js, disks.html)
+- `scanArrayDeps(mp, callback)` — параллельно сканирует точку монтирования:
+  - SMB шары: python3 через `/tmp/rusnas_dep_scan.py` парсит smb.conf секции по `path=`
+  - NFS экспорты: grep `/etc/exports`
+  - Расписания снапшотов: `rusnas-snap schedule list` → фильтр по subvol_path
+- `openDeleteArrayModal()` вызывает сканирование и показывает блок "🔗 Будут удалены связанные ресурсы"
+- `doDeleteArray()` перед umount удаляет: SMB секции (sed + systemctl reload smbd), NFS строки (sed + exportfs -ra), расписания (rusnas-snap schedule delete)
+- Добавлен `_escHtml()` helper в disks.js
+
+#### 3. Индикация "мёртвых" шар в таблице (app.js)
+- `loadAllShares()`: после merge SMB+NFS — bash-проверка `[ -d path ]` для всех путей за один spawn
+- `renderSharesTable()`: строки с `pathExists=false` — opacity 0.6, путь красным, бейдж `⚠ путь не найден`, кнопка "📂 Файлы" скрыта
+
+#### 4. Offline-субволюмы в снапшотах (snapshots.js)
+- `isSubvolOffline(path)` — хелпер по `subvolGroups[]`
+- `loadSnapshots()`: ранний return с предупреждением и инструкцией если offline; кнопка "Создать" disabled
+- `renderSchedules()`: бейдж + disabled-кнопки для offline-субволюмов; кнопка Удалить остаётся
+
+#### 5. Bugfix: guard.py не исполняемый (VM)
+- После `scp`-деплоя без `install-guard.sh` файл терял бит `+x`
+- `chmod +x /usr/lib/rusnas-guard/guard.py` на VM
+- `install-guard.sh` уже содержит правильный `chmod 755` — надо запускать при каждом обновлении guard.py
+
+### Файлы изменены
+| Файл | Изменения |
+|------|----------|
+| `cockpit/rusnas/js/disks.js` | `_escHtml()`, `_deleteArrayDeps`, `scanArrayDeps()`, `openDeleteArrayModal()`, `doDeleteArray()`, `RAID_UPGRADES` +raid1, upgradeBtn dynamic |
+| `cockpit/rusnas/disks.html` | `#delete-array-deps` секция в modal-delete-array |
+| `cockpit/rusnas/js/app.js` | path existence check в `loadAllShares()`, stale badge в `renderSharesTable()` |
+| `cockpit/rusnas/js/snapshots.js` | `isSubvolOffline()`, offline guard в `loadSnapshots()`, offline badges в `renderSchedules()` |
+| `bugs.md` | BUG-14..BUG-17, FEAT-01 |
+| `project_history.md` | эта запись |
+| `CLAUDE.md` | Known Bugs обновлён |
+
+
+---
+
+## Сессия 2026-03-23 — Снапшоты: Репликация (инфографика + systemd)
+
+**Ветка:** `feature/mcp-ai`
+
+### Контекст
+
+Функция репликации снапшотов (btrfs send/receive по SSH) была полностью реализована ранее на уровне CLI и JS, но:
+1. Вкладка «Репликация» в `snapshots.html` не имела описания/инфографики (только пустой `#replication-content`)
+2. `rusnas-snapd.service` запускал только `scheduled-run` — репликация не выполнялась по таймеру
+
+### Выполнено
+
+#### 1. Инфографика в вкладке «Репликация» (snapshots.html)
+- Добавлен статический HTML-блок перед `#replication-content`
+- **Flow-диаграмма:** Исходный NAS → SSH туннель → Удалённый хост
+  - Используются CSS-классы `sg-repl-flow` / `sg-repl-nas` / `sg-repl-remote` / `sg-repl-arrow` (уже были в inline `<style>`)
+- **Сравнительные карточки** (`sg-cmp`): «Первая репликация (полная)» vs «Последующие (инкрементальные)»
+- **3 сценария** (`gd-scenarios`): резервный NAS, Georedundancy/DR-сайт, удалённый офис
+- **Quick start** (`gd-quickstart`): 4 шага от настройки SSH-ключа до первой репликации
+- Разделитель `.sg-div` перед динамическим списком задач
+
+#### 2. Запуск репликации по расписанию (rusnas-snapd.service)
+- Добавлен второй `ExecStart`:
+  ```ini
+  ExecStart=/usr/local/bin/rusnas-snap replication run-all
+  ```
+- Таймер (каждые 5 минут) теперь последовательно запускает `scheduled-run` и `replication run-all`
+- Задеплоено через `./install-snapshots.sh`
+
+### Файлы изменены
+
+| Файл | Изменения |
+|------|-----------|
+| `cockpit/rusnas/snapshots.html` | Инфографика в `#tab-replication` |
+| `rusnas-snap/rusnas-snapd.service` | Второй `ExecStart` для `replication run-all` |
+| `roadmap.md` | Раздел «Снапшоты: репликация» помечен ✅, детали реализации |
+| `CLAUDE.md` | Roadmap-таблица ✅, Critical notes для replication |
+| `project_history.md` | эта запись |
+
+### Архитектурные заметки
+
+- Инфографика в вкладке — **статический HTML**, не рендерится JS; `#replication-content` — динамический список задач
+- CSS-классы для инфографики все уже были в inline `<style>` snapshots.html: `sg-repl-*` (flow-диаграмма), `sg-cmp-*` (карточки); `gd-*` — из `style.css` (guard-паттерн)
+- `replication list` возвращает `{tasks:[...], ok:true}` — разбирать как `data.tasks`
+- Репликация требует: Btrfs-субволюм на удалённом хосте + SSH ключ (`ssh-copy-id`) до настройки через UI

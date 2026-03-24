@@ -17,6 +17,8 @@ _prev_net = {}
 _prev_net_time = None
 _prev_disk = {}
 _prev_disk_time = None
+_prev_disk_ios = {}
+_prev_disk_ios_time = None
 
 
 def read_file(path):
@@ -148,11 +150,12 @@ def collect_network():
 
 
 def collect_disk_io():
-    global _prev_disk, _prev_disk_time
+    global _prev_disk, _prev_disk_time, _prev_disk_ios, _prev_disk_ios_time
     raw = read_file("/proc/diskstats")
     now = time.time()
     result = {}
     current = {}
+    current_ios = {}
 
     for line in raw.splitlines():
         parts = line.split()
@@ -161,9 +164,12 @@ def collect_disk_io():
         name = parts[2]
         # Only physical disks (sda, sdb, nvme0n1, etc.), skip partitions
         if re.match(r'^(sd[a-z]|nvme\d+n\d+|hd[a-z]|vd[a-z])$', name):
+            reads_completed = int(parts[3])
             sectors_read = int(parts[5])
+            writes_completed = int(parts[7])
             sectors_written = int(parts[9])
             current[name] = (sectors_read, sectors_written)
+            current_ios[name] = (reads_completed, writes_completed)
 
             r_rate = 0
             w_rate = 0
@@ -173,10 +179,25 @@ def collect_disk_io():
                     r_rate = max(0, int((sectors_read - _prev_disk[name][0]) * 512 / dt))
                     w_rate = max(0, int((sectors_written - _prev_disk[name][1]) * 512 / dt))
 
-            result[name] = {"read_bytes_per_sec": r_rate, "write_bytes_per_sec": w_rate}
+            r_iops = 0
+            w_iops = 0
+            if name in _prev_disk_ios and _prev_disk_ios_time:
+                dt_ios = now - _prev_disk_ios_time
+                if dt_ios > 0:
+                    r_iops = max(0, int((reads_completed - _prev_disk_ios[name][0]) / dt_ios))
+                    w_iops = max(0, int((writes_completed - _prev_disk_ios[name][1]) / dt_ios))
+
+            result[name] = {
+                "read_bytes_per_sec": r_rate,
+                "write_bytes_per_sec": w_rate,
+                "read_iops": r_iops,
+                "write_iops": w_iops,
+            }
 
     _prev_disk = current
     _prev_disk_time = now
+    _prev_disk_ios = current_ios
+    _prev_disk_ios_time = now
     return result
 
 
@@ -383,6 +404,12 @@ def format_prometheus(data):
         lines.append(f'# HELP rusnas_disk_write_bytes_per_sec Disk write bytes/sec')
         lines.append(f'# TYPE rusnas_disk_write_bytes_per_sec gauge')
         lines.append(f'rusnas_disk_write_bytes_per_sec{{{lbl}}} {disk.get("write_bytes_per_sec", 0)}')
+        lines.append(f'# HELP rusnas_disk_read_iops Disk read operations/sec')
+        lines.append(f'# TYPE rusnas_disk_read_iops gauge')
+        lines.append(f'rusnas_disk_read_iops{{{lbl}}} {disk.get("read_iops", 0)}')
+        lines.append(f'# HELP rusnas_disk_write_iops Disk write operations/sec')
+        lines.append(f'# TYPE rusnas_disk_write_iops gauge')
+        lines.append(f'rusnas_disk_write_iops{{{lbl}}} {disk.get("write_iops", 0)}')
         health = 1 if disk.get("smart_health") == "PASSED" else 0
         lines.append(f'# HELP rusnas_disk_smart_healthy SMART health: 1=PASSED 0=FAILED/UNKNOWN')
         lines.append(f'# TYPE rusnas_disk_smart_healthy gauge')

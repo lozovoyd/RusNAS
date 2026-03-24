@@ -96,6 +96,13 @@
         });
     }
 
+    function isSubvolOffline(path) {
+        for (var i = 0; i < subvolGroups.length; i++) {
+            if (subvolGroups[i].offline && subvolGroups[i].subvols.indexOf(path) !== -1) return true;
+        }
+        return false;
+    }
+
     // ── Subvol loading ────────────────────────────────────────────────────────
 
     // Returns [{mountPoint: str, subvols: [str], offline: bool}] grouped by Btrfs mount point
@@ -400,6 +407,18 @@
     // ── Snapshots tab ─────────────────────────────────────────────────────────
     function loadSnapshots() {
         if (!currentSubvol) return;
+        if (isSubvolOffline(currentSubvol)) {
+            document.getElementById("btn-create-snap").disabled = true;
+            showAlert("warning",
+                "⚠ Том <b>" + escHtml(currentSubvol) + "</b> недоступен — " +
+                "массив отмонтирован или удалён. Снапшоты не загружаются. " +
+                "Удалите расписание во вкладке «Расписание» если том больше не нужен.");
+            document.getElementById("snap-tbody").innerHTML =
+                '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:20px">Том недоступен</td></tr>';
+            renderSummary({ total_count: 0, total_size_human: "—", snapshots: [] });
+            return;
+        }
+        document.getElementById("btn-create-snap").disabled = false;
         runCmd(["rusnas-snap", "list", currentSubvol])
             .then(function (out) {
                 var data = safeJson(out);
@@ -616,15 +635,19 @@
                 return;
             }
             el.innerHTML = filtered.map(function (s) {
+                var offline = isSubvolOffline(s.subvol_path);
+                var offlineBadge = offline
+                    ? ' <span class="badge badge-danger" title="Директория не найдена на диске">⚠ путь недоступен</span>'
+                    : '';
                 return '<div class="section" style="margin-bottom:12px">' +
                     '<div class="section-toolbar">' +
-                    '<h2 style="margin:0;border:none;padding:0">' + fmtSubvol(s.subvol_path) + '</h2>' +
+                    '<h2 style="margin:0;border:none;padding:0">' + fmtSubvol(s.subvol_path) + offlineBadge + '</h2>' +
                     '<div class="btn-group">' +
-                    '<button class="btn btn-secondary btn-sm sched-edit" data-path="' + escHtml(s.subvol_path) + '">Изменить</button>' +
-                    '<button class="btn btn-' + (s.enabled ? 'warning' : 'success') + ' btn-sm sched-toggle" data-path="' + escHtml(s.subvol_path) + '" data-enabled="' + (s.enabled ? '1' : '0') + '">' +
+                    '<button class="btn btn-secondary btn-sm sched-edit" data-path="' + escHtml(s.subvol_path) + '"' + (offline ? ' disabled' : '') + '>Изменить</button>' +
+                    '<button class="btn btn-' + (s.enabled ? 'warning' : 'success') + ' btn-sm sched-toggle" data-path="' + escHtml(s.subvol_path) + '" data-enabled="' + (s.enabled ? '1' : '0') + '"' + (offline ? ' disabled' : '') + '>' +
                         (s.enabled ? 'Отключить' : 'Включить') +
                     '</button>' +
-                    '<button class="btn btn-default btn-sm sched-run-now" data-path="' + escHtml(s.subvol_path) + '">▶ Запустить сейчас</button>' +
+                    '<button class="btn btn-default btn-sm sched-run-now" data-path="' + escHtml(s.subvol_path) + '"' + (offline ? ' disabled title="Том недоступен"' : '') + '>▶ Запустить сейчас</button>' +
                     '<button class="btn btn-danger btn-sm sched-delete" data-path="' + escHtml(s.subvol_path) + '">Удалить</button>' +
                     '</div>' +
                     '</div>' +
