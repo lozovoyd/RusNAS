@@ -9,9 +9,12 @@
 > Storage Analyzer: [rusnas-storage-analyzer-task.md](./rusnas-storage-analyzer-task.md) — ТЗ и архитектура Анализатора пространства
 > Storage Page (редизайн): [rusnas-storage-task.md](./rusnas-storage-task.md) — ТЗ и заметки по реализации редизайна страницы Хранилище
 > SSD-кеширование: [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md) — ТЗ и архитектура SSD-кеша (dm-cache/LVM)
-> MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ (планируется)
+> MCP Server + AI Agent: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD) — ТЗ + реализация Session 1 (2026-03-22/23)
 > Управление сетью: [rusnas-network-task.md](./rusnas-network-task.md) — ТЗ и архитектура Network-модуля
 > FileBrowser: [rusnas-filebrowser-task.md](./rusnas-filebrowser-task.md) — ТЗ и архитектура
+> Roadmap: [roadmap.md](./roadmap.md) — детальные заметки по всем реализованным фичам
+> Git Workflow: [git-workflow.md](./git-workflow.md) — правила веток, коммитов, merge
+> История багов: [bugs.md](./bugs.md) — полная история всех багов и фиксов
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -21,6 +24,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Always write all changes on project in project_history.md and other files with techical specifications in header
 Always update information in claud.md after deploy features, bugfixes, and new code
 Always use MCP services what available
+
+## Правила обновления внешних файлов
+
+CLAUDE.md — оперативная шпаргалка. Детальный контент хранится в отдельных файлах. Правила:
+
+| Файл | Когда обновлять |
+|------|----------------|
+| `project_history.md` | После каждой сессии — APPEND в конец, никогда не перезаписывать |
+| `bugs.md` | При каждом новом баге/фиксе — добавить секцию BUG-NN. В CLAUDE.md Known Bugs — только активные "ловушки" (паттерны которые Claude может повторить) |
+| `roadmap.md` | При завершении фичи (✅) или добавлении новой задачи. В CLAUDE.md — только таблица статусов |
+| `git-workflow.md` | При изменении стратегии веток или правил коммитов. В CLAUDE.md — только текущая ветка + 2 строки |
+| `rusnas-*-task.md` | При добавлении нового модуля или изменении архитектуры модуля — подробности туда, в CLAUDE.md — только "Critical notes" секция |
+| `ui.md` | При изменении дизайн-системы, добавлении новых CSS-компонентов |
+
+**Принцип:** Если секция в CLAUDE.md > 2,000 символов — подумать, можно ли её вынести. CLAUDE.md должен оставаться < 40,000 символов.
 
 
 
@@ -202,6 +220,15 @@ Btrfs snapshot system: CLI + systemd timer + Cockpit UI + apt hook.
 - `cockpit.spawn` uses `err: "message"` to keep stderr separate from JSON stdout
 - `loadSubvols()` uses `schedule list` paths directly — skips `findBtrfsSubvols()` (bash not in sudoers NOPASSWD)
 - `safeJson()` does `JSON.parse(str)` directly on clean stdout
+- `replication list` returns `{tasks:[...], ok:true}` — parse as `data.tasks`
+- Replication tab: infographic HTML is STATIC (before `#replication-content`); no JS rendering for it
+
+**Replication architecture (реализовано 2026-03-23):**
+- CLI: `rusnas-snap replication set/list/delete/run/check-ssh` (DB table: `replication_tasks`)
+- Transport: `btrfs send [-p <parent>] | ssh user@host btrfs receive /path`
+- First run: full transfer; subsequent: incremental (`-p <last_sent_snap>`)
+- Scheduled via `rusnas-snapd.service` second `ExecStart=/usr/local/bin/rusnas-snap replication run-all`
+- SSH keys must be pre-configured by admin; UI only takes host/user/path
 
 ## rusNAS Дедупликация (Dedup Manager)
 
@@ -389,8 +416,9 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
   - Check BOTH `resync` AND `reshape` keywords
 - Physical disk info via `sudo smartctl -i` (model, serial, S.M.A.R.T. health)
 - Safe disk removal: `--fail → --remove → device/delete` with serial number confirmation
-- **Replace disk** vs **Expand array** are separate operations
+- **Replace disk** vs **Expand array** vs **Upgrade RAID level** are separate operations
   - Expand: `--add` + `--grow --raid-devices=N` + auto `resize2fs`/`btrfs resize` on completion
+  - **Level upgrade (RAID 5→6):** `--add /dev/sdX` + `--grow --level=6 --raid-devices=N+1`; button "⬆ Апгрейд RAID5→6" shown for healthy RAID 5 arrays; modal `#modal-upgrade-raid` with free disk selector + SMART info + reshape warning; filesystem auto-resize via `checkReshapeComplete()` after done
 - SCSI bus rescan: `echo "- - -" > /sys/class/scsi_host/host*/scan`
 - Auto-refresh every 4 seconds during degraded or resyncing states
 - **Full RAID lifecycle UI** (implemented 2026-03-14):
@@ -405,36 +433,25 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 
 ## Known Bugs and Fixes
 
+> Полная история: [bugs.md](./bugs.md). Ниже — только активные ловушки (паттерны которые легко повторить).
+
 | Bug | Fix |
 |-----|-----|
-| SMB share deletion/edit corrupts smb.conf | Use `sed` range pattern `/^\[name\]/,/^\[/` instead of Python regex |
-| NFS entries duplicate on each add | `sed -i '\|^/path |d'` before append |
-| iSCSI targetcli fails silently | Add explicit `sudo` to `cockpit.spawn()` |
-| mdadm reshape shows "Active" in UI | Check both `resync` and `reshape` in /proc/mdstat parser |
-| macOS NFS mount fails | Add `insecure` option to /etc/exports |
-| Binaries not in PATH (mdadm, mkfs.btrfs) | Add `/sbin` to PATH in `.bashrc` |
-| Guard IOPS counter always 0 | `InotifyTrees` returns subdirectory watch_path; normalize with `_root_path()` before lookup in `_iops_windows` dict |
-| Guard detector thread crashes silently | Same root cause: `_iops_windows[watch_path]` raises `KeyError` on first subdirectory event, killing the thread |
-| Guard socket channel timeout | `superuser: "require"` in iframe context causes polkit timeout; removed — security maintained by PIN auth |
-| Guard extensions list shows "Файл не найден" | `/etc/rusnas-guard/` had `chmod 700`; must be `755` so Cockpit bridge (non-root) can read `ransom_extensions.txt` |
-| `/run/rusnas-guard/` disappears after reboot | Add `RuntimeDirectory=rusnas-guard` + `RuntimeDirectoryMode=0755` to systemd unit |
-| Guard crash on enable: `AttributeError: get_iops` | `guard.py:_update_state()` called non-existent method; `Detector._record_iops()` already writes to shared state dict directly |
-| Guard crash on enable: `FileNotFoundError` in `InotifyTrees` | Filter paths with `os.path.isdir()` before passing to `InotifyTrees`; non-existent configured paths are skipped with warning |
-| Dashboard disk health block shows nothing | `ls /dev/sd? /dev/nvme?n?` exits with code 1 when no nvme devices → cockpit.spawn calls `.fail()`; fixed by appending `; true` |
-| Dedup SMB shares "не найдены" | `configparser` fails on smb.conf inline comments (`param = value ; comment`); fixed: write Python regex parser to tmpfile + execute |
-| Dedup invalid args (exit code 22) | duperemove v0.11.2 (Debian 13) doesn't support `--min-size`/`--hash`; removed from advanced form and saveAdvancedConfig |
-| Dedup status stays "Выполняется" after run | `setRunningState(false)` didn't clear status text; fixed: clear to "—" immediately, `loadLastRun()` fills real status |
-| Dedup stale JSON after run completion | Race: polling detected inactive before script finished writing JSON; fixed: 800ms delay before `loadLastRun()` in polling callback |
-| Dedup schedule controls active when disabled | No disabled state on time/days when "Включена" unchecked; fixed: change listener + `populateSettings()` sets `.disabled` |
-| Guard PIN modal not appearing after `--reset-pin` | Socket unavailable after reset → `guardCmd("has_pin")` silently fails; added `checkPinSetup()` with `test -f` fallback called from both DOMContentLoaded and refreshStatus error branch |
-| Dashboard dark mode не работал | `dashboard.css` использовал несуществующие переменные (`--color-bg-secondary`, `--color-card-bg`, `--color-text-muted`) с fallback к светлым hex-значениям; исправлено: заменены на `--bg-th`, `--bg-card`, `--color-muted` из `style.css` |
-| Guard bait files visible in SMB clients | Toggle `detection.hide_smb_baits` in Guard settings; `_apply_smb_hide()` writes `hide files = /!~rng_*/` into `[global]` section of smb.conf + `systemctl reload smbd`; atomic write via `.guard.tmp`; applied on daemon start |
-| Guard honeypot infinite false-positive loop | `_refresh_baits()` writes to subdirs → inotify → `is_bait()` → `recreate_bait()` loop; fixed: `_creating_baits` set in `honeypot.py`; `is_guard_creating()` checked before `_fire()` in `detector.py` |
-| Guard duplicate events per file | InotifyTrees watching both `/mnt/data` AND `/mnt/data/documents` fires each event twice; fixed: `_dedup_watch_paths()` keeps only topmost paths |
-| Samba streams_xattr honeypot false positives | `vfs objects = streams_xattr` reads bait files for xattr → `IN_OPEN` → false positive; fixed: `HONEYPOT_EVENTS` filter — honeypot only on write/delete/rename events |
-| Guard detector not starting after reboot | Daemon service started but Detector thread required manual UI Start; fixed: `auto_start: true` (default) — `run()` calls `start_guard()` automatically |
-| Dashboard TX speed always 0 | `/proc/net/dev` regex captured field 8 (`RX_multicast` ≈0) instead of field 9 (`TX_bytes`); fixed: one extra `\s+\d+` skip group |
-| Dashboard snapshot count inflated | `storage-info` included stale btrfspool paths from DB; fixed: cross-reference with `schedule list` — show subvols with schedule OR non-zero snapshot count |
+| `bash -c "sudo cmd | grep ..."` не работает | bash запускается без прав, inner sudo требует пароль; **правильно:** `cockpit.spawn(["sudo", "-n", "cmd", ...], {err:"message"})` |
+| `cockpit.spawn().then()` не Promise | не работает с `Promise.all()`; всегда оборачивать: `new Promise(function(r,j){ cockpit.spawn(...).done(r).fail(j); })` |
+| `superuser:"require"` в iframe → timeout | polkit не работает в iframe; использовать sudoers NOPASSWD вместо |
+| smb.conf inline comments ломают configparser | `param = value ; comment` → значение читается с мусором; писать python regex парсер в tmpfile |
+| duperemove v0.11.2 — нет `--min-size`/`--hash` | Debian 13 имеет v0.11.2; эти флаги добавлены в v0.12+ — не использовать |
+| NFS entries дублируются при add | `sed -i '\|^/path |d'` перед append в /etc/exports |
+| SMB share deletion/edit corrupts smb.conf | `sed` range pattern `/^\[name\]/,/^\[/` — НЕ python regex |
+| iSCSI saveconfig.json неверный путь | `/etc/rtslib-fb-target/saveconfig.json` — НЕ `/etc/target/`; делать `targetcli saveconfig` перед чтением |
+| `rusnas-snap schedule list` формат | возвращает `{schedules:[...], ok:true}` — НЕ bare array; парсить как `data.schedules` |
+| `schedule list` с флагом `--json` | команда НЕ принимает `--json`; флаг вызывает ошибку |
+| guard.py теряет `+x` после scp | `scp` копирует 644; `install-guard.sh` делает `chmod 755` — запускать при каждом обновлении guard.py |
+| `/proc/mdstat` reshape не детектируется | проверять И `resync` И `reshape` keyword |
+| `allow-hotplug` дублируется в interfaces | VM использует `allow-hotplug enp0s1` = `auto`; не добавлять оба |
+| Offline-субволюм в снапшотах → ошибка | проверять `isSubvolOffline(path)` перед `rusnas-snap list` |
+| Stale SMB/NFS шары после удаления RAID | `scanArrayDeps(mp)` чистит конфиги; `loadAllShares()` проверяет `[ -d path ]` |
 
 ## FTP and WebDAV settings (app.js / index.html)
 
@@ -470,85 +487,13 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 - Backend: `load_events()` in response.py supports offset/method/status/date_from/date_to; returns `{events, total}`
 - Backend: `clear_events` socket command (auth required) truncates `events.jsonl`
 
-## Git Branching & Versioning Rules
+## Git Workflow
 
-### Стратегия: Feature Branch Flow
+> Полные правила: [git-workflow.md](./git-workflow.md)
 
-```
-main              ──●────────────●────────────●──  ← production
-                                 ↑            ↑
-feature/dashboard  ──●──●──●────┘            │
-feature/replication         ──●──●──●────────┘
-hotfix/bug-name                     ──●──────┘
-```
-
-### Правила
-
-| Ветка | Назначение | Создаётся от | Вливается в |
-|-------|-----------|-------------|------------|
-| `main` | Production. То что деплоено на VM | — | — |
-| `feature/<name>` | Новая фича (дашборд, репликация и т.д.) | `main` | `main` (merge --no-ff) |
-| `hotfix/<name>` | Срочный баг в production | `main` | `main` (прямой commit) |
-
-**`main` всегда = задеплоенный код.** После merge → сразу `./deploy.sh`.
-
-### Как начать новую фичу
-
-```bash
-git checkout main
-git pull origin main           # синхронизировать с GitHub
-git checkout -b feature/replication
-# ... работа ...
-git push -u origin feature/replication
-```
-
-### Как влить фичу в main
-
-```bash
-git checkout main
-git merge feature/replication --no-ff   # --no-ff сохраняет историю ветки
-git push origin main
-./deploy.sh                             # деплой на VM
-```
-
-### Если main обновился пока работаешь над фичей
-
-```bash
-git checkout feature/replication
-git rebase main    # перенести коммиты ветки поверх нового main
-# при конфликтах: исправить файл → git add → git rebase --continue
-git push origin feature/replication --force-with-lease   # нужен force после rebase
-```
-
-### Баг-фиксы
-
-- **Срочный**: коммит прямо в `main` → `./deploy.sh`
-- **В рамках текущей фичи**: коммит в feature-ветку как обычно
-- **Нужен в нескольких ветках**: `git cherry-pick <commit-hash>`
-
-### Правила коммитов
-
-Формат: `тип: краткое описание`
-
-| Тип | Когда |
-|-----|-------|
-| `feat:` | Новая функциональность |
-| `fix:` | Исправление бага |
-| `docs:` | Только документация (CLAUDE.md, project_history.MD) |
-| `refactor:` | Рефактор без изменения поведения |
-
-Всегда добавлять в конец:
-```
-Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)
-```
-
-### Текущие ветки
-
-- `main` — стабильная production, задеплоена на VM
-- `feature/dashboard` — слита в main (2026-03-15)
-- `feature/dedup` — слита в main (2026-03-15)
-
----
+Стратегия: Feature Branch Flow. `main` = задеплоенный код. После merge → `./deploy.sh`.
+Формат коммитов: `feat:|fix:|docs:|refactor: описание` + `Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)`
+**Текущая ветка:** `feature/mcp-ai`
 
 ## Landing Page (marketing site, port 80)
 
@@ -590,187 +535,17 @@ Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)
 
 ---
 
-## Roadmap — следующие задачи
+## Roadmap
 
-### ✅ Dashboard (реализован 2026-03-15, ветка feature/dashboard)
-- `dashboard.html` + `css/dashboard.css` + `js/dashboard.js` — полный дашборд
-- `rusnas-metrics/metrics_server.py` — Prometheus + JSON API на порту 9100
-- `rusnas-metrics.service` — задеплоен и работает на VM
+> Детальные заметки по каждой фиче: [roadmap.md](./roadmap.md)
 
-**rusNAS Dashboard — ключевые факты:**
-- Интервалы: `TICK_FAST=1000` (CPU/Net/IO), `TICK_STORAGE=10000`, `TICK_SMART=300000`, `TICK_GUARD=5000`, `TICK_UPS=10000`
-- Sparklines — чистый SVG, без внешних библиотек
-- SMART cache TTL 5мин (`smartCache[device].time`)
-- Guard state из `/run/rusnas-guard/state.json`
-- UPS widget: `loadUpsStatus()` → `upsc -j` → `renderDashUps()` / `renderUpsNoDevice()`; карточка в grid-4 нижней секции
-- **Dark mode fix (2026-03-16):** dashboard.css использовал `--color-bg-secondary`/`--color-card-bg`/`--color-text-muted` → заменено на `--bg-th`/`--bg-card`/`--color-muted`
-- Metrics server: warmup 1 сек перед первым delta-расчётом
-- Metrics endpoint: `http://<IP>:9100/metrics` (Prometheus) + `/metrics.json` (JSON)
-- **Network Modal (2026-03-21):** клик на `#card-net` → `#net-modal`; `openNetModal()` / `closeNetModal()`; live speeds из `net-rx-val`/`net-tx-val`; vnstat JSON через `cockpit.spawn(["vnstat","--json"])` — ключи `traffic.day/hour/month` (не plural!); порядок oldest-first → today = `day[day.length-1]`
-- **TX bug fix (2026-03-21):** `/proc/net/dev` regex имел 6 skip-групп вместо 7 → захватывал `RX_multicast` вместо `TX_bytes`; исправлено добавлением одного `\s+\d+`
-- **Snapshot widget (2026-03-21):** `loadSnapshots()` cross-reference `storage-info` с `schedule list`; показывает субволюмы с расписанием (любым) ИЛИ count > 0; перестал показывать старые тестовые пути
-- **Guard auto_start (2026-03-21):** `guard.py` вызывает `start_guard()` автоматически при старте если `config["auto_start"] == True` (default)
-
-### ✅ Дедупликация (реализована 2026-03-15, ветка feature/dedup)
-- `dedup.html` + `js/dedup.js` — полная страница управления дедупликацией
-- `rusnas-dedup/rusnas-dedup-run.sh` — backend: duperemove + state JSON
-- `rusnas-dedup/rusnas-dedup.service` — systemd oneshot, Nice=19, IOSchedulingClass=idle
-- `install-dedup.sh` — деплой бэкенда на VM
-- Функции: запуск/стоп, лог, расписание (cron), тома, SMB vfs_btrfs per-шара, продвинутые параметры
-- Метрики: shared extents через `btrfs filesystem du -s`, история 7 дней, SVG timeline + бар-чарт
-
-### Снапшоты: репликация (следующая сессия)
-
-**Суть:** вынос снапшотов за пределы NAS. Три уровня:
-
-#### Уровень 1 — кастомный `snap_dir` per-schedule (средний приоритет)
-Позволяет хранить снапшоты на другом томе того же NAS (например `/mnt/data2/.snapshots/...`).
-- Добавить поле `snap_dir TEXT` в таблицу `schedules` (с дефолтом `NULL` = автовычисление)
-- Добавить поле в модал создания/редактирования расписания (с подсказкой и кнопкой "по умолчанию")
-- CLI: `--snap-dir` параметр в `schedule set`
-- В `cmd_create()` использовать `snap_dir` из расписания если задан, иначе авто
-
-#### Уровень 2 — репликация на удалённый хост (главная задача)
-Инкрементальная репликация через `btrfs send/receive` по SSH.
-
-**Архитектура:**
-- Новая таблица `replication_tasks`: `id, subvol_path, remote_user, remote_host, remote_path, method, last_sent_snap, enabled, cron_expr`
-- CLI команда: `rusnas-snap replicate <subvol_path> [--snap-id <id>]` — делает `btrfs send -p <parent> | ssh user@host btrfs receive /path`
-- CLI команда: `rusnas-snap replication set <subvol_path> --host ... --user ... --path ... --cron ...`
-- CLI команда: `rusnas-snap replication list/delete`
-- Новая вкладка "Репликация" в `snapshots.html` (рядом с Расписанием)
-
-**Метод `btrfs send/receive`:**
-```bash
-# Первая передача (полный снапшот):
-btrfs send /mnt/data/.snapshots/docs/@2026-03-14_... | ssh user@host btrfs receive /backup/docs/
-
-# Инкрементальная (только diff от предыдущего):
-btrfs send -p /mnt/data/.snapshots/docs/@prev | ssh user@host btrfs receive /backup/docs/
-```
-CLI отслеживает `last_sent_snap` в БД — при следующем запуске передаёт только diff.
-
-**UI — вкладка Репликация:**
-- Список задач репликации (subvol → host:/path, последняя передача, статус)
-- Кнопки: + Добавить, Изменить, Запустить сейчас, Удалить
-- Модал добавления: субволюм, SSH host, user, remote path, расписание
-- Журнал репликаций (отдельный от событий снапшотов)
-
-#### Уровень 3 — S3/rclone (низкий приоритет, позже)
-- `rclone copy snap_path s3:bucket/path` как альтернативный метод
-- Конфигурация rclone remote через UI
-
-**Что уже готово:**
-- `rusnas-snap storage-info` — глобальная статистика
-- `rusnas-snap schedule delete` — удаление расписания
-- Sidebar с деревом папок, offline-группы
-- `snap_dir` показывается в per-folder header и в карточке расписания
-
-**Что НЕ делать при репликации:**
-- Не использовать rsync для Btrfs-снапшотов — не сохраняет read-only subvol структуру
-- Не передавать через SMB/FTP — слишком медленно и ненадёжно
-- SSH ключи должны быть преднастроены вручную (безопасность), UI только вводит host/user/path
-
-### ✅ SSD-кеширование (реализовано 2026-03-17)
-
-Ускорение HDD RAID-массивов через SSD-кеш на базе LVM dm-cache. Полное ТЗ: [rusnas-ssd-tier-task.md](./rusnas-ssd-tier-task.md)
-
-**Реализованные компоненты:**
-- `install-ssd-tier.sh` — деплой: lvm2, sudoers, ssd-tiers.json
-- Секция "⚡ SSD-кеширование" в `disks.html` (после физических дисков)
-- Полная логика в `disks.js` — ~350 строк: getSsdCandidates, getSsdTierStatus, renderSsdTiers, loadSsdTiers, doCreateSsdTier, doChangeCacheMode, doRemoveSsdTier
-- CSS-классы `ssd-bar-wrap`, `ssd-bar-fill`, `ssd-mode-wt`, `ssd-mode-wb` в `style.css`
-
-**Архитектура стека:**
-```
-Btrfs → /dev/rusnas_vgN/data_lv (dm-cache LV) → /dev/mdX (mdadm RAID HDD) + /dev/sdY (SSD)
-```
-
-**Key architecture notes:**
-- Технология: lvmcache (dm-cache) через LVM — НЕ bcache (опасен с Btrfs в writeback)
-- Конфиг: `/etc/rusnas/ssd-tiers.json` — список активных тиров
-- Судоерс: `/etc/sudoers.d/rusnas-ssd-tier` — NOPASSWD для pvcreate/vgcreate/lvcreate/lvconvert/lvchange/dmsetup
-- LVM команды в `/sbin/` (Debian 13) — sudo через `secure_path` находит их
-- Polling статуса каждые 10 сек через `setInterval(loadSsdTiers, 10000)`
-- SSD-кандидаты: `lsblk -d -o NAME,SIZE,ROTA,TYPE --json` → фильтр `rota=false`, не в `/proc/mdstat`
-- Создание кеша: 8 шагов (pvcreate×2 → vgcreate → lvcreate data_lv → lvcreate cache_meta(512M) → lvcreate cache_data → lvconvert cache-pool → lvconvert cache)
-- Откат при ошибке: `vgremove -f <vgName>`
-- VG именование: `rusnas_vg<N>` (N = count existing vgs)
-- Режимы: writethrough (безопасный, по умолчанию) / writeback (требует ИБП — показывает предупреждение)
-
-**Critical disks.js notes (SSD tier):**
-- `getSsdCandidates()` uses lsblk JSON + filters mdstat members — returns `[{dev, size}]`
-- `getSsdTierStatus(vgName, lvName)` parses `lvs --noheadings -o ...cache_read_hits...` — 8 fields
-- Hit rate = `read_hits / (read_hits + read_misses) * 100`
-- Cache fill = `cache_used_blocks / cache_total_blocks * 100`
-- `loadSsdTiers()` reads `/etc/rusnas/ssd-tiers.json` via `cockpit.file().read()` (no superuser needed — file is 644)
-- `saveSsdTier()` / `removeSsdTierFromJson()` write via `cockpit.file(path, {superuser:"require"}).replace()`
-- Progress log via `appendSsdLog(logId, msg)` — separate from RAID's `appendCreateLog`
-
-### ✅ FileBrowser Quantum (реализовано 2026-03-19, ветка feature/filebrowser)
-
-Веб-файловый менеджер для просмотра файлов шар через браузер. Открывается в новой вкладке по `/files/`.
-
-**Архитектура:**
-```
-Браузер → Apache :80 → /files/ → FileBrowser :8088 (127.0.0.1)
-```
-
-**Компоненты:**
-- Бинарник: `/usr/local/bin/filebrowser` (v2.31.2, Go)
-- Конфиг: `/etc/rusnas/filebrowser/settings.json` (port 8088, baseURL="/files", root="/")
-- БД: `/var/lib/rusnas/filebrowser/users.db` (BoltDB)
-- Сервис: `rusnas-filebrowser.service` (user: rusnas-fb)
-- Apache proxy: `/etc/apache2/sites-enabled/rusnas-filebrowser.conf`
-- Admin pass: `rusnas_admin_2026`, пользователи: `rusnas_<user>_2026`
-
-**Скрипты:**
-- `install-filebrowser.sh` — деплой (бинарник на Mac → scp → VM)
-- `cockpit/rusnas/scripts/fb-init.sh` — инициализация (admin + sync пользователей)
-- `cockpit/rusnas/scripts/fb-sync-user.py` — sync одного пользователя (CLI stop/start)
-- `cockpit/rusnas/scripts/fb-sync-all-users.py` — первичная синхронизация
-- `cockpit/rusnas/cgi/fb-users-list.py` — список пользователей → JSON (GET API)
-- `cockpit/rusnas/cgi/fb-set-user-access.py` — изменение scope (CLI stop/start)
-
-**Критические заметки:**
-- FileBrowser v2.31.2 API POST `/api/users` возвращает "invalid data type" (баг) — только GET работает
-- Все write-операции (создание/обновление/удаление пользователей) через CLI с кратким `systemctl stop/start`
-- API URL с baseURL prefix: `http://127.0.0.1:8088/files/api/...` (не `/api/...`)
-- Apache вместо nginx: порт 80 занят Apache (лендинг)
-- Token файл: `/etc/rusnas/filebrowser/admin_token` (chmod 600)
-- Sudoers: `/etc/sudoers.d/rusnas-filebrowser`
-
-**Cockpit UI:**
-- Storage страница: 5-я вкладка «📁 Файловый менеджер» — управление сервисом + таблица пользователей
-- Таблица шар: кнопка «📂 Файлы» → FileBrowser с path параметром
-- Storage Analyzer: кнопки «Открыть» → FileBrowser deep-links
-- Dashboard: карточка статуса FileBrowser в grid-4
-
-### ✅ Network module + Certificates (реализовано 2026-03-21, ветка feature/network)
-
-Управление сетевыми настройками через ifupdown (не NetworkManager). Страница: `/rusnas/network.html`.
-
-**5 вкладок:** Интерфейсы, DNS и хосты, Маршруты, Диагностика, Сертификаты
-
-**Key architecture notes:**
-- Root cause: enp0s1 управляется ifupdown (`/etc/network/interfaces`), NM считает "unmanaged" → Cockpit's /network read-only
-- Backend: `network-api.py` — чтение/запись `/etc/network/interfaces`, atomic write через tempfile+os.rename
-- Backend: `certs-api.py` — 13 команд; certs at `/etc/rusnas/certs/{name}/` + `/etc/letsencrypt/live/`
-- Daemon: `rusnas-certcheck.timer` (daily 03:30) → `rusnas-certcheck.service` → `certs-api.py check-and-renew`
-- certbot 4.0.0 (Debian 13 Trixie), webroot → /var/www/rusnas-landing
-- Деплой: `./deploy.sh` + `./install-network.sh`
-
-**parse_interfaces() критические детали:**
-- 2 stanza для одного интерфейса (inet + inet6): prefer `inet` for config_mode; inet6 → `method6`
-- `allow-hotplug` = `auto` (VM использует `allow-hotplug enp0s1`)
-
-**Critical network.js notes:**
-- Port check: `/bin/nc` (netcat-openbsd), НЕ `/usr/bin/ncat`
-- Cert SAN: `DNS:` prefix для hostname, `IP:` для IPv4 (автоопределение по regex)
-- Sparkline: pure SVG polyline, delta от /proc/net/dev каждую секунду
-
-### MCP Server + AI Agent (после репликации)
-Полное ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)
-- MCP-сервер на Python, инструменты для всех функций NAS
-- Встроенный AI-чат в Cockpit (Ollama / Claude API)
-- HTTP-транспорт для внешних клиентов (Claude Desktop, Cursor)
+| Модуль | Статус | Детали |
+|--------|--------|--------|
+| Dashboard | ✅ реализован 2026-03-15 | rusnas-dashboard-spec.md |
+| Дедупликация | ✅ реализована 2026-03-15 | rusnas-dedup-spec.md |
+| SSD-кеширование | ✅ реализовано 2026-03-17 | rusnas-ssd-tier-task.md |
+| FileBrowser Quantum | ✅ реализован 2026-03-19 | rusnas-filebrowser-task.md |
+| Network + Certs + Domain | ✅ реализовано 2026-03-21/22 | rusnas-network-task.md |
+| MCP Server + AI Agent | ✅ Session 1 (2026-03-22/23) | rusnas_mcp_ai.MD |
+| Снапшоты: репликация | ✅ реализовано 2026-03-23 | roadmap.md |
+| MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |

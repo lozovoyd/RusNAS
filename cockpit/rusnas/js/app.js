@@ -339,7 +339,23 @@ function loadAllShares() {
             }
         });
 
-        renderSharesTable(Object.values(byPath));
+        var shares = Object.values(byPath);
+        if (!shares.length) { renderSharesTable(shares); return; }
+
+        // Check which paths actually exist on disk
+        var checkCmd = shares.map(function(s) {
+            return "[ -d " + JSON.stringify(s.path) + " ] && echo '1' || echo '0'";
+        }).join(";");
+        cockpit.spawn(["bash", "-c", checkCmd], {err: "message"})
+            .done(function(out) {
+                var flags = out.trim().split("\n");
+                shares.forEach(function(s, i) { s.pathExists = flags[i] !== "0"; });
+                renderSharesTable(shares);
+            })
+            .fail(function() {
+                shares.forEach(function(s) { s.pathExists = true; }); // assume ok on error
+                renderSharesTable(shares);
+            });
     }).catch(function() {
         tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Ошибка загрузки шар</td></tr>";
     });
@@ -355,22 +371,30 @@ function renderSharesTable(shares) {
     }
 
     tbody.innerHTML = shares.map(function(share, idx) {
+        var stale = share.pathExists === false;
+
         var badges = "";
         if (share.smb) badges += "<span class='badge badge-info'>SMB</span> ";
         if (share.nfs) badges += "<span class='badge badge-info'>NFS</span>";
         if (!share.smb && !share.nfs) badges = "<span class='badge badge-secondary'>нет протоколов</span>";
+        if (stale) badges += " <span class='badge badge-danger' title='Директория не найдена на диске'>⚠ путь не найден</span>";
 
         var access = share.smb
             ? (share.smb.guestOk === "yes" ? "Публичный" : "Приватный")
             : "—";
 
-        return "<tr>" +
+        var rowStyle = stale ? " style='opacity:0.6'" : "";
+        var pathHtml = stale
+            ? "<code style='font-size:12px;color:var(--danger)'>" + share.path + "</code>"
+            : "<code style='font-size:12px;'>" + share.path + "</code>";
+
+        return "<tr" + rowStyle + ">" +
             "<td><b>" + share.name + "</b></td>" +
-            "<td><code style='font-size:12px;'>" + share.path + "</code></td>" +
+            "<td>" + pathHtml + "</td>" +
             "<td><div class='share-proto-badges'>" + badges + "</div></td>" +
             "<td>" + access + "</td>" +
             "<td>" +
-              "<a class='btn btn-secondary btn-sm fb-share-link' href='" + getFileBrowserUrl(share.path) + "' target='_blank' style='margin-right:4px;'>📂 Файлы</a>" +
+              (stale ? "" : "<a class='btn btn-secondary btn-sm fb-share-link' href='" + getFileBrowserUrl(share.path) + "' target='_blank' style='margin-right:4px;'>📂 Файлы</a>") +
               "<button class='btn btn-secondary btn-sm edit-share-btn' data-idx='" + idx + "' style='margin-right:4px;'>✏️ Изменить</button>" +
               "<button class='btn btn-danger btn-sm delete-share-btn' data-idx='" + idx + "'>🗑️ Удалить</button>" +
             "</td>" +

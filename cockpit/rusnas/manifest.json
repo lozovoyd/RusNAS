@@ -3,7 +3,7 @@
   "require": {
     "cockpit": ">=215"
   },
-  "content-security-policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'",
+  "content-security-policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * https://api.anthropic.com https://ai.api.cloud.yandex.net",
   "menu": {
     "dashboard": {
       "label": "Dashboard 🏠",
@@ -44,6 +44,14 @@
     "network": {
       "label": "Сеть 🌐",
       "order": 10
+    },
+    "ai": {
+      "label": "AI Ассистент 🤖",
+      "order": 11
+    },
+    "performance": {
+      "label": "Performance ⚡",
+      "order": 12
     }
   },
   "superuser": {

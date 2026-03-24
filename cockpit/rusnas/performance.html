@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>rusNAS — Performance Tuner</title>
+  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/eye.css">
+  <script src="../base1/cockpit.js"></script>
+</head>
+<body>
+
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--color-border)">
+  <div>
+    <h1 style="margin:0;font-size:20px">⚡ Performance Tuner</h1>
+    <div style="font-size:13px;color:var(--color-muted);margin-top:2px">Анализ и оптимизация производительности дисковой подсистемы и сети</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="btn btn-secondary" id="btn-refresh">↺ Обновить</button>
+    <button class="btn btn-primary" id="btn-apply-all">✓ Применить выбранные</button>
+    <button class="btn btn-default" id="btn-rollback-all">↺ Откатить всё</button>
+  </div>
+</div>
+
+<!-- System Profile -->
+<div class="section" id="sys-profile-section">
+  <h2 style="margin-bottom:12px">Профиль системы</h2>
+  <div id="sys-profile" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">
+    <div class="perf-profile-card" id="prof-ram">
+      <div class="perf-profile-label">ОЗУ</div>
+      <div class="perf-profile-val" id="prof-ram-val">…</div>
+    </div>
+    <div class="perf-profile-card" id="prof-cpu">
+      <div class="perf-profile-label">CPU</div>
+      <div class="perf-profile-val" id="prof-cpu-val">…</div>
+    </div>
+    <div class="perf-profile-card" id="prof-disks">
+      <div class="perf-profile-label">Диски</div>
+      <div class="perf-profile-val" id="prof-disks-val">…</div>
+    </div>
+    <div class="perf-profile-card" id="prof-raid">
+      <div class="perf-profile-label">RAID</div>
+      <div class="perf-profile-val" id="prof-raid-val">…</div>
+    </div>
+    <div class="perf-profile-card" id="prof-net">
+      <div class="perf-profile-label">Сеть</div>
+      <div class="perf-profile-val" id="prof-net-val">…</div>
+    </div>
+    <div class="perf-profile-card" id="prof-tuned">
+      <div class="perf-profile-label">TuneD</div>
+      <div class="perf-profile-val" id="prof-tuned-val">…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Global status banner -->
+<div id="perf-status-banner" class="hidden" style="margin:0 20px 12px;padding:10px 14px;border-radius:6px;font-size:13px"></div>
+
+<!-- Tuning table -->
+<div class="section" id="tuning-section">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px">
+    <h2 style="margin:0">Параметры оптимизации</h2>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:normal">
+      <input type="checkbox" id="chk-select-all" style="width:14px;height:14px">
+      Выбрать все рекомендуемые
+    </label>
+  </div>
+  <div id="tuning-table">
+    <div style="padding:24px;text-align:center;color:var(--color-muted)">Загрузка данных…</div>
+  </div>
+</div>
+
+<!-- Staged apply confirmation modal -->
+<div class="modal-overlay hidden" id="perf-confirm-modal">
+  <div class="modal-box" style="width:500px">
+    <h3 style="margin-bottom:8px">⚡ Изменения применены в памяти</h3>
+    <p style="font-size:13px;color:var(--color-muted);margin-bottom:16px">
+      Все выбранные параметры применены. Система работает нормально?<br>
+      Подтвердите — и они будут сохранены <strong>персистентно</strong>.<br>
+      Если что-то сломалось — откатите сейчас или просто перезагрузите сервер.
+    </p>
+    <div style="background:var(--bg-th);border-radius:6px;padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:13px">Автооткат через:</span>
+        <span style="font-size:22px;font-weight:700;color:var(--warning,#ff9800);font-family:monospace" id="perf-confirm-count">60</span>
+        <span style="font-size:13px">сек</span>
+      </div>
+      <div style="background:var(--color-border);border-radius:3px;height:5px;overflow:hidden">
+        <div id="perf-confirm-bar" style="height:100%;background:var(--warning,#ff9800);width:100%;transition:width 1s linear"></div>
+      </div>
+      <div style="font-size:11px;color:var(--color-muted);margin-top:6px">
+        Если не подтвердить — изменения откатятся автоматически (персистентные файлы не записаны)
+      </div>
+    </div>
+    <div id="perf-confirm-stage-log" style="font-size:12px;color:var(--color-muted);margin-bottom:12px;max-height:80px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="btn-perf-confirm">✓ Подтвердить — сохранить</button>
+      <button class="btn btn-default" id="btn-perf-cancel-apply" style="background:var(--danger,#f44336);color:#fff;border-color:transparent">✗ Откатить изменения</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tooltip modal -->
+<div class="modal-overlay hidden" id="perf-info-modal">
+  <div class="modal-box" style="width:500px">
+    <h3 id="perf-info-title"></h3>
+    <div id="perf-info-body" style="font-size:13px;line-height:1.7"></div>
+    <div class="modal-footer">
+      <button class="btn btn-default" id="btn-perf-info-close">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.perf-profile-card {
+  background: var(--bg-th);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.perf-profile-label {
+  font-size: 11px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+.perf-profile-val {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.perf-category {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  padding: 10px 12px 6px;
+  background: var(--bg-th);
+  border-radius: 6px 6px 0 0;
+  margin-top: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.perf-category:first-child {
+  margin-top: 0;
+}
+
+.perf-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 120px 120px 100px 90px;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  transition: background .1s;
+}
+.perf-row:hover { background: var(--bg-th); }
+.perf-row:last-child { border-bottom: none; border-radius: 0 0 6px 6px; }
+
+.perf-row-group {
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+}
+
+.perf-param { font-family: monospace; font-size: 12px; }
+.perf-desc  { font-size: 11px; color: var(--color-muted); margin-top:2px; }
+
+.perf-val-cur  { font-family: monospace; font-size: 12px; color: var(--color-muted); }
+.perf-val-rec  { font-family: monospace; font-size: 12px; font-weight: 600; color: var(--success, #4caf50); }
+.perf-val-same { font-family: monospace; font-size: 12px; color: var(--color-muted); font-style: italic; }
+
+.perf-status-ok   { font-size: 11px; color: var(--success, #4caf50); }
+.perf-status-todo { font-size: 11px; color: var(--warning, #ff9800); }
+.perf-status-err  { font-size: 11px; color: var(--danger, #f44336); }
+.perf-status-spin { font-size: 11px; color: var(--color-muted); }
+
+.perf-impact-high { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: #1a4a1a; color: #4caf50; }
+.perf-impact-med  { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: #4a3800; color: #ff9800; }
+.perf-impact-low  { font-size: 10px; padding: 1px 6px; border-radius: 3px; background: var(--bg-th); color: var(--color-muted); }
+</style>
+
+<script src="js/performance.js"></script>
+<script src="js/eye.js"></script>
+</body>
+</html>

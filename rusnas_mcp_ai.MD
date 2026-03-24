@@ -1,6 +1,7 @@
 # rusNAS MCP Server + AI Agent — ТЗ
 
-> Статус: **планируется** (не реализовано)
+> Статус: **Session 1 реализована** (2026-03-22/23) — Cockpit AI чат + NAS tools + multi-provider (Yandex/Anthropic) + openEYE Agent
+> Session 2 (HTTP SSE / Claude Desktop) — планируется
 
 ## Концепция
 
@@ -91,6 +92,48 @@ rusnas-mcp-server (HTTP mode, порт 8765, auth token)
 - **Зависимости:** все существующие CLI-команды (`rusnas-snap`, disks.js API)
 - **Приоритет:** после реализации репликации снапшотов
 - **Оценка:** ~3-4 сессии разработки
+
+---
+
+## Реализовано (Session 1, 2026-03-22/23)
+
+### Файлы
+
+| Файл | Статус |
+|------|--------|
+| `cockpit/rusnas/scripts/mcp-api.py` | ✅ Реализован (11 команд + ai-chat proxy) |
+| `cockpit/rusnas/ai.html` | ✅ Реализован (multi-provider UI, openEYE toggle) |
+| `cockpit/rusnas/js/ai.js` | ✅ Реализован (Yandex + Anthropic, tool loop, proxy) |
+| `cockpit/rusnas/css/ai.css` | ✅ Реализован |
+| `cockpit/rusnas/js/eye.js` | ✅ Реализован (openEYE Agent) |
+| `cockpit/rusnas/css/eye.css` | ✅ Реализован |
+| `cockpit/rusnas/manifest.json` | ✅ Обновлён (entry + CSP) |
+| `install-mcp.sh` | ✅ Реализован |
+
+### Провайдеры AI
+
+| Провайдер | API | Формат | По умолчанию |
+|-----------|-----|--------|-------------|
+| YandexGPT | `ai.api.cloud.yandex.net/v1/chat/completions` | OpenAI-compatible | ✅ Да |
+| Anthropic Claude | `api.anthropic.com/v1/messages` | Нативный Anthropic | нет |
+
+### Ключевые архитектурные решения
+
+- **CORS bypass через VM proxy:** все AI-вызовы идут через `mcp-api.py` на VM — Python не ограничен CORS
+- **Временный файл:** payload пишется в `/tmp/rusnas-ai-req.json` через `cockpit.file().replace()`, путь передаётся как argv (не stdin — Cockpit 337 bug с stdin)
+- **Единый формат сообщений:** OpenAI-формат внутри, `convertToAnthropicMessages()` конвертирует для Anthropic
+- **openEYE:** автоматический анализ страниц, активируется через localStorage, левая панель с findings
+
+### Судоерс на VM
+
+- `/etc/sudoers.d/rusnas-mcp` — NOPASSWD: python3 mcp-api.py
+- `/etc/sudoers.d/rusnas-smart` — NOPASSWD: /usr/sbin/smartctl
+
+### Не реализовано (Session 2)
+
+- HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor
+- `pip install mcp` SDK (официальный MCP protocol)
+- Ollama поддержка
 
 ---
 

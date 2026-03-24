@@ -1,5 +1,9 @@
 // ─── Disks & RAID ─────────────────────────────────────────────────────────────
 
+function _escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
 var diskRefreshTimer  = null;
 var physicalDiskCount = 0;   // non-system disks, set in renderDisks
 var currentArrays     = [];  // last parsed mdstat, used by RAID advisor
@@ -168,6 +172,14 @@ function renderArrays(arrays, mountMap) {
             ? "<button class='btn btn-secondary btn-sm' data-action='expand' data-array='" + arr.name + "'>⤢ Расширить массив</button>"
             : "";
 
+        // RAID level upgrade button (dynamic: raid1→5, raid5→6)
+        var _upgradeInfo = !arr.inactive && !arr.degraded && !arr.resyncing && RAID_UPGRADES[arr.level];
+        var upgradeBtn = _upgradeInfo
+            ? "<button class='btn btn-secondary btn-sm' data-action='upgrade' data-array='" + arr.name + "'" +
+              " data-level='" + arr.level + "' data-devices='" + arr.total + "'" +
+              " title='Сменить уровень RAID'>⬆ Апгрейд → " + _upgradeInfo.targetLabel + "</button>"
+            : "";
+
         // Mount status + mount/umount/subvolume buttons
         var mountInfo = mountMap[arr.name];
         var mountStatusHtml = "";
@@ -196,7 +208,7 @@ function renderArrays(arrays, mountMap) {
                     "<span class='array-size'>" + arr.sizeGB + " GB</span>" +
                 "</div>" +
                 "<div class='array-actions'>" +
-                    actionBtn + " " + addDiskBtn + " " + expandBtn + " " +
+                    actionBtn + " " + addDiskBtn + " " + expandBtn + " " + upgradeBtn + " " +
                     mountBtn + " " + umountBtn + " " + subvolBtn + " " + deleteBtn +
                 "</div>" +
             "</div>" +
@@ -305,7 +317,7 @@ function renderDisks(lsblkOut, arrays) {
             ? "<button class='btn btn-warning btn-sm' onclick='openEjectDisk(\"" + name + "\",\"" + inArray + "\")'>⏏ Извлечь</button>"
             : "";
 
-        return "<tr>" +
+        return "<tr style='cursor:pointer' title='Нажмите для просмотра S.M.A.R.T.'>" +
             "<td><b>/dev/" + name + "</b></td>" +
             "<td>" + size + "</td>" +
             "<td><span class='disk-model' id='model-" + name + "'>...</span></td>" +
@@ -324,9 +336,8 @@ function renderDisks(lsblkOut, arrays) {
 }
 
 function loadDiskInfo(disk) {
-    cockpit.spawn(["bash", "-c",
-        "sudo smartctl -i -H /dev/" + disk + " 2>/dev/null"
-    ])
+    cockpit.spawn(["sudo", "-n", "smartctl", "-i", "-H", "/dev/" + disk],
+        {err: "message"})
     .done(function(out) {
         // Model
         var modelM = out.match(/Device Model:\s*(.+)|Model Number:\s*(.+)/);
@@ -500,7 +511,8 @@ function loadAddDiskInfo(disks) {
     var pending = disks.length;
 
     disks.forEach(function(disk, idx) {
-        cockpit.spawn(["bash", "-c", "sudo smartctl -i /dev/" + disk + " 2>/dev/null | grep -E 'Device Model|Model Number|Serial Number|User Capacity'"])
+        cockpit.spawn(["sudo", "-n", "smartctl", "-i", "/dev/" + disk],
+            {err: "message"})
             .done(function(out) {
                 var modelM  = out.match(/Device Model:\s*(.+)|Model Number:\s*(.+)/);
                 var serialM = out.match(/Serial Number:\s*(.+)/);
@@ -541,7 +553,8 @@ function openEjectDisk(disk, arrayName) {
     document.getElementById("eject-array-value").value       = arrayName;
 
     // Load disk info for confirmation
-    cockpit.spawn(["bash", "-c", "sudo smartctl -i /dev/" + disk + " 2>/dev/null | grep -E 'Device Model|Model Number|Serial Number'"])
+    cockpit.spawn(["sudo", "-n", "smartctl", "-i", "/dev/" + disk],
+        {err: "message"})
         .done(function(out) {
             var modelM  = out.match(/Device Model:\s*(.+)|Model Number:\s*(.+)/);
             var serialM = out.match(/Serial Number:\s*(.+)/);
@@ -972,6 +985,72 @@ function startCreateArray() {
 
 // ─── Delete array ─────────────────────────────────────────────────────────────
 
+var _deleteArrayDeps = null; // { mp, smb:[{name,path}], nfs:[path], schedules:[subvolPath] }
+
+function scanArrayDeps(mp, callback) {
+    var deps = { mp: mp, smb: [], nfs: [], schedules: [] };
+    var pending = 3;
+    function done() { if (--pending === 0) callback(deps); }
+
+    // SMB: find shares whose path is under the mount point
+    var smbScript = [
+        "import re, sys",
+        "mp = sys.argv[1]",
+        "try:",
+        "    txt = open('/etc/samba/smb.conf').read()",
+        "    for s in re.split(r'(?=^\\[)', txt, flags=re.M):",
+        "        nm = re.match(r'^\\[(.+?)\\]', s)",
+        "        pm = re.search(r'^\\s*path\\s*=\\s*([^;\\n]+)', s, re.M)",
+        "        if nm and pm:",
+        "            n = nm.group(1).strip()",
+        "            p = pm.group(1).strip()",
+        "            if n not in ('global','homes','printers') and (p == mp or p.startswith(mp + '/')):",
+        "                print(n + '|' + p)",
+        "except Exception:",
+        "    pass"
+    ].join("\n");
+
+    cockpit.file("/tmp/rusnas_dep_scan.py").replace(smbScript)
+        .then(function() {
+            cockpit.spawn(["sudo", "-n", "python3", "/tmp/rusnas_dep_scan.py", mp], {err: "message"})
+                .done(function(out) {
+                    out.trim().split("\n").filter(Boolean).forEach(function(l) {
+                        var p = l.split("|");
+                        deps.smb.push({ name: p[0], path: p[1] || "" });
+                    });
+                    done();
+                })
+                .fail(function() { done(); });
+        })
+        .catch(function() { done(); });
+
+    // NFS: find exports matching the mount point
+    cockpit.spawn(["bash", "-c",
+        "grep -E '^" + mp + "(/|[[:space:]]|$)' /etc/exports 2>/dev/null | awk '{print $1}' || true"
+    ], {err: "message"})
+        .done(function(out) {
+            out.trim().split("\n").filter(Boolean).forEach(function(p) { deps.nfs.push(p); });
+            done();
+        })
+        .fail(function() { done(); });
+
+    // Snapshot schedules: filter by subvol path
+    cockpit.spawn(["sudo", "-n", "rusnas-snap", "schedule", "list"], {err: "message"})
+        .done(function(out) {
+            try {
+                var parsed = JSON.parse(out);
+                var list = Array.isArray(parsed) ? parsed : (parsed.schedules || []);
+                list.forEach(function(s) {
+                    if (s.subvol_path && (s.subvol_path === mp || s.subvol_path.startsWith(mp + "/"))) {
+                        deps.schedules.push(s.subvol_path);
+                    }
+                });
+            } catch (e) {}
+            done();
+        })
+        .fail(function() { done(); });
+}
+
 function openDeleteArrayModal(arrayName, disksStr) {
     document.getElementById("delete-array-name").value = arrayName;
     document.getElementById("delete-array-label").textContent = arrayName;
@@ -980,7 +1059,48 @@ function openDeleteArrayModal(arrayName, disksStr) {
     document.getElementById("delete-array-log").classList.add("hidden");
     document.getElementById("delete-array-log").textContent = "";
     document.getElementById("delete-array-footer").classList.remove("hidden");
+
+    // Reset deps
+    _deleteArrayDeps = null;
+    var depsEl   = document.getElementById("delete-array-deps");
+    var depsList = document.getElementById("delete-array-deps-list");
+    depsEl.classList.add("hidden");
+    depsList.innerHTML = "<i>Сканирование...</i>";
+
     showModal("modal-delete-array");
+
+    // Find mount point, then scan deps
+    cockpit.spawn(["bash", "-c",
+        "findmnt -n -o TARGET /dev/" + arrayName + " 2>/dev/null || true"
+    ], {err: "message"})
+        .done(function(mpOut) {
+            var mp = mpOut.trim();
+            if (!mp) { depsList.innerHTML = ""; return; }
+
+            scanArrayDeps(mp, function(deps) {
+                _deleteArrayDeps = deps;
+                var items = [];
+                deps.smb.forEach(function(s) {
+                    items.push("📂 SMB-шара <b>" + _escHtml(s.name) + "</b> (" + _escHtml(s.path) + ")");
+                });
+                deps.nfs.forEach(function(p) {
+                    items.push("🔗 NFS-экспорт <b>" + _escHtml(p) + "</b>");
+                });
+                deps.schedules.forEach(function(p) {
+                    items.push("🕐 Расписание снапшотов: <b>" + _escHtml(p) + "</b>");
+                });
+
+                if (items.length > 0) {
+                    depsList.innerHTML = items.map(function(i) {
+                        return "<div style='padding:2px 0'>" + i + "</div>";
+                    }).join("");
+                    depsEl.classList.remove("hidden");
+                } else {
+                    depsList.innerHTML = "";
+                }
+            });
+        })
+        .fail(function() { depsList.innerHTML = ""; });
 }
 
 function doDeleteArray() {
@@ -991,6 +1111,8 @@ function doDeleteArray() {
 
     function append(msg) { log.textContent += msg + "\n"; log.scrollTop = log.scrollHeight; }
 
+    var deps = _deleteArrayDeps; // may be null if not mounted
+
     // Find members first, then proceed
     cockpit.spawn(["bash", "-c",
         "sudo mdadm --detail /dev/" + arrayName + " 2>/dev/null | grep '/dev/sd' | awk '{print $NF}' | tr '\\n' ' '"
@@ -998,56 +1120,132 @@ function doDeleteArray() {
     .done(function(memberOut) {
         var members = memberOut.trim().split(/\s+/).filter(Boolean);
 
-        append("▶ Определение точки монтирования...");
-        cockpit.spawn(["bash", "-c",
-            "findmnt -n -o TARGET /dev/" + arrayName + " 2>/dev/null || true"
-        ], {superuser: "require"})
-        .done(function(mpOut) {
-            var mp = mpOut.trim();
+        var chain = Promise.resolve();
 
-            var chain = Promise.resolve();
+        // ── Clean up associated resources (SMB, NFS, snapshots) ──────────────
+        if (deps && deps.smb.length > 0) {
+            chain = chain.then(function() {
+                append("▶ Удаление SMB-шар...");
+                var smbNames = deps.smb.map(function(s) { return s.name; });
+                // Build sed commands: delete each [name] section
+                var sedCmds = smbNames.map(function(n) {
+                    var esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    return "sudo sed -i '/^\\[" + esc + "\\]/,/^\\[/{/^\\[" + esc + "\\]/d;/^\\[/!d}' /etc/samba/smb.conf";
+                }).join(" && ");
+                sedCmds += " && sudo systemctl reload smbd 2>/dev/null || true";
+                return new Promise(function(resolve) {
+                    cockpit.spawn(["bash", "-c", sedCmds], {superuser: "require"})
+                        .done(function() { append("✓ SMB-шары удалены: " + smbNames.join(", ")); resolve(); })
+                        .fail(function(e) { append("⚠ SMB: " + e); resolve(); });
+                });
+            });
+        }
+
+        if (deps && deps.nfs.length > 0) {
+            chain = chain.then(function() {
+                append("▶ Удаление NFS-экспортов...");
+                var sedCmds = deps.nfs.map(function(p) {
+                    return "sudo sed -i '\\|^" + p + "\\s|d' /etc/exports";
+                }).join(" && ");
+                sedCmds += " && sudo exportfs -ra 2>/dev/null || true";
+                return new Promise(function(resolve) {
+                    cockpit.spawn(["bash", "-c", sedCmds], {superuser: "require"})
+                        .done(function() { append("✓ NFS-экспорты удалены"); resolve(); })
+                        .fail(function(e) { append("⚠ NFS: " + e); resolve(); });
+                });
+            });
+        }
+
+        if (deps && deps.schedules.length > 0) {
+            chain = chain.then(function() {
+                append("▶ Удаление расписаний снапшотов...");
+                var deleteChain = Promise.resolve();
+                deps.schedules.forEach(function(subvolPath) {
+                    deleteChain = deleteChain.then(function() {
+                        return new Promise(function(resolve) {
+                            cockpit.spawn(["sudo", "-n", "rusnas-snap", "schedule", "delete", subvolPath], {err: "message"})
+                                .done(function() { resolve(); })
+                                .fail(function() { resolve(); });
+                        });
+                    });
+                });
+                return deleteChain.then(function() {
+                    append("✓ Расписания удалены: " + deps.schedules.join(", "));
+                });
+            });
+        }
+
+        // ── Standard array teardown ───────────────────────────────────────────
+        chain = chain.then(function() {
+            append("▶ Определение точки монтирования...");
+            return new Promise(function(resolve) {
+                cockpit.spawn(["bash", "-c",
+                    "findmnt -n -o TARGET /dev/" + arrayName + " 2>/dev/null || true"
+                ], {superuser: "require"})
+                .done(function(mpOut) { resolve(mpOut.trim()); })
+                .fail(function() { resolve(""); });
+            });
+        });
+
+        chain = chain.then(function(mp) {
+            var inner = Promise.resolve();
 
             if (mp) {
-                chain = chain.then(function() {
+                inner = inner.then(function() {
                     append("▶ Размонтирование " + mp + "...");
-                    return cockpit.spawn(["bash", "-c",
-                        "sudo umount " + mp + " 2>&1 || true"
-                    ], {superuser: "require"}).done(function() { append("✓ Размонтирован"); });
+                    return new Promise(function(resolve) {
+                        cockpit.spawn(["bash", "-c", "sudo umount " + mp + " 2>&1 || true"],
+                            {superuser: "require"})
+                            .done(function() { append("✓ Размонтирован"); resolve(); })
+                            .fail(function() { resolve(); });
+                    });
                 });
             }
 
-            chain = chain.then(function() {
+            inner = inner.then(function() {
                 append("▶ Удаление записи из /etc/fstab...");
-                return cockpit.spawn(["bash", "-c",
-                    "UUID=$(sudo blkid -s UUID -o value /dev/" + arrayName + " 2>/dev/null || true) && " +
-                    "[ -n \"$UUID\" ] && sudo sed -i \"/UUID=$UUID/d\" /etc/fstab 2>/dev/null || true"
-                ], {superuser: "require"}).done(function() { append("✓ fstab очищен"); });
+                return new Promise(function(resolve) {
+                    cockpit.spawn(["bash", "-c",
+                        "UUID=$(sudo blkid -s UUID -o value /dev/" + arrayName + " 2>/dev/null || true) && " +
+                        "[ -n \"$UUID\" ] && sudo sed -i \"/UUID=$UUID/d\" /etc/fstab 2>/dev/null || true"
+                    ], {superuser: "require"})
+                        .done(function() { append("✓ fstab очищен"); resolve(); })
+                        .fail(function() { resolve(); });
+                });
             });
 
-            chain = chain.then(function() {
+            inner = inner.then(function() {
                 append("▶ Остановка массива /dev/" + arrayName + "...");
-                return cockpit.spawn(["bash", "-c",
-                    "sudo mdadm --stop /dev/" + arrayName + " 2>&1"
-                ], {superuser: "require"}).done(function(o) { append("✓ " + (o.trim() || "Остановлен")); });
+                return new Promise(function(resolve) {
+                    cockpit.spawn(["bash", "-c", "sudo mdadm --stop /dev/" + arrayName + " 2>&1"],
+                        {superuser: "require"})
+                        .done(function(o) { append("✓ " + (o.trim() || "Остановлен")); resolve(); })
+                        .fail(function(e) { append("⚠ " + e); resolve(); });
+                });
             });
 
-            chain = chain.then(function() {
+            inner = inner.then(function() {
                 append("▶ Очистка суперблоков...");
                 var zeroCmds = members.map(function(dev) {
                     return "sudo mdadm --zero-superblock " + dev + " 2>/dev/null || true";
                 }).join(" && ");
-                return cockpit.spawn(["bash", "-c", zeroCmds || "true"], {superuser: "require"})
-                    .done(function() { append("✓ Суперблоки очищены: " + members.join(", ")); });
+                return new Promise(function(resolve) {
+                    cockpit.spawn(["bash", "-c", zeroCmds || "true"], {superuser: "require"})
+                        .done(function() { append("✓ Суперблоки очищены: " + members.join(", ")); resolve(); })
+                        .fail(function() { resolve(); });
+                });
             });
 
-            chain = chain.then(function() {
+            inner = inner.then(function() {
                 append("\n✅ Массив удалён. Диски свободны.");
                 loadDisksAndArrays();
                 setTimeout(function() { closeModal("modal-delete-array"); }, 2000);
             });
 
-            chain.catch(function(err) { append("✗ Ошибка: " + err); });
+            return inner;
         });
+
+        chain.catch(function(err) { append("✗ Ошибка: " + err); });
     })
     .fail(function(err) { log.textContent = "✗ " + err; });
 }
@@ -1724,6 +1922,285 @@ function doRemoveSsdTier() {
 
 // ─── END SSD-кеширование ──────────────────────────────────────────────────────
 
+// ─── SMART Detail Modal ───────────────────────────────────────────────────────
+
+var _smartModalDisk    = "";
+var _smartTestPollTimer = null;
+
+function openSmartModal(disk) {
+    stopSmartTestPoll();
+    _smartModalDisk = disk;
+    document.getElementById("smart-modal-disk").textContent = "/dev/" + disk;
+    document.getElementById("smart-modal-health").innerHTML = "<span style='color:var(--color-muted);font-size:13px'>Загрузка данных S.M.A.R.T.…</span>";
+    document.getElementById("smart-modal-info").innerHTML = "";
+    document.getElementById("smart-modal-attrs-body").innerHTML = "<tr><td colspan='8' style='padding:8px;color:var(--color-muted)'>Загрузка…</td></tr>";
+    document.getElementById("smart-modal-errors").textContent = "Загрузка…";
+    document.getElementById("smart-modal-tests").innerHTML = "<span style='color:var(--color-muted)'>Загрузка…</span>";
+    document.getElementById("smart-sched-status").textContent = "";
+    showModal("smart-detail-modal");
+
+    cockpit.spawn(["sudo", "-n", "smartctl", "-a", "/dev/" + disk], {err: "message"})
+    .done(function(out) {
+        renderSmartModal(out);
+        loadSmartSchedule(disk);
+    })
+    .fail(function(err, out) {
+        var txt = out || err || "Ошибка получения данных";
+        document.getElementById("smart-modal-health").innerHTML =
+            "<span class='text-warning'>⚠ Не удалось получить данные: " + _escHtml(txt.split("\n")[0]) + "</span>";
+        document.getElementById("smart-modal-attrs-body").innerHTML = "";
+        document.getElementById("smart-modal-errors").textContent = "";
+        document.getElementById("smart-modal-tests").innerHTML = "";
+        loadSmartSchedule(disk);
+    });
+}
+
+function renderSmartModal(out) {
+    // ── Health ──────────────────────────────────────────────────────────────
+    var healthM = out.match(/SMART overall-health self-assessment test result:\s*(\S+)/i);
+    var health  = healthM ? healthM[1].toUpperCase() : null;
+    var healthHtml = health === "PASSED"
+        ? "<div style='display:inline-block;padding:6px 16px;border-radius:6px;background:#1a4a1a;color:#4caf50;font-weight:700;font-size:14px'>✓ PASSED — диск исправен</div>"
+        : health
+            ? "<div style='display:inline-block;padding:6px 16px;border-radius:6px;background:#4a1a1a;color:#f44336;font-weight:700;font-size:14px'>✗ " + _escHtml(health) + " — требуется внимание!</div>"
+            : "<div style='color:var(--color-muted);font-size:13px'>Статус здоровья недоступен</div>";
+    document.getElementById("smart-modal-health").innerHTML = healthHtml;
+
+    // ── Device info ─────────────────────────────────────────────────────────
+    var infoFields = [
+        ["Модель",           out.match(/Device Model:\s*(.+)|Model Number:\s*(.+)/)],
+        ["Серийный №",       out.match(/Serial Number:\s*(.+)/)],
+        ["Прошивка",         out.match(/Firmware Version:\s*(.+)/)],
+        ["Ёмкость",          out.match(/User Capacity:\s*(.+)/)],
+        ["Размер сектора",   out.match(/Sector Size:\s*(.+)/)],
+        ["Форм-фактор",      out.match(/Form Factor:\s*(.+)/)],
+        ["Интерфейс",        out.match(/Transport protocol:\s*(.+)|ATA Version is:\s*(.+)/)],
+        ["Ротация",          out.match(/Rotation Rate:\s*(.+)/)],
+        ["TRIM",             out.match(/TRIM Command:\s*(.+)/)],
+        ["Часов работы",     out.match(/Power_On_Hours.*?\s+(\d+)\s*$|Power_On_Hours.*?RAW_VALUE\s+(\d+)/)],
+        ["Включений",        out.match(/Power_Cycle_Count.*?\s+(\d+)\s*$|Power_Cycle_Count.*?RAW_VALUE\s+(\d+)/)],
+        ["Переназначено",    out.match(/Reallocated_Sector_Ct.*?\s+(\d+)\s*$|Reallocated_Sector_Ct.*?RAW_VALUE\s+(\d+)/)],
+    ];
+    var infoHtml = "";
+    infoFields.forEach(function(f) {
+        if (!f[1]) return;
+        var val = (f[1][1] || f[1][2] || "").trim();
+        if (!val || val === "—") return;
+        infoHtml += "<div style='color:var(--color-muted);font-size:11px'>" + _escHtml(f[0]) + "</div>" +
+                    "<div style='font-weight:500'>" + _escHtml(val) + "</div>";
+    });
+    document.getElementById("smart-modal-info").innerHTML = infoHtml || "<div style='color:var(--color-muted)'>Нет данных</div>";
+
+    // ── Attributes table ────────────────────────────────────────────────────
+    var attrRows = "";
+    var attrRe = /^\s*(\d+)\s+(\S+)\s+\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+\S+\s+(\S+)\s+(.*)/gm;
+    var am;
+    while ((am = attrRe.exec(out)) !== null) {
+        var id        = am[1];
+        var name      = am[2].replace(/_/g, " ");
+        var value     = parseInt(am[3]);
+        var worst     = parseInt(am[4]);
+        var thresh    = parseInt(am[5]);
+        var type      = am[6];
+        var raw       = am[8];
+        var failed    = value <= thresh && thresh > 0;
+        var warn      = !failed && worst <= thresh && thresh > 0;
+        var rowColor  = failed ? "color:#f44336" : warn ? "color:#ff9800" : "";
+        var statusIco = failed ? "❌" : warn ? "⚠️" : "✓";
+        var statusColor = failed ? "color:#f44336" : warn ? "color:#ff9800" : "color:#4caf50";
+        attrRows += "<tr style='border-bottom:1px solid var(--color-border);" + rowColor + "'>" +
+            "<td style='padding:4px 8px;font-family:monospace'>" + _escHtml(id) + "</td>" +
+            "<td style='padding:4px 8px'>" + _escHtml(name) + "</td>" +
+            "<td style='padding:4px 8px;text-align:center;font-family:monospace'>" + value + "</td>" +
+            "<td style='padding:4px 8px;text-align:center;font-family:monospace'>" + worst + "</td>" +
+            "<td style='padding:4px 8px;text-align:center;font-family:monospace'>" + thresh + "</td>" +
+            "<td style='padding:4px 8px;font-size:11px;color:var(--color-muted)'>" + _escHtml(type) + "</td>" +
+            "<td style='padding:4px 8px;text-align:right;font-family:monospace'>" + _escHtml(raw) + "</td>" +
+            "<td style='padding:4px 8px;text-align:center;" + statusColor + "'>" + statusIco + "</td>" +
+            "</tr>";
+    }
+    document.getElementById("smart-modal-attrs-body").innerHTML =
+        attrRows || "<tr><td colspan='8' style='padding:8px;color:var(--color-muted)'>Атрибуты недоступны</td></tr>";
+
+    // ── Error log ────────────────────────────────────────────────────────────
+    var errM = out.match(/SMART Error Log[\s\S]*?(?=\n===|\n\nSMART|\nSMART Self-test|$)/i);
+    var errText = errM ? errM[0].trim() : "";
+    if (!errText || errText.indexOf("No Errors Logged") !== -1) {
+        errText = "✓ Ошибок не обнаружено";
+    }
+    document.getElementById("smart-modal-errors").textContent = errText;
+
+    // ── Self-test log → таблица ──────────────────────────────────────────────
+    document.getElementById("smart-modal-tests").innerHTML = renderTestHistory(out);
+
+    // ── Если тест сейчас выполняется — запустить поллинг ────────────────────
+    if (out.indexOf("Self test in progress") !== -1 || out.indexOf("self-test in progress") !== -1) {
+        startSmartTestPoll();
+    }
+}
+
+function renderTestHistory(out) {
+    var rows = "";
+    // Формат строки: # 1  Short offline       Completed without error       00%       100         -
+    var re = /#\s*(\d+)\s+([\w ]+?)\s{2,}([\w ()]+?)\s{2,}(\d+%)\s+(\d+)\s+(\S+)/g;
+    var m;
+    while ((m = re.exec(out)) !== null) {
+        var num    = m[1];
+        var type   = m[2].trim();
+        var status = m[3].trim();
+        var rem    = m[4];
+        var hours  = m[5];
+        var lba    = m[6] === "-" ? "—" : m[6];
+        var ok     = status.toLowerCase().indexOf("completed without error") !== -1;
+        var ico    = ok ? "✓" : "✗";
+        var color  = ok ? "#4caf50" : "#f44336";
+        rows += "<tr style='border-bottom:1px solid var(--color-border)'>" +
+            "<td style='padding:4px 8px;font-family:monospace'>" + _escHtml(num) + "</td>" +
+            "<td style='padding:4px 8px'>" + _escHtml(type) + "</td>" +
+            "<td style='padding:4px 8px;color:" + color + "'>" + ico + " " + _escHtml(status) + "</td>" +
+            "<td style='padding:4px 8px;text-align:center'>" + rem + "</td>" +
+            "<td style='padding:4px 8px;text-align:right;font-family:monospace'>" + _escHtml(hours) + "</td>" +
+            "<td style='padding:4px 8px;font-family:monospace'>" + _escHtml(lba) + "</td>" +
+            "</tr>";
+    }
+    if (!rows) return "<span style='color:var(--color-muted);font-size:12px'>Тесты не запускались</span>";
+    return "<table style='width:100%;border-collapse:collapse;font-size:12px'>" +
+        "<thead><tr style='background:var(--bg-th);color:var(--color-muted);font-size:10px;text-transform:uppercase'>" +
+        "<th style='padding:4px 8px'>#</th><th style='padding:4px 8px'>Тип</th>" +
+        "<th style='padding:4px 8px'>Результат</th><th style='padding:4px 8px;text-align:center'>Остаток</th>" +
+        "<th style='padding:4px 8px;text-align:right'>Часы работы</th><th style='padding:4px 8px'>LBA ошибки</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table>";
+}
+
+function startSmartTestPoll() {
+    if (_smartTestPollTimer) return;
+    _smartTestPollTimer = setInterval(function() {
+        cockpit.spawn(["sudo", "-n", "smartctl", "-a", "/dev/" + _smartModalDisk], {err: "message"})
+        .done(function(out) {
+            var running = out.indexOf("Self test in progress") !== -1 ||
+                          out.indexOf("self-test in progress") !== -1;
+            if (running) {
+                var pctM = out.match(/(\d+)% of test remaining/);
+                var pct  = pctM ? pctM[1] : "?";
+                var shortBtn = document.getElementById("btn-smart-run-short");
+                var longBtn  = document.getElementById("btn-smart-run-long");
+                if (shortBtn) shortBtn.textContent = "⏳ Осталось " + pct + "%";
+                if (longBtn)  longBtn.textContent  = "⏳ Осталось " + pct + "%";
+            } else {
+                stopSmartTestPoll();
+                renderSmartModal(out);
+            }
+        })
+        .fail(function() { stopSmartTestPoll(); });
+    }, 5000);
+}
+
+function stopSmartTestPoll() {
+    if (_smartTestPollTimer) {
+        clearInterval(_smartTestPollTimer);
+        _smartTestPollTimer = null;
+    }
+    var shortBtn = document.getElementById("btn-smart-run-short");
+    var longBtn  = document.getElementById("btn-smart-run-long");
+    if (shortBtn) { shortBtn.disabled = false; shortBtn.textContent = "▶ Краткий (~2 мин)"; }
+    if (longBtn)  { longBtn.disabled  = false; longBtn.textContent  = "▶ Расширенный (~60 мин)"; }
+}
+
+// ─── SMART Schedule (smartd) ──────────────────────────────────────────────────
+
+function loadSmartSchedule(disk) {
+    cockpit.file("/etc/smartd.conf", {superuser: "require"}).read()
+    .then(function(content) {
+        content = content || "";
+        var line = "";
+        content.split("\n").forEach(function(l) {
+            if (l.match(new RegExp("^/dev/" + disk + "\\b"))) line = l;
+        });
+        // Parse short: -s S/../../{dow}/{hh}
+        var shortM = line.match(/-s S\/\.\.\/\.\.\/(\d+)\/(\d+)/);
+        var longM  = line.match(/-s L\/\.\.\/(\d+)\/\.\.\/(\d+)/);
+        document.getElementById("smart-sched-short-en").checked = !!shortM;
+        document.getElementById("smart-sched-long-en").checked  = !!longM;
+        if (shortM) {
+            var dow = shortM[1]; var hh = shortM[2];
+            var dowEl  = document.getElementById("smart-sched-short-dow");
+            var hourEl = document.getElementById("smart-sched-short-hour");
+            for (var i = 0; i < dowEl.options.length; i++)
+                if (dowEl.options[i].value === dow) { dowEl.selectedIndex = i; break; }
+            for (var j = 0; j < hourEl.options.length; j++)
+                if (hourEl.options[j].value === hh) { hourEl.selectedIndex = j; break; }
+        }
+        if (longM) {
+            var dd = longM[1]; var hh2 = longM[2];
+            var dayEl  = document.getElementById("smart-sched-long-day");
+            var hourEl2 = document.getElementById("smart-sched-long-hour");
+            for (var k = 0; k < dayEl.options.length; k++)
+                if (dayEl.options[k].value === dd) { dayEl.selectedIndex = k; break; }
+            for (var l = 0; l < hourEl2.options.length; l++)
+                if (hourEl2.options[l].value === hh2) { hourEl2.selectedIndex = l; break; }
+        }
+    })
+    .catch(function() {
+        // smartd.conf not found or no access — silently ignore
+    });
+}
+
+function saveSmartSchedule() {
+    var disk       = _smartModalDisk;
+    var shortEn    = document.getElementById("smart-sched-short-en").checked;
+    var shortDow   = document.getElementById("smart-sched-short-dow").value;
+    var shortHour  = document.getElementById("smart-sched-short-hour").value;
+    var longEn     = document.getElementById("smart-sched-long-en").checked;
+    var longDay    = document.getElementById("smart-sched-long-day").value;
+    var longHour   = document.getElementById("smart-sched-long-hour").value;
+
+    var statusEl = document.getElementById("smart-sched-status");
+    statusEl.textContent = "Сохранение…";
+
+    cockpit.file("/etc/smartd.conf", {superuser: "require"}).read()
+    .then(function(content) {
+        content = content || "";
+        // Remove existing line for this disk
+        var lines = content.split("\n").filter(function(l) {
+            return !l.match(new RegExp("^/dev/" + disk + "\\b"));
+        });
+
+        // Build new line
+        if (shortEn || longEn) {
+            var newLine = "/dev/" + disk + " -a";
+            if (shortEn) newLine += " -s S/../../" + shortDow + "/" + shortHour;
+            if (longEn)  newLine += " -s L/../" + longDay + "/../" + longHour;
+            lines.push(newLine);
+        }
+
+        var newContent = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+        return cockpit.file("/etc/smartd.conf", {superuser: "require"}).replace(newContent);
+    })
+    .then(function() {
+        // Ensure smartd is running and reload
+        return new Promise(function(res) {
+            cockpit.spawn(["sudo", "-n", "systemctl", "enable", "--now", "smartd"],
+                {err: "message"})
+            .always(function() {
+                cockpit.spawn(["sudo", "-n", "systemctl", "restart", "smartd"],
+                    {err: "message"})
+                .always(res);
+            });
+        });
+    })
+    .then(function() {
+        statusEl.style.color = "var(--success, #4caf50)";
+        statusEl.textContent = "✓ Сохранено";
+        setTimeout(function() { statusEl.textContent = ""; }, 3000);
+    })
+    .catch(function(e) {
+        statusEl.style.color = "#f44336";
+        statusEl.textContent = "✗ Ошибка: " + (e.message || String(e));
+    });
+}
+
+// ─── END SMART Detail Modal ───────────────────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("btn-refresh-disks").addEventListener("click", loadDisksAndArrays);
     document.getElementById("btn-rescan-disks").addEventListener("click", rescanDisks);
@@ -1747,6 +2224,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (action === "umount")  doUmountArray(arrayName, btn.dataset.target);
         if (action === "subvol")  openSubvolumesModal(btn.dataset.target);
         if (action === "delete")  openDeleteArrayModal(arrayName, btn.dataset.disks);
+        if (action === "upgrade") openUpgradeRaidModal(arrayName, btn.dataset.level, parseInt(btn.dataset.devices));
     });
 
     // Create array
@@ -1771,6 +2249,10 @@ document.addEventListener("DOMContentLoaded", function() {
     // SSD-tier
     document.getElementById("btn-add-ssd-tier").addEventListener("click", openAddSsdTierModal);
     document.getElementById("btn-refresh-ssd").addEventListener("click", loadSsdTiers);
+    // RAID level upgrade modal
+    document.getElementById("btn-upgrade-raid-confirm").addEventListener("click", confirmUpgradeRaid);
+    document.getElementById("btn-upgrade-raid-cancel").addEventListener("click", function() { closeModal("modal-upgrade-raid"); });
+
     document.getElementById("btn-confirm-add-tier").addEventListener("click", doCreateSsdTier);
     document.getElementById("btn-cancel-add-tier").addEventListener("click", function() { closeModal("modal-add-ssd-tier"); });
     document.getElementById("btn-confirm-change-mode").addEventListener("click", doChangeCacheMode);
@@ -1798,6 +2280,45 @@ document.addEventListener("DOMContentLoaded", function() {
             openChangeModeModal(btn.dataset.vg, btn.dataset.lv, btn.dataset.mode);
         if (btn.dataset.action === "remove-tier")
             openRemoveTierModal(btn.dataset.vg, btn.dataset.lv, btn.dataset.backing);
+    });
+
+    // SMART modal
+    document.getElementById("btn-smart-close").addEventListener("click", function() {
+        stopSmartTestPoll();
+        closeModal("smart-detail-modal");
+    });
+    document.getElementById("btn-smart-run-short").addEventListener("click", function() {
+        if (!_smartModalDisk) return;
+        var shortBtn = document.getElementById("btn-smart-run-short");
+        var longBtn  = document.getElementById("btn-smart-run-long");
+        shortBtn.disabled = true;
+        longBtn.disabled  = true;
+        shortBtn.textContent = "Запускается…";
+        cockpit.spawn(["sudo", "-n", "smartctl", "-t", "short", "/dev/" + _smartModalDisk], {err: "message"})
+        .always(function() { startSmartTestPoll(); });
+    });
+    document.getElementById("btn-smart-run-long").addEventListener("click", function() {
+        if (!_smartModalDisk) return;
+        var shortBtn = document.getElementById("btn-smart-run-short");
+        var longBtn  = document.getElementById("btn-smart-run-long");
+        shortBtn.disabled = true;
+        longBtn.disabled  = true;
+        longBtn.textContent = "Запускается…";
+        cockpit.spawn(["sudo", "-n", "smartctl", "-t", "long", "/dev/" + _smartModalDisk], {err: "message"})
+        .always(function() { startSmartTestPoll(); });
+    });
+    document.getElementById("btn-smart-save-schedule").addEventListener("click", saveSmartSchedule);
+
+    // Click on disk row → SMART modal
+    document.getElementById("disks-body").addEventListener("click", function(e) {
+        var btn = e.target.closest("button");
+        if (btn) return;  // don't open modal when clicking action buttons
+        var tr = e.target.closest("tr");
+        if (!tr) return;
+        var nameEl = tr.querySelector("td b");
+        if (!nameEl) return;
+        var disk = nameEl.textContent.replace("/dev/", "").trim();
+        openSmartModal(disk);
     });
 
     loadDisksAndArrays();
@@ -1873,6 +2394,159 @@ function confirmAddDisk() {
                 alert("Ошибка: " + err);
             });
     }
+}
+
+// ─── RAID Level Upgrade (e.g. RAID 5 → RAID 6) ───────────────────────────────
+
+var RAID_UPGRADES = {
+    "raid1": {
+        target: "5",
+        targetLabel: "RAID 5",
+        addDisks: 1,
+        description: "Добавляет 1 диск и конвертирует массив из RAID 1 в RAID 5. " +
+            "Полезная ёмкость увеличится: 3 диска RAID 5 дают 2× ёмкость одного диска вместо 1× при RAID 1."
+    },
+    "raid5": {
+        target: "6",
+        targetLabel: "RAID 6",
+        addDisks: 1,
+        description: "Добавляет 1 диск и конвертирует массив из RAID 5 в RAID 6. " +
+            "Полезная ёмкость <b>не уменьшится</b> — вы получаете вторую зону отказоустойчивости при той же ёмкости."
+    }
+};
+
+function openUpgradeRaidModal(arrayName, currentLevel, currentDevices) {
+    var upgrade = RAID_UPGRADES[currentLevel];
+    if (!upgrade) { alert("Апгрейд с уровня " + currentLevel + " не поддерживается"); return; }
+
+    var newDevices = currentDevices + upgrade.addDisks;
+    document.getElementById("upgrade-raid-array").value          = arrayName;
+    document.getElementById("upgrade-raid-target-level").value   = upgrade.target;
+    document.getElementById("upgrade-raid-target-devices").value = newDevices;
+
+    document.getElementById("upgrade-raid-title").textContent =
+        "Апгрейд " + currentLevel.toUpperCase() + " → RAID " + upgrade.target;
+
+    document.getElementById("upgrade-raid-info").innerHTML =
+        "<b>" + arrayName + "</b>: " + currentLevel.toUpperCase() + " (" + currentDevices + " дисков) " +
+        "→ <b>RAID " + upgrade.target + "</b> (" + newDevices + " дисков)<br>" +
+        upgrade.description;
+
+    // Load free disks
+    var sel  = document.getElementById("upgrade-raid-disk-select");
+    var info = document.getElementById("upgrade-raid-disk-info");
+    sel.innerHTML = "<option value=''>Загрузка...</option>";
+    info.textContent = "";
+
+    cockpit.spawn(["bash", "-c",
+        "lsblk -rno NAME,TYPE | grep ' disk$' | awk '{print $1}' | while read d; do " +
+        "grep -q $d /proc/mdstat || echo $d; done | grep -v sda"
+    ], {err: "message"})
+    .done(function(out) {
+        var disks = out.trim().split("\n").filter(Boolean);
+        if (disks.length === 0) {
+            sel.innerHTML = "<option value=''>— нет свободных дисков —</option>";
+            document.getElementById("btn-upgrade-raid-confirm").disabled = true;
+        } else {
+            sel.innerHTML = disks.map(function(d) {
+                return "<option value='/dev/" + d + "'>/dev/" + d + "</option>";
+            }).join("");
+            document.getElementById("btn-upgrade-raid-confirm").disabled = false;
+            // Load SMART info for available disks
+            loadUpgradeDiskInfo(disks);
+        }
+    })
+    .fail(function() {
+        sel.innerHTML = "<option value=''>— ошибка получения дисков —</option>";
+    });
+
+    showModal("modal-upgrade-raid");
+}
+
+function loadUpgradeDiskInfo(disks) {
+    var info = document.getElementById("upgrade-raid-disk-info");
+    info.textContent = "Загрузка информации...";
+    var results = [];
+    var pending = disks.length;
+
+    disks.forEach(function(disk, idx) {
+        cockpit.spawn(["sudo", "-n", "smartctl", "-i", "/dev/" + disk], {err: "message"})
+            .done(function(out) {
+                var modelM  = out.match(/Device Model:\s*(.+)|Model Number:\s*(.+)/);
+                var serialM = out.match(/Serial Number:\s*(.+)/);
+                var sizeM   = out.match(/User Capacity:\s*(.+)/);
+                results[idx] = {
+                    disk:   disk,
+                    model:  modelM  ? (modelM[1] || modelM[2]).trim() : "—",
+                    serial: serialM ? serialM[1].trim() : "—",
+                    size:   sizeM   ? sizeM[1].trim()   : "—"
+                };
+                if (--pending === 0) renderUpgradeDiskInfo(results);
+            })
+            .fail(function() {
+                results[idx] = { disk: disk, model: "—", serial: "—", size: "—" };
+                if (--pending === 0) renderUpgradeDiskInfo(results);
+            });
+    });
+}
+
+function renderUpgradeDiskInfo(results) {
+    var info = document.getElementById("upgrade-raid-disk-info");
+    if (!info) return;
+    info.innerHTML = results.filter(Boolean).map(function(r) {
+        return "<div class='disk-info-row'>" +
+            "<b>/dev/" + r.disk + "</b> — " + r.model +
+            " | S/N: <code>" + r.serial + "</code>" +
+            " | " + r.size + "</div>";
+    }).join("");
+}
+
+function confirmUpgradeRaid() {
+    var arrayName   = document.getElementById("upgrade-raid-array").value;
+    var targetLevel = document.getElementById("upgrade-raid-target-level").value;
+    var newDevices  = parseInt(document.getElementById("upgrade-raid-target-devices").value);
+    var disk        = document.getElementById("upgrade-raid-disk-select").value;
+
+    if (!disk) { alert("Выберите диск"); return; }
+
+    var btn = document.getElementById("btn-upgrade-raid-confirm");
+    btn.disabled = true;
+    btn.textContent = "Выполняется...";
+
+    // Step 1: Add disk as spare
+    cockpit.spawn(["bash", "-c", "sudo mdadm /dev/" + arrayName + " --add " + disk],
+        {superuser: "require"})
+    .done(function() {
+        // Step 2: Grow with new level and device count
+        cockpit.spawn(["bash", "-c",
+            "sudo mdadm --grow /dev/" + arrayName +
+            " --level=" + targetLevel +
+            " --raid-devices=" + newDevices
+        ], {superuser: "require"})
+        .done(function() {
+            closeModal("modal-upgrade-raid");
+            btn.disabled = false;
+            btn.textContent = "▶ Запустить апгрейд";
+            document.getElementById("eject-status").innerHTML =
+                "<div class='alert alert-info'>🔵 Апгрейд массива <b>" + arrayName + "</b> до RAID " + targetLevel + " запущен. " +
+                "Идёт reshape — следите за прогрессом в карточке массива.</div>";
+            diskRefreshTimer = setInterval(function() {
+                loadDisksAndArrays();
+                checkReshapeComplete(arrayName);
+            }, 5000);
+            loadDisksAndArrays();
+        })
+        .fail(function(err) {
+            btn.disabled = false;
+            btn.textContent = "▶ Запустить апгрейд";
+            alert("Ошибка --grow: " + err);
+        });
+    })
+    .fail(function(err) {
+        btn.disabled = false;
+        btn.textContent = "▶ Запустить апгрейд";
+        alert("Ошибка добавления диска: " + err);
+    });
 }
 
 function checkReshapeComplete(arrayName) {

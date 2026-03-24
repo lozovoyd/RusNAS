@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>rusNAS — AI Ассистент</title>
+    <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/ai.css">
+</head>
+<body>
+<div class="page-wrap">
+    <div class="page-header">
+        <h2>🤖 AI Ассистент</h2>
+        <p class="page-subtitle">Управление NAS на естественном языке</p>
+    </div>
+
+    <!-- Error banner -->
+    <div class="ai-error-banner" id="ai-error-banner">
+        <span>⚠️</span>
+        <span id="ai-error-text"></span>
+        <button style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:16px;color:inherit" id="ai-error-close">✕</button>
+    </div>
+
+    <div class="ai-page-wrap">
+        <!-- Status bar -->
+        <div class="ai-status-bar">
+            <div class="ai-status-dot" id="ai-status-dot"></div>
+            <span id="ai-status-text">Инициализация...</span>
+            <span class="ai-model-badge" id="ai-model-badge">—</span>
+        </div>
+
+        <!-- Chat area -->
+        <div class="ai-chat-wrap">
+            <div class="ai-messages" id="ai-messages">
+                <div class="ai-empty" id="ai-empty">
+                    <div class="ai-empty-icon">🤖</div>
+                    <div class="ai-empty-title">Привет! Я AI-ассистент rusNAS</div>
+                    <div class="ai-empty-hint">Задайте вопрос на русском языке или выберите команду ниже. Я могу показывать состояние дисков, управлять снапшотами, отображать информацию о пользователях и многое другое.</div>
+                    <div class="ai-suggestion-chips">
+                        <div class="ai-chip" id="chip-status">📊 Состояние системы</div>
+                        <div class="ai-chip" id="chip-disks">💿 Диски и RAID</div>
+                        <div class="ai-chip" id="chip-shares">📂 Список шар</div>
+                        <div class="ai-chip" id="chip-snap">📸 Снапшоты documents</div>
+                        <div class="ai-chip" id="chip-users">👥 Пользователи</div>
+                        <div class="ai-chip" id="chip-events">🛡️ События Guard</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input row -->
+            <div class="ai-input-row">
+                <textarea id="ai-input" rows="1" placeholder="Задайте вопрос о NAS..."></textarea>
+                <button class="btn-send" id="ai-send">▶ Отправить</button>
+                <button class="btn-clear" id="ai-clear" title="Очистить историю">🗑</button>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="ai-settings-wrap">
+            <div class="ai-settings-toggle" id="ai-settings-toggle">
+                <span class="chevron">▶</span>
+                <span>⚙️ Настройки</span>
+            </div>
+            <div class="ai-settings-panel" id="ai-settings-panel">
+                <div class="ai-settings-grid">
+                    <!-- Provider selector -->
+                    <div class="ai-setting-group" style="grid-column: 1 / -1">
+                        <label>Провайдер AI</label>
+                        <select id="ai-provider-select">
+                            <option value="yandex">🇷🇺 YandexGPT (по умолчанию)</option>
+                            <option value="anthropic">🤖 Anthropic Claude</option>
+                        </select>
+                    </div>
+
+                    <!-- Max tokens (both providers) -->
+                    <div class="ai-setting-group">
+                        <label>Макс. токенов</label>
+                        <select id="ai-maxtokens-select">
+                            <option value="1024">1024</option>
+                            <option value="2048" selected>2048</option>
+                            <option value="4096">4096</option>
+                            <option value="8192">8192</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Yandex fields -->
+                <div id="ai-yandex-fields" class="ai-provider-fields">
+                    <div style="margin: 12px 0 8px; font-size: 12px; color: var(--color-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px;">Yandex AI Studio</div>
+                    <div class="ai-settings-grid">
+                        <div class="ai-setting-group" style="grid-column: 1 / -1">
+                            <label>API Key</label>
+                            <input type="password" id="ai-ya-key" placeholder="AQVNx..." autocomplete="off">
+                        </div>
+                        <div class="ai-setting-group">
+                            <label>Folder ID</label>
+                            <input type="text" id="ai-ya-folder" placeholder="b1g2i...">
+                        </div>
+                        <div class="ai-setting-group">
+                            <label>Модель</label>
+                            <select id="ai-ya-model">
+                                <option value="yandexgpt-5-pro/latest">YandexGPT 5 Pro (рекомендуется)</option>
+                                <option value="yandexgpt-5-lite/latest">YandexGPT 5 Lite (быстрый)</option>
+                                <option value="yandexgpt-4-pro/latest">YandexGPT 4 Pro</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anthropic fields -->
+                <div id="ai-anthropic-fields" class="ai-provider-fields" style="display:none">
+                    <div style="margin: 12px 0 8px; font-size: 12px; color: var(--color-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px;">Anthropic Claude</div>
+                    <div class="ai-settings-grid">
+                        <div class="ai-setting-group" style="grid-column: 1 / -1">
+                            <label>API Key</label>
+                            <input type="password" id="ai-an-key" placeholder="sk-ant-..." autocomplete="off">
+                        </div>
+                        <div class="ai-setting-group">
+                            <label>Модель</label>
+                            <select id="ai-an-model">
+                                <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (рекомендуется)</option>
+                                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (быстрый)</option>
+                                <option value="claude-opus-4-6">Claude Opus 4.6 (мощный)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- openEYE Agent -->
+                <div style="margin:16px 0 4px;border-top:1px solid var(--color-border);padding-top:14px">
+                    <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                        <input type="checkbox" id="ai-eye-toggle" style="width:16px;height:16px;margin-top:2px;flex-shrink:0">
+                        <div>
+                            <div style="font-size:13px;font-weight:600">👁 openEYE Agent</div>
+                            <div style="font-size:11px;color:var(--color-muted);margin-top:3px;line-height:1.4">
+                                При открытии любой страницы AI автоматически анализирует её содержимое
+                                и выводит важные моменты в панели слева.
+                            </div>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="ai-setting-actions">
+                    <button class="btn btn-primary" id="ai-settings-save">Сохранить</button>
+                    <button class="btn" id="ai-settings-test">Проверить соединение</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="../base1/cockpit.js"></script>
+<script src="js/ai.js"></script>
+<script>
+// Close error banner
+document.getElementById("ai-error-close").addEventListener("click", function() {
+    document.getElementById("ai-error-banner").classList.remove("show");
+});
+</script>
+</body>
+</html>

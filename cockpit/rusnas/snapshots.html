@@ -7,6 +7,7 @@
   <title>rusNAS — Снапшоты</title>
   <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
   <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/eye.css">
   <script src="../base1/cockpit.js"></script>
   <script src="js/snapshots.js" defer></script>
 </head>
@@ -107,6 +108,120 @@
 
     <!-- ── Tab: Replication ───────────────────────────────────────────────────── -->
     <div id="tab-replication" class="hidden">
+
+      <!-- Infographic -->
+      <div class="sg" style="margin-bottom:24px;">
+
+        <h2 style="margin-top:0;">🔁 Репликация снапшотов</h2>
+        <p>Автоматическая инкрементальная копия снапшотов на удалённый NAS или резервный сервер.
+           Использует нативный механизм <b>btrfs send / receive</b> — передаются только
+           изменения между снапшотами, что минимизирует трафик и сохраняет Btrfs-структуру.</p>
+
+        <!-- Flow diagram: NAS → SSH → Remote -->
+        <div class="sg-repl-flow">
+          <div class="sg-repl-box sg-repl-nas">
+            <div class="sg-repl-title">🖥️ Исходный NAS</div>
+            <div class="sg-repl-row">📂 Субволюм Btrfs</div>
+            <div class="sg-repl-row" style="font-size:11px;">/.snapshots/…</div>
+            <div style="margin-top:10px;font-size:12px;color:var(--color-muted);">
+              <b style="color:var(--color);">btrfs send</b> — потоковый дамп снапшота
+            </div>
+          </div>
+          <div class="sg-repl-arrow">
+            <span style="font-size:22px;">→</span>
+            <span>SSH</span>
+            <span>🔒</span>
+          </div>
+          <div class="sg-repl-box sg-repl-remote">
+            <div class="sg-repl-title">🖥️ Удалённый хост</div>
+            <div class="sg-repl-row">📂 Субволюм Btrfs</div>
+            <div class="sg-repl-row" style="font-size:11px;">/backup/nas/…</div>
+            <div style="margin-top:10px;font-size:12px;color:var(--color-muted);">
+              <b style="color:var(--color);">btrfs receive</b> — приём и применение дампа
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;text-align:center;margin-top:-4px;">
+          🔒 SSH туннель · аутентификация по ключу · шифрование трафика
+        </p>
+
+        <!-- Full vs Incremental -->
+        <div class="sg-cmp">
+          <div class="sg-cmp-card sg-cmp-snap">
+            <div class="sg-cmp-title">📦 Первая репликация</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> Полная передача всего снапшота</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> Размер = объём данных субволюма</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> Выполняется однократно</div>
+          </div>
+          <div class="sg-cmp-card sg-cmp-bak">
+            <div class="sg-cmp-title">⚡ Последующие репликации</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> Только изменения между снапшотами (δ)</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> Минимальный трафик</div>
+            <div class="sg-cmp-row"><span class="sg-chk">→</span> По расписанию cron автоматически</div>
+          </div>
+        </div>
+
+        <!-- Use cases -->
+        <h3>Типичные сценарии</h3>
+        <div class="gd-scenarios">
+          <div class="gd-scenario">
+            <div class="gd-scenario-num">01</div>
+            <div>
+              <div class="gd-scenario-title">Резервный NAS в той же сети</div>
+              <div class="gd-scenario-desc">Второй NAS в серверной — полная копия всех данных.
+                При выходе основного из строя данные доступны немедленно без восстановления из облака.</div>
+            </div>
+          </div>
+          <div class="gd-scenario">
+            <div class="gd-scenario-num">02</div>
+            <div>
+              <div class="gd-scenario-title">Georedundancy / DR-сайт</div>
+              <div class="gd-scenario-desc">Репликация через VPN/WireGuard на удалённую площадку.
+                RPO = интервал расписания (например, 1 час). Защита от физического уничтожения сервера.</div>
+            </div>
+          </div>
+          <div class="gd-scenario">
+            <div class="gd-scenario-num">03</div>
+            <div>
+              <div class="gd-scenario-title">Удалённый офис</div>
+              <div class="gd-scenario-desc">Синхронизация данных между двумя офисами.
+                Каждый офис держит актуальную копию снапшотов коллег без ручного копирования.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick start -->
+        <h3>Быстрый старт</h3>
+        <div class="gd-quickstart">
+          <div class="gd-qs-step">
+            <div class="gd-qs-num">1</div>
+            <div class="gd-qs-text">На удалённом хосте создайте Btrfs-субволюм для приёма:<br>
+              <b>btrfs subvolume create /backup/nas</b></div>
+          </div>
+          <div class="gd-qs-arrow">→</div>
+          <div class="gd-qs-step">
+            <div class="gd-qs-num">2</div>
+            <div class="gd-qs-text">Скопируйте SSH-ключ NAS на удалённый хост:<br>
+              <b>ssh-copy-id user@remote-host</b></div>
+          </div>
+          <div class="gd-qs-arrow">→</div>
+          <div class="gd-qs-step">
+            <div class="gd-qs-num">3</div>
+            <div class="gd-qs-text">Нажмите <b>+ Добавить</b>, заполните хост / пользователь / путь,
+              нажмите <b>Тест SSH</b></div>
+          </div>
+          <div class="gd-qs-arrow">→</div>
+          <div class="gd-qs-step">
+            <div class="gd-qs-num">4</div>
+            <div class="gd-qs-text">Нажмите <b>▶ Запустить</b> для первой полной репликации.
+              Далее — по расписанию автоматически.</div>
+          </div>
+        </div>
+
+        <div class="sg-div"></div>
+      </div>
+      <!-- End infographic -->
+
       <div id="replication-content"></div>
     </div>
 
@@ -730,5 +845,6 @@
   </div>
 </div>
 
+<script src="js/eye.js"></script>
 </body>
 </html>

@@ -131,8 +131,10 @@
 
 /* RAID list */
 .db-raid-list { font-size: 13px; }
-.db-raid-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.db-raid-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap; }
 .db-raid-name { font-weight: 700; font-family: monospace; font-size: 12px; }
+.db-raid-sub { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-muted); margin: 0 0 6px 2px; }
+.db-raid-mask { font-family: monospace; font-size: 11px; letter-spacing: 1px; }
 .db-raid-progress { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 2px; }
 .db-raid-progress-fill { height: 100%; background: var(--primary); transition: width .5s; border-radius: 2px; }
 

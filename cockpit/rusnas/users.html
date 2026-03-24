@@ -9,6 +9,7 @@
     <script>cockpit.transport.wait(function() {});</script>
     <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/eye.css">
 </head>
 <body>
     <h1>rusNAS — Пользователи</h1>
@@ -123,5 +124,6 @@
     </div>
 
     <script src="js/users.js"></script>
+<script src="js/eye.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@
   <title>rusNAS — Dashboard</title>
   <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
   <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/eye.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <script src="../base1/cockpit.js"></script>
   <script src="js/dashboard.js" defer></script>
@@ -41,6 +42,17 @@
       <div class="db-progress-fill" id="storage-bar" style="width:0%"></div>
     </div>
     <div class="db-card-sub" id="storage-detail">— / —</div>
+    <!-- System disk — secondary row -->
+    <div id="storage-sys-row" style="display:none;margin-top:8px;border-top:1px solid var(--color-border);padding-top:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <span style="font-size:10px;color:var(--color-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">💻 Система</span>
+        <span style="font-size:11px;color:var(--color-muted);" id="storage-sys-pct">—</span>
+      </div>
+      <div class="db-progress-bar" style="height:3px;margin:0 0 3px;">
+        <div class="db-progress-fill" id="storage-sys-bar" style="width:0%"></div>
+      </div>
+      <div style="font-size:10px;color:var(--color-muted);" id="storage-sys-detail">— / —</div>
+    </div>
     <div class="db-card-tags" id="storage-raids"></div>
   </div>
 
@@ -118,7 +130,15 @@
       <span class="db-spark-legend-item" style="color:#f97316">W <strong id="io-write">—</strong></span>
     </div>
   </div>
-  <svg id="spark-io" class="db-sparkline" style="height:64px"></svg>
+  <svg id="spark-io" class="db-sparkline" style="height:56px"></svg>
+  <div class="db-perf-header" style="margin-top:10px;">
+    <div><span style="font-size:11px;color:var(--color-muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;">IOPS</span></div>
+    <div class="db-spark-legend">
+      <span class="db-spark-legend-item" style="color:#22c55e">R <strong id="iops-read">—</strong></span>
+      <span class="db-spark-legend-item" style="color:#a855f7">W <strong id="iops-write">—</strong></span>
+    </div>
+  </div>
+  <svg id="spark-iops" class="db-sparkline" style="height:48px"></svg>
   <div class="db-card-sub" id="io-per-disk" style="margin-top:6px;font-size:11px"></div>
 </div>
 
@@ -356,5 +376,6 @@
   </div>
 </div>
 
+<script src="js/eye.js"></script>
 </body>
 </html>
