@@ -457,6 +457,11 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | Несколько `setInterval` открывают модал быстро | очищать старый interval `if (_interval) clearInterval(_interval)` в начале `open*Modal()` |
 | `setInterval` без сохранения ID = утечка | всегда `var _timer = setInterval(...)` для возможности `clearInterval(_timer)` |
 | tickFast делает N spawns каждые 2 сек | батчить `/proc` reads в один bash spawn с разделителем `===M===`; парсить в `_parse*Out()` функциях |
+| `Promise.all(...).then(...)` без `.catch()` | необработанный rejection зависает UI; всегда добавлять `.catch(function(e) { /* show error */ })` |
+| `results.push()` в параллельных spawn callbacks | race condition — порядок не гарантирован; использовать `results[idx] = ...` с индексом из `forEach(dev, idx)` |
+| `renderX()` после `loadData()` через `setTimeout(300)` | ненадёжная гонка; `loadData()` должен возвращать Promise, `renderX()` вызывать через `.then()` |
+| `worstStatus` при нескольких массивах перезаписывается | использовать явный приоритет: `inactive` > `degraded` > `resyncing` > `active`; не перезаписывать более критичный |
+| `/var/lib/rusnas` права 750 → rusnas-fb crash loop | при создании поддиректорий для других пользователей — `chmod o+x /var/lib/rusnas` (traverse-бит для other) |
 
 ## FTP and WebDAV settings (app.js / index.html)
 

@@ -380,3 +380,71 @@
 **Root cause:** Пропущено сохранение в переменную.
 **Fix:** `_snapRefreshTimer = setInterval(...)` — ID сохранён в переменной `_snapRefreshTimer`.
 **Файлы:** `snapshots.js`
+
+---
+
+### BUG-24 — FileBrowser: crash loop из-за прав /var/lib/rusnas (750 → нет execute для other)
+**Страница:** /rusnas (FileBrowser)
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** Сервис `rusnas-filebrowser` уходил в crash loop (11162 перезапусков) с ошибкой доступа к БД. Пользователь `rusnas-fb` не мог войти в директорию `/var/lib/rusnas/filebrowser/` так как родительский `/var/lib/rusnas` имел права `750` (нет execute для "other").
+**Root cause:** `chmod 755` применялся только к поддиректориям (`$FB_DATA_DIR`), но не к родительской `/var/lib/rusnas`. После обновлений прав директории права родителя могли сброситься.
+**Fix:** Добавлено `chmod o+x /var/lib/rusnas` в `install-filebrowser.sh`. Временный фикс на VM: `chmod o+x /var/lib/rusnas`.
+**Файлы:** `install-filebrowser.sh`
+
+---
+
+### BUG-25 — Dashboard: loadRaid() — worstStatus не приоритизирует "inactive" над "degraded"
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** При наличии двух массивов (один inactive, второй degraded) `worstStatus` перезаписывался "degraded" если второй массив обрабатывался позже. Карточка RAID показывала жёлтый (warn) вместо красного (crit). "inactive" — данные недоступны, это критичнее degraded.
+**Root cause:** `if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status` — нет приоритизации.
+**Fix:** Явная проверка приоритета: inactive > degraded > resyncing > active.
+**Файлы:** `dashboard.js:loadRaid()`
+
+---
+
+### BUG-26 — Dashboard: loadRaid() и loadSnapshots() — Promise.all без .catch()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `Promise.all([mdstatP, mountP]).then(...)` в `loadRaid()` и `Promise.all([schedP, infoP]).then(...)` в `loadSnapshots()` — нет `.catch()`. Если внутри `.then()` возникает исключение — Uncaught Promise rejection, карточки зависают без UI-фидбека.
+**Fix:** Добавлено `.catch()` с рендерингом сообщения об ошибке в обеих функциях.
+**Файлы:** `dashboard.js:loadRaid()`, `dashboard.js:loadSnapshots()`
+
+---
+
+### BUG-27 — Dashboard: loadDiskHealth() — race condition при results.push()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `loadDiskHealth()` запускает параллельные `cockpit.spawn(smartctl)` для каждого диска и накапливает результаты через `results.push()`. Если callbacks приходят не по порядку — `results[]` имеет элементы не на своих позициях. Итоговый список дисков может содержать меньше элементов.
+**Root cause:** `results.push()` в concurrent callbacks — не детерминированный порядок.
+**Fix:** Заменить на `results[idx] = ...` (индексированный массив). Каждый диск имеет фиксированный индекс из `devs.forEach(function(dev, idx)`.
+**Файлы:** `dashboard.js:loadDiskHealth()`
+
+---
+
+### BUG-28 — Performance Tuner: actEl null crash при быстром клике "Применить"
+**Страница:** /rusnas/performance
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `applySingleItem(id)` делает `actEl.innerHTML = ...` без проверки `null`. Если таблица оптимизаций ещё не отрисована (или id некорректный) — `actEl = null` → TypeError.
+**Root cause:** Отсутствие null-guard.
+**Fix:** Добавлено `if (!actEl) return;` перед первым использованием `actEl`.
+**Файлы:** `performance.js:applySingleItem()`
+
+---
+
+### BUG-29 — Snapshots: renderSchedules() — race condition setTimeout(300ms) вместо Promise.then()
+**Страница:** /rusnas/snapshots
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `renderSchedules()` вызывал `loadSchedulesData()` (async), а затем `setTimeout(fn, 300)` надеясь что данные придут за 300 мс. На медленной VM или под нагрузкой — `schedulesData` ещё пуст и показывалось "Расписания не настроены" даже при настроенных расписаниях.
+**Root cause:** Временная гонка.
+**Fix:** `loadSchedulesData()` теперь возвращает Promise (добавлен `return`). `renderSchedules()` использует `.then()` вместо `setTimeout`.
+**Файлы:** `snapshots.js:loadSchedulesData()`, `snapshots.js:renderSchedules()`
+
+---
+
+### BUG-30 — Disks: runArray() использует bash -c "sudo mdadm" — KnownBug pattern
+**Страница:** /rusnas/disks
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `runArray()` использовал `cockpit.spawn(["bash", "-c", "sudo mdadm --run /dev/"+name], {superuser:"require"})`. Согласно Known Bugs — `bash -c "sudo cmd"` не работает корректно: bash запускается без прав, inner sudo требует tty/пароль.
+**Fix:** Заменено на `cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})`.
+**Файлы:** `disks.js:runArray()`
