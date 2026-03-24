@@ -452,6 +452,11 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | `allow-hotplug` дублируется в interfaces | VM использует `allow-hotplug enp0s1` = `auto`; не добавлять оба |
 | Offline-субволюм в снапшотах → ошибка | проверять `isSubvolOffline(path)` перед `rusnas-snap list` |
 | Stale SMB/NFS шары после удаления RAID | `scanArrayDeps(mp)` чистит конфиги; `loadAllShares()` проверяет `[ -d path ]` |
+| `sysctl -w` через `sudo -n` требует пароль | `sysctl` не в NOPASSWD sudoers; **правильно:** `writeSysFile("/proc/sys/vm/swappiness", val)` — через cockpit.file superuser без sudoers |
+| `escHtml(null)` → TypeError | всегда `String(s \|\| "").replace(...)` — никогда `s.replace(...)` напрямую |
+| Несколько `setInterval` открывают модал быстро | очищать старый interval `if (_interval) clearInterval(_interval)` в начале `open*Modal()` |
+| `setInterval` без сохранения ID = утечка | всегда `var _timer = setInterval(...)` для возможности `clearInterval(_timer)` |
+| tickFast делает N spawns каждые 2 сек | батчить `/proc` reads в один bash spawn с разделителем `===M===`; парсить в `_parse*Out()` функциях |
 
 ## FTP and WebDAV settings (app.js / index.html)
 

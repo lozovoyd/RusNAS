@@ -2323,7 +2323,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     loadDisksAndArrays();
     loadSsdTiers();
-    ssdTierTimer = setInterval(loadSsdTiers, 10000);
+    ssdTierTimer = setInterval(loadSsdTiers, 60000);  // was 10s — SSD tier config only changes on user action
 });
 
 function confirmAddDisk() {

@@ -5,8 +5,8 @@
 var TICK_METRICS = 2000;   // metrics server: CPU, RAM, net, I/O, RAID, storage, services, guard
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
-var TICK_UPS     = 10000;  // ups status
-var TICK_FAST    = 1000;   // datetime only
+var TICK_UPS     = 30000;  // ups status — battery changes slowly, 30s is sufficient
+var TICK_FAST    = 2000;   // CPU/RAM/Net/IO — was 1s, 2s imperceptible and halves spawn count
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -25,7 +25,9 @@ var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
 // ── Tick constants ─────────────────────────────────────────────────────────
 var TICK_STORAGE = 10000;
 var TICK_SMART   = 300000;
-var TICK_GUARD   = 5000;
+var TICK_GUARD   = 10000;  // was 5s — guard state.json rarely changes; 10s is plenty in normal mode
+var TICK_FB      = 60000;  // FileBrowser service status — rarely changes
+var TICK_SSD     = 60000;  // SSD cache config — only changes on user action
 
 // ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
 var prevCpu  = null;
@@ -579,169 +581,173 @@ function renderServices(statuses, dcModes) {
 }
 
 // ── Section B1: CPU ───────────────────────────────────────────────────────
+function _parseCpuOut(out) {
+    var lines = out.trim().split("\n");
+    var cpuLine = lines[0]; // cpu  user nice system idle ...
+    var loadLine = lines[1];
+    var ncores = parseInt(lines[2]) || 1;
+    var tempRaw = lines[3] ? lines[3].trim() : "";
+
+    var fields = cpuLine.trim().split(/\s+/).slice(1).map(Number);
+    var idle = fields[3] + (fields[4] || 0); // idle + iowait
+    var total = fields.reduce(function(a,b){ return a+b; }, 0);
+
+    var pct = 0;
+    if (prevCpu) {
+        var dTotal = total - prevCpu.total;
+        var dIdle  = idle - prevCpu.idle;
+        pct = dTotal > 0 ? Math.round((1 - dIdle / dTotal) * 100) : 0;
+    }
+    prevCpu = { total: total, idle: idle };
+
+    pushHistory(sparkCpu, pct);
+    var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
+    el("cpu-pct").textContent = pct + "%";
+    el("cpu-pct").className = "db-metric-big " + cls;
+    renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44");
+
+    var la = loadLine ? loadLine.split(" ").slice(0, 3).join(" ") : "—";
+    el("cpu-detail").textContent = ncores + " ядер | Load: " + la;
+
+    if (tempRaw) {
+        var tempC = parseInt(tempRaw) / 1000;
+        var tempCls = tempC > 80 ? "db-crit" : tempC > 65 ? "db-warn" : "";
+        el("cpu-temp").innerHTML = '<span class="' + tempCls + '">Temp: ' + tempC.toFixed(0) + '°C</span>';
+    }
+}
+
 function loadCpu() {
     cockpit.spawn(["bash", "-c",
         "cat /proc/stat | head -1; cat /proc/loadavg; nproc; " +
         "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''"
-    ], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n");
-        var cpuLine = lines[0]; // cpu  user nice system idle ...
-        var loadLine = lines[1];
-        var ncores = parseInt(lines[2]) || 1;
-        var tempRaw = lines[3] ? lines[3].trim() : "";
-
-        var fields = cpuLine.trim().split(/\s+/).slice(1).map(Number);
-        var idle = fields[3] + (fields[4] || 0); // idle + iowait
-        var total = fields.reduce(function(a,b){ return a+b; }, 0);
-
-        var pct = 0;
-        if (prevCpu) {
-            var dTotal = total - prevCpu.total;
-            var dIdle  = idle - prevCpu.idle;
-            pct = dTotal > 0 ? Math.round((1 - dIdle / dTotal) * 100) : 0;
-        }
-        prevCpu = { total: total, idle: idle };
-
-        pushHistory(sparkCpu, pct);
-        var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
-        el("cpu-pct").textContent = pct + "%";
-        el("cpu-pct").className = "db-metric-big " + cls;
-        renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44");
-
-        var la = loadLine ? loadLine.split(" ").slice(0, 3).join(" ") : "—";
-        el("cpu-detail").textContent = ncores + " ядер | Load: " + la;
-
-        if (tempRaw) {
-            var tempC = parseInt(tempRaw) / 1000;
-            var tempCls = tempC > 80 ? "db-crit" : tempC > 65 ? "db-warn" : "";
-            el("cpu-temp").innerHTML = '<span class="' + tempCls + '">Temp: ' + tempC.toFixed(0) + '°C</span>';
-        }
-    });
+    ], {err: "message"}).done(_parseCpuOut);
 }
 
 // ── Section B2: RAM ───────────────────────────────────────────────────────
-function loadRam() {
-    cockpit.spawn(["bash", "-c", "cat /proc/meminfo"], {err: "message"})
-    .done(function(out) {
-        var get = function(key) {
-            var m = out.match(new RegExp(key + ":\\s+(\\d+)"));
-            return m ? parseInt(m[1]) * 1024 : 0;
-        };
-        var total = get("MemTotal");
-        var avail = get("MemAvailable");
-        var used  = total - avail;
-        var pct   = total > 0 ? Math.round(used / total * 100) : 0;
-        var swapTotal = get("SwapTotal");
-        var swapFree  = get("SwapFree");
-        var swapUsed  = swapTotal - swapFree;
+function _parseRamOut(out) {
+    var get = function(key) {
+        var m = out.match(new RegExp(key + ":\\s+(\\d+)"));
+        return m ? parseInt(m[1]) * 1024 : 0;
+    };
+    var total = get("MemTotal");
+    var avail = get("MemAvailable");
+    var used  = total - avail;
+    var pct   = total > 0 ? Math.round(used / total * 100) : 0;
+    var swapTotal = get("SwapTotal");
+    var swapFree  = get("SwapFree");
+    var swapUsed  = swapTotal - swapFree;
 
-        pushHistory(sparkRam, pct);
-        var cls = pctClass(pct);
-        el("ram-pct").textContent = pct + "%";
-        el("ram-pct").className = "db-metric-big " + cls;
-        renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc");
-        el("ram-detail").textContent = fmtBytes(used) + " / " + fmtBytes(total);
-        el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
-    });
+    pushHistory(sparkRam, pct);
+    var cls = pctClass(pct);
+    el("ram-pct").textContent = pct + "%";
+    el("ram-pct").className = "db-metric-big " + cls;
+    renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc");
+    el("ram-detail").textContent = fmtBytes(used) + " / " + fmtBytes(total);
+    el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
+}
+
+function loadRam() {
+    cockpit.spawn(["bash", "-c", "cat /proc/meminfo"], {err: "message"}).done(_parseRamOut);
 }
 
 // ── Section B3: Network ───────────────────────────────────────────────────
+function _parseNetOut(out, now) {
+    var lines = out.trim().split("\n").slice(2);
+    var best = null, bestBytes = 0;
+    lines.forEach(function(l) {
+        var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
+        if (!m || m[1] === "lo") return;
+        var iface = m[1];
+        var rx = parseInt(m[2]);
+        var tx = parseInt(m[3]);
+        var total = rx + tx;
+        if (total > bestBytes) { bestBytes = total; best = { iface: iface, rx: rx, tx: tx }; }
+    });
+    if (!best) return;
+
+    var rxSpeed = 0, txSpeed = 0;
+    if (prevNet[best.iface]) {
+        var dt = (now - prevNet[best.iface].time) / 1000;
+        if (dt > 0) {
+            rxSpeed = (best.rx - prevNet[best.iface].rx) / dt;
+            txSpeed = (best.tx - prevNet[best.iface].tx) / dt;
+        }
+    }
+    prevNet[best.iface] = { rx: best.rx, tx: best.tx, time: now };
+
+    pushHistory(sparkNetR, rxSpeed);
+    pushHistory(sparkNetT, txSpeed);
+    renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
+    el("net-iface").textContent = best.iface;
+    el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
+    el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
+}
+
 function loadNet() {
     cockpit.spawn(["bash", "-c", "cat /proc/net/dev"], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n").slice(2);
-        var best = null, bestBytes = 0;
-        var now = Date.now();
-        lines.forEach(function(l) {
-            var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
-            if (!m || m[1] === "lo") return;
-            var iface = m[1];
-            var rx = parseInt(m[2]);
-            var tx = parseInt(m[3]);
-            var total = rx + tx;
-            if (total > bestBytes) { bestBytes = total; best = { iface: iface, rx: rx, tx: tx }; }
-        });
-        if (!best) return;
-
-        var rxSpeed = 0, txSpeed = 0;
-        if (prevNet[best.iface]) {
-            var dt = (now - prevNet[best.iface].time) / 1000;
-            if (dt > 0) {
-                rxSpeed = (best.rx - prevNet[best.iface].rx) / dt;
-                txSpeed = (best.tx - prevNet[best.iface].tx) / dt;
-            }
-        }
-        prevNet[best.iface] = { rx: best.rx, tx: best.tx, time: now };
-
-        pushHistory(sparkNetR, rxSpeed);
-        pushHistory(sparkNetT, txSpeed);
-        renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
-        el("net-iface").textContent = best.iface;
-        el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
-        el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
-    });
+    .done(function(out) { _parseNetOut(out, Date.now()); });
 }
 
 // ── Section C: Disk I/O ───────────────────────────────────────────────────
-function loadDiskIO() {
-    cockpit.spawn(["bash", "-c", "cat /proc/diskstats"], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n");
-        var now = Date.now();
-        var totalR = 0, totalW = 0;
-        var totalIopsR = 0, totalIopsW = 0;
-        var perDisk = [];
+function _parseDiskOut(out, now) {
+    var lines = out.trim().split("\n");
+    var totalR = 0, totalW = 0;
+    var totalIopsR = 0, totalIopsW = 0;
+    var perDisk = [];
 
-        lines.forEach(function(l) {
-            var f = l.trim().split(/\s+/);
-            if (f.length < 14) return;
-            var dev = f[2];
-            if (!dev.match(/^(sd[a-z]|nvme\d+n\d+|md\d+)$/)) return;
-            var rSect = parseInt(f[5]);
-            var wSect = parseInt(f[9]);
-            var rIos  = parseInt(f[3]);
-            var wIos  = parseInt(f[7]);
+    lines.forEach(function(l) {
+        var f = l.trim().split(/\s+/);
+        if (f.length < 14) return;
+        var dev = f[2];
+        if (!dev.match(/^(sd[a-z]|nvme\d+n\d+|md\d+)$/)) return;
+        var rSect = parseInt(f[5]);
+        var wSect = parseInt(f[9]);
+        var rIos  = parseInt(f[3]);
+        var wIos  = parseInt(f[7]);
 
-            var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
-            if (prevDisk[dev]) {
-                var dt = (now - prevDisk[dev].time) / 1000;
-                if (dt > 0) {
-                    rSpeed = (rSect - prevDisk[dev].r) * 512 / dt;
-                    wSpeed = (wSect - prevDisk[dev].w) * 512 / dt;
-                    riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
-                    wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
-                }
+        var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
+        if (prevDisk[dev]) {
+            var dt = (now - prevDisk[dev].time) / 1000;
+            if (dt > 0) {
+                rSpeed = (rSect - prevDisk[dev].r) * 512 / dt;
+                wSpeed = (wSect - prevDisk[dev].w) * 512 / dt;
+                riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
+                wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
             }
-            prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
+        }
+        prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
 
-            if (dev.match(/^sd/)) {
-                totalR += rSpeed; totalW += wSpeed;
-                totalIopsR += riops; totalIopsW += wiops;
-            }
-            if (rSpeed > 0 || wSpeed > 0 || riops > 0 || wiops > 0) {
-                perDisk.push({ dev: dev, r: rSpeed, w: wSpeed, ri: riops, wi: wiops });
-            }
-        });
-
-        pushHistory(sparkIoR, totalR);
-        pushHistory(sparkIoW, totalW);
-        pushHistory(sparkIopsR, totalIopsR);
-        pushHistory(sparkIopsW, totalIopsW);
-        renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
-        renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
-        el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
-        el("io-write").textContent  = fmtSpeed(Math.max(0, totalW));
-        el("iops-read").textContent  = fmtIops(Math.max(0, totalIopsR));
-        el("iops-write").textContent = fmtIops(Math.max(0, totalIopsW));
-
-        if (perDisk.length > 0) {
-            el("io-per-disk").textContent = perDisk.map(function(d) {
-                return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w) +
-                       " (" + Math.round(d.ri) + "/" + Math.round(d.wi) + " IOPS)";
-            }).join("  |  ");
+        if (dev.match(/^sd/)) {
+            totalR += rSpeed; totalW += wSpeed;
+            totalIopsR += riops; totalIopsW += wiops;
+        }
+        if (rSpeed > 0 || wSpeed > 0 || riops > 0 || wiops > 0) {
+            perDisk.push({ dev: dev, r: rSpeed, w: wSpeed, ri: riops, wi: wiops });
         }
     });
+
+    pushHistory(sparkIoR, totalR);
+    pushHistory(sparkIoW, totalW);
+    pushHistory(sparkIopsR, totalIopsR);
+    pushHistory(sparkIopsW, totalIopsW);
+    renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
+    renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
+    el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
+    el("io-write").textContent  = fmtSpeed(Math.max(0, totalW));
+    el("iops-read").textContent  = fmtIops(Math.max(0, totalIopsR));
+    el("iops-write").textContent = fmtIops(Math.max(0, totalIopsW));
+
+    if (perDisk.length > 0) {
+        el("io-per-disk").textContent = perDisk.map(function(d) {
+            return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w) +
+                   " (" + Math.round(d.ri) + "/" + Math.round(d.wi) + " IOPS)";
+        }).join("  |  ");
+    }
+}
+
+function loadDiskIO() {
+    cockpit.spawn(["bash", "-c", "cat /proc/diskstats"], {err: "message"})
+    .done(function(out) { _parseDiskOut(out, Date.now()); });
 }
 
 // ── Section D1: Events ────────────────────────────────────────────────────
@@ -774,7 +780,7 @@ function loadEvents() {
 }
 
 function escHtml(s) {
-    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ── Section D2: Snapshots ─────────────────────────────────────────────────
@@ -783,7 +789,11 @@ function loadSnapshots() {
     var schedP = new Promise(function(resolve) {
         cockpit.spawn(["sudo", "-n", "rusnas-snap", "schedule", "list"], {err: "message"})
             .done(function(out) {
-                try { resolve(JSON.parse(out.trim())); } catch(e) { resolve([]); }
+                try {
+                    var d = JSON.parse(out.trim());
+                    // schedule list returns {schedules:[...], ok:true} — extract array
+                    resolve(Array.isArray(d) ? d : (d && d.schedules) || []);
+                } catch(e) { resolve([]); }
             })
             .fail(function() { resolve([]); });
     });
@@ -1113,6 +1123,7 @@ var _cmInterval = null;
 var _cmPrevCpu  = {};
 
 window.openCpuModal = function() {
+    if (_cmInterval) { clearInterval(_cmInterval); _cmInterval = null; }
     el("cpu-modal").classList.remove("hidden");
     _cmPrevCpu = {};
     refreshCpuModal();
@@ -1236,11 +1247,28 @@ function renderCpuModal(out) {
 // ── Tick loops ────────────────────────────────────────────────────────────
 function tickFast() {
     updateDateTime();
-    loadCpu();
-    loadRam();
-    loadNet();
-    loadDiskIO();
+    loadFastMetrics();
     if (guardPollFast) loadGuard();
+}
+
+// ── Batched fast metrics — 4 /proc reads in ONE spawn (75% fewer processes) ──
+function loadFastMetrics() {
+    var now = Date.now();
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/stat | head -1; cat /proc/loadavg; nproc; " +
+        "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''; echo '===M==='; " +
+        "cat /proc/meminfo; echo '===M==='; " +
+        "cat /proc/net/dev; echo '===M==='; " +
+        "cat /proc/diskstats"
+    ], {err: "message"})
+    .done(function(out) {
+        var parts = out.split("===M===\n");
+        if (parts.length < 4) return;
+        _parseCpuOut(parts[0]);
+        _parseRamOut(parts[1]);
+        _parseNetOut(parts[2], now);
+        _parseDiskOut(parts[3], now);
+    });
 }
 
 function tickStorage() {
@@ -1269,6 +1297,8 @@ function tickGuard() {
 
 var _nmInterval   = null;
 var _nmVnstatData = null;
+var _vnstatLastFetch = 0;
+var VNSTAT_CACHE_MS = 60000; // re-fetch at most once per minute
 
 window.openNetModal = function() {
     el("net-modal").classList.remove("hidden");
@@ -1297,17 +1327,23 @@ function refreshNetLive() {
 }
 
 function loadVnstat() {
+    var now = Date.now();
+    if (_nmVnstatData && (now - _vnstatLastFetch) < VNSTAT_CACHE_MS) {
+        renderVnstat(_nmVnstatData);
+        return;
+    }
     cockpit.spawn(["vnstat", "--json"], { err: "message" })
         .done(function(out) {
             try {
                 var data = JSON.parse(out);
                 _nmVnstatData = data;
+                _vnstatLastFetch = Date.now();
                 renderVnstat(data);
             } catch(e) {
                 el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">Ошибка парсинга данных vnstat</span>';
             }
         })
-        .fail(function(err) {
+        .fail(function() {
             el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">vnstat не найден или нет данных</span>';
         });
 }
@@ -1495,14 +1531,31 @@ document.addEventListener("DOMContentLoaded", function() {
     loadFbDashStatus();
 
     // Recurring ticks
-    setInterval(tickFast,    TICK_FAST);
-    setInterval(tickStorage, TICK_STORAGE);
+    var _timerFast    = setInterval(tickFast,    TICK_FAST);
+    var _timerStorage = setInterval(tickStorage, TICK_STORAGE);
     setInterval(tickSmart,   TICK_SMART);
     setInterval(tickEvents,  TICK_EVENTS);
     setInterval(tickSnaps,   TICK_SNAPS);
-    setInterval(tickGuard,   TICK_GUARD);
-    setInterval(loadUpsStatus, TICK_UPS);
-    setInterval(loadFbDashStatus, TICK_UPS);
-    setInterval(loadSsdCacheStatus, TICK_STORAGE);
+    var _timerGuard   = setInterval(tickGuard,   TICK_GUARD);
+    var _timerUps     = setInterval(loadUpsStatus, TICK_UPS);
+    setInterval(loadFbDashStatus, TICK_FB);
+    setInterval(loadSsdCacheStatus, TICK_SSD);
     setInterval(loadIdentity, 30000);
+
+    // Pause high-frequency polls when tab is hidden to reduce CPU load
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden) {
+            clearInterval(_timerFast);    _timerFast = null;
+            clearInterval(_timerStorage); _timerStorage = null;
+            clearInterval(_timerGuard);   _timerGuard = null;
+            clearInterval(_timerUps);     _timerUps = null;
+        } else {
+            // Resume immediately on tab focus
+            tickFast(); tickStorage(); tickGuard(); loadUpsStatus();
+            _timerFast    = setInterval(tickFast,      TICK_FAST);
+            _timerStorage = setInterval(tickStorage,   TICK_STORAGE);
+            _timerGuard   = setInterval(tickGuard,     TICK_GUARD);
+            _timerUps     = setInterval(loadUpsStatus, TICK_UPS);
+        }
+    });
 });

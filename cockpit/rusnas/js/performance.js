@@ -21,6 +21,11 @@ function spawnSafe(args) {
     });
 }
 
+// Convert sysctl param (e.g. "vm.swappiness") to /proc/sys/ path
+function sysctlPath(param) {
+    return "/proc/sys/" + param.replace(/\./g, "/");
+}
+
 // No-sudo variant — for reads that don't need root (sysctl -n, /proc, /sys reads)
 function spawnNoSudo(args) {
     return new Promise(function(res) {
@@ -58,19 +63,21 @@ function makeSysctlItem(id, cat, param, label, desc, impact, recommended, unit) 
         id: id, category: cat, param: param, label: label, desc: desc,
         impact: impact, unit: unit || "",
         readFn: function() {
-            return spawnNoSudo(["sysctl", "-n", param])
+            // Read directly from /proc/sys/ — no sudo needed, works regardless of PATH
+            return spawnNoSudo(["cat", sysctlPath(param)])
                 .then(function(v) { return v.trim(); });
         },
         recommendFn: function() { return String(recommended); },
         applyFn: function(val) {
-            return spawnP(["sysctl", "-w", param + "=" + val]);
+            // Write to /proc/sys/ via cockpit bridge (no sudoers entry needed)
+            return writeSysFile(sysctlPath(param), val);
         },
         persistFn: function(val) {
             // Append/update in our sysctl file
             return writeSysctlConf(param, val);
         },
         rollbackFn: function(orig) {
-            return spawnP(["sysctl", "-w", param + "=" + orig])
+            return writeSysFile(sysctlPath(param), orig)
                 .then(function() { return removeSysctlConf(param); });
         }
     };
@@ -105,44 +112,44 @@ function ITEMS() {
             label: "RX буфер сокета (rmem_max)",
             desc: "Максимальный размер буфера приёма сокета. 128 МБ нужно для насыщения 10GbE при высоком RTT.",
             impact: "high", unit: " байт",
-            readFn: function() { return spawnNoSudo(["sysctl", "-n", "net.core.rmem_max"]).then(function(v){return v.trim();}); },
+            readFn: function() { return spawnNoSudo(["cat", sysctlPath("net.core.rmem_max")]).then(function(v){return v.trim();}); },
             recommendFn: function(p) { return p.netSpeed >= 10000 ? "134217728" : "33554432"; },
-            applyFn: function(v) { return spawnP(["sysctl", "-w", "net.core.rmem_max=" + v]); },
+            applyFn: function(v) { return writeSysFile(sysctlPath("net.core.rmem_max"), v); },
             persistFn: function(v) { return writeSysctlConf("net.core.rmem_max", v); },
-            rollbackFn: function(orig) { return spawnP(["sysctl", "-w", "net.core.rmem_max=" + orig]).then(function(){ return removeSysctlConf("net.core.rmem_max"); }); }
+            rollbackFn: function(orig) { return writeSysFile(sysctlPath("net.core.rmem_max"), orig).then(function(){ return removeSysctlConf("net.core.rmem_max"); }); }
         },
         {
             id: "net_wmem_max", category: "Сеть", param: "net.core.wmem_max",
             label: "TX буфер сокета (wmem_max)",
             desc: "Максимальный размер буфера передачи сокета. Аналогично rmem_max.",
             impact: "high", unit: " байт",
-            readFn: function() { return spawnNoSudo(["sysctl", "-n", "net.core.wmem_max"]).then(function(v){return v.trim();}); },
+            readFn: function() { return spawnNoSudo(["cat", sysctlPath("net.core.wmem_max")]).then(function(v){return v.trim();}); },
             recommendFn: function(p) { return p.netSpeed >= 10000 ? "134217728" : "33554432"; },
-            applyFn: function(v) { return spawnP(["sysctl", "-w", "net.core.wmem_max=" + v]); },
+            applyFn: function(v) { return writeSysFile(sysctlPath("net.core.wmem_max"), v); },
             persistFn: function(v) { return writeSysctlConf("net.core.wmem_max", v); },
-            rollbackFn: function(orig) { return spawnP(["sysctl", "-w", "net.core.wmem_max=" + orig]).then(function(){ return removeSysctlConf("net.core.wmem_max"); }); }
+            rollbackFn: function(orig) { return writeSysFile(sysctlPath("net.core.wmem_max"), orig).then(function(){ return removeSysctlConf("net.core.wmem_max"); }); }
         },
         {
             id: "net_tcp_rmem", category: "Сеть", param: "net.ipv4.tcp_rmem",
             label: "TCP RX авто-тюнинг",
             desc: "Три числа: мин, дефолт, макс буфер TCP приёма. Большой макс = ядро авто-тюнит под скорость линка.",
             impact: "high", unit: "",
-            readFn: function() { return spawnNoSudo(["sysctl", "-n", "net.ipv4.tcp_rmem"]).then(function(v){return v.trim().replace(/\s+/g," ");}); },
-            recommendFn: function(p) { var m = p.netSpeed >= 10000 ? "134217728" : "33554432"; return "4096 87380 " + m; },
-            applyFn: function(v) { return spawnP(["sysctl", "-w", "net.ipv4.tcp_rmem=" + v]); },
+            readFn: function() { return spawnNoSudo(["cat", sysctlPath("net.ipv4.tcp_rmem")]).then(function(v){return v.trim().replace(/\s+/g,"\t");}); },
+            recommendFn: function(p) { var m = p.netSpeed >= 10000 ? "134217728" : "33554432"; return "4096\t87380\t" + m; },
+            applyFn: function(v) { return writeSysFile(sysctlPath("net.ipv4.tcp_rmem"), v.replace(/\s+/g, "\t")); },
             persistFn: function(v) { return writeSysctlConf("net.ipv4.tcp_rmem", v); },
-            rollbackFn: function(orig) { return spawnP(["sysctl", "-w", "net.ipv4.tcp_rmem=" + orig]).then(function(){ return removeSysctlConf("net.ipv4.tcp_rmem"); }); }
+            rollbackFn: function(orig) { return writeSysFile(sysctlPath("net.ipv4.tcp_rmem"), orig.replace(/\s+/g, "\t")).then(function(){ return removeSysctlConf("net.ipv4.tcp_rmem"); }); }
         },
         {
             id: "net_tcp_wmem", category: "Сеть", param: "net.ipv4.tcp_wmem",
             label: "TCP TX авто-тюнинг",
             desc: "Три числа: мин, дефолт, макс буфер TCP передачи.",
             impact: "high", unit: "",
-            readFn: function() { return spawnNoSudo(["sysctl", "-n", "net.ipv4.tcp_wmem"]).then(function(v){return v.trim().replace(/\s+/g," ");}); },
-            recommendFn: function(p) { var m = p.netSpeed >= 10000 ? "134217728" : "33554432"; return "4096 65536 " + m; },
-            applyFn: function(v) { return spawnP(["sysctl", "-w", "net.ipv4.tcp_wmem=" + v]); },
+            readFn: function() { return spawnNoSudo(["cat", sysctlPath("net.ipv4.tcp_wmem")]).then(function(v){return v.trim().replace(/\s+/g,"\t");}); },
+            recommendFn: function(p) { var m = p.netSpeed >= 10000 ? "134217728" : "33554432"; return "4096\t65536\t" + m; },
+            applyFn: function(v) { return writeSysFile(sysctlPath("net.ipv4.tcp_wmem"), v.replace(/\s+/g, "\t")); },
             persistFn: function(v) { return writeSysctlConf("net.ipv4.tcp_wmem", v); },
-            rollbackFn: function(orig) { return spawnP(["sysctl", "-w", "net.ipv4.tcp_wmem=" + orig]).then(function(){ return removeSysctlConf("net.ipv4.tcp_wmem"); }); }
+            rollbackFn: function(orig) { return writeSysFile(sysctlPath("net.ipv4.tcp_wmem"), orig.replace(/\s+/g, "\t")).then(function(){ return removeSysctlConf("net.ipv4.tcp_wmem"); }); }
         },
         makeSysctlItem("net_backlog", "Сеть", "net.core.netdev_max_backlog",
             "RX очередь сетевого стека",
@@ -160,16 +167,16 @@ function ITEMS() {
             readFn: function() { return spawnNoSudo(["sysctl", "-n", "net.ipv4.tcp_congestion_control"]).then(function(v){return v.trim();}); },
             recommendFn: function() { return "bbr"; },
             applyFn: function(v) {
-                // BBR requires fq qdisc
-                return spawnP(["sysctl", "-w", "net.core.default_qdisc=fq"])
-                    .then(function() { return spawnP(["sysctl", "-w", "net.ipv4.tcp_congestion_control=" + v]); });
+                // BBR requires fq qdisc — write both via /proc/sys/
+                return writeSysFile(sysctlPath("net.core.default_qdisc"), "fq")
+                    .then(function() { return writeSysFile(sysctlPath("net.ipv4.tcp_congestion_control"), v); });
             },
             persistFn: function(v) {
                 return writeSysctlConf("net.core.default_qdisc", "fq")
                     .then(function() { return writeSysctlConf("net.ipv4.tcp_congestion_control", v); });
             },
             rollbackFn: function(orig) {
-                return spawnP(["sysctl", "-w", "net.ipv4.tcp_congestion_control=" + orig])
+                return writeSysFile(sysctlPath("net.ipv4.tcp_congestion_control"), orig)
                     .then(function() { return removeSysctlConf("net.ipv4.tcp_congestion_control"); })
                     .then(function() { return removeSysctlConf("net.core.default_qdisc"); });
             }

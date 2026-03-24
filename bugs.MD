@@ -320,3 +320,63 @@
 **Описание апгрейда:** 3 диска RAID 5 дают 2× ёмкость одного диска вместо 1× при RAID 1.
 **Файлы:** `disks.js` — `RAID_UPGRADES`, upgradeBtn render
 
+
+---
+
+### BUG-18 — Dashboard: 4 отдельных bash spawn каждые 2 секунды в tickFast()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `tickFast()` вызывал `loadCpu()`, `loadRam()`, `loadNet()`, `loadDiskIO()` — каждая функция делала отдельный `cockpit.spawn(["bash", "-c", ...])`. Итого 4 процесса каждые 2 секунды = 2 proc/сек нагрузки только от мониторинга.
+**Root cause:** Изначально функции писались независимо, не было понимания что они будут вызываться вместе.
+**Fix:** Добавлена `loadFastMetrics()` — одна bash-команда читает `/proc/stat`, `/proc/meminfo`, `/proc/net/dev`, `/proc/diskstats` за один раз, разделяет вывод по `===M===`. Результат парсится функциями `_parseCpuOut`, `_parseRamOut`, `_parseNetOut`, `_parseDiskOut`. tickFast теперь делает 1 spawn вместо 4 — сокращение CPU-нагрузки на 75%.
+**Файлы:** `dashboard.js` — `loadFastMetrics()`, `_parseCpuOut/Ram/Net/Disk()`, `tickFast()`
+
+---
+
+### BUG-19 — Performance Tuner: sysctl -w через sudo -n не работает (нет NOPASSWD)
+**Страница:** /rusnas/performance
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `applyFn` для всех sysctl-параметров вызывал `spawnP(["sysctl", "-w", param+"="+val])`, что раскрывается в `sudo -n sysctl -w ...`. На VM `sysctl` не прописан в sudoers NOPASSWD → ошибка "требуется пароль". Нажатие "Применить" всегда завершалось ошибкой.
+**Root cause:** Неверный механизм применения: sysctl требует root, но sudoers не охватывал его.
+**Fix:** Заменено на `writeSysFile(sysctlPath(param), val)` — функция `sysctlPath("vm.swappiness")` возвращает `/proc/sys/vm/swappiness`. Запись через `cockpit.file(path, {superuser:"require"}).replace()` работает через Cockpit bridge без sudoers. `readFn` переведён с `sysctl -n` на `cat /proc/sys/...` (надёжнее, не зависит от PATH).
+**Файлы:** `performance.js` — `sysctlPath()`, `makeSysctlItem()`, net items (rmem_max, wmem_max, tcp_rmem, tcp_wmem, bbr)
+
+---
+
+### BUG-20 — Dashboard: escHtml() падает на null/undefined (CRITICAL)
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `function escHtml(s) { return s.replace(...) }` — вызывает TypeError если `s` равно null или undefined. Вызывается в `loadEvents()` при рендеринге строк журнала.
+**Root cause:** Отсутствие defensive null guard.
+**Fix:** `function escHtml(s) { return String(s || "").replace(...) }` — безопасен для любого типа входных данных.
+**Файлы:** `dashboard.js:escHtml()`
+
+---
+
+### BUG-21 — Dashboard: openCpuModal() race condition при быстром открытии/закрытии
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** При быстром повторном открытии модала CPU (`openCpuModal()`) старый `_cmInterval` не был сброшен перед установкой нового. Два интервала работали одновременно → двойная нагрузка spawn.
+**Root cause:** Отсутствовала проверка `if (_cmInterval)` в начале `openCpuModal`.
+**Fix:** Добавлено `if (_cmInterval) { clearInterval(_cmInterval); _cmInterval = null; }` в начало `openCpuModal`.
+**Файлы:** `dashboard.js:openCpuModal()`
+
+---
+
+### BUG-22 — Dashboard: vnstat re-fetch на каждое открытие модала сети
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `openNetModal()` вызывал `loadVnstat()` при каждом открытии, что запускало `cockpit.spawn(["vnstat","--json"])`. vnstat читает сетевую статистику с диска — лишняя нагрузка при частом открытии модала.
+**Root cause:** Нет кеширования ответа vnstat.
+**Fix:** Добавлен кеш `_vnstatLastFetch` + `VNSTAT_CACHE_MS=60000`. При повторном открытии в течение 60 сек — `renderVnstat()` вызывается с уже полученными данными, без spawn.
+**Файлы:** `dashboard.js:loadVnstat()`, переменные `_vnstatLastFetch`, `VNSTAT_CACHE_MS`
+
+---
+
+### BUG-23 — Snapshots: setInterval утечка (ID не сохранён)
+**Страница:** /rusnas/snapshots
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `setInterval(function() { loadSnapshots(); }, 30000)` в DOMContentLoaded не сохранял ID интервала — невозможно вызвать `clearInterval()` при необходимости остановить.
+**Root cause:** Пропущено сохранение в переменную.
+**Fix:** `_snapRefreshTimer = setInterval(...)` — ID сохранён в переменной `_snapRefreshTimer`.
+**Файлы:** `snapshots.js`

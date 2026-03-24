@@ -14,6 +14,7 @@
     var browseSnapId       = null;
     var activeTab          = "snapshots";
     var editingReplSubvol  = null;   // subvol_path being edited in replication modal
+    var _snapRefreshTimer  = null;   // stored so it can be cleared
 
     // ── Init ──────────────────────────────────────────────────────────────────
     document.addEventListener("DOMContentLoaded", function () {
@@ -21,7 +22,7 @@
         setupModals();
         setupButtons();
         loadSubvols();
-        setInterval(function () {
+        _snapRefreshTimer = setInterval(function () {
             if (activeTab === "snapshots" && currentSubvol) loadSnapshots();
         }, 30000);
     });
