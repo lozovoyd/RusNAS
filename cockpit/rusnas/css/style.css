@@ -10,17 +10,17 @@
 /* ─── Design tokens (light) ────────────────────────────────────────────────── */
 :root {
     /* Backgrounds */
-    --bg:           #f0f4f8;
+    --bg:           #eef2f7;
     --bg-card:      #ffffff;
     --bg-input:     #ffffff;
-    --bg-th:        #f1f5f9;
-    --bg-row-hover: #e8eef6;
-    --bg-disabled:  #f1f5f9;
+    --bg-th:        #f0f4f8;
+    --bg-row-hover: #e5ecf5;
+    --bg-disabled:  #f0f4f8;
 
     /* Text */
     --color:        #0f172a;
     --color-muted:  #475569;
-    --color-border: #cbd5e1;
+    --color-border: #c4d0dd;
     --color-link:   #2563eb;
 
     /* Primary (modern blue) */
@@ -81,8 +81,8 @@
     --modal-overlay-bg: rgba(15,23,42,0.55);
 
     /* Elevation & shape */
-    --card-shadow:      0 1px 3px rgba(0,0,0,0.11), 0 2px 8px rgba(0,0,0,0.07);
-    --card-shadow-hover:0 4px 20px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.09);
+    --card-shadow:      0 1px 4px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.06);
+    --card-shadow-hover:0 4px 20px rgba(15,23,42,0.14), 0 8px 24px rgba(15,23,42,0.08);
     --radius-sm:        5px;
     --radius:           10px;
     --radius-lg:        14px;
@@ -176,10 +176,15 @@ body {
 
 h1 {
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 800;
     margin: 0 0 20px;
     color: var(--color);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 a {
@@ -201,6 +206,7 @@ code {
 .section {
     background: var(--bg-card);
     border: 1px solid var(--color-border);
+    border-top: 3px solid var(--primary);
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 16px;
@@ -208,14 +214,19 @@ code {
     transition: box-shadow 0.2s;
 }
 
+:root[data-theme="dark"] .section {
+    border-top-color: var(--primary);
+}
+
 .section h2 {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     margin: 0 0 14px;
     color: var(--color);
-    padding-bottom: 12px;
+    padding-bottom: 10px;
     border-bottom: 1px solid var(--color-border);
-    letter-spacing: -0.01em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .section-toolbar {

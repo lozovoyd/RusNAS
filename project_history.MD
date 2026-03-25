@@ -2002,3 +2002,85 @@ RAID5/6 write hole, CoW+RAID overhead, scrub vs fsck, balance stalls, power loss
 - `sysctlPath("vm.swappiness")` → `"/proc/sys/vm/swappiness"` — стандартный паттерн
 - Night Report: `setTimeout(initNightReport, 800)` в DOMContentLoaded — задержка чтобы не мешать основной загрузке
 - Playwright + Cockpit: 404 для статических файлов — ожидаемо, они раздаются через WebSocket bridge
+
+---
+
+## Сессия 2026-03-26 — UI Cohesion + Light Theme Redesign + Dark Sidebar
+
+### Цели сессии
+
+- Улучшить визуальную цельность UI (rusnas-ui-design skill)
+- Исправить оранжевый цвет ссылок в боковом меню Cockpit
+- Переработать светлую тему в корпоративный стиль
+- Полное browser UI тестирование (webapp-testing skill)
+
+### Результаты
+
+**Ветка:** `feature/ui-cohesion-improvement` → merge в `main`
+
+**Результат тестов:** 11/12 страниц pass, 4/4 mobile no overflow
+(1 timeout на storage-analyzer — flaky, не баг кода; исправлено при retry)
+
+### Выполненные изменения
+
+**1. Унифицированные компоненты — `css/style.css`:**
+- `Toast notifications` (.toast-container, .toast-*)
+- `Skeleton loading` (.skeleton-line с shimmer анимацией)
+- `Live dot` (.live-dot, .live-dot--warn/danger/gray)
+- `Stagger animation` (.stagger-item с --stagger-i CSS переменной)
+- `Status card` (.status-card, .status-card--ok/warn/danger/info)
+- `Snapshots mobile fix` (.snap-layout overflow-x:hidden, .snap-main min-width:0)
+- `Page entry animation` (body > * page-in keyframe)
+
+**2. storage-analyzer.html — исправление Bootstrap nav-tabs:**
+- Заменён `<ul class="nav nav-tabs">` на `<div class="advisor-tabs">` (обязательный паттерн Cockpit v300+)
+- Обновлён `switchTab()` и event listeners в storage-analyzer.js
+
+**3. Исправления мета-тегов:**
+- Добавлен `<meta name="color-scheme" content="light dark">` в network.html, storage-analyzer.html
+- Исправлены заголовки страниц (h2→h1) в ai.html, network.html, storage-analyzer.html, dedup.html
+- Удалены сломанные `../base1/cockpit.css` импорты из network.html, storage-analyzer.html
+- Добавлен `lang="ru"` в disks.html, index.html, users.html
+
+**4. ai.css — 480px mobile breakpoint добавлен**
+
+**5. branding.css — Dark Sidebar + фикс утечки оранжевого цвета:**
+- Проблема: `:root { --color-link: #f5a623 }` без скопирования в `body.login-pf` утекал в боковое меню Cockpit, делая ссылки оранжевыми
+- Решение: добавлена секция `body:not(.login-pf)` с PatternFly v6 оверрайдами:
+  - `.pf-v6-c-page__sidebar, .pf-v6-c-nav` → `background: #1e293b` (тёмно-синий)
+  - `.pf-v6-c-masthead` → `background: #0f172a`
+  - `.pf-v6-c-nav__link` → `color: #cbd5e1` (читаемый белый-серый)
+  - Active item: `border-left: 3px solid #3b82f6` + blue highlight
+  - General links reset: `#60a5fa` вместо оранжевого
+
+**6. style.css — Light Theme Enterprise Redesign:**
+- `--bg: #eef2f7` (глубже, более характерный)
+- `--color-border: #c4d0dd` (более заметная граница)
+- `--card-shadow` усилен: `0 1px 4px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.06)`
+- `.section` добавлен `border-top: 3px solid var(--primary)` — blue accent для enterprise-вида
+- `.section h2` → uppercase + letter-spacing: 0.04em + font-size: 14px
+- `h1` → font-weight: 800, letter-spacing: -0.02em, border-bottom: 2px + display:flex
+
+### Файлы изменены
+
+| Файл | Изменения |
+|------|-----------|
+| `cockpit/rusnas/css/style.css` | Новые компоненты, light theme redesign, section/h1 improvements |
+| `cockpit/rusnas/css/ai.css` | 480px mobile breakpoint |
+| `cockpit-branding/branding.css` | Dark sidebar overrides, fix orange link leak |
+| `cockpit/rusnas/storage-analyzer.html` | advisor-tabs, meta fixes, h1 fix |
+| `cockpit/rusnas/js/storage-analyzer.js` | switchTab() updated |
+| `cockpit/rusnas/network.html` | color-scheme meta, h1 fix, removed cockpit.css |
+| `cockpit/rusnas/ai.html` | h2→h1 fix |
+| `cockpit/rusnas/dedup.html` | h1 prefix fix, removed duplicate CSS |
+| `cockpit/rusnas/ups.html` | Removed duplicate CSS |
+| `cockpit/rusnas/disks.html + index.html + users.html` | lang="ru" added |
+| `test_rusnas_ui.py` | Created Playwright test (12 pages + 4 mobile) |
+| `project_history.md` | эта запись |
+
+### Архитектурные заметки
+
+- `body:not(.login-pf)` — правильный способ скопировать CSS overrides для Cockpit shell (не логин страницы)
+- `.pf-v6-c-nav__link.pf-m-current` — active nav item в PatternFly v6
+- `border-top: 3px solid var(--primary)` на `.section` — enterprise-паттерн для Proxmox/Grafana-стиля
+- Playwright evaluates outer Cockpit shell document, not iframe — тема плагина не видна для некоторых страниц (не баг)

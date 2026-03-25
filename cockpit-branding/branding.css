@@ -234,3 +234,76 @@ a:hover { color: #e8703a !important; text-decoration: underline; }
 .spinner {
   border-color: rgba(255,255,255,0.15) rgba(255,255,255,0.15) rgba(255,255,255,0.15) rgba(255,255,255,0.8) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Cockpit Shell Nav Overrides (PatternFly v6)
+   Fixes orange link color that leaks from :root { --color-link }
+   above. These rules apply ONLY in the main Cockpit shell
+   (body does NOT have .login-pf class there).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Sidebar / masthead background ────────────────────────────── */
+body:not(.login-pf) .pf-v6-c-page__sidebar,
+body:not(.login-pf) .pf-v6-c-nav {
+  background: #1e293b !important;
+  border-right: 1px solid #334155 !important;
+}
+
+body:not(.login-pf) .pf-v6-c-masthead,
+body:not(.login-pf) .pf-v6-c-page__header {
+  background: #0f172a !important;
+  border-bottom: 1px solid #1e3a5f !important;
+}
+
+/* ── Nav links: readable slate text, no orange ────────────────── */
+body:not(.login-pf) .pf-v6-c-nav__link,
+body:not(.login-pf) .pf-v6-c-nav__link:visited,
+body:not(.login-pf) .pf-v6-c-nav__item a {
+  color: #cbd5e1 !important;
+  background: transparent !important;
+}
+
+body:not(.login-pf) .pf-v6-c-nav__link:hover,
+body:not(.login-pf) .pf-v6-c-nav__item a:hover {
+  color: #f1f5f9 !important;
+  background: rgba(255,255,255,0.06) !important;
+}
+
+body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
+body:not(.login-pf) .pf-v6-c-nav__link[aria-current],
+body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
+  color: #ffffff !important;
+  background: rgba(59,130,246,0.18) !important;
+  border-left: 3px solid #3b82f6 !important;
+}
+
+/* ── Nav section title ─────────────────────────────────────────── */
+body:not(.login-pf) .pf-v6-c-nav__section-title {
+  color: #64748b !important;
+}
+
+/* ── Masthead brand / hostname text ───────────────────────────── */
+body:not(.login-pf) .pf-v6-c-masthead__brand,
+body:not(.login-pf) .pf-v6-c-masthead__content,
+body:not(.login-pf) .pf-v6-c-masthead a {
+  color: #f1f5f9 !important;
+}
+
+/* ── Masthead utility icons & buttons ─────────────────────────── */
+body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
+body:not(.login-pf) .pf-v6-c-masthead button {
+  color: #94a3b8 !important;
+}
+body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button:hover,
+body:not(.login-pf) .pf-v6-c-masthead button:hover {
+  color: #f1f5f9 !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+
+/* ── General link color reset in shell (not login page) ────────── */
+body:not(.login-pf) a {
+  color: #60a5fa;
+}
+body:not(.login-pf) a:hover {
+  color: #93c5fd;
+}
