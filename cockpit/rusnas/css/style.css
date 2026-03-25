@@ -1117,11 +1117,19 @@ tbody tr:last-child td { border-bottom: none; }
 
     .snap-layout {
         flex-direction: column;
+        overflow-x: hidden;
+        max-width: 100%;
     }
     .snap-sidebar {
         width: 100%;
+        min-width: 0;
         position: static;
         max-height: none;
+    }
+    .snap-main {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
     }
     #snap-sidebar-list {
         max-height: 200px;
@@ -1289,4 +1297,140 @@ tbody tr:last-child td { border-bottom: none; }
 .modal-tabs {
     margin-top: -4px;
     margin-bottom: 16px;
+}
+
+/* ─── Toast Notifications ───────────────────────────────────────────────────── */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1);
+    pointer-events: auto;
+    animation: toast-in 200ms cubic-bezier(0.22,1,0.36,1) both;
+    max-width: 360px;
+    border: 1px solid transparent;
+}
+.toast.toast-out {
+    animation: toast-out 180ms ease-in forwards;
+}
+.toast-success { background: var(--success-light); border-color: var(--success-border); color: var(--success-text-on-light); }
+.toast-danger  { background: var(--danger-light);  border-color: var(--danger-border);  color: var(--danger-text-on-light); }
+.toast-warning { background: var(--warning-light); border-color: var(--warning-border); color: var(--warning-text-on-light); }
+.toast-info    { background: var(--info-light);    border-color: var(--info-border);    color: var(--info-text-on-light); }
+@keyframes toast-in  { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes toast-out { from { transform: none; opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
+
+/* ─── Skeleton Loading ──────────────────────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+}
+.skeleton-line {
+    height: 14px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--bg-th) 25%, var(--bg-row-hover) 50%, var(--bg-th) 75%);
+    background-size: 800px 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-line.sm { height: 10px; }
+.skeleton-line.lg { height: 20px; }
+
+/* ─── Live Dot ──────────────────────────────────────────────────────────────── */
+.live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent);
+    animation: live-pulse 2s ease-in-out infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.live-dot--warn   { background: var(--warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 25%, transparent); }
+.live-dot--danger { background: var(--danger);  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger)  25%, transparent); animation: live-blink 1s step-end infinite; }
+.live-dot--gray   { background: var(--color-muted); box-shadow: none; animation: none; }
+@keyframes live-pulse { 0%,100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 25%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 10%, transparent); } }
+@keyframes live-blink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+
+/* ─── Stagger Entry Animation ───────────────────────────────────────────────── */
+@keyframes stagger-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+.stagger-item {
+    opacity: 0;
+    animation: stagger-in 240ms cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: calc(var(--stagger-i, 0) * 50ms);
+}
+
+/* ─── Status Card ───────────────────────────────────────────────────────────── */
+.status-card {
+    background: var(--bg-card);
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+}
+.status-card:hover {
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-1px);
+}
+.status-card--ok     { border-left-color: var(--success); }
+.status-card--warn   { border-left-color: var(--warning); }
+.status-card--danger { border-left-color: var(--danger); }
+.status-card--info   { border-left-color: var(--primary); }
+.status-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.status-card__title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+}
+.metric-value {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+}
+.metric-unit  { font-size: 16px; font-weight: 600; }
+.metric-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+}
+
+/* ─── Page Entry Animation ──────────────────────────────────────────────────── */
+@keyframes page-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+body > *:not(script):not(link):not(style) {
+    animation: page-in 200ms cubic-bezier(0.22,1,0.36,1) both;
 }

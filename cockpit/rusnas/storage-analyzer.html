@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Анализ пространства — rusNAS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>rusNAS — Анализ пространства</title>
   <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
-  <link rel="stylesheet" href="../base1/cockpit.css">
   <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/eye.css">
   <link rel="stylesheet" href="css/storage-analyzer.css">
@@ -16,7 +16,7 @@
 <!-- Page Header -->
 <div class="sa-page-header">
   <div class="sa-page-header-left">
-    <h2>💾 Анализ пространства</h2>
+    <h1>💾 Анализ пространства</h1>
     <div class="sa-scan-info" id="scanInfo">
       <span class="sa-scan-age" id="scanAge">Загрузка...</span>
       <span class="sa-scan-dot">•</span>
@@ -40,13 +40,13 @@
 </div>
 
 <!-- Tab Navigation -->
-<ul class="nav nav-tabs sa-tabs" id="saTabs">
-  <li class="active"><a href="#tab-overview"   data-tab="overview">Обзор</a></li>
-  <li>              <a href="#tab-shares"    data-tab="shares">Шары</a></li>
-  <li>              <a href="#tab-files"     data-tab="files">Папки и файлы</a></li>
-  <li>              <a href="#tab-users"     data-tab="users">Пользователи</a></li>
-  <li>              <a href="#tab-filetypes" data-tab="filetypes">Типы файлов</a></li>
-</ul>
+<div class="advisor-tabs" id="saTabs">
+  <button class="advisor-tab-btn active" data-tab="overview">Обзор</button>
+  <button class="advisor-tab-btn" data-tab="shares">Шары</button>
+  <button class="advisor-tab-btn" data-tab="files">Папки и файлы</button>
+  <button class="advisor-tab-btn" data-tab="users">Пользователи</button>
+  <button class="advisor-tab-btn" data-tab="filetypes">Типы файлов</button>
+</div>
 
 <!-- ========== TAB 1: OVERVIEW ========== -->
 <div class="sa-tab-content" id="tab-overview">

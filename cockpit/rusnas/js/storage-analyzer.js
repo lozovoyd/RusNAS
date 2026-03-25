@@ -102,11 +102,8 @@ function saApi(args) {
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('#saTabs a[data-tab]').forEach(a => {
-        a.addEventListener('click', e => {
-            e.preventDefault();
-            switchTab(a.dataset.tab);
-        });
+    document.querySelectorAll('#saTabs .advisor-tab-btn[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
     // Period buttons (chart)
@@ -176,10 +173,9 @@ function closeModal() {
 
 function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('#saTabs li').forEach(li => li.classList.remove('active'));
-    document.querySelectorAll('#saTabs a[data-tab]').forEach(a => {
-        if (a.dataset.tab === tab) a.parentElement.classList.add('active');
-    });
+    document.querySelectorAll('#saTabs .advisor-tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`#saTabs .advisor-tab-btn[data-tab="${tab}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
     document.querySelectorAll('.sa-tab-content').forEach(d => d.style.display = 'none');
     const el = document.getElementById('tab-' + tab);
     if (el) el.style.display = '';

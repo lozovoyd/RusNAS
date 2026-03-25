@@ -346,3 +346,12 @@
     .ai-settings-grid { grid-template-columns: 1fr; }
     .ai-msg { max-width: 100%; }
 }
+
+@media (max-width: 480px) {
+    .ai-page-wrap { height: calc(100vh - 48px); }
+    .ai-input-row { flex-direction: column; gap: 8px; }
+    .ai-send-btn { width: 100%; justify-content: center; }
+    .ai-input { font-size: 16px !important; } /* prevent iOS zoom */
+    .ai-toolbar { flex-wrap: wrap; gap: 6px; }
+    .ai-toolbar .btn { flex: 1 1 auto; font-size: 12px; padding: 6px 10px; }
+}
