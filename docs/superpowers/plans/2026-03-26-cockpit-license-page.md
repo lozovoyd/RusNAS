@@ -12,6 +12,8 @@
 
 **Dependency:** `operator_public.pem` must exist in `rusnas-license-server/` before running `build-deb.sh`. For dev/test, generate a test keypair with `keygen.py`.
 
+> **VPS конфигурация:** apt host в `auth.conf` (`activate.rusnas.ru/apt/`) берётся из `CLAUDE.md` → **Distribution Infrastructure** → `RUSNAS_VPS_HOST`. Обновить в `license.js` строку `const aptHost` если изменился домен.
+
 ---
 
 ## File Map

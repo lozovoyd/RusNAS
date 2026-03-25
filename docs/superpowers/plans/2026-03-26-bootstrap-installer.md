@@ -12,6 +12,8 @@
 
 **Dependency:** License server must be deployed and `/api/install-token` endpoint live before testing Step 4+.
 
+> **VPS конфигурация:** `ACTIVATE_HOST`, `RUSNAS_APT_URL`, `RUSNAS_INSTALL_URL`, `RUSNAS_WEBROOT` — в `CLAUDE.md` → **Distribution Infrastructure**. Обновить в `bootstrap.sh` если значения изменились.
+
 ---
 
 ## File Map

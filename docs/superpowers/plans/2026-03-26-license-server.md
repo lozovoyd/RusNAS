@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-26-distribution-licensing-design.md` + `rusnas-license-server-task.md`
 
+> **VPS конфигурация:** все адреса, порты и пути — в `CLAUDE.md` → секция **Distribution Infrastructure**. Перед реализацией проверить актуальные значения там.
+
 ---
 
 ## File Map

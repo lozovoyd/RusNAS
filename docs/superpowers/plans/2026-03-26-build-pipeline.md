@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-26-distribution-licensing-design.md` §8, §9
 
+> **VPS конфигурация:** `RUSNAS_VPS_SSH` (SSH-алиас), `RUSNAS_REPREPRO_BASE`, `RUSNAS_VPS_HOST` — в `CLAUDE.md` → **Distribution Infrastructure**. `release.sh` использует `rusnas-vps` как SSH-алиас.
+
 ---
 
 ## File Map
