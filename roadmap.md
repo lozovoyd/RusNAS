@@ -166,3 +166,27 @@ btrfs send -p /mnt/data/.snapshots/docs/@prev @curr | ssh user@host btrfs receiv
 - HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor
 - `pip install mcp` SDK
 - Ollama локальный LLM
+
+---
+
+## ✅ Performance Tuner + SMART modal + Guard watchdog (реализовано 2026-03-24, ветка feature/mcp-ai)
+
+Полное ТЗ: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md)
+
+- `performance.html` + `js/performance.js` — авто-оптимизатор 12 уровней
+- Детект системы: RAM, CPU cores, диски (HDD/SSD/NVMe), RAID, NIC, tuned
+- Параметры: vm.swappiness, vm.dirty_ratio, I/O scheduler, read-ahead, stripe_cache_size, Btrfs noatime, сеть rmem/wmem/BBR, Samba sendfile/aio, NFS nfsd threads, CPU governor
+- Чтение через `cat /proc/sys/...`, запись через `cockpit.file(path, {superuser:"require"}).replace()`
+- SMART self-test modal: история тестов (таблица), polling прогресса, расписание через smartd
+- Guard socket watchdog в `dashboard.js`: авто-переподключение при обрыве сокета
+
+---
+
+## ✅ Regression Testing + CPU optimization + Night Report (реализовано 2026-03-25, ветка testing/full-regression)
+
+- **Regression testing** всех 9 страниц плагина — Playwright, 9/9 PASS
+- **CPU optimization:** `tickFast` 4 spawns → 1 batch с `===M===`, таймеры 2×–6× медленнее, `visibilitychange` pause
+- **Night Report widget** — ночной отчёт на дашборде (Health Score, 3 колонки, 5 stat-карточек)
+- **BUG-18..30:** 13 багов задокументированы и исправлены (см. [bugs.MD](./bugs.MD))
+- **btrfs-problems.md:** 15 известных проблем Btrfs+mdadm с решениями и условиями возникновения
+- Новые антипаттерны в CLAUDE.md: Promise.all .catch(), results[idx], loadData().then(), worstStatus priority, /var/lib/rusnas traverse bit

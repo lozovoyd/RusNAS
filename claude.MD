@@ -14,7 +14,9 @@
 > FileBrowser: [rusnas-filebrowser-task.md](./rusnas-filebrowser-task.md) — ТЗ и архитектура
 > Roadmap: [roadmap.md](./roadmap.md) — детальные заметки по всем реализованным фичам
 > Git Workflow: [git-workflow.md](./git-workflow.md) — правила веток, коммитов, merge
-> История багов: [bugs.md](./bugs.md) — полная история всех багов и фиксов
+> История багов: [bugs.MD](./bugs.MD) — полная история всех багов и фиксов (BUG-01..30)
+> Performance Tuner: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md) — ТЗ авто-оптимизатора (12 уровней)
+> Btrfs проблемы: [btrfs-problems.md](./btrfs-problems.md) — 15 известных проблем Btrfs+mdadm с решениями
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -97,36 +99,55 @@ Cockpit auto-reloads plugins on page refresh — no service restart needed after
 ```
 RusNAS/
 ├── cockpit/
-│   └── rusnas/             # Cockpit plugin source
+│   └── rusnas/                  # Cockpit plugin source (12 pages)
 │       ├── manifest.json
-│       ├── index.html      # Storage: SMB shares + iSCSI targets
-│       ├── disks.html      # Disks and RAID arrays
-│       ├── users.html      # User management
-│       ├── guard.html      # Guard 🛡️ — ransomware protection
-│       ├── snapshots.html  # Snapshots — Btrfs snapshot manager
-│       ├── dedup.html      # Дедупликация — duperemove + reflinks + vfs_btrfs
-│       ├── css/style.css
+│       ├── dashboard.html        # Dashboard 🏠 — метрики, Guard/RAID/Disk статус, Night Report
+│       ├── index.html            # Хранилище — SMB/NFS шары + iSCSI + WORM + FTP/WebDAV
+│       ├── disks.html            # Диски и RAID — массивы, SMART, SSD-кеш
+│       ├── users.html            # Пользователи и группы
+│       ├── guard.html            # Guard 🛡️ — антишифровальщик
+│       ├── snapshots.html        # Снапшоты 📸 — Btrfs snapshots + репликация
+│       ├── dedup.html            # Дедупликация — duperemove + reflinks
+│       ├── ups.html              # ИБП 🔋 — NUT / Network UPS Tools
+│       ├── storage-analyzer.html # Анализ 💾 — анализатор дискового пространства
+│       ├── network.html          # Сеть 🌐 — сетевые интерфейсы, сертификаты, домен
+│       ├── ai.html               # AI Ассистент 🤖 — MCP + Yandex GPT / Anthropic
+│       ├── performance.html      # Performance ⚡ — авто-оптимизатор (12 уровней)
+│       ├── css/
+│       │   ├── style.css         # Основные стили плагина
+│       │   └── dashboard.css     # Стили дашборда + Night Report (.nr-*)
 │       └── js/
-│           ├── app.js      # Storage logic (SMB, NFS, iSCSI)
-│           ├── disks.js
-│           ├── users.js
-│           ├── guard.js    # Guard UI logic
-│           ├── snapshots.js
-│           └── dedup.js    # Dedup UI logic
-├── rusnas-guard/           # Guard daemon source
+│           ├── app.js            # Storage: SMB, NFS, iSCSI, WORM, FTP, WebDAV
+│           ├── dashboard.js      # Dashboard: метрики, Night Report, Guard/RAID/Disk/UPS карточки
+│           ├── disks.js          # Disks: RAID lifecycle, SMART, SSD-кеш (dm-cache)
+│           ├── users.js          # Users/Groups CRUD
+│           ├── guard.js          # Guard: socket client, события, настройки
+│           ├── snapshots.js      # Snapshots: list/create/delete, schedules, replication
+│           ├── dedup.js          # Dedup: duperemove запуск, статистика, расписание
+│           ├── ups.js            # UPS: NUT статус, конфиг, авто-shutdown
+│           ├── storage-analyzer.js # Storage Analyzer: treemap, charts, forecast
+│           ├── network.js        # Network: интерфейсы, bonding, VLAN, certbot, DDNS
+│           ├── ai.js             # AI: MCP proxy → Yandex GPT 5 Pro / Anthropic Claude
+│           ├── performance.js    # Performance Tuner: 12 уровней оптимизации
+│           ├── eye.js            # Eye: вспомогательные утилиты (escHtml, fmtBytes...)
+│           └── scripts/          # Backend Python-скрипты
+│               ├── mcp-api.py    # AI API proxy (CORS fix, multi-provider)
+│               ├── storage-collector.py  # Hourly storage metrics collector
+│               └── storage-analyzer-api.py  # Storage Analyzer API (7 commands)
+├── rusnas-guard/                 # Guard daemon source
 │   ├── daemon/
-│   │   ├── guard.py        # Main daemon entry point
-│   │   ├── detector.py     # inotify watcher + detection logic
-│   │   ├── entropy.py      # Shannon entropy computation
-│   │   ├── honeypot.py     # Bait file management
-│   │   ├── response.py     # Blocking, snapshots, notifications
-│   │   └── socket_server.py # Unix socket server
+│   │   ├── guard.py              # Main daemon entry point
+│   │   ├── detector.py           # inotify watcher + detection logic
+│   │   ├── entropy.py            # Shannon entropy computation
+│   │   ├── honeypot.py           # Bait file management
+│   │   ├── response.py           # Blocking, snapshots, notifications
+│   │   └── socket_server.py      # Unix socket server
 │   ├── config/
-│   │   ├── config.json     # Default configuration
-│   │   └── ransom_extensions.txt  # ~200 known ransomware extensions
+│   │   ├── config.json           # Default configuration
+│   │   └── ransom_extensions.txt # ~200 known ransomware extensions
 │   └── service/
-│       └── rusnas-guard.service   # systemd unit
-├── ansible/                # Ansible monorepo (provisioning)
+│       └── rusnas-guard.service  # systemd unit
+├── ansible/                      # Ansible monorepo (provisioning)
 │   └── roles/
 │       ├── base/           # Base system configuration
 │       ├── mdadm/          # RAID arrays
@@ -140,24 +161,30 @@ RusNAS/
 │       ├── cockpit/        # Cockpit + rusnas plugin
 │       ├── firewall/       # nftables
 │       └── notifications/  # email + Telegram
-├── landing/                # rusNAS landing page (Apache, port 80)
-│   ├── index.html          # Main landing page — single-file, self-contained CSS/JS
-│   ├── assets/             # Images, logos (if needed in future)
+├── landing/                      # rusNAS landing page (Apache, port 80)
+│   ├── index.html                # Main landing page — self-contained CSS/JS
 │   └── apache/
-│       └── rusnas-landing.conf  # Apache VirtualHost config
-├── deploy.sh               # Deploy Cockpit plugin to VM
-├── deploy-landing.sh       # Deploy landing page to Apache on VM
-├── install-guard.sh        # Deploy Guard daemon to VM
-├── install-snapshots.sh    # Deploy snapshot system to VM
-├── install-dedup.sh        # Deploy Dedup backend to VM
+│       └── rusnas-landing.conf   # Apache VirtualHost config
 ├── rusnas-dedup/
-│   ├── rusnas-dedup-run.sh    # Wrapper script: duperemove + state JSON
-│   └── rusnas-dedup.service   # systemd oneshot service
-├── rusnas-metrics-install.sh  # Deploy Metrics Server to VM
+│   ├── rusnas-dedup-run.sh       # Wrapper script: duperemove + state JSON
+│   └── rusnas-dedup.service      # systemd oneshot service
 ├── rusnas-metrics/
-│   ├── metrics_server.py   # Prometheus + JSON metrics HTTP server (port 9100)
-│   └── rusnas-metrics.service  # systemd unit
-├── rusnas-guard-task.md    # Guard ТЗ и архитектура
+│   ├── metrics_server.py         # Prometheus + JSON metrics HTTP server (port 9100)
+│   └── rusnas-metrics.service    # systemd unit
+├── btrfs-problems.md             # Известные проблемы Btrfs+mdadm (15 разделов)
+├── deploy.sh                     # Deploy Cockpit plugin to VM
+├── deploy-landing.sh             # Deploy landing page to Apache on VM
+├── install-guard.sh              # Deploy Guard daemon to VM
+├── install-snapshots.sh          # Deploy snapshot system to VM
+├── install-dedup.sh              # Deploy Dedup backend to VM
+├── install-filebrowser.sh        # Deploy FileBrowser + Apache proxy to VM
+├── install-mcp.sh                # Deploy MCP API proxy to VM
+├── install-network.sh            # Deploy Network module backend to VM
+├── install-ssd-tier.sh           # Deploy SSD caching (dm-cache) to VM
+├── install-storage-analyzer.sh   # Deploy Storage Analyzer backend to VM
+├── install-ups.sh                # Deploy NUT (UPS) to VM
+├── install-worm.sh               # Deploy WORM backend to VM
+├── rusnas-metrics-install.sh     # Deploy Metrics Server to VM
 └── CLAUDE.md
 ```
 
@@ -332,6 +359,42 @@ sshpass -p 'kl4389qd' scp -o StrictHostKeyChecking=no -o PreferredAuthentication
 - `cmd_files(path, sort, ftype, older_than)`: при `ftype != "all"` — рекурсивный `os.walk`, директории пропускаются (избегает таймаута от `du -sb`); файлы показываются с rel-путём от root
 - При `ftype == "all"` — плоский `os.listdir` с `du -sb` для директорий (как раньше)
 
+## Performance Tuner (performance.html / js/performance.js)
+
+Авто-оптимизатор дисковой подсистемы и сети. Полное ТЗ: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md)
+
+**Deploy:** уже в составе `./deploy.sh` (файл в `cockpit/rusnas/`)
+
+**12 уровней оптимизации:** vm.* (sysctl), I/O планировщик (udev), read-ahead, mdadm stripe_cache, Btrfs mount options, сеть (sysctl), NIC ethtool, Samba smb.conf, NFS nfsd threads, CPU governor, IRQ balancing, TuneD профиль.
+
+**Ключевые архитектурные решения:**
+- Чтение параметров: `cat /proc/sys/vm/swappiness` (не `sysctl -n`) — без sudoers
+- Запись параметров: `writeSysFile(sysctlPath(param), val)` = `cockpit.file(path, {superuser:"require"}).replace(val)` — без sudoers
+- `sysctlPath("vm.swappiness")` → `"/proc/sys/vm/swappiness"` — helper конвертации
+- Persist: запись в `/etc/sysctl.d/99-rusnas-perf.conf` через `cockpit.file` superuser
+- Каждый параметр: `readFn` (текущее) + `applyFn` (in-memory) + `persistFn` (на диск) + `rollbackFn`
+
+**Critical performance.js notes:**
+- `applySingleItem(id)` — null-guard на `actEl` перед `.innerHTML` (BUG-28)
+- `detectProfile()` — `profile.netSpeed` инициализируется 0 (не 1000), чтобы корректно выбрать NIC
+- Sudoers для Performance Tuner **не нужны** — всё через `cockpit.file superuser`
+
+## Dashboard — Night Report (ночной отчёт)
+
+Виджет на дашборде — «утренняя газета для инфраструктуры». Показывает сводку за последние 8 часов.
+
+**HTML:** блок `#night-report` в `dashboard.html` (после `#db-alert-banner`)
+**CSS:** классы `.nr-*`, `.db-night-report` в `dashboard.css`
+**JS:** функции `initNightReport()`, `refreshNightReport()`, `nrCollect*()`, `nrRender*()` в `dashboard.js`
+
+**Структура виджета:**
+- Health Score (0–100, хранится в `localStorage`)
+- 5 stat-карточек: инциденты, снапшоты, CPU peak, сеть за 8ч, SMART
+- 3 колонки: Guard события / SMART дисков / Деdup и снапшоты
+- Кнопка `#btn-nr-refresh` — ручное обновление
+
+**Init:** `setTimeout(initNightReport, 800)` в DOMContentLoaded — задержка чтобы не конкурировать с основной загрузкой дашборда.
+
 ## Mobile / Responsive CSS Rules
 
 Все HTML-страницы плагина **обязаны** иметь viewport meta (иначе мобильные браузеры игнорируют @media queries):
@@ -503,7 +566,7 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 
 Стратегия: Feature Branch Flow. `main` = задеплоенный код. После merge → `./deploy.sh`.
 Формат коммитов: `feat:|fix:|docs:|refactor: описание` + `Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)`
-**Текущая ветка:** `feature/mcp-ai`
+**Текущая ветка:** `main` (после merge testing/full-regression 2026-03-25)
 
 ## Landing Page (marketing site, port 80)
 
@@ -558,4 +621,7 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 | Network + Certs + Domain | ✅ реализовано 2026-03-21/22 | rusnas-network-task.md |
 | MCP Server + AI Agent | ✅ Session 1 (2026-03-22/23) | rusnas_mcp_ai.MD |
 | Снапшоты: репликация | ✅ реализовано 2026-03-23 | roadmap.md |
+| Performance Tuner (⚡) | ✅ реализован 2026-03-24 | rusnas-performance-tuning-spec.md |
+| Night Report (дашборд) | ✅ реализован 2026-03-25 | roadmap.md |
+| Regression Testing + CPU opt | ✅ завершено 2026-03-25 | bugs.MD, project_history.MD |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |
