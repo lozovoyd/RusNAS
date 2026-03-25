@@ -550,7 +550,7 @@ function updateNetServer() {
 function startPolling() {
     loadUpsStatus();
     if (_statusTimer) clearInterval(_statusTimer);
-    _statusTimer = setInterval(loadUpsStatus, 5000);
+    _statusTimer = setInterval(loadUpsStatus, 15000);  // was 5s — UPS status changes slowly, 15s is sufficient
 }
 
 function loadAll() {

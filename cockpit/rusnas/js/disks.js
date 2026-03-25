@@ -450,7 +450,7 @@ function loadDisksAndArrays() {
 
 function runArray(name) {
     if (!confirm("Запустить массив " + name + "?")) return;
-    cockpit.spawn(["bash", "-c", "sudo mdadm --run /dev/" + name], {superuser: "require"})
+    cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})
         .done(function() { setTimeout(loadDisksAndArrays, 1500); })
         .fail(function(err) { alert("Ошибка: " + err); });
 }
@@ -2323,7 +2323,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     loadDisksAndArrays();
     loadSsdTiers();
-    ssdTierTimer = setInterval(loadSsdTiers, 10000);
+    ssdTierTimer = setInterval(loadSsdTiers, 60000);  // was 10s — SSD tier config only changes on user action
 });
 
 function confirmAddDisk() {

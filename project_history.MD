@@ -1886,3 +1886,119 @@ rusnas ALL=(ALL) NOPASSWD: /usr/sbin/smartctl
 - CSS-классы для инфографики все уже были в inline `<style>` snapshots.html: `sg-repl-*` (flow-диаграмма), `sg-cmp-*` (карточки); `gd-*` — из `style.css` (guard-паттерн)
 - `replication list` возвращает `{tasks:[...], ok:true}` — разбирать как `data.tasks`
 - Репликация требует: Btrfs-субволюм на удалённом хосте + SSH ключ (`ssh-copy-id`) до настройки через UI
+
+---
+
+## Сессия 2026-03-25 — Regression Testing + CPU Optimization + Night Report + btrfs-problems.md
+
+### Цели
+
+1. Полная регрессионная проверка всего плагина rusNAS (все страницы, все функции)
+2. Оптимизация CPU-нагрузки Cockpit без потери функциональности
+3. Реализация Night Report (ночной отчёт на дашборде)
+4. Документирование всех известных проблем Btrfs+mdadm в `btrfs-problems.md`
+
+---
+
+### Выполнено
+
+#### CPU-оптимизация (dashboard.js)
+
+Ветка: `testing/full-regression`, коммит `9ed5d1a`
+
+Основной выигрыш: 4 отдельных `cockpit.spawn()` в `tickFast()` → 1 bash-спавн с разделителем `===M===`.
+
+```javascript
+function loadFastMetrics() {
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/stat | head -1; cat /proc/loadavg; nproc; ... echo '===M==='; " +
+        "cat /proc/meminfo; echo '===M==='; cat /proc/net/dev; echo '===M==='; cat /proc/diskstats"
+    ], {err: "message"})
+    .done(function(out) {
+        var parts = out.split("===M===\n");
+        _parseCpuOut(parts[0]); _parseRamOut(parts[1]);
+        _parseNetOut(parts[2], now); _parseDiskOut(parts[3], now);
+    });
+}
+```
+
+#### Фиксы багов (BUG-18 — BUG-23)
+
+| Bug | Fix |
+|-----|-----|
+| `sysctl -w` через `sudo -n` — нет в sudoers | `writeSysFile("/proc/sys/...", val)` через cockpit.file superuser |
+| `escHtml(null)` → TypeError | `String(s \|\| "").replace(...)` |
+| Race condition в openCpuModal interval | `clearInterval(_cmInterval)` перед новым setInterval |
+| vnstat фетч при каждом открытии модала | Кэш `_vnstatLastFetch` + `VNSTAT_CACHE_MS=60000` |
+| setInterval без сохранения ID | `_snapRefreshTimer = setInterval(...)` |
+| Performance Tuner apply не работал | `sysctlPath()` + `writeSysFile()` вместо `sysctl -w` |
+
+#### Night Report (ночной отчёт)
+
+Новый виджет на дашборде — «утренняя газета для инфраструктуры». Показывает сводку за последние 8 часов:
+
+- Health Score (0–100 баллов, localStorage)
+- 5 ключевых метрик: инциденты безопасности, снапшоты, нагрузка CPU, сеть, SMART
+- 3 колонки: Guard события, SMART статус дисков, Дедупликация и снапшоты
+- Кнопка «Обновить» для ручного обновления
+
+**Файлы:**
+- `dashboard.html` — HTML-блок `#night-report`
+- `css/dashboard.css` — все `.nr-*` CSS-классы + responsive
+- `js/dashboard.js` — `initNightReport()`, `nrCollect*()`, `nrRender*()` (ES5 промис-цепочки)
+
+#### btrfs-problems.md
+
+Создан документ с 15 разделами по известным проблемам Btrfs+mdadm:
+RAID5/6 write hole, CoW+RAID overhead, scrub vs fsck, balance stalls, power loss recovery, snapshot fragmentation, THP, stripe_cache_size, noatime обязателен, zstd tuning, qgroups overhead, rebuild behavior, mdadm bitmap, defrag side effects, RAID grow + btrfs resize sequence.
+
+#### Регрессионное тестирование (Playwright)
+
+Протестированы все 9 страниц плагина. Результат: **9/9 PASS, 0 FAIL**.
+
+| Страница | Статус | Примечания |
+|----------|--------|------------|
+| Dashboard | ✅ PASS | Night Report, метрики, Guard/RAID статус — всё работает |
+| Диски и RAID | ✅ PASS | md127 RAID6, 4 диска, SMART OK |
+| Снапшоты | ✅ PASS | 44 снапшота, предупреждение об offline-субволюме `images` (ожидаемо) |
+| Performance Tuner | ✅ PASS | Детект железа, таблица оптимизаций с текущими значениями |
+| Хранилище | ✅ PASS | SMB/NFS Активен, табы, пустой список шар (ожидаемо) |
+| Пользователи | ✅ PASS | Таблица пользователей и групп |
+| Дедупликация | ✅ PASS | Последний запуск, 2.1 ГБ сэкономлено |
+| Guard | ✅ PASS | Защита активна, 0 событий |
+| ИБП (UPS) | ✅ PASS | Загрузка без устройства (ожидаемо) |
+
+**Некритичные наблюдения:**
+- Google Fonts CSP-блок — ожидаем (нет интернета на VM)
+- 404 для mcp-api.py — сервис не запущен на VM (не мешает UI)
+- Subvolume `images` offline — конфигурационная особенность тестовой VM
+
+### Новые антипаттерны в CLAUDE.md / bugs.md
+
+Добавлены 5 строк в таблицу Known Bugs:
+- `sysctl -w via sudo -n` → `writeSysFile(sysctlPath, val)`
+- `escHtml(null)` → `String(s || "").replace(...)`
+- Modal interval race → `clearInterval` перед новым `setInterval`
+- `setInterval` без ID → всегда хранить в переменной
+- `tickFast()` N spawns → батч в один bash с `===M===` разделителем
+
+### Файлы изменены
+
+| Файл | Изменения |
+|------|-----------|
+| `cockpit/rusnas/js/dashboard.js` | `loadFastMetrics()`, Night Report, race fix, vnstat cache |
+| `cockpit/rusnas/js/performance.js` | `sysctlPath()`, `writeSysFile()` вместо sysctl -w |
+| `cockpit/rusnas/js/snapshots.js` | `_snapRefreshTimer` ID сохраняется |
+| `cockpit/rusnas/dashboard.html` | Блок `#night-report` |
+| `cockpit/rusnas/css/dashboard.css` | Все `.nr-*` классы + responsive |
+| `bugs.md` | BUG-18 — BUG-23 |
+| `CLAUDE.md` | 5 новых строк в Known Bugs |
+| `btrfs-problems.md` | Создан (15 секций) |
+| `project_history.md` | эта запись |
+
+### Архитектурные заметки
+
+- `cockpit.file(path, {superuser:"require"}).replace(val)` работает для `/proc/sys/` — не нужен sudoers
+- `sysctlPath("vm.swappiness")` → `"/proc/sys/vm/swappiness"` — стандартный паттерн
+- Night Report: `setTimeout(initNightReport, 800)` в DOMContentLoaded — задержка чтобы не мешать основной загрузке
+- Playwright + Cockpit: 404 для статических файлов — ожидаемо, они раздаются через WebSocket bridge

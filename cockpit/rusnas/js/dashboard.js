@@ -5,8 +5,8 @@
 var TICK_METRICS = 2000;   // metrics server: CPU, RAM, net, I/O, RAID, storage, services, guard
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
-var TICK_UPS     = 10000;  // ups status
-var TICK_FAST    = 1000;   // datetime only
+var TICK_UPS     = 30000;  // ups status — battery changes slowly, 30s is sufficient
+var TICK_FAST    = 2000;   // CPU/RAM/Net/IO — was 1s, 2s imperceptible and halves spawn count
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -25,7 +25,9 @@ var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
 // ── Tick constants ─────────────────────────────────────────────────────────
 var TICK_STORAGE = 10000;
 var TICK_SMART   = 300000;
-var TICK_GUARD   = 5000;
+var TICK_GUARD   = 10000;  // was 5s — guard state.json rarely changes; 10s is plenty in normal mode
+var TICK_FB      = 60000;  // FileBrowser service status — rarely changes
+var TICK_SSD     = 60000;  // SSD cache config — only changes on user action
 
 // ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
 var prevCpu  = null;
@@ -303,7 +305,14 @@ function loadRaid() {
         var html = "", tagHtml = "";
 
         arrays.forEach(function(a) {
-            if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status;
+            // "inactive" has higher severity than "degraded" — don't overwrite with lower priority
+            if (a.status === "inactive") {
+                worstStatus = "inactive";
+            } else if (a.status === "degraded" && worstStatus !== "inactive") {
+                worstStatus = "degraded";
+            } else if (a.status === "resyncing" && worstStatus === "active") {
+                worstStatus = "resyncing";
+            }
             var ico      = a.status === "active"    ? "✅"
                          : a.status === "resyncing" ? "🔄"
                          : a.status === "degraded"  ? "⚠️"
@@ -355,9 +364,13 @@ function loadRaid() {
 
         var card = el("card-raid");
         card.className = "db-card " + (
-            worstStatus === "active"   ? "db-card-ok" :
-            worstStatus === "degraded" ? "db-card-warn" : "db-card-crit");
+            worstStatus === "active"    ? "db-card-ok" :
+            worstStatus === "resyncing" ? "db-card-info" :
+            worstStatus === "degraded"  ? "db-card-warn" : "db-card-crit");
         card.style.cursor = "pointer";
+    }).catch(function() {
+        var listEl = el("raid-list");
+        if (listEl) listEl.innerHTML = '<span class="text-muted" style="font-size:12px">Ошибка чтения RAID</span>';
     });
 }
 
@@ -423,13 +436,15 @@ function loadDiskHealth() {
             el("disk-summary").textContent = "Нет дисков";
             return;
         }
-        var results = [];
+        // Use indexed array to avoid race condition where results.push() can
+        // produce wrong order if .done() callbacks arrive out of order
+        var results = new Array(devs.length);
         var done = 0;
-        devs.forEach(function(dev) {
+        devs.forEach(function(dev, idx) {
             var devName = dev.replace("/dev/", "");
             var now = Date.now();
             if (smartCache[devName] && (now - smartCache[devName].time) < TICK_SMART) {
-                results.push({ dev: devName, ok: smartCache[devName].ok });
+                results[idx] = { dev: devName, ok: smartCache[devName].ok };
                 done++;
                 if (done === devs.length) renderDiskHealth(results);
                 return;
@@ -439,10 +454,10 @@ function loadDiskHealth() {
             .done(function(sout) {
                 var ok = sout.toLowerCase().indexOf("passed") !== -1 || sout.toLowerCase().indexOf("ok") !== -1;
                 smartCache[devName] = { time: Date.now(), ok: ok };
-                results.push({ dev: devName, ok: ok });
+                results[idx] = { dev: devName, ok: ok };
             })
             .fail(function() {
-                results.push({ dev: devName, ok: null });
+                results[idx] = { dev: devName, ok: null };
             })
             .always(function() {
                 done++;
@@ -579,169 +594,173 @@ function renderServices(statuses, dcModes) {
 }
 
 // ── Section B1: CPU ───────────────────────────────────────────────────────
+function _parseCpuOut(out) {
+    var lines = out.trim().split("\n");
+    var cpuLine = lines[0]; // cpu  user nice system idle ...
+    var loadLine = lines[1];
+    var ncores = parseInt(lines[2]) || 1;
+    var tempRaw = lines[3] ? lines[3].trim() : "";
+
+    var fields = cpuLine.trim().split(/\s+/).slice(1).map(Number);
+    var idle = fields[3] + (fields[4] || 0); // idle + iowait
+    var total = fields.reduce(function(a,b){ return a+b; }, 0);
+
+    var pct = 0;
+    if (prevCpu) {
+        var dTotal = total - prevCpu.total;
+        var dIdle  = idle - prevCpu.idle;
+        pct = dTotal > 0 ? Math.round((1 - dIdle / dTotal) * 100) : 0;
+    }
+    prevCpu = { total: total, idle: idle };
+
+    pushHistory(sparkCpu, pct);
+    var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
+    el("cpu-pct").textContent = pct + "%";
+    el("cpu-pct").className = "db-metric-big " + cls;
+    renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44");
+
+    var la = loadLine ? loadLine.split(" ").slice(0, 3).join(" ") : "—";
+    el("cpu-detail").textContent = ncores + " ядер | Load: " + la;
+
+    if (tempRaw) {
+        var tempC = parseInt(tempRaw) / 1000;
+        var tempCls = tempC > 80 ? "db-crit" : tempC > 65 ? "db-warn" : "";
+        el("cpu-temp").innerHTML = '<span class="' + tempCls + '">Temp: ' + tempC.toFixed(0) + '°C</span>';
+    }
+}
+
 function loadCpu() {
     cockpit.spawn(["bash", "-c",
         "cat /proc/stat | head -1; cat /proc/loadavg; nproc; " +
         "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''"
-    ], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n");
-        var cpuLine = lines[0]; // cpu  user nice system idle ...
-        var loadLine = lines[1];
-        var ncores = parseInt(lines[2]) || 1;
-        var tempRaw = lines[3] ? lines[3].trim() : "";
-
-        var fields = cpuLine.trim().split(/\s+/).slice(1).map(Number);
-        var idle = fields[3] + (fields[4] || 0); // idle + iowait
-        var total = fields.reduce(function(a,b){ return a+b; }, 0);
-
-        var pct = 0;
-        if (prevCpu) {
-            var dTotal = total - prevCpu.total;
-            var dIdle  = idle - prevCpu.idle;
-            pct = dTotal > 0 ? Math.round((1 - dIdle / dTotal) * 100) : 0;
-        }
-        prevCpu = { total: total, idle: idle };
-
-        pushHistory(sparkCpu, pct);
-        var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
-        el("cpu-pct").textContent = pct + "%";
-        el("cpu-pct").className = "db-metric-big " + cls;
-        renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44");
-
-        var la = loadLine ? loadLine.split(" ").slice(0, 3).join(" ") : "—";
-        el("cpu-detail").textContent = ncores + " ядер | Load: " + la;
-
-        if (tempRaw) {
-            var tempC = parseInt(tempRaw) / 1000;
-            var tempCls = tempC > 80 ? "db-crit" : tempC > 65 ? "db-warn" : "";
-            el("cpu-temp").innerHTML = '<span class="' + tempCls + '">Temp: ' + tempC.toFixed(0) + '°C</span>';
-        }
-    });
+    ], {err: "message"}).done(_parseCpuOut);
 }
 
 // ── Section B2: RAM ───────────────────────────────────────────────────────
-function loadRam() {
-    cockpit.spawn(["bash", "-c", "cat /proc/meminfo"], {err: "message"})
-    .done(function(out) {
-        var get = function(key) {
-            var m = out.match(new RegExp(key + ":\\s+(\\d+)"));
-            return m ? parseInt(m[1]) * 1024 : 0;
-        };
-        var total = get("MemTotal");
-        var avail = get("MemAvailable");
-        var used  = total - avail;
-        var pct   = total > 0 ? Math.round(used / total * 100) : 0;
-        var swapTotal = get("SwapTotal");
-        var swapFree  = get("SwapFree");
-        var swapUsed  = swapTotal - swapFree;
+function _parseRamOut(out) {
+    var get = function(key) {
+        var m = out.match(new RegExp(key + ":\\s+(\\d+)"));
+        return m ? parseInt(m[1]) * 1024 : 0;
+    };
+    var total = get("MemTotal");
+    var avail = get("MemAvailable");
+    var used  = total - avail;
+    var pct   = total > 0 ? Math.round(used / total * 100) : 0;
+    var swapTotal = get("SwapTotal");
+    var swapFree  = get("SwapFree");
+    var swapUsed  = swapTotal - swapFree;
 
-        pushHistory(sparkRam, pct);
-        var cls = pctClass(pct);
-        el("ram-pct").textContent = pct + "%";
-        el("ram-pct").className = "db-metric-big " + cls;
-        renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc");
-        el("ram-detail").textContent = fmtBytes(used) + " / " + fmtBytes(total);
-        el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
-    });
+    pushHistory(sparkRam, pct);
+    var cls = pctClass(pct);
+    el("ram-pct").textContent = pct + "%";
+    el("ram-pct").className = "db-metric-big " + cls;
+    renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc");
+    el("ram-detail").textContent = fmtBytes(used) + " / " + fmtBytes(total);
+    el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
+}
+
+function loadRam() {
+    cockpit.spawn(["bash", "-c", "cat /proc/meminfo"], {err: "message"}).done(_parseRamOut);
 }
 
 // ── Section B3: Network ───────────────────────────────────────────────────
+function _parseNetOut(out, now) {
+    var lines = out.trim().split("\n").slice(2);
+    var best = null, bestBytes = 0;
+    lines.forEach(function(l) {
+        var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
+        if (!m || m[1] === "lo") return;
+        var iface = m[1];
+        var rx = parseInt(m[2]);
+        var tx = parseInt(m[3]);
+        var total = rx + tx;
+        if (total > bestBytes) { bestBytes = total; best = { iface: iface, rx: rx, tx: tx }; }
+    });
+    if (!best) return;
+
+    var rxSpeed = 0, txSpeed = 0;
+    if (prevNet[best.iface]) {
+        var dt = (now - prevNet[best.iface].time) / 1000;
+        if (dt > 0) {
+            rxSpeed = (best.rx - prevNet[best.iface].rx) / dt;
+            txSpeed = (best.tx - prevNet[best.iface].tx) / dt;
+        }
+    }
+    prevNet[best.iface] = { rx: best.rx, tx: best.tx, time: now };
+
+    pushHistory(sparkNetR, rxSpeed);
+    pushHistory(sparkNetT, txSpeed);
+    renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
+    el("net-iface").textContent = best.iface;
+    el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
+    el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
+}
+
 function loadNet() {
     cockpit.spawn(["bash", "-c", "cat /proc/net/dev"], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n").slice(2);
-        var best = null, bestBytes = 0;
-        var now = Date.now();
-        lines.forEach(function(l) {
-            var m = l.trim().match(/^(\w+):\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+\d+\s+(\d+)/);
-            if (!m || m[1] === "lo") return;
-            var iface = m[1];
-            var rx = parseInt(m[2]);
-            var tx = parseInt(m[3]);
-            var total = rx + tx;
-            if (total > bestBytes) { bestBytes = total; best = { iface: iface, rx: rx, tx: tx }; }
-        });
-        if (!best) return;
-
-        var rxSpeed = 0, txSpeed = 0;
-        if (prevNet[best.iface]) {
-            var dt = (now - prevNet[best.iface].time) / 1000;
-            if (dt > 0) {
-                rxSpeed = (best.rx - prevNet[best.iface].rx) / dt;
-                txSpeed = (best.tx - prevNet[best.iface].tx) / dt;
-            }
-        }
-        prevNet[best.iface] = { rx: best.rx, tx: best.tx, time: now };
-
-        pushHistory(sparkNetR, rxSpeed);
-        pushHistory(sparkNetT, txSpeed);
-        renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
-        el("net-iface").textContent = best.iface;
-        el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
-        el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
-    });
+    .done(function(out) { _parseNetOut(out, Date.now()); });
 }
 
 // ── Section C: Disk I/O ───────────────────────────────────────────────────
-function loadDiskIO() {
-    cockpit.spawn(["bash", "-c", "cat /proc/diskstats"], {err: "message"})
-    .done(function(out) {
-        var lines = out.trim().split("\n");
-        var now = Date.now();
-        var totalR = 0, totalW = 0;
-        var totalIopsR = 0, totalIopsW = 0;
-        var perDisk = [];
+function _parseDiskOut(out, now) {
+    var lines = out.trim().split("\n");
+    var totalR = 0, totalW = 0;
+    var totalIopsR = 0, totalIopsW = 0;
+    var perDisk = [];
 
-        lines.forEach(function(l) {
-            var f = l.trim().split(/\s+/);
-            if (f.length < 14) return;
-            var dev = f[2];
-            if (!dev.match(/^(sd[a-z]|nvme\d+n\d+|md\d+)$/)) return;
-            var rSect = parseInt(f[5]);
-            var wSect = parseInt(f[9]);
-            var rIos  = parseInt(f[3]);
-            var wIos  = parseInt(f[7]);
+    lines.forEach(function(l) {
+        var f = l.trim().split(/\s+/);
+        if (f.length < 14) return;
+        var dev = f[2];
+        if (!dev.match(/^(sd[a-z]|nvme\d+n\d+|md\d+)$/)) return;
+        var rSect = parseInt(f[5]);
+        var wSect = parseInt(f[9]);
+        var rIos  = parseInt(f[3]);
+        var wIos  = parseInt(f[7]);
 
-            var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
-            if (prevDisk[dev]) {
-                var dt = (now - prevDisk[dev].time) / 1000;
-                if (dt > 0) {
-                    rSpeed = (rSect - prevDisk[dev].r) * 512 / dt;
-                    wSpeed = (wSect - prevDisk[dev].w) * 512 / dt;
-                    riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
-                    wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
-                }
+        var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
+        if (prevDisk[dev]) {
+            var dt = (now - prevDisk[dev].time) / 1000;
+            if (dt > 0) {
+                rSpeed = (rSect - prevDisk[dev].r) * 512 / dt;
+                wSpeed = (wSect - prevDisk[dev].w) * 512 / dt;
+                riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
+                wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
             }
-            prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
+        }
+        prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
 
-            if (dev.match(/^sd/)) {
-                totalR += rSpeed; totalW += wSpeed;
-                totalIopsR += riops; totalIopsW += wiops;
-            }
-            if (rSpeed > 0 || wSpeed > 0 || riops > 0 || wiops > 0) {
-                perDisk.push({ dev: dev, r: rSpeed, w: wSpeed, ri: riops, wi: wiops });
-            }
-        });
-
-        pushHistory(sparkIoR, totalR);
-        pushHistory(sparkIoW, totalW);
-        pushHistory(sparkIopsR, totalIopsR);
-        pushHistory(sparkIopsW, totalIopsW);
-        renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
-        renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
-        el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
-        el("io-write").textContent  = fmtSpeed(Math.max(0, totalW));
-        el("iops-read").textContent  = fmtIops(Math.max(0, totalIopsR));
-        el("iops-write").textContent = fmtIops(Math.max(0, totalIopsW));
-
-        if (perDisk.length > 0) {
-            el("io-per-disk").textContent = perDisk.map(function(d) {
-                return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w) +
-                       " (" + Math.round(d.ri) + "/" + Math.round(d.wi) + " IOPS)";
-            }).join("  |  ");
+        if (dev.match(/^sd/)) {
+            totalR += rSpeed; totalW += wSpeed;
+            totalIopsR += riops; totalIopsW += wiops;
+        }
+        if (rSpeed > 0 || wSpeed > 0 || riops > 0 || wiops > 0) {
+            perDisk.push({ dev: dev, r: rSpeed, w: wSpeed, ri: riops, wi: wiops });
         }
     });
+
+    pushHistory(sparkIoR, totalR);
+    pushHistory(sparkIoW, totalW);
+    pushHistory(sparkIopsR, totalIopsR);
+    pushHistory(sparkIopsW, totalIopsW);
+    renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
+    renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
+    el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
+    el("io-write").textContent  = fmtSpeed(Math.max(0, totalW));
+    el("iops-read").textContent  = fmtIops(Math.max(0, totalIopsR));
+    el("iops-write").textContent = fmtIops(Math.max(0, totalIopsW));
+
+    if (perDisk.length > 0) {
+        el("io-per-disk").textContent = perDisk.map(function(d) {
+            return d.dev + ": R " + fmtSpeed(d.r) + " W " + fmtSpeed(d.w) +
+                   " (" + Math.round(d.ri) + "/" + Math.round(d.wi) + " IOPS)";
+        }).join("  |  ");
+    }
+}
+
+function loadDiskIO() {
+    cockpit.spawn(["bash", "-c", "cat /proc/diskstats"], {err: "message"})
+    .done(function(out) { _parseDiskOut(out, Date.now()); });
 }
 
 // ── Section D1: Events ────────────────────────────────────────────────────
@@ -774,7 +793,7 @@ function loadEvents() {
 }
 
 function escHtml(s) {
-    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ── Section D2: Snapshots ─────────────────────────────────────────────────
@@ -783,7 +802,11 @@ function loadSnapshots() {
     var schedP = new Promise(function(resolve) {
         cockpit.spawn(["sudo", "-n", "rusnas-snap", "schedule", "list"], {err: "message"})
             .done(function(out) {
-                try { resolve(JSON.parse(out.trim())); } catch(e) { resolve([]); }
+                try {
+                    var d = JSON.parse(out.trim());
+                    // schedule list returns {schedules:[...], ok:true} — extract array
+                    resolve(Array.isArray(d) ? d : (d && d.schedules) || []);
+                } catch(e) { resolve([]); }
             })
             .fail(function() { resolve([]); });
     });
@@ -838,6 +861,10 @@ function loadSnapshots() {
                 '</div>';
         }).join("");
         el("snap-list").innerHTML = html;
+    }).catch(function(e) {
+        var listEl = el("snap-list");
+        if (listEl) listEl.innerHTML = '<span class="text-muted">Ошибка загрузки снапшотов</span>';
+        console.error("loadSnapshots error:", e);
     });
 }
 
@@ -1113,6 +1140,7 @@ var _cmInterval = null;
 var _cmPrevCpu  = {};
 
 window.openCpuModal = function() {
+    if (_cmInterval) { clearInterval(_cmInterval); _cmInterval = null; }
     el("cpu-modal").classList.remove("hidden");
     _cmPrevCpu = {};
     refreshCpuModal();
@@ -1236,11 +1264,28 @@ function renderCpuModal(out) {
 // ── Tick loops ────────────────────────────────────────────────────────────
 function tickFast() {
     updateDateTime();
-    loadCpu();
-    loadRam();
-    loadNet();
-    loadDiskIO();
+    loadFastMetrics();
     if (guardPollFast) loadGuard();
+}
+
+// ── Batched fast metrics — 4 /proc reads in ONE spawn (75% fewer processes) ──
+function loadFastMetrics() {
+    var now = Date.now();
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/stat | head -1; cat /proc/loadavg; nproc; " +
+        "cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null || echo ''; echo '===M==='; " +
+        "cat /proc/meminfo; echo '===M==='; " +
+        "cat /proc/net/dev; echo '===M==='; " +
+        "cat /proc/diskstats"
+    ], {err: "message"})
+    .done(function(out) {
+        var parts = out.split("===M===\n");
+        if (parts.length < 4) return;
+        _parseCpuOut(parts[0]);
+        _parseRamOut(parts[1]);
+        _parseNetOut(parts[2], now);
+        _parseDiskOut(parts[3], now);
+    });
 }
 
 function tickStorage() {
@@ -1269,6 +1314,8 @@ function tickGuard() {
 
 var _nmInterval   = null;
 var _nmVnstatData = null;
+var _vnstatLastFetch = 0;
+var VNSTAT_CACHE_MS = 60000; // re-fetch at most once per minute
 
 window.openNetModal = function() {
     el("net-modal").classList.remove("hidden");
@@ -1297,17 +1344,23 @@ function refreshNetLive() {
 }
 
 function loadVnstat() {
+    var now = Date.now();
+    if (_nmVnstatData && (now - _vnstatLastFetch) < VNSTAT_CACHE_MS) {
+        renderVnstat(_nmVnstatData);
+        return;
+    }
     cockpit.spawn(["vnstat", "--json"], { err: "message" })
         .done(function(out) {
             try {
                 var data = JSON.parse(out);
                 _nmVnstatData = data;
+                _vnstatLastFetch = Date.now();
                 renderVnstat(data);
             } catch(e) {
                 el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">Ошибка парсинга данных vnstat</span>';
             }
         })
-        .fail(function(err) {
+        .fail(function() {
             el("nm-chart-7d").innerHTML = '<span style="color:var(--danger);font-size:12px">vnstat не найден или нет данных</span>';
         });
 }
@@ -1494,15 +1547,405 @@ document.addEventListener("DOMContentLoaded", function() {
     loadSsdCacheStatus();
     loadFbDashStatus();
 
+    // Night Report — delayed init so it doesn't block main dashboard metrics
+    setTimeout(initNightReport, 800);
+
+    document.getElementById("btn-nr-refresh").addEventListener("click", refreshNightReport);
+
     // Recurring ticks
-    setInterval(tickFast,    TICK_FAST);
-    setInterval(tickStorage, TICK_STORAGE);
+    var _timerFast    = setInterval(tickFast,    TICK_FAST);
+    var _timerStorage = setInterval(tickStorage, TICK_STORAGE);
     setInterval(tickSmart,   TICK_SMART);
     setInterval(tickEvents,  TICK_EVENTS);
     setInterval(tickSnaps,   TICK_SNAPS);
-    setInterval(tickGuard,   TICK_GUARD);
-    setInterval(loadUpsStatus, TICK_UPS);
-    setInterval(loadFbDashStatus, TICK_UPS);
-    setInterval(loadSsdCacheStatus, TICK_STORAGE);
+    var _timerGuard   = setInterval(tickGuard,   TICK_GUARD);
+    var _timerUps     = setInterval(loadUpsStatus, TICK_UPS);
+    setInterval(loadFbDashStatus, TICK_FB);
+    setInterval(loadSsdCacheStatus, TICK_SSD);
     setInterval(loadIdentity, 30000);
+
+    // Pause high-frequency polls when tab is hidden to reduce CPU load
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden) {
+            clearInterval(_timerFast);    _timerFast = null;
+            clearInterval(_timerStorage); _timerStorage = null;
+            clearInterval(_timerGuard);   _timerGuard = null;
+            clearInterval(_timerUps);     _timerUps = null;
+        } else {
+            // Resume immediately on tab focus
+            tickFast(); tickStorage(); tickGuard(); loadUpsStatus();
+            _timerFast    = setInterval(tickFast,      TICK_FAST);
+            _timerStorage = setInterval(tickStorage,   TICK_STORAGE);
+            _timerGuard   = setInterval(tickGuard,     TICK_GUARD);
+            _timerUps     = setInterval(loadUpsStatus, TICK_UPS);
+        }
+    });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NIGHT REPORT WIDGET — "Утренняя газета для инфраструктуры"
+// ══════════════════════════════════════════════════════════════════════════════
+
+var NR_HOURS = 8;
+var _nrData  = null;
+
+function shouldShowNightReport() {
+    var hour = new Date().getHours();
+    return hour >= 5 && hour <= 18;  // show in working hours, hide overnight
+}
+
+function initNightReport() {
+    var widget = document.getElementById("night-report");
+    if (!widget) return;
+    if (!shouldShowNightReport()) return;
+
+    var now     = new Date();
+    var fromTs  = Date.now() - NR_HOURS * 3600000;
+    var fromDate = new Date(fromTs);
+    var pad = function(n) { return String(n).padStart(2, "0"); };
+
+    el("nr-period").textContent =
+        pad(fromDate.getHours()) + ":" + pad(fromDate.getMinutes()) +
+        " — " + pad(now.getHours()) + ":" + pad(now.getMinutes()) +
+        " · " + now.toLocaleDateString("ru-RU", {day:"numeric", month:"long"});
+
+    // Collect data in parallel
+    Promise.all([
+        nrCollectSnapshots(fromTs),
+        nrCollectGuard(fromTs),
+        nrCollectStorage(),
+        nrCollectDedup(),
+        nrCollectSmartAlerts()
+    ]).then(function(results) {
+        _nrData = {
+            snapshots: results[0],
+            guard:     results[1],
+            storage:   results[2],
+            dedup:     results[3],
+            smart:     results[4]
+        };
+        nrRender(_nrData);
+        widget.style.display = "block";
+        el("nr-gen-time").textContent = "Сформирован в " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+    });
+}
+
+function refreshNightReport() {
+    var widget = document.getElementById("night-report");
+    if (widget) { widget.style.opacity = "0.5"; widget.style.transition = "opacity 0.2s"; }
+    setTimeout(function() {
+        initNightReport();
+        if (widget) { widget.style.opacity = "1"; }
+    }, 200);
+}
+
+// ── Data collectors ───────────────────────────────────────────────────────────
+
+function nrCollectSnapshots(fromTs) {
+    // Read snapshot events from rusnas-snap events, filter by time
+    return new Promise(function(res) {
+        cockpit.spawn(["sudo", "-n", "rusnas-snap", "events"], {err: "message"})
+        .done(function(out) {
+            try {
+                var data = JSON.parse(out);
+                var events = data.events || data || [];
+                var fromSec = fromTs / 1000;
+                var snaps = events.filter(function(e) {
+                    return (e.action === "create" || e.type === "created") && (e.created_at || e.ts || 0) >= fromSec;
+                });
+                var items = snaps.slice(0, 8).map(function(e) {
+                    var d = new Date((e.created_at || e.ts || 0) * 1000);
+                    var hm = String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+                    var vol = (e.subvol_path || e.volume || "").split("/").pop() || "—";
+                    return { volume: vol, name: e.snapshot_name || e.name || "snap", time: hm };
+                });
+                res({ count: items.length, items: items });
+            } catch(e) { res({ count: 0, items: [] }); }
+        })
+        .fail(function() { res({ count: 0, items: [] }); });
+    });
+}
+
+function nrCollectGuard(fromTs) {
+    return new Promise(function(res) {
+        cockpit.spawn(["sudo", "-n", "tail", "-n", "500", "/var/log/rusnas-guard/events.jsonl"], {err: "message"})
+        .done(function(out) {
+            var events = [];
+            (out || "").trim().split("\n").forEach(function(line) {
+                if (!line.trim()) return;
+                try {
+                    var e = JSON.parse(line);
+                    if ((e.ts || 0) >= fromTs / 1000) events.push(e);
+                } catch(e) {}
+            });
+            var blocked   = events.filter(function(e) { return e.action === "block" || e.blocked; }).length;
+            var attacks   = events.filter(function(e) { return e.severity === "critical" || e.is_attack; }).length;
+            var allOps    = events.reduce(function(s,e) { return s + (e.ops_count || 0); }, 0);
+            var encrypted = events.filter(function(e) { return e.method === "entropy"; }).length;
+            res({ blocked: blocked, attacks: attacks, allOps: allOps, encrypted: encrypted,
+                  recentEvents: events.slice(-5) });
+        })
+        .fail(function() { res({ blocked: 0, attacks: 0, allOps: 0, encrypted: 0, recentEvents: [] }); });
+    });
+}
+
+function nrCollectStorage() {
+    return new Promise(function(res) {
+        cockpit.spawn(["df", "--output=target,used,avail", "-BM", "-t", "btrfs"], {err: "message"})
+        .done(function(out) {
+            var changes = [];
+            (out || "").trim().split("\n").slice(1).forEach(function(line) {
+                var parts = line.trim().split(/\s+/);
+                if (parts.length < 3) return;
+                var mount = parts[0], used = parseInt(parts[1]) * 1024 * 1024;
+                if (!mount.startsWith("/mnt/") && mount !== "/") return;
+                changes.push({ vol: mount.split("/").pop() || mount, used: used, delta: 0 });
+            });
+            res({ changes: changes.slice(0, 5), totalGrowth: 0 });
+        })
+        .fail(function() { res({ changes: [], totalGrowth: 0 }); });
+    });
+}
+
+function nrCollectDedup() {
+    return new Promise(function(res) {
+        cockpit.spawn(["cat", "/var/lib/rusnas/dedup-last.json"], {err: "message"})
+        .done(function(out) {
+            try {
+                var d = JSON.parse(out);
+                var saved = d.saved_bytes || 0;
+                var vols = d.volumes ? d.volumes.map(function(v) {
+                    return { name: v.name || v.path.split("/").pop(), ratio: v.ratio || 1, saved: v.saved_bytes || 0 };
+                }) : [{ name: "data", ratio: d.ratio || 1, saved: saved }];
+                res({ volumes: vols, totalSaved: saved });
+            } catch(e) { res(null); }
+        })
+        .fail(function() { res(null); });
+    });
+}
+
+function nrCollectSmartAlerts() {
+    return new Promise(function(res) {
+        cockpit.spawn(["bash", "-c",
+            "ls /sys/block | grep -E '^(sd[a-z]|nvme)' | head -8"
+        ], {err: "message"})
+        .done(function(out) {
+            var disks = (out || "").trim().split("\n").filter(Boolean);
+            var alerts = [];
+            var pending = disks.length;
+            if (!pending) { res({ alerts: [] }); return; }
+            disks.forEach(function(disk) {
+                cockpit.spawn(["sudo", "-n", "smartctl", "-A", "/dev/" + disk], {err: "message"})
+                .done(function(smart) {
+                    // Check for reallocated sectors (id 5) or pending sectors (id 197) in text output
+                    if (/Reallocated.*?([1-9]\d*)/i.test(smart)) {
+                        var m = smart.match(/Reallocated.*?([1-9]\d*)/i);
+                        if (m) alerts.push({ disk: disk, type: "warn",
+                            msg: disk + ": " + m[1] + " переаллоцированных сектора" });
+                    }
+                    if (/Current_Pending_Sector\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+([1-9]\d*)/i.test(smart)) {
+                        var m2 = smart.match(/Current_Pending_Sector\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+\S+\s+([1-9]\d*)/i);
+                        if (m2) alerts.push({ disk: disk, type: "warn",
+                            msg: disk + ": " + m2[1] + " нестабильных секторов" });
+                    }
+                })
+                .always(function() {
+                    if (--pending === 0) res({ alerts: alerts });
+                });
+            });
+        })
+        .fail(function() { res({ alerts: [] }); });
+    });
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+
+function nrRender(data) {
+    nrRenderSummary(data);
+    nrRenderStatus(data);
+    nrRenderEvents(data);
+    nrRenderGuard(data.guard);
+    nrRenderSnaps(data.snapshots);
+    nrRenderDedup(data.dedup);
+    nrRenderStorage(data.storage, data.smart);
+}
+
+function nrSetStat(id, value, sub, colorClass) {
+    var valEl = document.getElementById("nrv-" + id);
+    var subEl = document.getElementById("nrs-" + id + "-sub");
+    if (valEl) { valEl.textContent = value; valEl.className = "nr-stat-value " + (colorClass || ""); }
+    if (subEl) subEl.textContent = sub || "";
+}
+
+function nrCalcHealth(data) {
+    var score = 100;
+    if (data.guard) {
+        if (data.guard.attacks > 0)    score -= 20;
+        if (data.guard.blocked > 5)    score -= 5;
+    }
+    if (data.smart && data.smart.alerts) score -= data.smart.alerts.length * 8;
+    if (data.snapshots && data.snapshots.count === 0) score -= 10;
+    if (!data.dedup || !data.dedup.totalSaved) score -= 2;
+    return Math.max(0, Math.min(100, score));
+}
+
+function nrRenderSummary(data) {
+    var snap = data.snapshots;
+    var guard = data.guard;
+    var dedup = data.dedup;
+    var storage = data.storage;
+
+    nrSetStat("snapshots",
+        snap ? snap.count : "—",
+        snap ? (snap.count + " за " + NR_HOURS + " ч") : "нет данных",
+        snap && snap.count > 0 ? "nr-v-green" : "nr-v-muted");
+
+    nrSetStat("guard",
+        guard ? guard.blocked : "—",
+        guard ? (guard.attacks > 0 ? guard.attacks + " атак!" : "заблокировано") : "нет данных",
+        guard && guard.attacks > 0 ? "nr-v-red" : "nr-v-purple");
+
+    nrSetStat("dedup",
+        dedup ? fmtBytes(dedup.totalSaved) : "—",
+        "сэкономлено",
+        dedup && dedup.totalSaved > 0 ? "nr-v-cyan" : "nr-v-muted");
+
+    nrSetStat("growth", "—", "за " + NR_HOURS + " ч", "nr-v-muted");  // delta requires history
+
+    var score = nrCalcHealth(data);
+    var prevScore = parseInt(localStorage.getItem("nr_last_health") || score);
+    var delta = score - prevScore;
+    localStorage.setItem("nr_last_health", score);
+    nrSetStat("health", score,
+        delta !== 0 ? (delta > 0 ? "↑" + delta + " за ночь" : "↓" + Math.abs(delta) + " за ночь") : "без изменений",
+        score >= 90 ? "nr-v-green" : score >= 70 ? "nr-v-amber" : "nr-v-red");
+}
+
+function nrRenderStatus(data) {
+    var guard = data.guard;
+    var smart = data.smart;
+    var level = "ok", label = "Всё в порядке";
+    if (smart && smart.alerts && smart.alerts.some(function(a) { return a.type === "critical"; })) {
+        level = "critical"; label = "Требуется внимание";
+    } else if (guard && guard.attacks > 0) {
+        level = "critical"; label = guard.attacks + " атак заблокировано";
+    } else if ((smart && smart.alerts && smart.alerts.length > 0) || (guard && guard.blocked > 0)) {
+        level = "warn"; label = "Есть предупреждения";
+    }
+    el("nr-status").innerHTML = "<div class='nr-status-" + level + "'>" +
+        "<span class='nr-status-dot'></span><span>" + label + "</span></div>";
+}
+
+function nrRenderEvents(data) {
+    var container = el("nr-events");
+    if (!container) return;
+    var events = [];
+
+    if (data.guard && data.guard.recentEvents) {
+        data.guard.recentEvents.slice(-3).forEach(function(e) {
+            events.push({ type: e.blocked ? "guard" : "warn", icon: "⚠",
+                msg: "<strong>Guard:</strong> " + escHtml(e.method || e.description || "событие"),
+                time: e.ts ? (new Date(e.ts*1000).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})) : "",
+                ts: e.ts || 0 });
+        });
+    }
+    if (data.snapshots && data.snapshots.items) {
+        data.snapshots.items.slice(0, 2).forEach(function(s) {
+            events.push({ type: "snap", icon: "◆",
+                msg: "Снэпшот <strong>" + escHtml(s.name) + "</strong> → <code>" + escHtml(s.volume) + "</code>",
+                time: s.time, ts: 0 });
+        });
+    }
+    if (data.smart && data.smart.alerts) {
+        data.smart.alerts.forEach(function(a) {
+            events.push({ type: "error", icon: "!", msg: escHtml(a.msg), time: "", ts: -2 });
+        });
+    }
+    events.sort(function(a, b) { return b.ts - a.ts; });
+    if (!events.length) {
+        container.innerHTML = "<div style='font-size:12px;color:var(--color-muted)'>Событий за период не зафиксировано</div>";
+        return;
+    }
+    container.innerHTML = events.slice(0, 7).map(function(e) {
+        return "<div class='nr-event-item'>" +
+            "<div class='nr-event-icon nr-ei-" + e.type + "'>" + e.icon + "</div>" +
+            "<div><div class='nr-event-msg'>" + e.msg + "</div>" +
+            "<div class='nr-event-time'>" + e.time + "</div></div></div>";
+    }).join("");
+}
+
+function nrRenderGuard(guard) {
+    var container = el("nr-guard-block");
+    if (!container) return;
+    if (!guard) { container.innerHTML = "<span style='font-size:11px;color:var(--color-muted)'>Нет данных Guard</span>"; return; }
+    var modeMap = { monitor: "Мониторинг", active: "Активный", super_safe: "Супер-защита" };
+    var modeName = modeMap[guard.mode] || (guard.mode || "Неизвестно");
+    container.innerHTML =
+        "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px'>" +
+        "<span style='font-size:10px;color:var(--color-muted)'>За период (" + NR_HOURS + " ч)</span>" +
+        "<span style='font-size:10px;color:" + (guard.attacks > 0 ? "#ef4444" : "#a855f7") + ";font-weight:500'>" + modeName + "</span></div>" +
+        "<div class='nr-guard-grid'>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.blocked > 0 ? "nr-v-purple" : "nr-v-muted") + "'>" + guard.blocked + "</span><span class='nr-guard-mini-label'>заблок.</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.attacks > 0 ? "nr-v-red" : "nr-v-muted") + "'>" + guard.attacks + "</span><span class='nr-guard-mini-label'>атак</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val nr-v-cyan'>" + (guard.allOps > 9999 ? (guard.allOps/1000).toFixed(1)+"k" : guard.allOps) + "</span><span class='nr-guard-mini-label'>операций</span></div>" +
+        "<div class='nr-guard-mini'><span class='nr-guard-mini-val " + (guard.encrypted > 0 ? "nr-v-red" : "nr-v-muted") + "'>" + (guard.encrypted || "∅") + "</span><span class='nr-guard-mini-label'>шифров.</span></div>" +
+        "</div>";
+}
+
+function nrRenderSnaps(snapshots) {
+    var container = el("nr-snaps");
+    if (!container) return;
+    if (!snapshots || !snapshots.items || !snapshots.items.length) {
+        container.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет снэпшотов за период</div>";
+        return;
+    }
+    container.innerHTML = snapshots.items.map(function(s) {
+        return "<div class='nr-snap-row'>" +
+            "<span class='nr-snap-vol'>" + escHtml(s.volume) + "</span>" +
+            "<span class='nr-snap-time'>" + escHtml(s.time) + "</span>" +
+            "<span class='nr-snap-ok'>✓</span></div>";
+    }).join("") +
+    "<div style='font-size:10px;color:var(--color-muted);margin-top:8px;text-align:right'>" +
+    "Всего: <span style='color:#3b82f6'>" + snapshots.count + " снэпшотов</span></div>";
+}
+
+function nrRenderDedup(dedup) {
+    var container = el("nr-dedup-list");
+    if (!container) return;
+    if (!dedup || !dedup.volumes || !dedup.volumes.length) {
+        container.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет данных дедупликации</div>";
+        return;
+    }
+    var colors = ["#06b6d4", "#a855f7", "#3b82f6", "#22c55e"];
+    container.innerHTML = dedup.volumes.map(function(v, i) {
+        var pct = v.ratio > 1 ? Math.min(95, ((v.ratio - 1) / v.ratio) * 100).toFixed(1) : 0;
+        return "<div class='nr-dedup-item'>" +
+            "<div class='nr-dedup-header'><span class='nr-dedup-vol'>" + escHtml(v.name) + "</span>" +
+            "<span class='nr-dedup-ratio'>" + (v.ratio || 1).toFixed(1) + "×</span></div>" +
+            "<div class='nr-dedup-bar-wrap'><div class='nr-dedup-bar-fill' style='width:" + pct + "%;background:" + colors[i % colors.length] + "'></div></div>" +
+            "<div class='nr-dedup-meta'>Сэкономлено " + fmtBytes(v.saved || 0) + "</div></div>";
+    }).join("");
+}
+
+function nrRenderStorage(storage, smart) {
+    var changesEl = el("nr-storage-changes");
+    var alertsEl  = el("nr-alerts-block");
+
+    if (changesEl) {
+        if (!storage || !storage.changes || !storage.changes.length) {
+            changesEl.innerHTML = "<div style='font-size:11px;color:var(--color-muted)'>Нет данных о томах</div>";
+        } else {
+            changesEl.innerHTML = storage.changes.map(function(c) {
+                return "<div class='nr-sc-row'>" +
+                    "<span class='nr-sc-vol'>" + escHtml(c.vol) + "</span>" +
+                    "<span style='font-size:10px;color:var(--color-muted)'>" + fmtBytes(c.used) + "</span></div>";
+            }).join("");
+        }
+    }
+
+    if (alertsEl && smart && smart.alerts && smart.alerts.length) {
+        alertsEl.innerHTML = smart.alerts.map(function(a) {
+            return "<div class='nr-alert-item nr-alert-" + (a.type || "warn") + "'>" + escHtml(a.msg) + "</div>";
+        }).join("");
+    }
+}

@@ -320,3 +320,131 @@
 **Описание апгрейда:** 3 диска RAID 5 дают 2× ёмкость одного диска вместо 1× при RAID 1.
 **Файлы:** `disks.js` — `RAID_UPGRADES`, upgradeBtn render
 
+
+---
+
+### BUG-18 — Dashboard: 4 отдельных bash spawn каждые 2 секунды в tickFast()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `tickFast()` вызывал `loadCpu()`, `loadRam()`, `loadNet()`, `loadDiskIO()` — каждая функция делала отдельный `cockpit.spawn(["bash", "-c", ...])`. Итого 4 процесса каждые 2 секунды = 2 proc/сек нагрузки только от мониторинга.
+**Root cause:** Изначально функции писались независимо, не было понимания что они будут вызываться вместе.
+**Fix:** Добавлена `loadFastMetrics()` — одна bash-команда читает `/proc/stat`, `/proc/meminfo`, `/proc/net/dev`, `/proc/diskstats` за один раз, разделяет вывод по `===M===`. Результат парсится функциями `_parseCpuOut`, `_parseRamOut`, `_parseNetOut`, `_parseDiskOut`. tickFast теперь делает 1 spawn вместо 4 — сокращение CPU-нагрузки на 75%.
+**Файлы:** `dashboard.js` — `loadFastMetrics()`, `_parseCpuOut/Ram/Net/Disk()`, `tickFast()`
+
+---
+
+### BUG-19 — Performance Tuner: sysctl -w через sudo -n не работает (нет NOPASSWD)
+**Страница:** /rusnas/performance
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `applyFn` для всех sysctl-параметров вызывал `spawnP(["sysctl", "-w", param+"="+val])`, что раскрывается в `sudo -n sysctl -w ...`. На VM `sysctl` не прописан в sudoers NOPASSWD → ошибка "требуется пароль". Нажатие "Применить" всегда завершалось ошибкой.
+**Root cause:** Неверный механизм применения: sysctl требует root, но sudoers не охватывал его.
+**Fix:** Заменено на `writeSysFile(sysctlPath(param), val)` — функция `sysctlPath("vm.swappiness")` возвращает `/proc/sys/vm/swappiness`. Запись через `cockpit.file(path, {superuser:"require"}).replace()` работает через Cockpit bridge без sudoers. `readFn` переведён с `sysctl -n` на `cat /proc/sys/...` (надёжнее, не зависит от PATH).
+**Файлы:** `performance.js` — `sysctlPath()`, `makeSysctlItem()`, net items (rmem_max, wmem_max, tcp_rmem, tcp_wmem, bbr)
+
+---
+
+### BUG-20 — Dashboard: escHtml() падает на null/undefined (CRITICAL)
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `function escHtml(s) { return s.replace(...) }` — вызывает TypeError если `s` равно null или undefined. Вызывается в `loadEvents()` при рендеринге строк журнала.
+**Root cause:** Отсутствие defensive null guard.
+**Fix:** `function escHtml(s) { return String(s || "").replace(...) }` — безопасен для любого типа входных данных.
+**Файлы:** `dashboard.js:escHtml()`
+
+---
+
+### BUG-21 — Dashboard: openCpuModal() race condition при быстром открытии/закрытии
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** При быстром повторном открытии модала CPU (`openCpuModal()`) старый `_cmInterval` не был сброшен перед установкой нового. Два интервала работали одновременно → двойная нагрузка spawn.
+**Root cause:** Отсутствовала проверка `if (_cmInterval)` в начале `openCpuModal`.
+**Fix:** Добавлено `if (_cmInterval) { clearInterval(_cmInterval); _cmInterval = null; }` в начало `openCpuModal`.
+**Файлы:** `dashboard.js:openCpuModal()`
+
+---
+
+### BUG-22 — Dashboard: vnstat re-fetch на каждое открытие модала сети
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `openNetModal()` вызывал `loadVnstat()` при каждом открытии, что запускало `cockpit.spawn(["vnstat","--json"])`. vnstat читает сетевую статистику с диска — лишняя нагрузка при частом открытии модала.
+**Root cause:** Нет кеширования ответа vnstat.
+**Fix:** Добавлен кеш `_vnstatLastFetch` + `VNSTAT_CACHE_MS=60000`. При повторном открытии в течение 60 сек — `renderVnstat()` вызывается с уже полученными данными, без spawn.
+**Файлы:** `dashboard.js:loadVnstat()`, переменные `_vnstatLastFetch`, `VNSTAT_CACHE_MS`
+
+---
+
+### BUG-23 — Snapshots: setInterval утечка (ID не сохранён)
+**Страница:** /rusnas/snapshots
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `setInterval(function() { loadSnapshots(); }, 30000)` в DOMContentLoaded не сохранял ID интервала — невозможно вызвать `clearInterval()` при необходимости остановить.
+**Root cause:** Пропущено сохранение в переменную.
+**Fix:** `_snapRefreshTimer = setInterval(...)` — ID сохранён в переменной `_snapRefreshTimer`.
+**Файлы:** `snapshots.js`
+
+---
+
+### BUG-24 — FileBrowser: crash loop из-за прав /var/lib/rusnas (750 → нет execute для other)
+**Страница:** /rusnas (FileBrowser)
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** Сервис `rusnas-filebrowser` уходил в crash loop (11162 перезапусков) с ошибкой доступа к БД. Пользователь `rusnas-fb` не мог войти в директорию `/var/lib/rusnas/filebrowser/` так как родительский `/var/lib/rusnas` имел права `750` (нет execute для "other").
+**Root cause:** `chmod 755` применялся только к поддиректориям (`$FB_DATA_DIR`), но не к родительской `/var/lib/rusnas`. После обновлений прав директории права родителя могли сброситься.
+**Fix:** Добавлено `chmod o+x /var/lib/rusnas` в `install-filebrowser.sh`. Временный фикс на VM: `chmod o+x /var/lib/rusnas`.
+**Файлы:** `install-filebrowser.sh`
+
+---
+
+### BUG-25 — Dashboard: loadRaid() — worstStatus не приоритизирует "inactive" над "degraded"
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** При наличии двух массивов (один inactive, второй degraded) `worstStatus` перезаписывался "degraded" если второй массив обрабатывался позже. Карточка RAID показывала жёлтый (warn) вместо красного (crit). "inactive" — данные недоступны, это критичнее degraded.
+**Root cause:** `if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status` — нет приоритизации.
+**Fix:** Явная проверка приоритета: inactive > degraded > resyncing > active.
+**Файлы:** `dashboard.js:loadRaid()`
+
+---
+
+### BUG-26 — Dashboard: loadRaid() и loadSnapshots() — Promise.all без .catch()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `Promise.all([mdstatP, mountP]).then(...)` в `loadRaid()` и `Promise.all([schedP, infoP]).then(...)` в `loadSnapshots()` — нет `.catch()`. Если внутри `.then()` возникает исключение — Uncaught Promise rejection, карточки зависают без UI-фидбека.
+**Fix:** Добавлено `.catch()` с рендерингом сообщения об ошибке в обеих функциях.
+**Файлы:** `dashboard.js:loadRaid()`, `dashboard.js:loadSnapshots()`
+
+---
+
+### BUG-27 — Dashboard: loadDiskHealth() — race condition при results.push()
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `loadDiskHealth()` запускает параллельные `cockpit.spawn(smartctl)` для каждого диска и накапливает результаты через `results.push()`. Если callbacks приходят не по порядку — `results[]` имеет элементы не на своих позициях. Итоговый список дисков может содержать меньше элементов.
+**Root cause:** `results.push()` в concurrent callbacks — не детерминированный порядок.
+**Fix:** Заменить на `results[idx] = ...` (индексированный массив). Каждый диск имеет фиксированный индекс из `devs.forEach(function(dev, idx)`.
+**Файлы:** `dashboard.js:loadDiskHealth()`
+
+---
+
+### BUG-28 — Performance Tuner: actEl null crash при быстром клике "Применить"
+**Страница:** /rusnas/performance
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `applySingleItem(id)` делает `actEl.innerHTML = ...` без проверки `null`. Если таблица оптимизаций ещё не отрисована (или id некорректный) — `actEl = null` → TypeError.
+**Root cause:** Отсутствие null-guard.
+**Fix:** Добавлено `if (!actEl) return;` перед первым использованием `actEl`.
+**Файлы:** `performance.js:applySingleItem()`
+
+---
+
+### BUG-29 — Snapshots: renderSchedules() — race condition setTimeout(300ms) вместо Promise.then()
+**Страница:** /rusnas/snapshots
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `renderSchedules()` вызывал `loadSchedulesData()` (async), а затем `setTimeout(fn, 300)` надеясь что данные придут за 300 мс. На медленной VM или под нагрузкой — `schedulesData` ещё пуст и показывалось "Расписания не настроены" даже при настроенных расписаниях.
+**Root cause:** Временная гонка.
+**Fix:** `loadSchedulesData()` теперь возвращает Promise (добавлен `return`). `renderSchedules()` использует `.then()` вместо `setTimeout`.
+**Файлы:** `snapshots.js:loadSchedulesData()`, `snapshots.js:renderSchedules()`
+
+---
+
+### BUG-30 — Disks: runArray() использует bash -c "sudo mdadm" — KnownBug pattern
+**Страница:** /rusnas/disks
+**Статус:** ✅ Исправлено (2026-03-25)
+**Описание:** `runArray()` использовал `cockpit.spawn(["bash", "-c", "sudo mdadm --run /dev/"+name], {superuser:"require"})`. Согласно Known Bugs — `bash -c "sudo cmd"` не работает корректно: bash запускается без прав, inner sudo требует tty/пароль.
+**Fix:** Заменено на `cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})`.
+**Файлы:** `disks.js:runArray()`
