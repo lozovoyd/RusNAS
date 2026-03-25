@@ -44,7 +44,7 @@ function getProviderCreds() {
         return {
             provider: "yandex",
             key:      localStorage.getItem("rusnas_yandex_key")    || "",
-            folder:   localStorage.getItem("rusnas_yandex_folder") || "",
+            folder:   localStorage.getItem("rusnas_yandex_folder") || "b1g2ikacmpc41ubdbitv",
             model:    localStorage.getItem("rusnas_yandex_model")  || "yandexgpt-5-pro/latest"
         };
     } else {
