@@ -14,6 +14,9 @@ app = FastAPI(title="rusNAS License Server", docs_url=None, redoc_url=None)
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
+from admin_web import router as admin_router
+app.include_router(admin_router)
+
 PRIVATE_KEY_PATH = os.getenv("PRIVATE_KEY_PATH", "./operator_private.pem")
 PUBLIC_KEY_PATH  = os.getenv("PUBLIC_KEY_PATH",  "./operator_public.pem")
 

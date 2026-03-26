@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/admin/licenses" style="color:#7eb3e8;font-size:13px">← Назад к лицензиям</a>
+<h2 style="margin-top:16px">Лицензия #{{ license.id }}</h2>
+<div style="background:#1a2332;border:1px solid #1e2d3d;border-radius:6px;padding:20px;max-width:560px;margin-bottom:24px">
+  <p><strong>Серийный номер:</strong> <span style="font-family:monospace">{{ license.serial }}</span></p>
+  <p style="margin-top:8px"><strong>Клиент:</strong> {{ license.customer or '—' }}</p>
+  <p style="margin-top:8px"><strong>Тип:</strong> {{ license.license_type }}</p>
+  <p style="margin-top:8px"><strong>Истекает:</strong> {{ license.expires_at or 'бессрочно' }}</p>
+  <p style="margin-top:8px"><strong>Макс. томов:</strong> {{ license.max_volumes }}</p>
+  <p style="margin-top:8px"><strong>Статус:</strong>
+    {% if license.revoked %}<span class="badge-revoked">Отозвана</span>{% else %}<span class="badge-active">Активна</span>{% endif %}
+  </p>
+</div>
+{% if not license.revoked %}
+<form method="POST" action="/admin/license/{{ license.id }}/revoke" style="max-width:400px">
+  <div class="form-group"><label>Причина отзыва</label><input name="reason" placeholder="Необязательно"></div>
+  <button type="submit" class="btn btn-danger" onclick="return confirm('Отозвать лицензию?')">Отозвать лицензию</button>
+</form>
+{% endif %}
+{% endblock %}
