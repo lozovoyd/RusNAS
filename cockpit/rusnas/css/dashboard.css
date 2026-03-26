@@ -702,3 +702,172 @@
   .nr-col { border-right: none; border-bottom: 1px solid var(--color-border); }
   .nr-col:last-child { border-bottom: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXPERIMENTAL THEME — Dashboard overrides
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Identity bar — sleek top header */
+:root[data-theme="experimental"] .db-identity-bar {
+    background: #0e1020;
+    border-bottom: 1px solid rgba(91,141,245,0.12);
+    color: #6b7299;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 0 20px;
+    height: 36px;
+}
+:root[data-theme="experimental"] .db-identity-bar strong {
+    color: #c8ccde;
+    font-weight: 500;
+}
+:root[data-theme="experimental"] .db-identity-sep { color: rgba(91,141,245,0.2); }
+
+/* Metric cards — flat border, no heavy shadow */
+:root[data-theme="experimental"] .db-card {
+    background: #1b1e33;
+    border: 1px solid #272b47;
+    border-radius: 8px;
+    box-shadow: none;
+    transition: border-color 150ms, box-shadow 150ms;
+}
+:root[data-theme="experimental"] .db-card:hover {
+    border-color: rgba(91,141,245,0.3);
+    box-shadow: 0 0 0 1px rgba(91,141,245,0.08), 0 4px 16px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+}
+
+/* Status color accent on left edge */
+:root[data-theme="experimental"] .db-card-ok    { border-left: 3px solid #3dd68c; }
+:root[data-theme="experimental"] .db-card-warn  { border-left: 3px solid #f0a030; }
+:root[data-theme="experimental"] .db-card-crit  { border-left: 3px solid #e05858; }
+:root[data-theme="experimental"] .db-card-blue  { border-left: 3px solid #5b8df5; }
+
+:root[data-theme="experimental"] .db-card-title {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7299;
+    font-weight: 600;
+}
+:root[data-theme="experimental"] .db-card-metric {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #eef0f7;
+}
+:root[data-theme="experimental"] .db-card-sub {
+    font-size: 11px;
+    color: #6b7299;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0;
+}
+:root[data-theme="experimental"] .db-card-icon {
+    opacity: 0.6;
+}
+
+/* Status dots — vivid with glow ring */
+:root[data-theme="experimental"] .db-dot-green {
+    background: #3dd68c;
+    box-shadow: 0 0 0 3px rgba(61,214,140,0.2);
+}
+:root[data-theme="experimental"] .db-dot-blue {
+    background: #5b8df5;
+    box-shadow: 0 0 0 3px rgba(91,141,245,0.2);
+}
+:root[data-theme="experimental"] .db-dot-orange {
+    background: #f0a030;
+    box-shadow: 0 0 0 3px rgba(240,160,48,0.2);
+}
+:root[data-theme="experimental"] .db-dot-red {
+    background: #e05858;
+    box-shadow: 0 0 0 3px rgba(224,88,88,0.2);
+}
+:root[data-theme="experimental"] .db-dot-purple {
+    background: #9b72f5;
+    box-shadow: 0 0 0 3px rgba(155,114,245,0.2);
+}
+:root[data-theme="experimental"] .db-dot-gray {
+    background: #3a3f68;
+}
+
+/* Progress bar — thin stripe */
+:root[data-theme="experimental"] .db-progress-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: #21253e;
+}
+:root[data-theme="experimental"] .db-progress-fill {
+    height: 4px;
+    border-radius: 2px;
+}
+
+/* Sparklines — slightly more contrast */
+:root[data-theme="experimental"] .db-sparkline { opacity: 0.9; }
+
+/* RAID name / disk names — monospace */
+:root[data-theme="experimental"] .db-raid-name,
+:root[data-theme="experimental"] .db-disk-name {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+/* Guard stats row */
+:root[data-theme="experimental"] .guard-stat-cell {
+    border-color: rgba(91,141,245,0.1);
+}
+:root[data-theme="experimental"] .guard-stat-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7299;
+}
+
+/* Section headings in dashboard */
+:root[data-theme="experimental"] .db-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6b7299;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1e2138;
+    margin-bottom: 12px;
+}
+
+/* Grid layout — consistent gap */
+:root[data-theme="experimental"] .db-grid-4,
+:root[data-theme="experimental"] .db-grid-3 {
+    gap: 12px;
+}
+
+/* Alert banner */
+:root[data-theme="experimental"] #db-alert-banner {
+    border-radius: 6px;
+    border: 1px solid rgba(224,88,88,0.25);
+    background: rgba(45,22,32,0.8);
+    font-size: 13px;
+}
+
+/* Night Report */
+:root[data-theme="experimental"] .db-night-report {
+    background: #1b1e33;
+    border: 1px solid #272b47;
+    border-radius: 8px;
+}
+:root[data-theme="experimental"] .nr-header {
+    border-bottom: 1px solid #272b47;
+    background: #161929;
+    border-radius: 8px 8px 0 0;
+}
+:root[data-theme="experimental"] .nr-stat-card {
+    background: #21253e;
+    border: 1px solid #272b47;
+    border-radius: 6px;
+}
+:root[data-theme="experimental"] .nr-col {
+    border-right-color: #272b47;
+}
+:root[data-theme="experimental"] .nr-col:last-child { border-right: none; }
+

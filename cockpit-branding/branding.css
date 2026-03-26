@@ -496,3 +496,66 @@ html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .hostname::before {
   color: #0f172a !important;
   -webkit-text-fill-color: #0f172a !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXPERIMENTAL THEME — Cockpit Shell overrides
+   Applied via data-rusnas-theme="experimental" set by brand.js
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Shell background */
+html[data-rusnas-theme="experimental"] body:not(.login-pf) {
+  background: #0e1020 !important;
+}
+
+/* Sidebar — deep navy */
+html[data-rusnas-theme="experimental"] body:not(.login-pf) #nav-system,
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .area-ct-subnav,
+html[data-rusnas-theme="experimental"] body:not(.login-pf) #hosts-sel {
+  background: #0d0f1d !important;
+  border-right: 1px solid rgba(91,141,245,0.1) !important;
+}
+
+/* Nav links */
+html[data-rusnas-theme="experimental"] body:not(.login-pf) #nav-system a,
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .pf-v6-c-nav__link {
+  color: #6b7299 !important;
+  font-size: 13px !important;
+  border-radius: 6px !important;
+  margin: 1px 6px !important;
+  padding: 7px 10px !important;
+  transition: all 120ms ease !important;
+}
+html[data-rusnas-theme="experimental"] body:not(.login-pf) #nav-system a:hover,
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .pf-v6-c-nav__link:hover {
+  background: rgba(91,141,245,0.08) !important;
+  color: #c8ccde !important;
+}
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"] {
+  background: rgba(91,141,245,0.14) !important;
+  color: #5b8df5 !important;
+  box-shadow: inset 3px 0 0 #5b8df5 !important;
+  font-weight: 600 !important;
+}
+
+/* Topnav — same deep navy */
+html[data-rusnas-theme="experimental"] body:not(.login-pf) #topnav {
+  background: #0d0f1d !important;
+  border-bottom: 1px solid rgba(91,141,245,0.1) !important;
+}
+
+/* Brand block */
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .ct-switcher .hostname {
+  color: #5b8df5 !important;
+  -webkit-text-fill-color: #5b8df5 !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+html[data-rusnas-theme="experimental"] body:not(.login-pf) .ct-switcher .hostname::before {
+  content: "rus" !important;
+  color: #eef0f7 !important;
+  -webkit-text-fill-color: #eef0f7 !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+

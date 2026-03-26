@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>rusNAS — Анализ пространства</title>
-  <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+  <script>(function(){function t(){var rt=localStorage.getItem("rusnas_theme");if(rt==="experimental"){document.documentElement.setAttribute("data-theme","experimental");return;}var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",rt==="dark"||s==="dark"||(rt!=="light"&&s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style"||e.key==="rusnas_theme")t();});})()</script>
   <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/eye.css">
   <link rel="stylesheet" href="css/storage-analyzer.css">
   <script src="../base1/cockpit.js"></script>
+  <script src="js/theme.js"></script>
 </head>
 <body>
 
