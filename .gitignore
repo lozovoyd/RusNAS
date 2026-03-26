@@ -1,0 +1,16 @@
+# Git worktrees
+.worktrees/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/
+
+# Playwright logs
+.playwright-mcp/
+
+# Local settings
+.claude/settings.local.json
