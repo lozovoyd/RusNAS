@@ -132,7 +132,7 @@
 /* RAID list */
 .db-raid-list { font-size: 13px; }
 .db-raid-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap; }
-.db-raid-name { font-weight: 700; font-family: monospace; font-size: 12px; }
+.db-raid-name { font-weight: 700; font-family: monospace; font-size: 12px; padding-left: 2px; }
 .db-raid-sub { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--color-muted); margin: 0 0 6px 2px; }
 .db-raid-mask { font-family: monospace; font-size: 11px; letter-spacing: 1px; }
 .db-raid-progress { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 2px; }
@@ -180,6 +180,15 @@
 /* Guard card */
 .db-guard-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .db-guard-mode { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+
+/* Guard bottom status bar */
+#guard-uptime {
+    background: var(--bg-card);
+    border-top: 1px solid var(--color-border, #333);
+    font-size: 12px;
+    position: sticky;
+    bottom: 0;
+}
 
 /* Status dots — refined with glow */
 .db-status-dot {

@@ -634,72 +634,180 @@ link.parentElement.classList.add("active")
 > Файл: `cockpit-branding/branding.css`
 > Деплой: `sudo cp branding.css /usr/share/cockpit/branding/debian/branding.css`
 
-### Паттерн (Linear/Vercel/shadcn стиль, 2024-2025)
+### ⚠️ КРИТИЧНО: Реальная DOM-структура Cockpit Shell
+
+Cockpit Shell **не использует** стандартные PatternFly классы для контейнеров. Реальная структура (проверено DevTools 2026-03-27):
+
+```
+<html class="index-page pf-v6-theme-dark">   ← тема здесь!
+<body class="pf-v6-m-tabular-nums">          ← НЕ .login-pf в shell
+  <div id="main" class="page">
+    <div id="hosts-sel" class="navbar navbar-pf-vertical"> ← бренд "rusNAS"
+    <div id="nav-system" class="area-ct-subnav sidebar">   ← сайдбар + nav
+    <div id="topnav" class="header">                       ← мастхед
+      <header class="pf-v6-c-masthead">                    ← кнопки (70px)
+    </div>                                                 ← topnav = 86px
+    <div id="content" class="area-ct-content">             ← iframe плагина
+```
+
+**Реальные ID элементов:**
+| Элемент | Реальный селектор | Неверный (не работает) |
+|---------|-------------------|----------------------|
+| Сайдбар | `#nav-system`, `.area-ct-subnav` | `.pf-v6-c-page__sidebar` |
+| Мастхед контейнер | `#topnav` | `.pf-v6-c-page__header` |
+| Мастхед inner | `.pf-v6-c-masthead` | — |
+| Бренд-блок | `#hosts-sel` | — |
+
+### Определение темы в Shell
+
+Cockpit Shell управляет темой через **CSS-класс на `<html>`**:
+- Тёмная: `<html class="... pf-v6-theme-dark">`
+- Светлая: `<html class="index-page">` (класс отсутствует)
 
 ```css
-/* Inactive — transparent pill inset */
+/* ✅ Правильно — по классу на html */
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #nav-system {
+  background: #f8fafc !important;
+}
+
+/* ❌ Неправильно — prefers-color-scheme не работает для shell-темы */
+@media (prefers-color-scheme: light) {
+  body:not(.login-pf) .pf-v6-c-page__sidebar { background: #f8fafc; }
+}
+```
+
+> **Примечание:** iframe плагина использует `data-theme` атрибут и `prefers-color-scheme` — это для CSS плагина (`style.css`). Shell брандинг (`branding.css`) — только `pf-v6-theme-dark` класс.
+
+### Паттерн Ghost Pill nav (Linear/Vercel/shadcn, 2024-2025)
+
+```css
+/* Sidebar container */
+body:not(.login-pf) #nav-system,
+body:not(.login-pf) .area-ct-subnav {
+  background: #1a2233 !important;
+  border-right: 1px solid #253045 !important;
+}
+
+/* Inactive link — transparent pill inset */
 body:not(.login-pf) .pf-v6-c-nav__link {
-  margin: 1px 8px !important;          /* inset от краев */
+  margin: 1px 8px !important;
   border-radius: 6px !important;
   background: transparent !important;
+  color: #8a9bb5 !important;
 }
 
 /* Hover */
 body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]) {
-  background: rgba(255,255,255,0.07) !important;  /* dark */
+  background: rgba(255,255,255,0.07) !important;
 }
 
 /* Active */
 body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
 body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"] {
   background: rgba(59,130,246,0.14) !important;
-  box-shadow: inset 3px 0 0 #3b82f6 !important;  /* left accent bar */
+  color: #93c5fd !important;
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
 }
 ```
+
+### Мастхед (#topnav)
+
+`#topnav` (86px) содержит `.pf-v6-c-masthead` (70px). Разница 16px — прозрачная, показывает body `#151515` (чёрная полоса). Всегда задавать фон на контейнере `#topnav`, не на `pf-v6-c-masthead`:
+
+```css
+/* ✅ Правильно — фон на контейнере */
+body:not(.login-pf) #topnav {
+  background: #1a2233 !important;
+  border-bottom: 1px solid #253045 !important;
+}
+body:not(.login-pf) .pf-v6-c-masthead {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+/* ❌ Неправильно — оставляет чёрную полосу 16px */
+body:not(.login-pf) .pf-v6-c-masthead {
+  background: #1a2233 !important;
+}
+```
+
+### Бренд-блок (#hosts-sel) — «rusNAS»
+
+Элемент `#hosts-sel` содержит `.ct-switcher` с тремя span:
+- `.username` → "rusnas"
+- `.at` → "@"
+- `.hostname` → "rusNAS"
+
+Bootstrap `.navbar-default` добавляет `margin: 4px -8px 4px 4px` — нужно обнулять:
+
+```css
+body:not(.login-pf) #hosts-sel {
+  margin: 0 !important;
+  padding: 16px 16px 12px !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+/* "rusnas@" — мелкий мuted лейбл */
+body:not(.login-pf) .ct-switcher .username,
+body:not(.login-pf) .ct-switcher .at {
+  display: inline !important;
+  font-size: 11px !important;
+  color: #4a6080 !important;
+}
+/* "rusNAS" — два цвета: "rus" белый, "NAS" золотой */
+/* Техника: весь текст золотой + ::before "rus" белым поверх */
+body:not(.login-pf) .ct-switcher .hostname {
+  display: block !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #f5a623 !important;
+  -webkit-text-fill-color: #f5a623 !important;
+  position: relative !important;
+}
+body:not(.login-pf) .ct-switcher .hostname::before {
+  content: "rus";
+  position: absolute !important;
+  left: 0 !important; top: 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+}
+/* Светлая тема: "rus" тёмный вместо белого */
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .hostname::before {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+```
+
+> **Почему не gradient clip?** `-webkit-background-clip: text` не работает в Cockpit shell — PatternFly CSS устанавливает `color: white` с высоким приоритетом и градиент не просвечивает через текст. Единственно надёжный способ — `::before` псевдоэлемент.
 
 ### ⚠️ Критические правила branding.css
 
 #### 1. `[aria-current="page"]` — НЕ `[aria-current]`
 
-PatternFly 6 проставляет `aria-current="false"` на **всех** nav-ссылках (не только на активной). Атрибут-селектор `[aria-current]` (без значения) совпадает со всеми — все получают синий цвет.
+PatternFly 6 проставляет `aria-current="false"` на **всех** nav-ссылках (не только на активной). Атрибут-селектор `[aria-current]` (без значения) совпадает со всеми.
 
 ```css
-/* ❌ Неправильно — матчит ВСЕ ссылки (у них aria-current="false") */
+/* ❌ Матчит ВСЕ ссылки */
 .pf-v6-c-nav__link[aria-current]
-
-/* ✅ Правильно — только активная страница */
+/* ✅ Только активная */
 .pf-v6-c-nav__link[aria-current="page"]
 ```
 
 #### 2. Не ставить `--pf-v6-c-nav__link--*` переменные на `.pf-v6-c-nav`
 
-CSS variables наследуются всеми потомками через CSS cascade. `--pf-v6-c-nav__link--m-current--BackgroundColor` на `.pf-v6-c-nav` попадает во все дочерние ссылки — даже если на ссылке написан `background: transparent !important`.
+CSS переменные наследуются потомками — `BackgroundColor` на навигации попадёт во все ссылки.
 
 ```css
-/* ❌ Неправильно — cascades to ALL children */
-.pf-v6-c-nav {
-  --pf-v6-c-nav__link--m-current--BackgroundColor: rgba(37,99,235,0.09);
-}
-
-/* ✅ Правильно — только прямые property overrides */
-.pf-v6-c-nav__link.pf-m-current,
-.pf-v6-c-nav__link[aria-current="page"] {
-  background: rgba(37,99,235,0.09) !important;
-}
+/* ❌ Cascades to ALL children */
+.pf-v6-c-nav { --pf-v6-c-nav__link--m-current--BackgroundColor: ... }
+/* ✅ Прямые property overrides */
+.pf-v6-c-nav__link.pf-m-current { background: ... !important; }
 ```
 
-#### 3. Adaptive sidebar — dark/light
-
-```css
-/* Dark (default) */
-body:not(.login-pf) .pf-v6-c-page__sidebar { background: #1a2233; }
-
-/* Light */
-@media (prefers-color-scheme: light) {
-  body:not(.login-pf) .pf-v6-c-page__sidebar { background: #f8fafc; }
-}
-```
-
-#### 4. Scope shell overrides с `body:not(.login-pf)`
+#### 3. Scope shell overrides с `body:not(.login-pf)`
 
 `branding.css` загружается и на логин-странице, и в Cockpit shell. Все shell-overrides **обязаны** иметь префикс `body:not(.login-pf)` чтобы не ломать стили логин-страницы.

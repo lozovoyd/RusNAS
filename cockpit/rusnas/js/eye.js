@@ -171,6 +171,8 @@ function parseFindings(text) {
 var _panelOpen    = false;
 var _userDismissed = false; // true after user manually closes — suppresses auto-open
 
+var EYE_OPEN_KEY = "openeye-open"; // localStorage key for panel open state
+
 function buildPanel() {
     if (document.getElementById("eye-panel")) return; // already exists
 
@@ -181,9 +183,11 @@ function buildPanel() {
     fab.textContent = "👁";
     fab.addEventListener("click", function () {
         if (_panelOpen) {
+            localStorage.setItem(EYE_OPEN_KEY, "false");
             _userDismissed = true;
             closePanel();
         } else {
+            localStorage.setItem(EYE_OPEN_KEY, "true");
             _userDismissed = false;
             openPanel();
         }
@@ -214,6 +218,7 @@ function buildPanel() {
     document.body.appendChild(panel);
 
     document.getElementById("eye-close-btn").addEventListener("click", function () {
+        localStorage.setItem(EYE_OPEN_KEY, "false");
         _userDismissed = true;
         closePanel();
     });
@@ -330,8 +335,8 @@ function runAnalysis() {
     if (pageEl) pageEl.textContent = pageName;
 
     setLoading();
-    // Only auto-open if user hasn't dismissed the widget on this page
-    if (!_userDismissed) openPanel();
+    // Only auto-open if user explicitly opened the panel (localStorage persists state)
+    if (localStorage.getItem(EYE_OPEN_KEY) === "true") openPanel();
 
     var text = extractPageText();
     callAI(text, pageName, function (findings, error) {
