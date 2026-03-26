@@ -1,0 +1,19 @@
+[Unit]
+Description=rusNAS License Server
+After=network.target
+
+[Service]
+Type=simple
+User=rusnas-license
+WorkingDirectory=/opt/rusnas-license-server
+EnvironmentFile=/opt/rusnas-license-server/.env
+ExecStart=/opt/rusnas-license-server/venv/bin/uvicorn server:app --host ${HOST} --port ${PORT}
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/rusnas-license-server
+
+[Install]
+WantedBy=multi-user.target
