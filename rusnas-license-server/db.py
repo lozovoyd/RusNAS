@@ -180,6 +180,12 @@ async def get_license_by_id(license_id: int) -> Optional[dict]:
         d["features"] = json.loads(d.pop("features_json"))
         return d
 
+async def get_activation_count(serial: str) -> int:
+    async with aiosqlite.connect(_DB_PATH) as conn:
+        cur = await conn.execute("SELECT COUNT(*) FROM activations WHERE serial=?", (serial,))
+        row = await cur.fetchone()
+        return row[0]
+
 async def get_all_serials() -> list:
     async with aiosqlite.connect(_DB_PATH) as conn:
         conn.row_factory = aiosqlite.Row
