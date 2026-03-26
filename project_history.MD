@@ -2084,3 +2084,50 @@ RAID5/6 write hole, CoW+RAID overhead, scrub vs fsck, balance stalls, power loss
 - `.pf-v6-c-nav__link.pf-m-current` — active nav item в PatternFly v6
 - `border-top: 3px solid var(--primary)` на `.section` — enterprise-паттерн для Proxmox/Grafana-стиля
 - Playwright evaluates outer Cockpit shell document, not iframe — тема плагина не видна для некоторых страниц (не баг)
+
+---
+
+## Сессия 2026-03-26 — Ghost Pill Sidebar + CSS Cascade Bug Fix
+
+### Цель
+Переработать навигацию Cockpit shell: убрать «планки» (плоские прямоугольные блоки) → внедрить «ghost pill» паттерн (Linear/Vercel/shadcn стиль).
+
+### Диагностика
+
+CSS cascade bug в `branding.css`:
+- PF6 расставляет `aria-current="false"` **на всех** nav-ссылках (не только на активной)
+- Selector `[aria-current]` совпадал со ВСЕМИ ссылками → все получали синий pill
+- Дополнительно: `--pf-v6-c-nav__link--m-current--BackgroundColor` на `.pf-v6-c-nav` каскадировал на все дочерние элементы
+
+```
+link2_bg: 'rgba(37, 99, 235, 0.09)'       ← ВСЕ inactive items
+link2_mCurrentVar: 'rgba(37,99,235,0.09)' ← m-current var cascades to all
+```
+
+### Исправления в `cockpit-branding/branding.css`
+
+1. **Убраны CSS variable overrides** (`--pf-v6-c-nav__link--*`) с `.pf-v6-c-nav` — они каскадировали на все дочерние элементы
+2. **Заменены selectors** `[aria-current]` → `[aria-current="page"]` (4 места: dark+light, active+hover)
+3. **Ghost pill паттерн** реализован только через прямые `!important` overrides:
+   - Inactive: `background: transparent` + `margin: 1px 8px` + `border-radius: 6px`
+   - Hover: `rgba(255,255,255,0.07)` / `rgba(15,23,42,0.06)` для dark/light
+   - Active: `rgba(59,130,246,0.14)` fill + `box-shadow: inset 3px 0 0 #3b82f6` accent bar
+
+### Результат
+
+- Ghost pill визуально: transparent inactive, тонкий hover, filled+accent active
+- Dark sidebar: `#1a2233`, Light sidebar: `#f8fafc` (adaptive)
+- Регрессия: 12/12 pass, 4/4 mobile no overflow
+
+### Файлы изменены
+
+| Файл | Изменения |
+|------|-----------|
+| `cockpit-branding/branding.css` | Ghost pill nav, CSS cascade fix, [aria-current="page"] |
+| `project_history.md` | эта запись |
+
+### Ключевые находки / архитектурные заметки
+
+- **PF6 aria-current bug**: Cockpit PatternFly 6 ставит `aria-current="false"` на ВСЕ неактивные ссылки — attribute-selector `[aria-current]` матчит их. Правильно: `[aria-current="page"]`
+- **CSS variable cascade**: `--pf-v6-c-nav__link--m-current--BackgroundColor` на `.pf-v6-c-nav` наследуется всеми потомками через CSS inheritance, даже если прямой `background: transparent !important` написан на самом элементе-ссылке
+- **Решение**: Только прямые `!important` property overrides (не CSS variable переопределения на родителе)

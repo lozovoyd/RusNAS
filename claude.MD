@@ -42,6 +42,21 @@ CLAUDE.md — оперативная шпаргалка. Детальный ко
 
 **Принцип:** Если секция в CLAUDE.md > 2,000 символов — подумать, можно ли её вынести. CLAUDE.md должен оставаться < 40,000 символов.
 
+## ⚠️ Обязательное обновление MD-файлов после merge в main
+
+**После каждого merge в ветку `main` — обязательно обновить:**
+
+| Файл | Что записать |
+|------|-------------|
+| `project_history.md` | Новая сессия (APPEND в конец). Что сделано, какие файлы изменены, ключевые архитектурные находки |
+| `CLAUDE.md` | Known Bugs — новые ловушки. Distribution/Git Workflow — если изменились. Roadmap таблица — обновить статусы |
+| `ui.md` | Если изменялись CSS-компоненты, дизайн-токены, branding.css, паттерны навигации |
+| `bugs.md` | Каждый новый баг → секция BUG-NN с описанием, симптомами, фиксом |
+| `roadmap.md` | При завершении фичи (✅) или добавлении новой задачи (📋) |
+| `rusnas-*-task.md` | При изменении архитектуры модуля |
+
+**Правило:** Не спрашивать пользователя — просто обновить файлы. Если изменения были, запись должна быть сделана.
+
 
 
 ## Project Overview
@@ -525,6 +540,8 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
 | `renderX()` после `loadData()` через `setTimeout(300)` | ненадёжная гонка; `loadData()` должен возвращать Promise, `renderX()` вызывать через `.then()` |
 | `worstStatus` при нескольких массивах перезаписывается | использовать явный приоритет: `inactive` > `degraded` > `resyncing` > `active`; не перезаписывать более критичный |
 | `/var/lib/rusnas` права 750 → rusnas-fb crash loop | при создании поддиректорий для других пользователей — `chmod o+x /var/lib/rusnas` (traverse-бит для other) |
+| `branding.css` `[aria-current]` матчит все nav-ссылки | PF6 ставит `aria-current="false"` на ВСЕ ссылки; использовать `[aria-current="page"]` |
+| CSS переменные на `.pf-v6-c-nav` каскадируют на все дочерние | `--pf-v6-c-nav__link--m-current--BackgroundColor` на родителе попадает в inactive items; только прямые `!important` overrides на ссылке |
 
 ## FTP and WebDAV settings (app.js / index.html)
 
@@ -559,6 +576,36 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 - `exportEventsCsv()` — requests all matching events (limit=10000), builds Blob CSV with UTF-8 BOM, triggers download
 - Backend: `load_events()` in response.py supports offset/method/status/date_from/date_to; returns `{events, total}`
 - Backend: `clear_events` socket command (auth required) truncates `events.jsonl`
+
+## Distribution Infrastructure
+
+> **Все скрипты и планы используют эти значения. При смене VPS — обновить здесь.**
+
+| Параметр | Текущее значение | Описание |
+|----------|-----------------|----------|
+| `RUSNAS_VPS_HOST` | `activate.rusnas.ru` | Публичный hostname license server + apt repo |
+| `RUSNAS_VPS_SSH` | `rusnas-vps` | SSH-алиас в `~/.ssh/config` (указывает на VPS) |
+| `RUSNAS_APT_URL` | `https://activate.rusnas.ru/apt/` | URL apt репозитория |
+| `RUSNAS_INSTALL_URL` | `https://activate.rusnas.ru/install` | URL bootstrap-скрипта |
+| `RUSNAS_LICENSE_PORT` | `8765` | Порт FastAPI license server |
+| `RUSNAS_APT_AUTH_PORT` | `8766` | Порт apt-auth service |
+| `RUSNAS_REPREPRO_BASE` | `/var/lib/reprepro` | Путь к reprepro на VPS |
+| `RUSNAS_INSTALL_DIR` | `/opt/rusnas-license-server` | Путь к license server на VPS |
+| `RUSNAS_WEBROOT` | `/var/www/rusnas-install` | Путь к bootstrap.sh и gpg-ключу на VPS |
+
+**При смене VPS:**
+1. Обновить таблицу выше
+2. Обновить `~/.ssh/config`: алиас `rusnas-vps` → новый IP
+3. Перевыпустить TLS-сертификат для нового домена
+4. Обновить `RUSNAS_VPS_HOST` в `bootstrap.sh` и `rusnas-license-server/.env`
+
+**`~/.ssh/config` пример:**
+```
+Host rusnas-vps
+    HostName <IP или домен VPS>
+    User root
+    IdentityFile ~/.ssh/rusnas_vps_key
+```
 
 ## Git Workflow
 
@@ -624,4 +671,6 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 | Performance Tuner (⚡) | ✅ реализован 2026-03-24 | rusnas-performance-tuning-spec.md |
 | Night Report (дашборд) | ✅ реализован 2026-03-25 | roadmap.md |
 | Regression Testing + CPU opt | ✅ завершено 2026-03-25 | bugs.MD, project_history.MD |
+| UI Cohesion + Ghost Pill Sidebar | ✅ завершено 2026-03-26 | ui.md, project_history.md |
+| Bootstrap Installer (ТЗ) | 🔄 в работе | rusnas-bootstrap-spec.md |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |
