@@ -626,3 +626,80 @@ link.parentElement.classList.add("active")
 
 ### Ссылка на стили
 Классы `advisor-tabs` и `advisor-tab-btn` определены в `css/style.css`. **Не переопределять и не дублировать** их в других CSS-файлах страницы.
+
+---
+
+## Cockpit Shell Nav — Ghost Pill (branding.css)
+
+> Файл: `cockpit-branding/branding.css`
+> Деплой: `sudo cp branding.css /usr/share/cockpit/branding/debian/branding.css`
+
+### Паттерн (Linear/Vercel/shadcn стиль, 2024-2025)
+
+```css
+/* Inactive — transparent pill inset */
+body:not(.login-pf) .pf-v6-c-nav__link {
+  margin: 1px 8px !important;          /* inset от краев */
+  border-radius: 6px !important;
+  background: transparent !important;
+}
+
+/* Hover */
+body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]) {
+  background: rgba(255,255,255,0.07) !important;  /* dark */
+}
+
+/* Active */
+body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
+body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"] {
+  background: rgba(59,130,246,0.14) !important;
+  box-shadow: inset 3px 0 0 #3b82f6 !important;  /* left accent bar */
+}
+```
+
+### ⚠️ Критические правила branding.css
+
+#### 1. `[aria-current="page"]` — НЕ `[aria-current]`
+
+PatternFly 6 проставляет `aria-current="false"` на **всех** nav-ссылках (не только на активной). Атрибут-селектор `[aria-current]` (без значения) совпадает со всеми — все получают синий цвет.
+
+```css
+/* ❌ Неправильно — матчит ВСЕ ссылки (у них aria-current="false") */
+.pf-v6-c-nav__link[aria-current]
+
+/* ✅ Правильно — только активная страница */
+.pf-v6-c-nav__link[aria-current="page"]
+```
+
+#### 2. Не ставить `--pf-v6-c-nav__link--*` переменные на `.pf-v6-c-nav`
+
+CSS variables наследуются всеми потомками через CSS cascade. `--pf-v6-c-nav__link--m-current--BackgroundColor` на `.pf-v6-c-nav` попадает во все дочерние ссылки — даже если на ссылке написан `background: transparent !important`.
+
+```css
+/* ❌ Неправильно — cascades to ALL children */
+.pf-v6-c-nav {
+  --pf-v6-c-nav__link--m-current--BackgroundColor: rgba(37,99,235,0.09);
+}
+
+/* ✅ Правильно — только прямые property overrides */
+.pf-v6-c-nav__link.pf-m-current,
+.pf-v6-c-nav__link[aria-current="page"] {
+  background: rgba(37,99,235,0.09) !important;
+}
+```
+
+#### 3. Adaptive sidebar — dark/light
+
+```css
+/* Dark (default) */
+body:not(.login-pf) .pf-v6-c-page__sidebar { background: #1a2233; }
+
+/* Light */
+@media (prefers-color-scheme: light) {
+  body:not(.login-pf) .pf-v6-c-page__sidebar { background: #f8fafc; }
+}
+```
+
+#### 4. Scope shell overrides с `body:not(.login-pf)`
+
+`branding.css` загружается и на логин-странице, и в Cockpit shell. Все shell-overrides **обязаны** иметь префикс `body:not(.login-pf)` чтобы не ломать стили логин-страницы.
