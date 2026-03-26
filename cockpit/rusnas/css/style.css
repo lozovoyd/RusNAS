@@ -87,6 +87,14 @@
     --radius:           10px;
     --radius-lg:        14px;
     --font:             "Red Hat Text", "RedHatText", system-ui, -apple-system, sans-serif;
+
+    /* Z-index scale (prevents stacking context conflicts) */
+    --z-base:     1;
+    --z-dropdown: 100;
+    --z-sticky:   200;
+    --z-modal:    1000;
+    --z-toast:    1200;
+    --z-tooltip:  1400;
 }
 
 /* ─── Design tokens (dark) ─────────────────────────────────────────────────── */
@@ -206,7 +214,6 @@ code {
 .section {
     background: var(--bg-card);
     border: 1px solid var(--color-border);
-    border-top: 3px solid var(--primary);
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 16px;
@@ -214,8 +221,14 @@ code {
     transition: box-shadow 0.2s;
 }
 
+/* Light theme: subtle top accent so cards read as structured panels */
+:root:not([data-theme="dark"]) .section {
+    border-top: 2px solid color-mix(in srgb, var(--primary) 55%, var(--color-border));
+}
+
+/* Dark theme: no accent, let the border handle separation */
 :root[data-theme="dark"] .section {
-    border-top-color: var(--primary);
+    border-top-width: 1px;
 }
 
 .section h2 {
@@ -439,7 +452,7 @@ tbody tr:last-child td { border-bottom: none; }
     position: fixed;
     inset: 0;
     background: var(--modal-overlay-bg);
-    z-index: 1000;
+    z-index: var(--z-modal);
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -1315,7 +1328,7 @@ tbody tr:last-child td { border-bottom: none; }
     position: fixed;
     bottom: 24px;
     right: 24px;
-    z-index: 9999;
+    z-index: var(--z-toast);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1444,4 +1457,34 @@ tbody tr:last-child td { border-bottom: none; }
 }
 body > *:not(script):not(link):not(style) {
     animation: page-in 200ms cubic-bezier(0.22,1,0.36,1) both;
+}
+
+/* ─── Cursor: pointer on all interactive non-button elements ────────────────── */
+.snap-sidebar-item,
+.advisor-tab-btn,
+.tab-btn,
+.sa-period-btn,
+.sa-tab-btn,
+tbody tr[onclick],
+tbody tr[data-id],
+tbody tr[data-share],
+tbody tr[data-target] {
+    cursor: pointer;
+}
+
+/* ─── Prefers-reduced-motion ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    /* Keep loading spinners running so user sees activity */
+    .sa-spinner,
+    .spinner,
+    [class*="spinner"] {
+        animation-duration: 0.8s !important;
+        animation-iteration-count: infinite !important;
+    }
 }

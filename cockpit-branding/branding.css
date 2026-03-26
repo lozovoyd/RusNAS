@@ -237,12 +237,15 @@ a:hover { color: #e8703a !important; text-decoration: underline; }
 
 /* ═══════════════════════════════════════════════════════════════
    Cockpit Shell Nav Overrides (PatternFly v6)
-   Fixes orange link color that leaks from :root { --color-link }
-   above. These rules apply ONLY in the main Cockpit shell
-   (body does NOT have .login-pf class there).
+   — Theme-adaptive: light sidebar in OS light mode,
+     dark navy sidebar in OS dark mode.
+   — Fixes orange link color leaking from :root { --color-link }.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Sidebar / masthead background ────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   DARK THEME SIDEBAR (default / prefers-color-scheme: dark)
+   ────────────────────────────────────────────────────────────── */
+
 body:not(.login-pf) .pf-v6-c-page__sidebar,
 body:not(.login-pf) .pf-v6-c-nav {
   background: #1e293b !important;
@@ -255,7 +258,6 @@ body:not(.login-pf) .pf-v6-c-page__header {
   border-bottom: 1px solid #1e3a5f !important;
 }
 
-/* ── Nav links: readable slate text, no orange ────────────────── */
 body:not(.login-pf) .pf-v6-c-nav__link,
 body:not(.login-pf) .pf-v6-c-nav__link:visited,
 body:not(.login-pf) .pf-v6-c-nav__item a {
@@ -266,30 +268,27 @@ body:not(.login-pf) .pf-v6-c-nav__item a {
 body:not(.login-pf) .pf-v6-c-nav__link:hover,
 body:not(.login-pf) .pf-v6-c-nav__item a:hover {
   color: #f1f5f9 !important;
-  background: rgba(255,255,255,0.06) !important;
+  background: rgba(255,255,255,0.07) !important;
 }
 
 body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
 body:not(.login-pf) .pf-v6-c-nav__link[aria-current],
 body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
   color: #ffffff !important;
-  background: rgba(59,130,246,0.18) !important;
+  background: rgba(59,130,246,0.20) !important;
   border-left: 3px solid #3b82f6 !important;
 }
 
-/* ── Nav section title ─────────────────────────────────────────── */
 body:not(.login-pf) .pf-v6-c-nav__section-title {
   color: #64748b !important;
 }
 
-/* ── Masthead brand / hostname text ───────────────────────────── */
 body:not(.login-pf) .pf-v6-c-masthead__brand,
 body:not(.login-pf) .pf-v6-c-masthead__content,
 body:not(.login-pf) .pf-v6-c-masthead a {
   color: #f1f5f9 !important;
 }
 
-/* ── Masthead utility icons & buttons ─────────────────────────── */
 body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
 body:not(.login-pf) .pf-v6-c-masthead button {
   color: #94a3b8 !important;
@@ -300,10 +299,87 @@ body:not(.login-pf) .pf-v6-c-masthead button:hover {
   background: rgba(255,255,255,0.08) !important;
 }
 
-/* ── General link color reset in shell (not login page) ────────── */
 body:not(.login-pf) a {
   color: #60a5fa;
 }
 body:not(.login-pf) a:hover {
   color: #93c5fd;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LIGHT THEME SIDEBAR (prefers-color-scheme: light)
+   Clean slate sidebar — consistent with the light content area.
+   Inspired by Linear, Vercel, Proxmox 8 light mode.
+   ────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: light) {
+  /* Sidebar shell */
+  body:not(.login-pf) .pf-v6-c-page__sidebar,
+  body:not(.login-pf) .pf-v6-c-nav {
+    background: #f1f5f9 !important;
+    border-right: 1px solid #cbd5e1 !important;
+  }
+
+  /* Masthead */
+  body:not(.login-pf) .pf-v6-c-masthead,
+  body:not(.login-pf) .pf-v6-c-page__header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
+  }
+
+  /* Nav links */
+  body:not(.login-pf) .pf-v6-c-nav__link,
+  body:not(.login-pf) .pf-v6-c-nav__link:visited,
+  body:not(.login-pf) .pf-v6-c-nav__item a {
+    color: #334155 !important;
+    background: transparent !important;
+  }
+
+  body:not(.login-pf) .pf-v6-c-nav__link:hover,
+  body:not(.login-pf) .pf-v6-c-nav__item a:hover {
+    color: #0f172a !important;
+    background: #e2e8f0 !important;
+  }
+
+  /* Active item */
+  body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
+  body:not(.login-pf) .pf-v6-c-nav__link[aria-current],
+  body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
+    color: #1d4ed8 !important;
+    background: #dbeafe !important;
+    border-left: 3px solid #2563eb !important;
+    font-weight: 600 !important;
+  }
+
+  /* Section titles */
+  body:not(.login-pf) .pf-v6-c-nav__section-title {
+    color: #94a3b8 !important;
+  }
+
+  /* Masthead text */
+  body:not(.login-pf) .pf-v6-c-masthead__brand,
+  body:not(.login-pf) .pf-v6-c-masthead__content,
+  body:not(.login-pf) .pf-v6-c-masthead a {
+    color: #0f172a !important;
+  }
+
+  /* Masthead buttons */
+  body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
+  body:not(.login-pf) .pf-v6-c-masthead button {
+    color: #475569 !important;
+  }
+  body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button:hover,
+  body:not(.login-pf) .pf-v6-c-masthead button:hover {
+    color: #0f172a !important;
+    background: #f1f5f9 !important;
+  }
+
+  /* General shell links */
+  body:not(.login-pf) a {
+    color: #2563eb;
+  }
+  body:not(.login-pf) a:hover {
+    color: #1d4ed8;
+  }
 }
