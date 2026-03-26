@@ -1,0 +1,17 @@
+[Unit]
+Description=rusNAS apt-auth Service
+After=network.target
+
+[Service]
+Type=simple
+User=rusnas-license
+WorkingDirectory=/opt/rusnas-license-server
+EnvironmentFile=/opt/rusnas-license-server/.env
+ExecStart=/opt/rusnas-license-server/venv/bin/uvicorn apt_auth:app --host 127.0.0.1 --port 8766
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

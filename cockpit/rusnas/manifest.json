@@ -52,6 +52,10 @@
     "performance": {
       "label": "Performance ⚡",
       "order": 12
+    },
+    "license": {
+      "label": "Лицензия 🔑",
+      "order": 13
     }
   },
   "superuser": {

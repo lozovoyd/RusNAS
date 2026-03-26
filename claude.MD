@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
-> UI правила и компоненты: [ui.md](./ui.md)
+> ⚠️ **UI правила и компоненты: [ui.md](./ui.md) — ОБЯЗАТЕЛЬНО читать перед любой работой с UI/CSS/branding (Cockpit Shell, страницы плагина, дизайн-токены, Ghost Pill nav, брендинг)**
 > Антишифровальщик: [rusnas-guard-task.md](./rusnas-guard-task.md) — ТЗ и архитектура Guard
 > RAID Manager: [rusnas-RAIDmanager.md](./rusnas-RAIDmanager.md) — ТЗ и архитектура RAID Manager
 > Дедупликация: [rusnas-dedup-spec.md](./rusnas-dedup-spec.md) — ТЗ и архитектура Dedup
@@ -599,6 +599,33 @@ Tab badge on "Журнал событий" shows unacknowledged event count.
 3. Перевыпустить TLS-сертификат для нового домена
 4. Обновить `RUSNAS_VPS_HOST` в `bootstrap.sh` и `rusnas-license-server/.env`
 
+### Что реализовано (ветка feat/bootstrap-installer-spec, 2026-03-26)
+
+| Компонент | Файл | Статус |
+|-----------|------|--------|
+| License server (FastAPI) | `rusnas-license-server/server.py` | ✅ реализован, 22 теста |
+| Криптография Ed25519 + Base62 | `rusnas-license-server/crypto.py` | ✅ реализован |
+| БД + CRUD | `rusnas-license-server/db.py` | ✅ реализован |
+| Pydantic модели | `rusnas-license-server/models.py` | ✅ реализован |
+| CLI оператора | `rusnas-license-server/admin.py` | ✅ реализован |
+| Apt-auth service (port 8766) | `rusnas-license-server/apt_auth.py` | ✅ реализован |
+| Web admin UI (Jinja2) | `rusnas-license-server/admin_web.py` | ✅ реализован |
+| Страница активации клиента | `rusnas-license-server/static/activate.html` | ✅ реализован |
+| Admin Jinja2 шаблоны (6 шт) | `rusnas-license-server/static/admin/` | ✅ реализован |
+| Bootstrap installer | `bootstrap.sh` | ✅ реализован |
+| Nginx конфиг VPS | `vps-setup/nginx-rusnas.conf` | ✅ реализован |
+| Cockpit license page | `cockpit/rusnas/license.html` + `js/license.js` | ✅ реализован |
+| Системд юниты | `rusnas-license.service`, `rusnas-apt-auth.service` | ✅ реализован |
+
+**Публичный ключ оператора (тестовый):** `1d6UQHGzNP3wZPQVFpXUkc5qF+5UAyQlrUMSQAffdA0=`
+
+> ⚠️ **При деплое на реальный VPS** — сгенерировать новую ключевую пару через `python3 keygen.py`, обновить `OPERATOR_PUBLIC_KEY_B64` в `cockpit/rusnas/js/license.js`, пересобрать и задеплоить. Тестовые ключи в коде — только для dev-среды.
+
+**Pending (не сделано):**
+- VPS деплой (apt-repo reprepro, systemd юниты на реальном сервере)
+- Ansible role для раскатки license server
+- Пакет `rusnas-system` (apt пакет, устанавливает Cockpit плагин)
+
 **`~/.ssh/config` пример:**
 ```
 Host rusnas-vps
@@ -613,7 +640,7 @@ Host rusnas-vps
 
 Стратегия: Feature Branch Flow. `main` = задеплоенный код. После merge → `./deploy.sh`.
 Формат коммитов: `feat:|fix:|docs:|refactor: описание` + `Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)`
-**Текущая ветка:** `main` (после merge testing/full-regression 2026-03-25)
+**Текущая ветка:** `feat/bootstrap-installer-spec` (реализация системы лицензирования 2026-03-26, не merged в main)
 
 ## Landing Page (marketing site, port 80)
 
@@ -672,5 +699,6 @@ Host rusnas-vps
 | Night Report (дашборд) | ✅ реализован 2026-03-25 | roadmap.md |
 | Regression Testing + CPU opt | ✅ завершено 2026-03-25 | bugs.MD, project_history.MD |
 | UI Cohesion + Ghost Pill Sidebar | ✅ завершено 2026-03-26 | ui.md, project_history.md |
-| Bootstrap Installer (ТЗ) | 🔄 в работе | rusnas-bootstrap-spec.md |
+| Bootstrap Installer + License Server | ✅ реализован 2026-03-26 | rusnas-license-server-task.md, ветка feat/bootstrap-installer-spec |
+| Cockpit License Page | ✅ реализована 2026-03-26 | license.html + js/license.js, ветка feat/bootstrap-installer-spec |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |

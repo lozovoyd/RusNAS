@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>rusNAS — Активация лицензии</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#0f1923;color:#e0e6f0;min-height:100vh;display:flex;flex-direction:column}
+header{background:#1a2332;padding:16px 24px;border-bottom:1px solid #1e2d3d}
+header h1{font-size:18px;color:#fff}header span{color:#7eb3e8;font-size:13px;margin-left:12px}
+main{flex:1;display:flex;justify-content:center;align-items:flex-start;padding:40px 16px}
+.card{background:#1a2332;border:1px solid #1e2d3d;border-radius:8px;padding:32px;width:100%;max-width:560px}
+.card h2{font-size:20px;margin-bottom:8px}
+.desc{color:#94a3b8;font-size:13px;margin-bottom:24px;line-height:1.5}
+label{display:block;font-size:13px;color:#94a3b8;margin-bottom:6px;margin-top:16px}
+input,textarea{width:100%;background:#0f1923;color:#e0e6f0;border:1px solid #2d3f52;border-radius:4px;padding:10px 12px;font-size:14px;font-family:monospace}
+input:focus,textarea:focus{outline:none;border-color:#0099ff}
+textarea{resize:vertical;min-height:48px}
+.result-wrap{position:relative}
+.result-wrap textarea{min-height:160px;font-size:11px;line-height:1.6}
+.copy-btn{position:absolute;top:8px;right:8px;background:#0099ff;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:12px;cursor:pointer}
+.copy-btn:hover{background:#0077cc}
+.btn{display:block;width:100%;padding:12px;background:#0099ff;color:#fff;border:none;border-radius:4px;font-size:16px;cursor:pointer;margin-top:20px;font-weight:600}
+.btn:hover{background:#0077cc}.btn:disabled{background:#2d3f52;cursor:not-allowed}
+.error{background:#2d1a1a;border:1px solid #5c1a1a;color:#ff6b6b;border-radius:4px;padding:12px;margin-top:16px;font-size:13px;display:none}
+.success{background:#1a2d1a;border:1px solid #1a5c1a;color:#6bff6b;border-radius:4px;padding:12px;margin-top:16px;font-size:13px;display:none}
+footer{text-align:center;padding:16px;color:#4a5568;font-size:12px}
+</style>
+</head>
+<body>
+<header><h1>rusNAS</h1><span>Активация лицензии</span></header>
+<main><div class="card">
+  <h2>Получить код активации</h2>
+  <p class="desc">Введите серийный номер вашего устройства rusNAS. Серийный номер находится в карточке изделия или в Cockpit → Лицензия.</p>
+
+  <label for="serial">Серийный номер</label>
+  <input id="serial" type="text" placeholder="RUSNAS-XXXX-XXXX-XXXX-XXXX" maxlength="29" autocomplete="off" spellcheck="false">
+
+  <div id="error" class="error"></div>
+  <div id="success" class="success">
+    <strong>Код активации получен!</strong>
+    <p style="margin-top:8px;color:#94a3b8;font-size:12px">Скопируйте код и вставьте его в Cockpit → Лицензия → поле «Код активации»</p>
+    <div class="result-wrap" style="margin-top:12px">
+      <textarea id="result" readonly></textarea>
+      <button class="copy-btn" id="copy">Копировать</button>
+    </div>
+  </div>
+
+  <button class="btn" id="btn">Получить код</button>
+  <div id="loading" style="text-align:center;margin-top:12px;color:#7eb3e8;display:none">Проверка серийного номера...</div>
+</div></main>
+<footer>rusNAS — профессиональные NAS-решения</footer>
+
+<script>
+const inp = document.getElementById('serial');
+inp.addEventListener('input', function(e) {
+    var v = e.target.value.replace(/[^BCDFGHJKLMNPQRSTVWXYZ2345679]/gi,'').toUpperCase().slice(0,16);
+    var parts = [];
+    for (var i = 0; i < v.length; i += 4) parts.push(v.slice(i, i+4));
+    e.target.value = parts.length ? 'RUSNAS-' + parts.join('-') : '';
+});
+
+document.getElementById('btn').addEventListener('click', async function() {
+    var serial = inp.value.trim();
+    var errEl = document.getElementById('error');
+    var okEl  = document.getElementById('success');
+    var loading = document.getElementById('loading');
+    var btn = document.getElementById('btn');
+
+    errEl.style.display = 'none';
+    okEl.style.display  = 'none';
+    btn.disabled = true;
+    loading.style.display = '';
+
+    try {
+        var r = await fetch('/api/activate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({serial: serial})
+        });
+        var d = await r.json();
+        if (d.ok) {
+            document.getElementById('result').value = d.activation_code;
+            okEl.style.display = '';
+        } else {
+            errEl.textContent = d.message || d.error || 'Ошибка активации';
+            errEl.style.display = '';
+        }
+    } catch(err) {
+        errEl.textContent = 'Ошибка сети: ' + err.message;
+        errEl.style.display = '';
+    } finally {
+        btn.disabled = false;
+        loading.style.display = 'none';
+    }
+});
+
+document.getElementById('copy').addEventListener('click', function() {
+    var t = document.getElementById('result');
+    t.select();
+    navigator.clipboard.writeText(t.value).catch(function() {
+        document.execCommand('copy');
+    });
+    document.getElementById('copy').textContent = 'Скопировано!';
+    setTimeout(function() { document.getElementById('copy').textContent = 'Копировать'; }, 2000);
+});
+</script>
+</body>
+</html>

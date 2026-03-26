@@ -250,13 +250,68 @@ a:hover { color: #e8703a !important; text-decoration: underline; }
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Sidebar container (dark, default) ────────────────────────── */
-body:not(.login-pf) .pf-v6-c-page__sidebar {
+/* Cockpit shell uses #nav-system/.area-ct-subnav, not pf-v6-c-page__sidebar */
+body:not(.login-pf) .pf-v6-c-page__sidebar,
+body:not(.login-pf) #nav-system,
+body:not(.login-pf) .area-ct-subnav,
+body:not(.login-pf) #hosts-sel,
+body:not(.login-pf) #sidebar-toggle {
   background: #1a2233 !important;
   border-right: 1px solid #253045 !important;
 }
 body:not(.login-pf) .pf-v6-c-nav {
   background: transparent !important;
   padding: 6px 0 4px !important;
+}
+
+/* ── Brand block: rusNAS logo style ──────────────────────────── */
+body:not(.login-pf) #hosts-sel {
+  margin: 0 !important;
+  padding: 16px 16px 12px !important;
+  border-bottom: none !important;
+  border-right: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+body:not(.login-pf) .ct-switcher {
+  display: block !important;
+  cursor: default !important;
+}
+/* "rusnas@" — small muted label inline */
+body:not(.login-pf) .ct-switcher .username,
+body:not(.login-pf) .ct-switcher .at {
+  display: inline !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: #4a6080 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.4 !important;
+}
+/* "rusNAS" — large two-tone: "rus" white, "NAS" gold */
+/* Approach: make whole word gold, overlay "rus" in white via ::before */
+body:not(.login-pf) .ct-switcher .hostname {
+  display: block !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
+  margin-top: 2px !important;
+  color: #f5a623 !important;
+  -webkit-text-fill-color: #f5a623 !important;
+  position: relative !important;
+}
+body:not(.login-pf) .ct-switcher .hostname::before {
+  content: "rus";
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
+  pointer-events: none !important;
 }
 
 /* ── Kill all borders between items (removes the "plank" gaps) ── */
@@ -319,10 +374,16 @@ body:not(.login-pf) .pf-v6-c-nav__section-title {
 }
 
 /* ── Masthead ─────────────────────────────────────────────────── */
+/* #topnav is the container (transparent, 86px), masthead is inner (70px)
+   Set background on #topnav too to fill the 16px gap at bottom */
+body:not(.login-pf) #topnav {
+  background: #1a2233 !important;
+  border-bottom: 1px solid #253045 !important;
+}
 body:not(.login-pf) .pf-v6-c-masthead,
 body:not(.login-pf) .pf-v6-c-page__header {
-  background: #0f172a !important;
-  border-bottom: 1px solid #253045 !important;
+  background: transparent !important;
+  border-bottom: none !important;
 }
 body:not(.login-pf) .pf-v6-c-masthead__brand,
 body:not(.login-pf) .pf-v6-c-masthead__content,
@@ -344,68 +405,94 @@ body:not(.login-pf) a       { color: #60a5fa; }
 body:not(.login-pf) a:hover { color: #93c5fd; }
 
 /* ══════════════════════════════════════════════════════════════
-   LIGHT THEME  (prefers-color-scheme: light)
-   Same ghost-pill pattern — adapted for light backgrounds.
+   LIGHT THEME
+   Cockpit sets class="pf-v6-theme-dark" on <html> in dark mode.
+   Light mode = class is absent or "pf-v6-theme-light".
+   Selector: html:not(.pf-v6-theme-dark) — works regardless of OS.
+   Also keep @media fallback for safety.
    ══════════════════════════════════════════════════════════════ */
-@media (prefers-color-scheme: light) {
 
-  body:not(.login-pf) .pf-v6-c-page__sidebar {
-    background: #f8fafc !important;
-    border-right: 1px solid #e2e8f0 !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-page__sidebar,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #nav-system,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .area-ct-subnav,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #hosts-sel,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #sidebar-toggle {
+  background: #f8fafc !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
 
-  /* Ghost pill in light mode — transparent inactive */
-  body:not(.login-pf) .pf-v6-c-nav__link,
-  body:not(.login-pf) .pf-v6-c-nav__link:visited,
-  body:not(.login-pf) .pf-v6-c-nav__item > a {
-    color: #64748b !important;
-    background: transparent !important;
-    background-color: transparent !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__link,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__link:visited,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__item > a {
+  color: #64748b !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
 
-  body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]),
-  body:not(.login-pf) .pf-v6-c-nav__item > a:hover {
-    background: rgba(15,23,42,0.06) !important;
-    background-color: rgba(15,23,42,0.06) !important;
-    color: #1e293b !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]),
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__item > a:hover {
+  background: rgba(15,23,42,0.06) !important;
+  background-color: rgba(15,23,42,0.06) !important;
+  color: #1e293b !important;
+}
 
-  body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
-  body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"],
-  body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
-    background: rgba(37,99,235,0.09) !important;
-    background-color: rgba(37,99,235,0.09) !important;
-    color: #2563eb !important;
-    font-weight: 600 !important;
-    box-shadow: inset 3px 0 0 #2563eb !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"],
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
+  background: rgba(37,99,235,0.09) !important;
+  background-color: rgba(37,99,235,0.09) !important;
+  color: #2563eb !important;
+  font-weight: 600 !important;
+  box-shadow: inset 3px 0 0 #2563eb !important;
+}
 
-  body:not(.login-pf) .pf-v6-c-nav__section-title {
-    color: #94a3b8 !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-nav__section-title {
+  color: #94a3b8 !important;
+}
 
-  /* Light masthead */
-  body:not(.login-pf) .pf-v6-c-masthead,
-  body:not(.login-pf) .pf-v6-c-page__header {
-    background: #ffffff !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    box-shadow: 0 1px 4px rgba(15,23,42,0.06) !important;
-  }
-  body:not(.login-pf) .pf-v6-c-masthead__brand,
-  body:not(.login-pf) .pf-v6-c-masthead__content,
-  body:not(.login-pf) .pf-v6-c-masthead a {
-    color: #0f172a !important;
-  }
-  body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
-  body:not(.login-pf) .pf-v6-c-masthead button {
-    color: #64748b !important;
-  }
-  body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button:hover,
-  body:not(.login-pf) .pf-v6-c-masthead button:hover {
-    color: #0f172a !important;
-    background: #f1f5f9 !important;
-  }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #topnav {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.06) !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-page__header {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead__brand,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead__content,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead a {
+  color: #0f172a !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead button {
+  color: #64748b !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button:hover,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .pf-v6-c-masthead button:hover {
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
+}
 
-  body:not(.login-pf) a       { color: #2563eb; }
-  body:not(.login-pf) a:hover { color: #1d4ed8; }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) a       { color: #2563eb; }
+html:not(.pf-v6-theme-dark) body:not(.login-pf) a:hover { color: #1d4ed8; }
+
+/* ── Light theme: brand text overrides ────────────────────────── */
+html:not(.pf-v6-theme-dark) body:not(.login-pf) #hosts-sel {
+  border-bottom: none !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .username,
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .at {
+  color: #94a3b8 !important;
+}
+/* "rusNAS" in light mode: keep gold NAS, make rus dark */
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .hostname {
+  color: #f5a623 !important;
+  -webkit-text-fill-color: #f5a623 !important;
+}
+html:not(.pf-v6-theme-dark) body:not(.login-pf) .ct-switcher .hostname::before {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }

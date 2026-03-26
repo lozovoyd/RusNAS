@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<div class="stat-cards">
+  <div class="stat-card"><div class="num">{{ total_serials }}</div><div class="label">Серийных номеров</div></div>
+  <div class="stat-card"><div class="num">{{ active_licenses }}</div><div class="label">Активных лицензий</div></div>
+  <div class="stat-card"><div class="num">{{ expiring_soon | length }}</div><div class="label">Истекают в 30 дней</div></div>
+</div>
+{% if expiring_soon %}
+<h3 style="margin-bottom:12px;font-size:16px">Истекают в ближайшие 30 дней</h3>
+<table><tr><th>Серийный номер</th><th>Клиент</th><th>Истекает</th><th></th></tr>
+{% for l in expiring_soon %}
+<tr><td style="font-family:monospace">{{ l.serial }}</td><td>{{ l.customer or '—' }}</td>
+<td>{{ l.expires_at }}</td>
+<td><a href="/admin/license/{{ l.id }}" class="btn btn-secondary" style="font-size:12px">Просмотр</a></td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

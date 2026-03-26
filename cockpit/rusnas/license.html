@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Лицензия — rusNAS</title>
+  <link rel="stylesheet" href="../base1/cockpit.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="../base1/cockpit.js"></script>
+</head>
+<body>
+<div class="container-fluid" style="padding:24px">
+  <h2>🔑 Лицензия</h2>
+
+  <!-- Status card -->
+  <div id="license-status-card" class="section" style="max-width:640px;margin-bottom:24px;border-left:3px solid var(--primary)">
+    <div id="lic-loading" class="text-muted" style="padding:8px 0">⏳ Загрузка лицензии...</div>
+    <div id="lic-info" style="display:none">
+      <div style="margin-bottom:6px"><strong>Серийный номер:</strong> <span id="lic-serial" style="font-family:monospace"></span></div>
+      <div style="margin-bottom:6px"><strong>Статус:</strong> <span id="lic-status"></span></div>
+      <div style="margin-bottom:6px"><strong>Клиент:</strong> <span id="lic-customer"></span></div>
+      <div style="margin-bottom:6px"><strong>Действует до:</strong> <span id="lic-expires"></span></div>
+      <div style="margin-bottom:6px"><strong>Модули:</strong> <span id="lic-features"></span></div>
+    </div>
+    <div id="lic-no-license" style="display:none" class="text-muted">
+      Лицензия не активирована
+    </div>
+  </div>
+
+  <!-- Activation form -->
+  <div class="section" style="max-width:640px">
+    <h4 style="margin-top:0">Активировать лицензию</h4>
+    <p class="text-muted" style="font-size:13px">
+      Получите RNAC-код на <a href="https://activate.rusnas.ru" target="_blank">activate.rusnas.ru</a>,
+      введите серийный номер вашего устройства и скопируйте полученный код активации.
+    </p>
+    <div class="form-group">
+      <label for="rnac-input">Код активации (RNAC-...)</label>
+      <textarea id="rnac-input" rows="6"
+        placeholder="RNAC-&#10;Ak3fP 2XqmB 9zK4L wN7Pq ...&#10;&#10;Вставьте весь код целиком"
+        style="font-family:monospace;font-size:12px;resize:vertical"></textarea>
+    </div>
+    <p class="text-muted" id="reactivate-hint" style="font-size:12px;display:none">
+      Если нужно обновить лицензию (продление, новые модули) — вставьте новый RNAC-код и нажмите Активировать снова.
+    </p>
+    <div id="activate-error" class="alert alert-danger" style="display:none"></div>
+    <div id="activate-success" class="alert alert-success" style="display:none"></div>
+    <button id="btn-activate" class="btn btn-primary">Активировать</button>
+  </div>
+</div>
+<script src="js/license.js"></script>
+</body>
+</html>

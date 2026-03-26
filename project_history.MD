@@ -2131,3 +2131,101 @@ link2_mCurrentVar: 'rgba(37,99,235,0.09)' ← m-current var cascades to all
 - **PF6 aria-current bug**: Cockpit PatternFly 6 ставит `aria-current="false"` на ВСЕ неактивные ссылки — attribute-selector `[aria-current]` матчит их. Правильно: `[aria-current="page"]`
 - **CSS variable cascade**: `--pf-v6-c-nav__link--m-current--BackgroundColor` на `.pf-v6-c-nav` наследуется всеми потомками через CSS inheritance, даже если прямой `background: transparent !important` написан на самом элементе-ссылке
 - **Решение**: Только прямые `!important` property overrides (не CSS variable переопределения на родителе)
+
+---
+
+## Сессия 2026-03-26 — Bootstrap Installer + License Server + Cockpit License Page
+
+### Цель
+Реализовать полную систему дистрибуции rusNAS: bootstrap-скрипт для установки, license server на VPS, страницу активации лицензии в Cockpit.
+
+### Что было сделано (3 плана, 13 задач, 14 коммитов)
+
+**Branch:** `feat/bootstrap-installer-spec` (не слит в main — ожидает деплоя на реальный VPS)
+
+#### Bootstrap Installer (`bootstrap.sh`)
+- Одна команда: `curl -fsSL https://activate.rusnas.ru/install | bash -s -- RUSNAS-XXXX-...`
+- Preflight: root check, Debian 13 (trixie) check, serial format regex, connectivity check
+- Пишет серийник в `/etc/rusnas/serial`
+- Fetches install-token с license server (идемпотентно — пропускает если `license.json` уже есть)
+- Настраивает apt repo: GPG keyring + sources.list + auth.conf.d
+- Устанавливает `rusnas-system`
+- Serial regex: `RUSNAS-[BCDFGHJKLMNPQRSTVWXYZ2345679]{4}` (без гласных, без 0/1)
+
+#### VPS nginx конфиг (`vps-setup/nginx-rusnas.conf`)
+- `/install` → статический bootstrap.sh
+- `/apt/` → reprepro с nginx `auth_request` (порт 8766 apt-auth service)
+- `/` → proxy_pass на FastAPI license server (порт 8765)
+- 180-day grace period через apt-auth service
+
+#### rusNAS License Server (`rusnas-license-server/`)
+Полностью реализован. **22/22 тестов проходят**.
+
+| Файл | Назначение |
+|------|-----------|
+| `crypto.py` | Ed25519 sign/verify, Base62, RNAC formatting |
+| `db.py` | aiosqlite CRUD: serials, licenses, activations, audit_log |
+| `models.py` | Pydantic v2, serial validation regex |
+| `server.py` | FastAPI: `/api/activate`, `/api/status`, `/api/install-token`, `/admin/*` |
+| `apt_auth.py` | nginx auth_request — grace period + per-component gating |
+| `admin.py` | CLI: serial add/import/list, license create/show/revoke, gen-code, report |
+| `keygen.py` | Генератор ключевой пары Ed25519 оператора |
+| `admin_web.py` | FastAPI router `/admin/*` (Jinja2 server-rendered) |
+| `static/activate.html` | Customer activation portal (no CDN, dark theme) |
+| `static/admin/*.html` | 6 Jinja2 templates: base, dashboard, serials, licenses, new, detail |
+| `rusnas-license.service` | systemd unit для uvicorn server (порт 8765) |
+| `rusnas-apt-auth.service` | systemd unit для apt-auth (порт 8766) |
+| `.env.example` | Конфиг шаблон |
+| `pytest.ini` | asyncio_mode=auto (требуется для pytest-asyncio ≥1.3) |
+
+**Ключевые архитектурные решения:**
+- Offline activation: устройство **никогда** не обращается к серверу напрямую. Только пользователь copy-pastes RNAC-код
+- apt-auth Grace period: 180 дней с первой установки все пакеты доступны без лицензии
+- Install token идемпотентен: `first_install_at` пишется только один раз (не перезаписывается)
+- RNAC формат: `RNAC-\n` + 8 блоков по 5 символов в строке
+- apt-auth: два компонента — `main` (требует `updates_features`) и `security` (требует любую активную лицензию)
+
+**Operator public key** (Ed25519 raw, base64):
+```
+1d6UQHGzNP3wZPQVFpXUkc5qF+5UAyQlrUMSQAffdA0=
+```
+Файл: `rusnas-license-server/operator_public.pem` (уже в репо)
+Private key: `rusnas-license-server/operator_private.pem` (в `.gitignore` — только на VPS)
+
+#### Cockpit License Page (`cockpit/rusnas/`)
+- `license.html` — статус-карточка + textarea для RNAC-кода
+- `js/license.js` — полный Ed25519 в браузере через WebCrypto API (`crypto.subtle.importKey`, `Ed25519`)
+- Пишет `/etc/rusnas/license.json` и `/etc/apt/auth.conf.d/rusnas.conf` через `cockpit.file superuser`
+- Задеплоено на VM 10.10.10.72, серийник `/etc/rusnas/serial` = `RUSNAS-TEST-BCDF-GHJK-LMNP`
+- Добавлено в `manifest.json` как "Лицензия 🔑" (order 13)
+
+### Что ещё нужно сделать перед продакшн-деплоем
+
+1. **Настроить реальный VPS**: DNS `activate.rusnas.ru` → IP VPS, certbot TLS, useradd rusnas-license
+2. **Создать apt репозиторий**: reprepro + nginx + собрать deb-пакет `rusnas-system`
+3. **Ansible role**: разложить `operator_public.pem` на устройства в `/etc/rusnas/`
+4. **Инициализация БД на VPS**: `python3 admin.py serial add ...` для первой партии серийников
+5. **MCP Session 2**: SSE-стриминг, Ollama integration (отдельная ветка)
+
+### Файлы изменены
+
+| Файл | Изменения |
+|------|-----------|
+| `rusnas-license-server/` | Новый модуль — полная реализация license server |
+| `bootstrap.sh` | Новый — one-command installer |
+| `vps-setup/nginx-rusnas.conf` | Новый — nginx конфиг для VPS |
+| `vps-setup/README.md` | Новый — инструкция по деплою |
+| `cockpit/rusnas/license.html` | Новый — страница активации |
+| `cockpit/rusnas/js/license.js` | Новый — Ed25519 WebCrypto активация |
+| `cockpit/rusnas/manifest.json` | +license page entry |
+| `.gitignore` | Добавлены .worktrees/, node_modules, playwright-mcp |
+| `project_history.md` | эта запись |
+
+### Архитектурные заметки
+
+- **WebCrypto Ed25519**: `{ name: "Ed25519" }` работает в Chromium 113+ и Firefox 129+. Cockpit использует Chromium-based WebView — поддерживается
+- **Base62 в JS**: BigInt обязателен для ~350-символьных строк (> Number.MAX_SAFE_INTEGER)
+- **pytest-asyncio ≥1.3**: требует `asyncio_mode = "auto"` в pytest.ini — иначе async fixtures не работают (STRICT mode по умолчанию)
+- **FastAPI `@app.on_event("startup")`**: deprecated в пользу `lifespan`, но работает. Предупреждения при тестах — не ошибки
+- **python-multipart**: обязателен для FastAPI Form() endpoints — не включён в fastapi по умолчанию
+- **TemplateResponse в Starlette 1.0+**: первый аргумент — `request`, не в словаре контекста

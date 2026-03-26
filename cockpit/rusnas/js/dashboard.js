@@ -97,8 +97,10 @@ function pushHistory(arr, val) {
 // ── Sparkline renderer ────────────────────────────────────────────────────
 // ── Sparkline helpers ──────────────────────────────────────────────────────
 
-function _sparkPoints(values, w, h, padT, padB) {
-    var maxVal = Math.max.apply(null, values.concat([1]));
+function _sparkPoints(values, w, h, padT, padB, fixedMax) {
+    var maxVal = fixedMax !== undefined
+        ? Math.max(fixedMax, Math.max.apply(null, values.concat([1])))
+        : Math.max.apply(null, values.concat([1]));
     var n = values.length;
     return values.map(function(v, i) {
         return {
@@ -133,13 +135,13 @@ function _sparkGridLines(w, h, padT, padB) {
     return out;
 }
 
-function renderSparkline(svgId, values, color) {
+function renderSparkline(svgId, values, color, fixedMax) {
     var svg = el(svgId);
     if (!svg) return;
     var w = svg.clientWidth || 280;
     var h = svg.clientHeight || 56;
     var padT = 4, padB = 3;
-    var pts = _sparkPoints(values, w, h, padT, padB);
+    var pts = _sparkPoints(values, w, h, padT, padB, fixedMax);
     var line = _sparkPath(pts);
     var area = line + ' L' + pts[pts.length-1].x + ',' + (h - padB) +
                ' L' + pts[0].x + ',' + (h - padB) + 'Z';
@@ -617,7 +619,7 @@ function _parseCpuOut(out) {
     var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
     el("cpu-pct").textContent = pct + "%";
     el("cpu-pct").className = "db-metric-big " + cls;
-    renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44");
+    renderSparkline("spark-cpu", sparkCpu, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#22aa44", 100);
 
     var la = loadLine ? loadLine.split(" ").slice(0, 3).join(" ") : "—";
     el("cpu-detail").textContent = ncores + " ядер | Load: " + la;
@@ -654,7 +656,7 @@ function _parseRamOut(out) {
     var cls = pctClass(pct);
     el("ram-pct").textContent = pct + "%";
     el("ram-pct").className = "db-metric-big " + cls;
-    renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc");
+    renderSparkline("spark-ram", sparkRam, pct >= 95 ? "#cc2200" : pct >= 80 ? "#e68a00" : "#0066cc", 100);
     el("ram-detail").textContent = fmtBytes(used) + " / " + fmtBytes(total);
     el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
 }

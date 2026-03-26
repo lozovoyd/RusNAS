@@ -1,5 +1,87 @@
 # Task: rusNAS License Server
 
+## Статус реализации: ✅ Реализовано 2026-03-26
+
+**Ветка:** `feat/bootstrap-installer-spec` (не смержена в `main` на 2026-03-26)
+**Тесты:** 22/22 pass (pytest + pytest-asyncio)
+**Cockpit страница:** задеплоена на тестовый VM (10.10.10.72)
+
+### Реальная структура проекта (после реализации)
+
+```
+rusnas-license-server/
+├── server.py               # FastAPI app (port 8765) — API + activation page
+├── models.py               # Pydantic v2 models + SERIAL_PATTERN + ALL_FEATURES
+├── crypto.py               # Ed25519 sign/verify, Base62 encode/decode, RNAC format
+├── db.py                   # aiosqlite CRUD + set_first_install_at + get_activation_count
+├── admin.py                # CLI: serial add/import/list, license create/show/revoke, gen-code, report
+├── admin_web.py            # Jinja2 web admin UI (router /admin, Bearer auth)
+├── apt_auth.py             # FastAPI app (port 8766) — nginx auth_request subrequest handler
+├── keygen.py               # Ed25519 keypair generator
+├── static/
+│   ├── activate.html       # Customer activation portal (input mask, copy button)
+│   └── admin/
+│       ├── base.html       # Jinja2 base layout with nav
+│       ├── dashboard.html  # Stats overview
+│       ├── serials.html    # Serial list
+│       ├── licenses.html   # License list
+│       ├── license_new.html # Create license form
+│       └── license_detail.html # License details + revoke
+├── tests/
+│   ├── conftest.py         # session-scoped keypair fixture
+│   ├── test_crypto.py      # 6 tests: keypair, sign/verify, tamper, base62, leading zeros, format
+│   ├── test_db.py          # 5 async tests: CRUD operations
+│   ├── test_server.py      # 6 async tests: activate, status, install-token
+│   └── test_apt_auth.py    # 5 async tests: grace period, license gating, token tamper
+├── requirements.txt        # fastapi, uvicorn, aiosqlite, cryptography, pydantic, python-dotenv, slowapi, jinja2, python-multipart
+├── pytest.ini              # asyncio_mode = auto (REQUIRED for pytest-asyncio ≥1.3)
+├── rusnas-license.service  # systemd unit (user: rusnas-license, port 8765)
+├── rusnas-apt-auth.service # systemd unit (port 8766, localhost only)
+├── .env.example            # PRIVATE_KEY_PATH, PUBLIC_KEY_PATH, DB_PATH, HOST, PORT, ADMIN_TOKEN
+└── README.md               # VPS setup + CLI usage + API docs
+
+bootstrap.sh               # One-command installer (at repo root)
+vps-setup/
+├── nginx-rusnas.conf       # nginx virtual host for activate.rusnas.ru
+└── README.md               # Deploy instructions
+
+cockpit/rusnas/
+├── license.html            # Cockpit plugin page (13th page, order:13)
+├── js/license.js           # Ed25519 verify (WebCrypto) + write license.json + apt conf
+└── manifest.json           # Added "license" menu entry
+```
+
+### Оператор ключевая пара (тестовая)
+
+**Публичный ключ (raw base64, вшит в license.js):**
+```
+1d6UQHGzNP3wZPQVFpXUkc5qF+5UAyQlrUMSQAffdA0=
+```
+> ⚠️ При деплое на prod — `python3 keygen.py` → новая пара → обновить `OPERATOR_PUBLIC_KEY_B64` в `license.js`
+
+### Известные gotchas (при доработке)
+
+| Проблема | Решение |
+|---------|---------|
+| `pytest-asyncio` ≥1.3 STRICT mode | `pytest.ini` с `asyncio_mode = auto` — обязательно |
+| `python-multipart` отсутствует | FastAPI Form() требует его — добавлен в requirements.txt |
+| Starlette 1.0 TemplateResponse | `request` — первый позиционный аргумент, НЕ в context dict |
+| `@app.on_event("startup")` deprecated | DeprecationWarning — нефатально, тесты проходят; при рефакторе заменить на `lifespan` handler |
+| Тестовый серийник с `8` в charset | `8` не в алфавите `[BCDFGHJKLMNPQRSTVWXYZ2345679]`; в тестах использовать только валидные символы |
+| `XXXX` в тестовом серийнике | `X` не в charset — тесты падают; использовать символы из алфавита |
+| `form-control` на `<textarea>` в Cockpit | PatternFly/Bootstrap `.form-control` переопределяет dark mode — убрать класс, оставить `.form-group textarea` |
+
+### Pending (не реализовано)
+
+- [ ] VPS деплой: systemd юниты, apt репозиторий (reprepro), nginx конфиг
+- [ ] Ansible role для раскатки license server
+- [ ] Пакет `rusnas-system` (deb пакет, installs Cockpit plugin)
+- [ ] Реальная сборка и подписание deb пакетов через reprepro
+- [ ] Тест bootstrap.sh на реальной Debian 13 VM (требует VPS)
+- [ ] Apt-auth integration test (requires reprepro + nginx)
+
+---
+
 ## Overview
 
 Серверная часть системы лицензирования rusNAS. Развёртывается оператором на отдельном VPS (не на устройстве клиента). Отвечает за:
@@ -804,3 +886,63 @@ python3 admin.py pubkey
 5. **Лицензию можно переактивировать** — если клиент потерял код, он может зайти на сайт и получить новый. Каждый вызов `/api/activate` генерирует новый код с актуальным `issued_at`. Это логируется в `activations`.
 
 6. **`features_json` в базе** — только addon-функции, которые оператор явно купил. `core` и `updates_security` добавляются автоматически при построении payload в `server.py`, их не нужно хранить в каждой записи лицензии.
+
+---
+
+## Часть 12: Cockpit License Page (`license.html` + `js/license.js`)
+
+Страница активации в Cockpit плагине — 13-я страница (`"license"` в `manifest.json`, order: 13).
+
+### Архитектура (offline-first)
+
+Устройство **никогда не обращается к license server напрямую**. Весь процесс:
+1. Пользователь открывает `https://activate.rusnas.ru/` в браузере, вводит серийник
+2. Сервер генерирует RNAC-код (подписанный Ed25519)
+3. Пользователь копирует код, вставляет в Cockpit → Лицензия
+4. JavaScript в license.js верифицирует подпись через **WebCrypto API** (browser-side)
+5. При успехе — записывает `license.json` и apt credentials через Cockpit file API
+
+### Ключевые функции `license.js`
+
+```javascript
+// Константы
+const OPERATOR_PUBLIC_KEY_B64 = "1d6UQHGzNP3wZPQVFpXUkc5qF+5UAyQlrUMSQAffdA0="; // raw Ed25519 32 bytes
+const APT_HOST = "activate.rusnas.ru/apt/";
+
+// Декодирование Base62 (BigInt arithmetic, leading-zeros preserving)
+function base62Decode(s) { ... }
+
+// Нормализация: убрать "RNAC-", пробелы, переносы строк
+function normalizeActivationCode(input) { ... }
+
+// WebCrypto Ed25519 verify: importKey("raw",...) → subtle.verify("Ed25519",...)
+async function verifyAndDecode(rawBase62) { ... }
+
+// Cockpit file read/write (wrapped in Promise from cockpit.file().done().fail())
+function readFile(path) { ... }
+function writeFile(path, content, superuser) { ... }  // superuser=true → {superuser:"require"}
+
+// Загрузка статуса из /etc/rusnas/license.json
+async function loadLicenseStatus() { ... }
+
+// Активация: verify → check serial → write /etc/rusnas/license.json → write apt conf
+async function activateLicense() { ... }
+```
+
+### Что записывается при активации
+
+| Файл | Содержимое | Права |
+|------|-----------|-------|
+| `/etc/rusnas/license.json` | Payload из RNAC-кода (JSON) | superuser write |
+| `/etc/apt/auth.conf.d/rusnas.conf` | `machine ... login ... password <rawBase62>` | superuser write |
+
+**Apt credentials:** `login = serial`, `password = rawBase62` (сам код активации служит apt-токеном).
+
+### Critical notes для `license.js`
+
+- **WebCrypto Ed25519:** `crypto.subtle.importKey("raw", keyBytes, { name: "Ed25519" }, false, ["verify"])` — работает в современных браузерах (Chrome 113+, Firefox 119+)
+- **Подпись:** первые 64 байта blob = signature, остальные = payload JSON bytes
+- **Серийник:** `payload.serial` в коде должен точно совпадать с `/etc/rusnas/serial` — иначе ошибка
+- **`form-control` класс:** НЕ использовать на `<textarea>` — PatternFly CSS переопределяет dark mode. Достаточно `.form-group textarea` из style.css
+- **`cockpit.file().read()`** — не требует superuser для чтения `/etc/rusnas/serial` и `license.json` (если файлы 644)
+- **`cockpit.file(..., {superuser:"require"}).replace()`** — для записи в `/etc/rusnas/` и `/etc/apt/auth.conf.d/`

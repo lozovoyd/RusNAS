@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Создать лицензию</h2>
+<form method="POST" action="/admin/license/new" style="max-width:560px">
+  <div class="form-group"><label>Серийный номер *</label><input name="serial" required placeholder="RUSNAS-..."></div>
+  <div class="form-group"><label>Тип лицензии</label>
+    <select name="license_type">
+      <option value="standard">Standard</option>
+      <option value="professional">Professional</option>
+      <option value="enterprise">Enterprise</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Клиент</label><input name="customer" placeholder="Название компании"></div>
+  <div class="form-group"><label>Истекает (оставьте пустым для бессрочной)</label><input name="expires" type="date"></div>
+  <div class="form-group"><label>Макс. томов</label><input name="max_volumes" type="number" value="4" min="1" max="128"></div>
+  <div class="form-group"><label>Модули</label>
+    {% for k, v in all_features.items() %}
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;color:#e0e6f0">
+      <input type="checkbox" name="features" value="{{ k }}" {% if k in ('core','updates_security') %}checked disabled{% endif %} style="width:auto">
+      {{ v }}
+    </label>
+    {% endfor %}
+  </div>
+  <button type="submit" class="btn btn-primary">Создать лицензию</button>
+  <a href="/admin/licenses" class="btn btn-secondary" style="margin-left:8px">Отмена</a>
+</form>
+{% endblock %}

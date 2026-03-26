@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+  <h2>Лицензии</h2>
+  <a href="/admin/license/new" class="btn btn-primary">+ Создать</a>
+</div>
+<div style="margin-bottom:16px">
+  <a href="/admin/licenses?filter=active" class="btn btn-secondary" style="margin-right:8px">Активные</a>
+  <a href="/admin/licenses?filter=expired" class="btn btn-secondary" style="margin-right:8px">Истёкшие</a>
+  <a href="/admin/licenses?filter=revoked" class="btn btn-secondary">Отозванные</a>
+</div>
+<table><tr><th>ID</th><th>Серийный номер</th><th>Клиент</th><th>Тип</th><th>Истекает</th><th>Статус</th><th></th></tr>
+{% for l in licenses %}
+<tr>
+  <td>{{ l.id }}</td>
+  <td style="font-family:monospace">{{ l.serial }}</td>
+  <td>{{ l.customer or '—' }}</td>
+  <td>{{ l.license_type }}</td>
+  <td>{{ l.expires_at or 'бессрочно' }}</td>
+  <td>
+    {% if l.revoked %}<span class="badge-revoked">Отозвана</span>
+    {% elif l.expires_at and l.expires_at < 9999999999 %}<span class="badge-active">Активна</span>
+    {% else %}<span class="badge-active">Активна</span>{% endif %}
+  </td>
+  <td><a href="/admin/license/{{ l.id }}" class="btn btn-secondary" style="font-size:12px">Детали</a></td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}
