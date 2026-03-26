@@ -119,8 +119,10 @@
 
   <!-- A1: Storage Usage -->
   <div class="db-card" id="card-storage" style="cursor:pointer" onclick="cockpit.jump('/rusnas/storage-analyzer')">
-    <div class="db-card-icon">💾</div>
-    <div class="db-card-title">STORAGE</div>
+    <div class="db-card-header">
+      <div class="db-card-icon">💾</div>
+      <div class="db-card-title">STORAGE</div>
+    </div>
     <div class="db-card-metric" id="storage-used-pct">—</div>
     <div class="db-progress-bar">
       <div class="db-progress-fill" id="storage-bar" style="width:0%"></div>
@@ -142,15 +144,19 @@
 
   <!-- A2: RAID Status -->
   <div class="db-card" id="card-raid" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
-    <div class="db-card-icon">🔧</div>
-    <div class="db-card-title">RAID</div>
+    <div class="db-card-header">
+      <div class="db-card-icon">🔧</div>
+      <div class="db-card-title">RAID</div>
+    </div>
     <div id="raid-list" class="db-raid-list"><span class="text-muted">Загрузка…</span></div>
   </div>
 
   <!-- A3: Disk Health -->
   <div class="db-card" id="card-disks" style="cursor:pointer" onclick="cockpit.jump('/rusnas/disks')">
-    <div class="db-card-icon">💿</div>
-    <div class="db-card-title">ДИСКИ</div>
+    <div class="db-card-header">
+      <div class="db-card-icon">💿</div>
+      <div class="db-card-title">ДИСКИ</div>
+    </div>
     <div class="db-card-metric" id="disk-summary">—</div>
     <div class="db-card-tags" id="disk-tags"></div>
     <div id="ssd-cache-status" style="margin-top:6px;font-size:11px;color:var(--db-muted)"></div>
@@ -158,8 +164,10 @@
 
   <!-- A4: Shares & Protocols -->
   <div class="db-card" id="card-shares" style="cursor:pointer" onclick="cockpit.jump('/rusnas')">
-    <div class="db-card-icon">📁</div>
-    <div class="db-card-title">ОБЩИЙ ДОСТУП</div>
+    <div class="db-card-header">
+      <div class="db-card-icon">📁</div>
+      <div class="db-card-title">ОБЩИЙ ДОСТУП</div>
+    </div>
     <div id="services-list" class="db-service-list"><span class="text-muted">Загрузка…</span></div>
   </div>
 
@@ -180,7 +188,7 @@
   </div>
 
   <!-- B2: Memory -->
-  <div class="db-card">
+  <div class="db-card" id="card-ram">
     <div class="db-perf-header">
       <div><span class="db-card-icon">🧠</span> <span class="db-card-title">RAM</span></div>
       <div class="db-metric-big" id="ram-pct">—%</div>
@@ -231,13 +239,19 @@
 
   <!-- D1: System Events -->
   <div class="db-card">
-    <div class="db-card-title" style="margin-bottom:10px">📋 СОБЫТИЯ</div>
+    <div class="db-card-header" style="margin-bottom:10px">
+      <div class="db-card-icon">📋</div>
+      <div class="db-card-title">СОБЫТИЯ</div>
+    </div>
     <div id="events-list" class="db-events-list"><span class="text-muted">Загрузка…</span></div>
   </div>
 
   <!-- D2: Snapshot Status -->
   <div class="db-card" style="cursor:pointer" onclick="cockpit.jump('/rusnas/snapshots')">
-    <div class="db-card-title" style="margin-bottom:10px">📸 СНАПШОТЫ</div>
+    <div class="db-card-header" style="margin-bottom:10px">
+      <div class="db-card-icon">📸</div>
+      <div class="db-card-title">СНАПШОТЫ</div>
+    </div>
     <div id="snap-list" class="db-snap-list"><span class="text-muted">Загрузка…</span></div>
     <div class="db-card-sub" id="snap-total" style="margin-top:8px"></div>
   </div>

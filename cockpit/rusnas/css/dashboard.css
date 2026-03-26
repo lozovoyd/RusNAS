@@ -179,6 +179,9 @@
 
 /* Guard card */
 .db-guard-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.db-card-header  { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.db-card-header .db-card-title { margin-bottom: 0; }
+.db-card-header .db-card-icon  { margin-bottom: 0; font-size: 16px; line-height: 1; }
 .db-guard-mode { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
 
 /* Guard bottom status bar */
@@ -704,153 +707,367 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   EXPERIMENTAL THEME — Dashboard overrides
+   EXPERIMENTAL THEME — Full prototype-inspired redesign
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Identity bar — sleek top header */
+/* Identity bar — compact topbar */
 :root[data-theme="experimental"] .db-identity-bar {
-    background: #0e1020;
-    border-bottom: 1px solid rgba(91,141,245,0.12);
+    background: #0d0f1d;
+    border-bottom: 1px solid rgba(91,141,245,0.1);
     color: #6b7299;
     font-size: 11px;
-    letter-spacing: 0.04em;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0;
     padding: 0 20px;
     height: 36px;
+    gap: 20px;
 }
-:root[data-theme="experimental"] .db-identity-bar strong {
-    color: #c8ccde;
-    font-weight: 500;
-}
-:root[data-theme="experimental"] .db-identity-sep { color: rgba(91,141,245,0.2); }
+:root[data-theme="experimental"] .db-identity-bar strong { color: #c8ccde; font-weight: 500; }
+:root[data-theme="experimental"] .db-identity-sep { color: rgba(91,141,245,0.15); }
 
-/* Metric cards — flat border, no heavy shadow */
+/* ── Cards ──────────────────────────────────────────────────────────────── */
 :root[data-theme="experimental"] .db-card {
     background: #1b1e33;
     border: 1px solid #272b47;
     border-radius: 8px;
     box-shadow: none;
-    transition: border-color 150ms, box-shadow 150ms;
+    padding: 14px 16px;
+    transition: border-color 150ms, box-shadow 150ms, transform 150ms;
 }
 :root[data-theme="experimental"] .db-card:hover {
-    border-color: rgba(91,141,245,0.3);
-    box-shadow: 0 0 0 1px rgba(91,141,245,0.08), 0 4px 16px rgba(0,0,0,0.3);
+    border-color: rgba(91,141,245,0.28);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.35);
     transform: translateY(-1px);
 }
+:root[data-theme="experimental"] .db-card-ok    { border-left: 2px solid #3dd68c; }
+:root[data-theme="experimental"] .db-card-warn  { border-left: 2px solid #f0a030; }
+:root[data-theme="experimental"] .db-card-crit  { border-left: 2px solid #e05858; }
+:root[data-theme="experimental"] .db-card-blue  { border-left: 2px solid #5b8df5; }
 
-/* Status color accent on left edge */
-:root[data-theme="experimental"] .db-card-ok    { border-left: 3px solid #3dd68c; }
-:root[data-theme="experimental"] .db-card-warn  { border-left: 3px solid #f0a030; }
-:root[data-theme="experimental"] .db-card-crit  { border-left: 3px solid #e05858; }
-:root[data-theme="experimental"] .db-card-blue  { border-left: 3px solid #5b8df5; }
+/* ── Card header: icon + label row ─────────────────────────────────────── */
+:root[data-theme="experimental"] .db-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+:root[data-theme="experimental"] .db-card-header .db-card-title { margin-bottom: 0; }
 
+/* ── Card typography ────────────────────────────────────────────────────── */
 :root[data-theme="experimental"] .db-card-title {
     font-size: 10px;
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #6b7299;
-    font-weight: 600;
+    color: #5b7299;
 }
 :root[data-theme="experimental"] .db-card-metric {
-    font-size: 30px;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    color: #eef0f7;
+    margin-bottom: 10px;
+}
+:root[data-theme="experimental"] .db-metric-big {
+    font-size: 26px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: #eef0f7;
+    line-height: 1;
 }
 :root[data-theme="experimental"] .db-card-sub {
     font-size: 11px;
-    color: #6b7299;
+    color: #5b6a8a;
     font-family: "JetBrains Mono", ui-monospace, monospace;
     letter-spacing: 0;
+    margin-top: 4px;
 }
+:root[data-theme="experimental"] .db-card-tags { margin-top: 8px; gap: 4px; }
+
+/* ── Card icon — hide emoji, show SVG via background-image ──────────────── */
 :root[data-theme="experimental"] .db-card-icon {
-    opacity: 0.6;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    flex-shrink: 0;
+    background: center/contain no-repeat;
+    vertical-align: middle;
+    margin-bottom: 0;
+    opacity: 1;
 }
 
-/* Status dots — vivid with glow ring */
-:root[data-theme="experimental"] .db-dot-green {
-    background: #3dd68c;
-    box-shadow: 0 0 0 3px rgba(61,214,140,0.2);
+/* Top 4 metric card icons (SVG data-URIs, stroke accent color) */
+:root[data-theme="experimental"] #card-storage .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='22' y1='12' x2='2' y2='12'/><path d='M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/><line x1='6' y1='16' x2='6.01' y2='16'/><line x1='10' y1='16' x2='10.01' y2='16'/></svg>");
 }
-:root[data-theme="experimental"] .db-dot-blue {
-    background: #5b8df5;
-    box-shadow: 0 0 0 3px rgba(91,141,245,0.2);
+:root[data-theme="experimental"] #card-raid .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><ellipse cx='12' cy='5' rx='9' ry='3'/><path d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3'/><path d='M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5'/></svg>");
 }
-:root[data-theme="experimental"] .db-dot-orange {
-    background: #f0a030;
-    box-shadow: 0 0 0 3px rgba(240,160,48,0.2);
+:root[data-theme="experimental"] #card-disks .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polygon points='12 2 2 7 12 12 22 7 12 2'/><polyline points='2 17 12 22 22 17'/><polyline points='2 12 12 17 22 12'/></svg>");
 }
-:root[data-theme="experimental"] .db-dot-red {
-    background: #e05858;
-    box-shadow: 0 0 0 3px rgba(224,88,88,0.2);
-}
-:root[data-theme="experimental"] .db-dot-purple {
-    background: #9b72f5;
-    box-shadow: 0 0 0 3px rgba(155,114,245,0.2);
-}
-:root[data-theme="experimental"] .db-dot-gray {
-    background: #3a3f68;
+:root[data-theme="experimental"] #card-shares .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='18' cy='5' r='3'/><circle cx='6' cy='12' r='3'/><circle cx='18' cy='19' r='3'/><line x1='8.59' y1='13.51' x2='15.42' y2='17.49'/><line x1='15.41' y1='6.51' x2='8.59' y2='10.49'/></svg>");
 }
 
-/* Progress bar — thin stripe */
+/* Perf card icons */
+:root[data-theme="experimental"] #card-cpu .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f0a030' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='4' width='16' height='16' rx='2'/><rect x='9' y='9' width='6' height='6'/><line x1='9' y1='1' x2='9' y2='4'/><line x1='15' y1='1' x2='15' y2='4'/><line x1='9' y1='20' x2='9' y2='23'/><line x1='15' y1='20' x2='15' y2='23'/><line x1='20' y1='9' x2='23' y2='9'/><line x1='20' y1='14' x2='23' y2='14'/><line x1='1' y1='9' x2='4' y2='9'/><line x1='1' y1='14' x2='4' y2='14'/></svg>");
+}
+:root[data-theme="experimental"] #card-ram .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e05858' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 19v-3'/><path d='M10 19v-3'/><path d='M14 19v-3'/><path d='M18 19v-3'/><path d='M8 11V9'/><path d='M16 11V9'/><path d='M12 11V9'/><path d='M2 15h20'/><path d='M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.1a2 2 0 0 0 0 3.837V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.1a2 2 0 0 0 0-3.837Z'/></svg>");
+}
+:root[data-theme="experimental"] #card-net .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233dd68c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='2' width='6' height='6' rx='1'/><rect x='16' y='2' width='6' height='6' rx='1'/><rect x='16' y='16' width='6' height='6' rx='1'/><rect x='2' y='16' width='6' height='6' rx='1'/><path d='M5 8v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8'/><line x1='12' y1='13' x2='12' y2='8'/></svg>");
+}
+
+/* Disk I/O icon (in .db-perf-header span) */
+:root[data-theme="experimental"] .db-card:has(#spark-io) .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 12 18 12 15 21 9 3 6 12 2 12'/></svg>");
+}
+
+/* Widget card icons */
+:root[data-theme="experimental"] .db-card:has(#events-list) .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/><line x1='10' y1='9' x2='8' y2='9'/></svg>");
+}
+:root[data-theme="experimental"] .db-card:has(#snap-list) .db-card-icon {
+    background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b8df5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z'/><circle cx='12' cy='13' r='4'/></svg>");
+}
+:root[data-theme="experimental"] #card-ups .db-card-icon,
+:root[data-theme="experimental"] #card-ups .db-card-title {
+    /* UPS uses db-guard-header — icon is in title text */
+}
+:root[data-theme="experimental"] #card-filebrowser .db-card-icon,
+:root[data-theme="experimental"] #card-guard .db-card-icon {
+    /* Guard + FileBrowser use db-guard-header with title+dot */
+}
+
+/* ── Perf header ────────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-perf-header > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ── Progress bars — thin 4px stripe with dark bg ──────────────────────── */
 :root[data-theme="experimental"] .db-progress-bar {
     height: 4px;
-    border-radius: 2px;
+    border-radius: 99px;
     background: #21253e;
+    margin: 8px 0 6px;
+    overflow: hidden;
 }
 :root[data-theme="experimental"] .db-progress-fill {
     height: 4px;
-    border-radius: 2px;
+    border-radius: 99px;
+    background: #3dd68c;
+    transition: width 0.5s ease;
+}
+:root[data-theme="experimental"] .db-progress-fill.warn { background: #f0a030; }
+:root[data-theme="experimental"] .db-progress-fill.crit { background: #e05858; }
+
+/* ── UPS charge bar */
+:root[data-theme="experimental"] .db-ups-charge-bar {
+    height: 4px;
+    border-radius: 99px;
+    background: #21253e;
+}
+:root[data-theme="experimental"] .db-ups-charge-fill {
+    height: 4px;
+    border-radius: 99px;
 }
 
-/* Sparklines — slightly more contrast */
-:root[data-theme="experimental"] .db-sparkline { opacity: 0.9; }
+/* ── Status dots — glow rings ───────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-status-dot { width: 7px; height: 7px; }
+:root[data-theme="experimental"] .db-dot-green  { background: #3dd68c; box-shadow: 0 0 0 3px rgba(61,214,140,0.2); }
+:root[data-theme="experimental"] .db-dot-blue   { background: #5b8df5; box-shadow: 0 0 0 3px rgba(91,141,245,0.2); }
+:root[data-theme="experimental"] .db-dot-orange { background: #f0a030; box-shadow: 0 0 0 3px rgba(240,160,48,0.2); }
+:root[data-theme="experimental"] .db-dot-red    { background: #e05858; box-shadow: 0 0 0 3px rgba(224,88,88,0.2); animation: db-blink 1.2s ease-in-out infinite; }
+:root[data-theme="experimental"] .db-dot-purple { background: #9b72f5; box-shadow: 0 0 0 3px rgba(155,114,245,0.2); }
+:root[data-theme="experimental"] .db-dot-gray   { background: #3a3f68; box-shadow: none; }
 
-/* RAID name / disk names — monospace */
-:root[data-theme="experimental"] .db-raid-name,
-:root[data-theme="experimental"] .db-disk-name {
+/* ── Service list — compact with inline dot status ─────────────────────── */
+:root[data-theme="experimental"] .db-svc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(91,141,245,0.06);
+    font-size: 12px;
+}
+:root[data-theme="experimental"] .db-svc-row:last-child { border-bottom: none; }
+:root[data-theme="experimental"] .db-svc-name {
+    font-weight: 500;
+    color: #c8ccde;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+}
+:root[data-theme="experimental"] .db-ok {
+    font-size: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+:root[data-theme="experimental"] .db-ok::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #3dd68c;
+    box-shadow: 0 0 0 2px rgba(61,214,140,0.2);
+    flex-shrink: 0;
+}
+:root[data-theme="experimental"] .db-ok::after {
+    content: "Активен";
+    font-size: 10px;
+    color: #3dd68c;
+    font-family: system-ui, sans-serif;
+    font-weight: 500;
+}
+:root[data-theme="experimental"] .db-warn {
+    font-size: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+:root[data-theme="experimental"] .db-warn::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #f0a030;
+    flex-shrink: 0;
+}
+:root[data-theme="experimental"] .db-warn::after {
+    content: "Предупреждение";
+    font-size: 10px;
+    color: #f0a030;
+    font-family: system-ui, sans-serif;
+    font-weight: 500;
+}
+:root[data-theme="experimental"] .db-crit {
+    font-size: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+:root[data-theme="experimental"] .db-crit::before {
+    content: "";
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #e05858;
+    flex-shrink: 0;
+}
+:root[data-theme="experimental"] .db-crit::after {
+    content: "Остановлен";
+    font-size: 10px;
+    color: #e05858;
+    font-family: system-ui, sans-serif;
+    font-weight: 500;
+}
+
+/* ── RAID list ─────────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-raid-list { font-size: 12px; }
+:root[data-theme="experimental"] .db-raid-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(91,141,245,0.06);
+}
+:root[data-theme="experimental"] .db-raid-row:last-child { border-bottom: none; }
+:root[data-theme="experimental"] .db-raid-name {
     font-family: "JetBrains Mono", ui-monospace, monospace;
     font-size: 12px;
-    letter-spacing: 0;
+    font-weight: 500;
+    color: #c8ccde;
+}
+:root[data-theme="experimental"] .db-raid-level {
+    font-size: 10px;
+    background: rgba(91,141,245,0.12);
+    color: #7ba6f8;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="experimental"] .db-raid-size {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    color: #5b7299;
+    margin-left: auto;
+}
+:root[data-theme="experimental"] .db-raid-progress { height: 3px; border-radius: 99px; background: #21253e; }
+:root[data-theme="experimental"] .db-raid-progress-fill { height: 3px; border-radius: 99px; background: #5b8df5; }
+
+/* ── Disk tags ──────────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+:root[data-theme="experimental"] .db-card-tags span {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px;
+    background: rgba(91,141,245,0.08);
+    border: 1px solid rgba(91,141,245,0.12);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: #7ba6f8;
 }
 
-/* Guard stats row */
-:root[data-theme="experimental"] .guard-stat-cell {
-    border-color: rgba(91,141,245,0.1);
+/* ── Sparklines ─────────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-sparkline { opacity: 0.95; }
+:root[data-theme="experimental"] .db-spark-legend { gap: 12px; }
+:root[data-theme="experimental"] .db-spark-legend-item { font-size: 11px; font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* ── Guard header (title + dot row) ─────────────────────────────────────── */
+:root[data-theme="experimental"] .db-guard-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(91,141,245,0.08);
 }
-:root[data-theme="experimental"] .guard-stat-label {
+:root[data-theme="experimental"] .db-guard-stats { gap: 0; }
+:root[data-theme="experimental"] .db-guard-stat {
+    padding: 8px 4px;
+    border-right: 1px solid rgba(91,141,245,0.08);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="experimental"] .db-guard-stat:last-child { border-right: none; }
+:root[data-theme="experimental"] .db-guard-stat small {
     font-size: 9px;
-    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: #6b7299;
+    letter-spacing: 0.08em;
+    color: #5b7299;
 }
 
-/* Section headings in dashboard */
+/* ── Grid layout ────────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] .db-grid-4,
+:root[data-theme="experimental"] .db-grid-3 { gap: 12px; }
+
+/* ── Alert banner ───────────────────────────────────────────────────────── */
+:root[data-theme="experimental"] #db-alert-banner {
+    border-radius: 6px;
+    border: 1px solid rgba(224,88,88,0.2);
+    background: rgba(30,10,18,0.9);
+    font-size: 12px;
+}
+
+/* ── Section title ──────────────────────────────────────────────────────── */
 :root[data-theme="experimental"] .db-section-title {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: #6b7299;
+    color: #3a4268;
     padding-bottom: 8px;
     border-bottom: 1px solid #1e2138;
     margin-bottom: 12px;
 }
 
-/* Grid layout — consistent gap */
-:root[data-theme="experimental"] .db-grid-4,
-:root[data-theme="experimental"] .db-grid-3 {
-    gap: 12px;
-}
-
-/* Alert banner */
-:root[data-theme="experimental"] #db-alert-banner {
-    border-radius: 6px;
-    border: 1px solid rgba(224,88,88,0.25);
-    background: rgba(45,22,32,0.8);
-    font-size: 13px;
-}
-
-/* Night Report */
+/* ── Night Report ───────────────────────────────────────────────────────── */
 :root[data-theme="experimental"] .db-night-report {
     background: #1b1e33;
     border: 1px solid #272b47;
@@ -866,8 +1083,8 @@
     border: 1px solid #272b47;
     border-radius: 6px;
 }
-:root[data-theme="experimental"] .nr-col {
-    border-right-color: #272b47;
-}
+:root[data-theme="experimental"] .nr-col { border-right-color: #272b47; }
 :root[data-theme="experimental"] .nr-col:last-child { border-right: none; }
+:root[data-theme="experimental"] .nr-score-ring { stroke: #5b8df5; }
+:root[data-theme="experimental"] .nr-score-bg { stroke: #21253e; }
 
