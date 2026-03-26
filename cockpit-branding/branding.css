@@ -236,59 +236,99 @@ a:hover { color: #e8703a !important; text-decoration: underline; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Cockpit Shell Nav Overrides (PatternFly v6)
-   — Theme-adaptive: light sidebar in OS light mode,
-     dark navy sidebar in OS dark mode.
-   — Fixes orange link color leaking from :root { --color-link }.
+   Cockpit Shell Nav — Ghost Pill Navigation (2024-2025 pattern)
+   Inspired by Linear, Vercel, shadcn/ui sidebar.
+   Key changes vs "plank" style:
+     • margin: 1px 8px  → pill inset, not full-width
+     • border-radius: 6px → rounded pill shape
+     • background: transparent on inactive items
+     • hover: barely-there rgba tint (not solid block)
+     • active: box-shadow inset accent (not border-left "plank")
+     • no borders between items
+   Adaptive: dark sidebar in dark mode, light sidebar in light mode.
+   Fixes :root { --color-link: orange } leak from login page.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ──────────────────────────────────────────────────────────────
-   DARK THEME SIDEBAR (default / prefers-color-scheme: dark)
-   ────────────────────────────────────────────────────────────── */
-
-body:not(.login-pf) .pf-v6-c-page__sidebar,
+/* ── Sidebar container (dark, default) ────────────────────────── */
+body:not(.login-pf) .pf-v6-c-page__sidebar {
+  background: #1a2233 !important;
+  border-right: 1px solid #253045 !important;
+}
 body:not(.login-pf) .pf-v6-c-nav {
-  background: #1e293b !important;
-  border-right: 1px solid #334155 !important;
+  background: transparent !important;
+  padding: 6px 0 4px !important;
 }
 
+/* ── Kill all borders between items (removes the "plank" gaps) ── */
+body:not(.login-pf) .pf-v6-c-nav__item,
+body:not(.login-pf) .pf-v6-c-nav__section {
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* ── Ghost pill: each link is an inset rounded item ────────────── */
+body:not(.login-pf) .pf-v6-c-nav__link,
+body:not(.login-pf) .pf-v6-c-nav__link:visited,
+body:not(.login-pf) .pf-v6-c-nav__item > a {
+  display: flex !important;
+  align-items: center !important;
+  padding: 6px 12px !important;
+  margin: 1px 8px !important;          /* inset pill — NOT full-width */
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;  /* invisible until hover */
+  background-color: transparent !important;
+  color: #8a9bb5 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  text-decoration: none !important;
+  transition: background 0.12s, color 0.12s !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+/* ── Hover: subtle ghost tint ──────────────────────────────────── */
+body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]),
+body:not(.login-pf) .pf-v6-c-nav__item > a:hover {
+  background: rgba(255,255,255,0.07) !important;
+  background-color: rgba(255,255,255,0.07) !important;
+  color: #e2e8f0 !important;
+}
+
+/* ── Active: filled pill + inset left accent bar ───────────────── */
+body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
+body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"],
+body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
+  background: rgba(59,130,246,0.14) !important;
+  background-color: rgba(59,130,246,0.14) !important;
+  color: #93c5fd !important;
+  font-weight: 600 !important;
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
+}
+
+/* ── Section group titles ─────────────────────────────────────── */
+body:not(.login-pf) .pf-v6-c-nav__section-title {
+  padding: 14px 20px 3px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+  color: #3d5068 !important;
+  border: none !important;
+}
+
+/* ── Masthead ─────────────────────────────────────────────────── */
 body:not(.login-pf) .pf-v6-c-masthead,
 body:not(.login-pf) .pf-v6-c-page__header {
   background: #0f172a !important;
-  border-bottom: 1px solid #1e3a5f !important;
+  border-bottom: 1px solid #253045 !important;
 }
-
-body:not(.login-pf) .pf-v6-c-nav__link,
-body:not(.login-pf) .pf-v6-c-nav__link:visited,
-body:not(.login-pf) .pf-v6-c-nav__item a {
-  color: #cbd5e1 !important;
-  background: transparent !important;
-}
-
-body:not(.login-pf) .pf-v6-c-nav__link:hover,
-body:not(.login-pf) .pf-v6-c-nav__item a:hover {
-  color: #f1f5f9 !important;
-  background: rgba(255,255,255,0.07) !important;
-}
-
-body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
-body:not(.login-pf) .pf-v6-c-nav__link[aria-current],
-body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
-  color: #ffffff !important;
-  background: rgba(59,130,246,0.20) !important;
-  border-left: 3px solid #3b82f6 !important;
-}
-
-body:not(.login-pf) .pf-v6-c-nav__section-title {
-  color: #64748b !important;
-}
-
 body:not(.login-pf) .pf-v6-c-masthead__brand,
 body:not(.login-pf) .pf-v6-c-masthead__content,
 body:not(.login-pf) .pf-v6-c-masthead a {
   color: #f1f5f9 !important;
 }
-
 body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
 body:not(.login-pf) .pf-v6-c-masthead button {
   color: #94a3b8 !important;
@@ -299,75 +339,66 @@ body:not(.login-pf) .pf-v6-c-masthead button:hover {
   background: rgba(255,255,255,0.08) !important;
 }
 
-body:not(.login-pf) a {
-  color: #60a5fa;
-}
-body:not(.login-pf) a:hover {
-  color: #93c5fd;
-}
+/* ── General link color reset (fixes orange leak) ─────────────── */
+body:not(.login-pf) a       { color: #60a5fa; }
+body:not(.login-pf) a:hover { color: #93c5fd; }
 
-/* ──────────────────────────────────────────────────────────────
-   LIGHT THEME SIDEBAR (prefers-color-scheme: light)
-   Clean slate sidebar — consistent with the light content area.
-   Inspired by Linear, Vercel, Proxmox 8 light mode.
-   ────────────────────────────────────────────────────────────── */
-
+/* ══════════════════════════════════════════════════════════════
+   LIGHT THEME  (prefers-color-scheme: light)
+   Same ghost-pill pattern — adapted for light backgrounds.
+   ══════════════════════════════════════════════════════════════ */
 @media (prefers-color-scheme: light) {
-  /* Sidebar shell */
-  body:not(.login-pf) .pf-v6-c-page__sidebar,
-  body:not(.login-pf) .pf-v6-c-nav {
-    background: #f1f5f9 !important;
-    border-right: 1px solid #cbd5e1 !important;
+
+  body:not(.login-pf) .pf-v6-c-page__sidebar {
+    background: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
   }
 
-  /* Masthead */
-  body:not(.login-pf) .pf-v6-c-masthead,
-  body:not(.login-pf) .pf-v6-c-page__header {
-    background: #ffffff !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    box-shadow: 0 1px 3px rgba(15,23,42,0.06) !important;
-  }
-
-  /* Nav links */
+  /* Ghost pill in light mode — transparent inactive */
   body:not(.login-pf) .pf-v6-c-nav__link,
   body:not(.login-pf) .pf-v6-c-nav__link:visited,
-  body:not(.login-pf) .pf-v6-c-nav__item a {
-    color: #334155 !important;
+  body:not(.login-pf) .pf-v6-c-nav__item > a {
+    color: #64748b !important;
     background: transparent !important;
+    background-color: transparent !important;
   }
 
-  body:not(.login-pf) .pf-v6-c-nav__link:hover,
-  body:not(.login-pf) .pf-v6-c-nav__item a:hover {
-    color: #0f172a !important;
-    background: #e2e8f0 !important;
+  body:not(.login-pf) .pf-v6-c-nav__link:hover:not(.pf-m-current):not([aria-current="page"]),
+  body:not(.login-pf) .pf-v6-c-nav__item > a:hover {
+    background: rgba(15,23,42,0.06) !important;
+    background-color: rgba(15,23,42,0.06) !important;
+    color: #1e293b !important;
   }
 
-  /* Active item */
   body:not(.login-pf) .pf-v6-c-nav__link.pf-m-current,
-  body:not(.login-pf) .pf-v6-c-nav__link[aria-current],
+  body:not(.login-pf) .pf-v6-c-nav__link[aria-current="page"],
   body:not(.login-pf) .pf-v6-c-nav__item.pf-m-current > a {
-    color: #1d4ed8 !important;
-    background: #dbeafe !important;
-    border-left: 3px solid #2563eb !important;
+    background: rgba(37,99,235,0.09) !important;
+    background-color: rgba(37,99,235,0.09) !important;
+    color: #2563eb !important;
     font-weight: 600 !important;
+    box-shadow: inset 3px 0 0 #2563eb !important;
   }
 
-  /* Section titles */
   body:not(.login-pf) .pf-v6-c-nav__section-title {
     color: #94a3b8 !important;
   }
 
-  /* Masthead text */
+  /* Light masthead */
+  body:not(.login-pf) .pf-v6-c-masthead,
+  body:not(.login-pf) .pf-v6-c-page__header {
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 4px rgba(15,23,42,0.06) !important;
+  }
   body:not(.login-pf) .pf-v6-c-masthead__brand,
   body:not(.login-pf) .pf-v6-c-masthead__content,
   body:not(.login-pf) .pf-v6-c-masthead a {
     color: #0f172a !important;
   }
-
-  /* Masthead buttons */
   body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button,
   body:not(.login-pf) .pf-v6-c-masthead button {
-    color: #475569 !important;
+    color: #64748b !important;
   }
   body:not(.login-pf) .pf-v6-c-masthead .pf-v6-c-button:hover,
   body:not(.login-pf) .pf-v6-c-masthead button:hover {
@@ -375,11 +406,6 @@ body:not(.login-pf) a:hover {
     background: #f1f5f9 !important;
   }
 
-  /* General shell links */
-  body:not(.login-pf) a {
-    color: #2563eb;
-  }
-  body:not(.login-pf) a:hover {
-    color: #1d4ed8;
-  }
+  body:not(.login-pf) a       { color: #2563eb; }
+  body:not(.login-pf) a:hover { color: #1d4ed8; }
 }
