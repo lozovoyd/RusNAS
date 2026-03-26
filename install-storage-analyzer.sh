@@ -84,4 +84,4 @@ eval "$SSH $VM" 'echo kl4389qd | sudo -S python3 /usr/share/cockpit/rusnas/scrip
 
 echo ""
 echo "✅  Storage Analyzer installed!"
-echo "    Open: https://10.10.10.72:9090  → Анализ пространства 💾"
+echo "    Open: https://10.10.10.72:90903  → Анализ пространства 💾"
