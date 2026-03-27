@@ -19,7 +19,10 @@ def read_diskstats(device):
             for line in f:
                 parts = line.split()
                 if len(parts) >= 10 and parts[2] == device:
-                    return int(parts[3]), int(parts[7])
+                    try:
+                        return int(parts[3]), int(parts[7])
+                    except (ValueError, IndexError):
+                        return None
     except Exception:
         pass
     return None
