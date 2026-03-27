@@ -43,12 +43,18 @@ def cmd_get_state(args):
         out({"ok": False, "error": "Демон rusnas-spind не запущен"})
         return
     data = read_json(STATE_FILE)
-    print(json.dumps(data, ensure_ascii=False))
+    if isinstance(data, dict) and "ok" in data and not data["ok"]:
+        out(data)
+    else:
+        print(json.dumps(data, ensure_ascii=False))
 
 
 def cmd_get_config(args):
     data = read_json(CONFIG_FILE, default={"version": 1, "arrays": {}})
-    print(json.dumps(data, ensure_ascii=False))
+    if isinstance(data, dict) and "ok" in data and not data["ok"]:
+        out(data)
+    else:
+        print(json.dumps(data, ensure_ascii=False))
 
 
 def cmd_set_backup_mode(args):
