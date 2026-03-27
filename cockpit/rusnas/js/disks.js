@@ -12,6 +12,13 @@ var currentMountMap   = {};  // md device name → {target, fstype}
 var currentSsdTiers   = [];  // SSD-tier entries from ssd-tiers.json
 var ssdTierTimer      = null;
 
+// ─── Backup Mode (spindown) ────────────────────────────────────────────────
+var spindownState     = {};   // cache: array_name → state object
+var spindownPollTimer = null;
+var SPINDOWN_CGI      = "/usr/lib/rusnas/cgi/spindown_ctl.py";
+var _SPINDOWN_POLL_NORMAL = 15000;  // 15s normal polling
+var _SPINDOWN_POLL_FAST   = 3000;   // 3s polling during flushing/waking
+
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
 
@@ -200,6 +207,24 @@ function renderArrays(arrays, mountMap) {
         deleteBtn = "<button class='btn btn-danger btn-sm' data-action='delete' data-array='" + arr.name + "' data-disks='" +
             arr.devices.map(function(d) { return d.name; }).join(",") + "'>🗑 Удалить</button>";
 
+        var spindownS = spindownState[arr.name];
+        var spindownBadge = spindownS && spindownS.backup_mode ? _spindownBadgeHtml(spindownS) : "";
+        var bmBtn = "<button class='btn btn-secondary btn-sm' onclick='openBackupModePanel(\"" + arr.name + "\")'>⚙ Backup Mode</button>";
+        var daemonNote = (!spindownS) ? "<div class='text-muted' style='font-size:12px;margin-top:4px'>Демон rusnas-spind не запущен — конфиг будет сохранён при старте.</div>" : "";
+        var bmPanel = "<div id='bm-panel-" + arr.name + "' style='display:none;margin-top:8px;padding:12px;border:1px solid var(--color-border);border-radius:var(--radius);background:var(--bg-card)'>" +
+            "<b>RAID Backup Mode</b>" +
+            "<div style='margin-top:8px'>" +
+            "<label class='checkbox-label'><input type='checkbox' id='bm-toggle-" + arr.name + "'> Включить RAID Backup Mode</label>" +
+            "</div>" +
+            "<div class='text-muted' style='font-size:12px;margin:6px 0'>Диски останавливают шпиндели при бездействии. Первое обращение после сна: 5–15 сек.<br>⚠ Только для HDD-массивов с нерегулярным доступом.</div>" +
+            "<div style='margin-top:6px'><label>Таймаут бездействия: <input type='number' id='bm-timeout-" + arr.name + "' value='30' min='5' max='480' style='width:70px;display:inline-block'> мин (5–480)</label></div>" +
+            daemonNote +
+            "<div id='bm-status-" + arr.name + "'></div>" +
+            "<div style='margin-top:10px'>" +
+            "<button class='btn btn-primary btn-sm' onclick='applyBackupMode(\"" + arr.name + "\")'>Применить</button> " +
+            "<button class='btn btn-secondary btn-sm' onclick='openBackupModePanel(\"" + arr.name + "\")'>Отмена</button>" +
+            "</div></div>";
+
         return "<div class='array-card'>" +
             "<div class='array-header'>" +
                 "<div>" +
@@ -209,15 +234,16 @@ function renderArrays(arrays, mountMap) {
                 "</div>" +
                 "<div class='array-actions'>" +
                     actionBtn + " " + addDiskBtn + " " + expandBtn + " " + upgradeBtn + " " +
-                    mountBtn + " " + umountBtn + " " + subvolBtn + " " + deleteBtn +
+                    mountBtn + " " + umountBtn + " " + subvolBtn + " " + bmBtn + " " + deleteBtn +
                 "</div>" +
             "</div>" +
-            "<div class='array-status'>" + badge + " <span class='status-desc'>" + statusDesc + "</span></div>" +
+            "<div class='array-status'>" + badge + "<span id='spindown-badge-" + arr.name + "'>" + spindownBadge + "</span>" + " <span class='status-desc'>" + statusDesc + "</span></div>" +
             mountStatusHtml +
             "<div class='array-slots'>" + slots + "</div>" +
             resyncBar +
             "<div class='array-devices'>" + devList + "</div>" +
             "<div class='array-hint'>" + getRaidHint(arr) + "</div>" +
+            bmPanel +
         "</div>";
     }).join("");
 
@@ -392,6 +418,212 @@ function rescanDisks() {
         });
 }
 
+// ─── Backup Mode functions ─────────────────────────────────────────────────────
+
+function loadSpindownState(callback) {
+    new Promise(function(res, rej) {
+        cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "get_state"],
+                      {err: "message"}).done(res).fail(rej);
+    }).then(function(out) {
+        try {
+            var data = JSON.parse(out);
+            if (data && data.arrays) {
+                spindownState = data.arrays;
+            } else {
+                spindownState = {};
+            }
+        } catch(e) { spindownState = {}; }
+        if (callback) callback();
+    }).catch(function() { spindownState = {}; if (callback) callback(); });
+}
+
+function timeAgo(isoString) {
+    if (!isoString) return "—";
+    var diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
+    if (diff < 60) return diff + " сек назад";
+    if (diff < 3600) return Math.floor(diff/60) + " мин назад";
+    return Math.floor(diff/3600) + " ч назад";
+}
+
+function startSpindownPoll() {
+    if (spindownPollTimer) return;
+    _doSpindownPoll(_SPINDOWN_POLL_NORMAL);
+}
+
+function _doSpindownPoll(interval) {
+    if (spindownPollTimer) clearInterval(spindownPollTimer);
+    spindownPollTimer = setInterval(function() {
+        loadSpindownState(function() {
+            updateSpindownBadges();
+            // Switch to fast poll during transitions, back to normal otherwise
+            var hasFastState = Object.values(spindownState).some(function(s) {
+                return s.state === "flushing" || s.state === "waking";
+            });
+            var nextInterval = hasFastState ? _SPINDOWN_POLL_FAST : _SPINDOWN_POLL_NORMAL;
+            if (nextInterval !== interval) {
+                clearInterval(spindownPollTimer);
+                spindownPollTimer = null;
+                _doSpindownPoll(nextInterval);
+            }
+        });
+    }, interval);
+}
+
+function stopSpindownPoll() {
+    if (spindownPollTimer) { clearInterval(spindownPollTimer); spindownPollTimer = null; }
+}
+
+function updateSpindownBadges() {
+    Object.keys(spindownState).forEach(function(name) {
+        var s = spindownState[name];
+        var badgeEl = document.getElementById("spindown-badge-" + name);
+        if (!badgeEl) return;
+        badgeEl.innerHTML = _spindownBadgeHtml(s);
+    });
+}
+
+function _spindownBadgeHtml(s) {
+    if (!s || !s.backup_mode) return "";
+    var state = s.state || "active";
+    if (state === "standby")  return "<span class='badge badge-secondary' style='margin-left:6px'>💤 STANDBY</span>";
+    if (state === "flushing") return "<span class='badge badge-info' style='margin-left:6px'>⏳ ЗАСЫПАЕТ…</span>";
+    if (state === "waking")   return "<span class='badge badge-info' style='margin-left:6px'>🔆 ПРОСЫПАЕТСЯ…</span>";
+    return "<span class='badge badge-success' style='margin-left:6px'>💾 BACKUP АКТИВЕН</span>";
+}
+
+function _warnIfSleeping(arrayName, actionLabel) {
+    var s = spindownState[arrayName];
+    if (s && s.backup_mode && s.state === "standby") {
+        return confirm(
+            "⚠ Массив " + arrayName + " спит (Backup Mode).\n" +
+            "Действие «" + actionLabel + "» разбудит его (5–15 сек задержки).\n\nПродолжить?"
+        );
+    }
+    return true;
+}
+
+function openBackupModePanel(arrayName) {
+    var panelId = "bm-panel-" + arrayName;
+    var panel = document.getElementById(panelId);
+    if (!panel) return;
+    var visible = panel.style.display !== "none";
+    panel.style.display = visible ? "none" : "block";
+    if (!visible) {
+        // Load current config and fill panel
+        new Promise(function(res, rej) {
+            cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "get_config"],
+                          {err: "message"}).done(res).fail(rej);
+        }).then(function(out) {
+            try {
+                var cfg = JSON.parse(out);
+                var arrCfg = (cfg.arrays || {})[arrayName] || {};
+                var toggle = document.getElementById("bm-toggle-" + arrayName);
+                var timeout = document.getElementById("bm-timeout-" + arrayName);
+                if (toggle) toggle.checked = arrCfg.backup_mode === true;
+                if (timeout) timeout.value = arrCfg.idle_timeout_minutes || 30;
+                _refreshBackupModeStatus(arrayName);
+            } catch(e) {}
+        }).catch(function() {});
+    }
+}
+
+function _refreshBackupModeStatus(arrayName) {
+    var statusEl = document.getElementById("bm-status-" + arrayName);
+    if (!statusEl) return;
+    var s = spindownState[arrayName];
+    if (!s || !s.backup_mode) {
+        statusEl.style.display = "none";
+        return;
+    }
+    statusEl.style.display = "block";
+    var state = s.state || "active";
+    var stateLabel = state === "standby" ? "💤 STANDBY (диски спят)"
+        : state === "flushing" ? "⏳ Засыпает…"
+        : state === "waking"   ? "🔆 Просыпается…"
+        : "💾 Активен";
+    var sinceLabel = state === "standby" ? " · с " + (s.spindown_at ? new Date(s.spindown_at).toLocaleTimeString("ru") : "—") : "";
+    var disksHtml = Object.entries(s.disk_states || {}).map(function(e) {
+        return "<span style='margin-right:8px'>" + e[0] + " " + (e[1] === "standby" ? "💤" : "🟢") + "</span>";
+    }).join("");
+    statusEl.innerHTML =
+        "<div style='margin-top:8px;padding:10px;background:var(--bg-th);border-radius:var(--radius-sm)'>" +
+        "<div><b>Статус:</b> " + stateLabel + sinceLabel + "</div>" +
+        "<div><b>Последняя активность:</b> " + timeAgo(s.last_io_at) + "</div>" +
+        "<div><b>Пробуждений за сессию:</b> " + (s.wakeup_count_session || 0) + "</div>" +
+        "<div style='margin-top:6px'>" + disksHtml + "</div>" +
+        "<div style='margin-top:8px'>" +
+        "<button class='btn btn-primary btn-sm' onclick='wakeupArray(\"" + arrayName + "\")'>⚡ Разбудить сейчас</button> " +
+        "<button class='btn btn-secondary btn-sm' onclick='spindownArray(\"" + arrayName + "\")'>💤 Усыпить сейчас</button>" +
+        "</div></div>";
+}
+
+function applyBackupMode(arrayName) {
+    var toggle = document.getElementById("bm-toggle-" + arrayName);
+    var timeoutEl = document.getElementById("bm-timeout-" + arrayName);
+    if (!toggle || !timeoutEl) return;
+    var enabled = toggle.checked;
+    var timeout = parseInt(timeoutEl.value) || 30;
+    if (timeout < 5 || timeout > 480) {
+        alert("Таймаут должен быть от 5 до 480 минут");
+        return;
+    }
+    new Promise(function(res, rej) {
+        cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "set_backup_mode",
+                       "--array", arrayName, "--enabled", String(enabled), "--timeout", String(timeout)],
+                      {err: "message"}).done(res).fail(rej);
+    }).then(function(out) {
+        try {
+            var r = JSON.parse(out);
+            if (!r.ok) { alert("Ошибка: " + r.error); return; }
+            if (r.warning) {
+                if (!confirm("⚠ " + r.warning + "\n\nВсё равно включить?")) {
+                    // Rollback: config already written by server — disable it
+                    new Promise(function(res2, rej2) {
+                        cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "set_backup_mode",
+                                       "--array", arrayName, "--enabled", "false", "--timeout", String(timeout)],
+                                      {err: "message"}).done(res2).fail(rej2);
+                    }).catch(function(e) { console.error("rollback failed:", e); });
+                    return;
+                }
+            }
+            // Reload state and restart poll
+            loadSpindownState(function() {
+                updateSpindownBadges();
+                _refreshBackupModeStatus(arrayName);
+                var hasBackup = Object.values(spindownState).some(function(s) { return s.backup_mode; });
+                if (hasBackup) startSpindownPoll(); else stopSpindownPoll();
+            });
+        } catch(e) {}
+    }).catch(function(e) { alert("Ошибка: " + e); });
+}
+
+function wakeupArray(arrayName) {
+    new Promise(function(res, rej) {
+        cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "wakeup_now", "--array", arrayName],
+                      {err: "message"}).done(res).fail(rej);
+    }).then(function(out) {
+        setTimeout(function() {
+            loadSpindownState(function() { updateSpindownBadges(); _refreshBackupModeStatus(arrayName); });
+        }, 3000);
+    }).catch(function(e) { alert("Ошибка: " + e); });
+}
+
+function spindownArray(arrayName) {
+    if (!confirm("Усыпить массив " + arrayName + " прямо сейчас?")) return;
+    new Promise(function(res, rej) {
+        cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "spindown_now", "--array", arrayName],
+                      {err: "message"}).done(res).fail(rej);
+    }).then(function(out) {
+        try {
+            var r = JSON.parse(out);
+            if (!r.ok) { alert("Ошибка: " + r.error); return; }
+        } catch(e) {}
+        setTimeout(function() {
+            loadSpindownState(function() { updateSpindownBadges(); _refreshBackupModeStatus(arrayName); });
+        }, 8000);
+    }).catch(function(e) { alert("Ошибка: " + e); });
+}
+
 // ─── Load all ─────────────────────────────────────────────────────────────────
 
 function parseMountInfo(out) {
@@ -420,11 +652,21 @@ function loadDisksAndArrays() {
             cockpit.spawn(["bash", "-c", "findmnt -rno SOURCE,TARGET,FSTYPE 2>/dev/null || true"])
                 .done(function(mountOut) {
                     currentMountMap = parseMountInfo(mountOut);
-                    renderArrays(arrays, currentMountMap);
+                    loadSpindownState(function() {
+                        renderArrays(arrays, currentMountMap);
+                        updateSpindownBadges();
+                        var hasBackup = Object.values(spindownState).some(function(s) { return s.backup_mode; });
+                        if (hasBackup) startSpindownPoll();
+                    });
                 })
                 .fail(function() {
                     currentMountMap = {};
-                    renderArrays(arrays, {});
+                    loadSpindownState(function() {
+                        renderArrays(arrays, {});
+                        updateSpindownBadges();
+                        var hasBackup = Object.values(spindownState).some(function(s) { return s.backup_mode; });
+                        if (hasBackup) startSpindownPoll();
+                    });
                 });
 
             var resyncing = arrays.some(function(a) { return a.resyncing; });
