@@ -531,7 +531,7 @@ function openBackupModePanel(arrayName) {
                 if (timeout) timeout.value = arrCfg.idle_timeout_minutes || 30;
                 _refreshBackupModeStatus(arrayName);
             } catch(e) {}
-        }).catch(function() {});
+        }).catch(function(err) { console.error("[spindown] openBackupModePanel get_config failed:", err); });
     }
 }
 
@@ -551,7 +551,7 @@ function _refreshBackupModeStatus(arrayName) {
         : "💾 Активен";
     var sinceLabel = state === "standby" ? " · с " + (s.spindown_at ? new Date(s.spindown_at).toLocaleTimeString("ru") : "—") : "";
     var disksHtml = Object.entries(s.disk_states || {}).map(function(e) {
-        return "<span style='margin-right:8px'>" + e[0] + " " + (e[1] === "standby" ? "💤" : "🟢") + "</span>";
+        return "<span style='margin-right:8px'>" + _escHtml(e[0]) + " " + (e[1] === "standby" ? "💤" : "🟢") + "</span>";
     }).join("");
     statusEl.innerHTML =
         "<div style='margin-top:8px;padding:10px;background:var(--bg-th);border-radius:var(--radius-sm)'>" +
@@ -601,7 +601,7 @@ function applyBackupMode(arrayName) {
                 var hasBackup = Object.values(spindownState).some(function(s) { return s.backup_mode; });
                 if (hasBackup) startSpindownPoll(); else stopSpindownPoll();
             });
-        } catch(e) {}
+        } catch(e) { alert("Ошибка: неожиданный ответ от CGI"); }
     }).catch(function(e) { alert("Ошибка: " + e); });
 }
 
