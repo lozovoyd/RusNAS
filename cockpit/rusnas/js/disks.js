@@ -421,7 +421,7 @@ function rescanDisks() {
 // ─── Backup Mode functions ─────────────────────────────────────────────────────
 
 function loadSpindownState(callback) {
-    new Promise(function(res, rej) {
+    return new Promise(function(res, rej) {
         cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "get_state"],
                       {err: "message"}).done(res).fail(rej);
     }).then(function(out) {
@@ -482,13 +482,21 @@ function updateSpindownBadges() {
     });
 }
 
-function _spindownBadgeHtml(s) {
-    if (!s || !s.backup_mode) return "";
-    var state = s.state || "active";
-    if (state === "standby")  return "<span class='badge badge-secondary' style='margin-left:6px'>💤 STANDBY</span>";
-    if (state === "flushing") return "<span class='badge badge-info' style='margin-left:6px'>⏳ ЗАСЫПАЕТ…</span>";
-    if (state === "waking")   return "<span class='badge badge-info' style='margin-left:6px'>🔆 ПРОСЫПАЕТСЯ…</span>";
-    return "<span class='badge badge-success' style='margin-left:6px'>💾 BACKUP АКТИВЕН</span>";
+function _spindownBadgeHtml(sd) {
+    if (!sd || !sd.backup_mode) return "";
+    var state = sd.state || "unknown";
+    if (state === "active") {
+        return '<span class="badge badge-success" style="margin-left:6px">Активен</span>';
+    } else if (state === "flushing") {
+        return '<span class="badge badge-warning" style="margin-left:6px">Сброс…</span>';
+    } else if (state === "standby") {
+        var ago = sd.spindown_at ? timeAgo(sd.spindown_at) : "";
+        return '<span class="badge badge-secondary" style="margin-left:6px">Спит 💤' + (ago ? " " + ago : "") + "</span>";
+    } else if (state === "waking") {
+        return '<span class="badge badge-info" style="margin-left:6px">Пробуждение…</span>';
+    } else {
+        return '<span class="badge badge-secondary" style="margin-left:6px">—</span>';
+    }
 }
 
 function _warnIfSleeping(arrayName, actionLabel) {
@@ -563,8 +571,8 @@ function applyBackupMode(arrayName) {
     if (!toggle || !timeoutEl) return;
     var enabled = toggle.checked;
     var timeout = parseInt(timeoutEl.value) || 30;
-    if (timeout < 5 || timeout > 480) {
-        alert("Таймаут должен быть от 5 до 480 минут");
+    if (timeout < 1 || timeout > 1440) {
+        alert("Введите значение от 1 до 1440 минут");
         return;
     }
     new Promise(function(res, rej) {
