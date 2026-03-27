@@ -28,6 +28,7 @@ var TICK_SMART   = 300000;
 var TICK_GUARD   = 10000;  // was 5s — guard state.json rarely changes; 10s is plenty in normal mode
 var TICK_FB      = 60000;  // FileBrowser service status — rarely changes
 var TICK_SSD     = 60000;  // SSD cache config — only changes on user action
+var DB_SPINDOWN_CGI = "/usr/lib/rusnas/cgi/spindown_ctl.py";
 
 // ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
 var prevCpu  = null;
@@ -276,6 +277,60 @@ function loadStorage() {
     });
 }
 
+// ── Spindown helpers ───────────────────────────────────────────────────────
+function dbTimeAgo(isoString) {
+    if (!isoString) return "";
+    try {
+        var d = new Date(isoString);
+        var diff = Math.floor((Date.now() - d.getTime()) / 1000);
+        if (diff < 60) return "только что";
+        if (diff < 3600) return Math.floor(diff / 60) + " мин назад";
+        return Math.floor(diff / 3600) + " ч назад";
+    } catch(e) { return ""; }
+}
+
+function dbLoadSpindown() {
+    return new Promise(function(resolve) {
+        cockpit.spawn(["sudo", "-n", "python3", DB_SPINDOWN_CGI, "get_state"],
+            { err: "message", superuser: "try" })
+            .done(function(out) {
+                try {
+                    var r = JSON.parse(out);
+                    if (r && r.ok && r.arrays) {
+                        resolve(r.arrays);
+                    } else {
+                        resolve({});
+                    }
+                } catch(e) { resolve({}); }
+            })
+            .fail(function() { resolve({}); });
+    });
+}
+
+function renderRaidSpindownLines(sdMap) {
+    Object.keys(sdMap).forEach(function(arrayName) {
+        var lineEl = document.getElementById("db-spindown-line-" + arrayName);
+        if (!lineEl) return;
+        var sd = sdMap[arrayName];
+        if (!sd || !sd.backup_mode) {
+            lineEl.innerHTML = "";
+            return;
+        }
+        var txt = "";
+        if (sd.state === "standby") {
+            var ago = sd.spindown_at ? " · " + dbTimeAgo(sd.spindown_at) : "";
+            txt = '<span style="color:var(--color-muted);font-size:11px">💤 Спит' + ago + '</span>';
+        } else if (sd.state === "flushing") {
+            txt = '<span style="color:var(--color-muted);font-size:11px">⏳ Засыпает…</span>';
+        } else if (sd.state === "waking") {
+            txt = '<span style="color:var(--color-muted);font-size:11px">🔆 Просыпается…</span>';
+        } else if (sd.state === "active") {
+            txt = '<span style="color:var(--color-muted);font-size:11px">💾 Бэкап активен</span>';
+        }
+        lineEl.innerHTML = txt;
+    });
+}
+
 // ── Section A2: RAID ──────────────────────────────────────────────────────
 function loadRaid() {
     var mdstatP = new Promise(function(res, rej) {
@@ -357,12 +412,19 @@ function loadRaid() {
                     '<span class="' + icoClass + '">' + diskLabel + '</span></div>';
             }
 
+            html += '<div id="db-spindown-line-' + a.name + '" class="db-card-sub" style="margin-top:2px"></div>';
+
             tagHtml += '<span style="font-size:11px;padding:2px 5px;border-radius:3px;background:var(--bg-th)">' +
                 a.name + ' ' + ico + '</span>';
         });
 
         listEl.innerHTML  = html;
         raidsEl.innerHTML = tagHtml;
+
+        // Load spindown state and annotate each array card
+        dbLoadSpindown().then(function(sdMap) {
+            renderRaidSpindownLines(sdMap);
+        });
 
         var card = el("card-raid");
         card.className = "db-card " + (
