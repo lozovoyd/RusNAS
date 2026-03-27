@@ -55,10 +55,11 @@ def suppress_check(array_name):
 def restore_check(array_name):
     """Restore sync_min to kernel default."""
     _write_sysfs(f"/sys/block/{array_name}/md/sync_min", SYNC_MIN_DEFAULT)
+    log.info("mdadm check restored for %s", array_name)
 
 
 def get_mountpoint(array_name):
-    """Find first mountpoint for /dev/mdX or LVM device on top of mdX."""
+    """Find first mountpoint for /dev/mdX or LVM/dm device on top of mdX."""
     try:
         r = subprocess.run(
             ["findmnt", "-rno", "SOURCE,TARGET", "--source", f"/dev/{array_name}"],
@@ -66,15 +67,21 @@ def get_mountpoint(array_name):
         )
         if r.stdout.strip():
             return r.stdout.strip().split()[1]
-        # Try LVM layer: find dm-* devices backed by mdX
-        r2 = subprocess.run(
-            ["bash", "-c",
-             f"lsblk -rno NAME,TYPE /dev/{array_name} 2>/dev/null | awk '{{print $1}}' | "
-             f"while read d; do findmnt -rno SOURCE,TARGET /dev/$d 2>/dev/null; done | head -1"],
-            capture_output=True, text=True, timeout=10
-        )
-        parts = r2.stdout.strip().split()
-        return parts[1] if len(parts) >= 2 else None
+        # Try dm-* devices backed by mdX via /sys/block
+        import os
+        slaves_dir = f"/sys/block/{array_name}/holders"
+        try:
+            holders = os.listdir(slaves_dir)
+        except OSError:
+            return None
+        for holder in holders:
+            r2 = subprocess.run(
+                ["findmnt", "-rno", "TARGET", "--source", f"/dev/{holder}"],
+                capture_output=True, text=True, timeout=10
+            )
+            if r2.stdout.strip():
+                return r2.stdout.strip()
+        return None
     except Exception:
         return None
 
