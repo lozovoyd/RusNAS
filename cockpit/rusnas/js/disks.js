@@ -701,6 +701,8 @@ function runArray(name) {
 
 function openAddDisk(arrayName, mode) {
     mode = mode || "replace";
+    var actionLabel = (mode === "expand") ? "Расширить" : "Заменить диск";
+    if (!_warnIfSleeping(arrayName, actionLabel)) return;
     document.getElementById("add-disk-array").value       = arrayName;
     document.getElementById("add-disk-array-label").value = arrayName;
     document.getElementById("add-disk-mode").value        = mode;
@@ -1553,6 +1555,7 @@ function doMountArray() {
 }
 
 function doUmountArray(arrayName, mountPoint) {
+    if (!_warnIfSleeping(arrayName, "Размонтировать")) return;
     if (!confirm("Размонтировать /dev/" + arrayName + " (" + mountPoint + ")?")) return;
     cockpit.spawn(["bash", "-c",
         "sudo umount " + mountPoint + " 2>&1"
@@ -2464,7 +2467,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (action === "expand")  openAddDisk(arrayName, "expand");
         if (action === "mount")   openMountModal(arrayName);
         if (action === "umount")  doUmountArray(arrayName, btn.dataset.target);
-        if (action === "subvol")  openSubvolumesModal(btn.dataset.target);
+        if (action === "subvol")  { if (_warnIfSleeping(arrayName, "Субтома")) openSubvolumesModal(btn.dataset.target); }
         if (action === "delete")  openDeleteArrayModal(arrayName, btn.dataset.disks);
         if (action === "upgrade") openUpgradeRaidModal(arrayName, btn.dataset.level, parseInt(btn.dataset.devices));
     });
