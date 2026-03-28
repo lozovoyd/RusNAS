@@ -18,7 +18,8 @@
   "install_params": [
     {"key": "web_port",       "label": "Порт веб-интерфейса", "default": "8080", "type": "port"},
     {"key": "admin_user",     "label": "Имя администратора",  "default": "admin", "type": "text"},
-    {"key": "admin_password", "label": "Пароль",              "default": "",      "type": "password", "generate": true}
+    {"key": "admin_password", "label": "Пароль",              "default": "",      "type": "password", "generate": true},
+    {"key": "db_password",    "label": "Пароль базы данных",  "default": "",      "type": "password", "generate": true}
   ],
   "compose_template": "docker-compose.yml"
 }

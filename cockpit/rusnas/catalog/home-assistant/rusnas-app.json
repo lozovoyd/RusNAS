@@ -15,8 +15,6 @@
   "disk_gb": 2,
   "containers": 1,
   "featured": false,
-  "install_params": [
-    {"key": "web_port", "label": "Порт веб-интерфейса", "default": "8123", "type": "port"}
-  ],
+  "install_params": [],
   "compose_template": "docker-compose.yml"
 }
