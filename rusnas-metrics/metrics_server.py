@@ -395,6 +395,79 @@ def collect_spindown():
     return "\n".join(lines) + "\n"
 
 
+def _parse_mem_str(mem_str):
+    """Parse podman stats MemUsage like '245MiB / 7.73GiB' to usage bytes."""
+    try:
+        used = mem_str.split("/")[0].strip()
+        multipliers = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3,
+                       "KB": 1000, "MB": 1000**2, "GB": 1000**3}
+        for suffix, mult in multipliers.items():
+            if used.endswith(suffix):
+                return int(float(used[:-len(suffix)]) * mult)
+    except Exception:
+        pass
+    return 0
+
+
+def collect_containers():
+    """Container metrics via podman stats + installed.json"""
+    lines = []
+    lines.append("# HELP rusnas_container_count Total container count by status")
+    lines.append("# TYPE rusnas_container_count gauge")
+
+    installed_file = "/etc/rusnas/containers/installed.json"
+    try:
+        with open(installed_file) as f:
+            installed = json.load(f)
+    except Exception:
+        installed = {}
+
+    running = 0
+    stopped = 0
+    error = 0
+    for app in installed.values():
+        status = app.get("live_status", app.get("status", "stopped"))
+        if status == "running":
+            running += 1
+        elif status in ("error", "partial"):
+            error += 1
+        else:
+            stopped += 1
+
+    lines.append('rusnas_container_count{status="running"} ' + str(running))
+    lines.append('rusnas_container_count{status="stopped"} ' + str(stopped))
+    lines.append('rusnas_container_count{status="error"} ' + str(error))
+
+    lines.append("# HELP rusnas_container_cpu_percent Container CPU usage percent")
+    lines.append("# TYPE rusnas_container_cpu_percent gauge")
+    lines.append("# HELP rusnas_container_memory_bytes Container memory usage bytes")
+    lines.append("# TYPE rusnas_container_memory_bytes gauge")
+
+    try:
+        result = subprocess.run(
+            ["sudo", "-u", "rusnas-containers", "podman", "stats",
+             "--no-stream", "--format", "json"],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            stats = json.loads(result.stdout)
+            for s in stats:
+                name = s.get("Name", s.get("name", ""))
+                if not name.startswith("rusnas-"):
+                    continue
+                cpu_str = s.get("CPUPerc", s.get("cpu_percent", "0%"))
+                cpu = float(str(cpu_str).rstrip("%") or 0)
+                lines.append('rusnas_container_cpu_percent{name="' + name + '"} ' + '{:.2f}'.format(cpu))
+
+                mem_str = s.get("MemUsage", s.get("mem_usage", "0B / 0B"))
+                mem_bytes = _parse_mem_str(mem_str)
+                lines.append('rusnas_container_memory_bytes{name="' + name + '"} ' + str(mem_bytes))
+    except Exception:
+        pass
+
+    return "\n".join(lines) + "\n"
+
+
 def collect_metrics():
     hostname = read_file("/proc/sys/kernel/hostname").strip()
     io = collect_disk_io()
@@ -530,7 +603,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/metrics", "/metrics/"):
             data = collect_metrics()
-            body = (format_prometheus(data) + collect_spindown()).encode()
+            body = (format_prometheus(data) + collect_spindown() + collect_containers()).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
             self.send_header("Access-Control-Allow-Origin", "*")
