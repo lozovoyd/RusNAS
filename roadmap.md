@@ -232,3 +232,47 @@ btrfs send -p /mnt/data/.snapshots/docs/@prev @curr | ssh user@host btrfs receiv
 **Deploy:** `./install-spindown.sh`
 
 **Тесты:** `tests/test_backup_mode_ui.py` — 15 Playwright тестов, 15/15 PASS на live VM
+
+---
+
+## ✅ Container Manager (реализовано 2026-03-28, ветка feat/container-manager)
+
+**Концепция:** Встроенный магазин приложений для rusNAS — позволяет устанавливать и управлять контейнеризированными приложениями (Nextcloud, Immich, Jellyfin и др.) через каталог-UI без знания Docker/Podman.
+
+**Архитектура:**
+- CGI бэкенд: `cockpit/rusnas/cgi/container_api.py` — 14 команд через argv
+- Rootless Podman от пользователя `rusnas-containers` (subuid/subgid 100000:65536)
+- Compose-шаблоны с `{{VAR:-default}}` подстановкой; DNS через имена сервисов
+- nginx location блоки автогенерируются: `/var/lib/rusnas-containers/nginx-apps/<appid>.conf`
+- State: `/etc/rusnas/containers/installed.json`
+
+**Каталог (10 приложений):**
+
+| App | Категория | Порт |
+|-----|-----------|------|
+| Nextcloud | cloud | 8080 |
+| Immich | photo | 2283 |
+| Jellyfin | media | 8096 |
+| Vaultwarden | security | 8090 |
+| Home Assistant | iot | 8123 |
+| Pi-hole | network | 8053 |
+| WireGuard | network | 51820 |
+| Mailcow | mail | 8025 |
+| OnlyOffice | office | 8085 |
+| Rocket.Chat | chat | 3000 |
+
+**UI (3 вкладки):**
+- **Каталог** — карточки приложений с категорией/описанием/иконкой, фильтры по категориям, модал установки с параметрами (включая авто-генерацию паролей)
+- **Установленные** — список с live-статусом, CPU/RAM метрики, кнопки Start/Stop/Restart/Logs/Uninstall
+- **Своё приложение** — форма ручной установки (имя/образ/порт/том) или drag-drop docker-compose.yml
+
+**Dashboard widget:** карточка `ПРИЛОЖЕНИЯ` в нижнем grid, показывает count running/total, переход на страницу.
+
+**Prometheus метрики (metrics_server.py):**
+- `rusnas_container_count{status="running|stopped|error"}`
+- `rusnas_container_cpu_percent{name="rusnas-*"}`
+- `rusnas_container_memory_bytes{name="rusnas-*"}`
+
+**Deploy:** `./install-containers.sh`
+
+**Тесты:** 14 unit (test_container_api.py + test_container_metrics.py) + 5 Playwright UI тестов — 19/19 PASS

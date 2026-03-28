@@ -837,6 +837,7 @@ header{
     <a href="#dedup">Дедупликация</a>
     <a href="#ups">ИБП</a>
     <a href="#storage-analyzer">Анализатор</a>
+    <a href="#containers">Контейнеры</a>
     <a href="#specs">Характеристики</a>
     <a href="#compare">Сравнение</a>
     <a href="#cta">Контакты</a>
@@ -898,6 +899,7 @@ header{
       <div class="feat-card" style="border-color:rgba(63,81,181,0.2);"><div class="feat-icon" style="background:rgba(63,81,181,0.1);border-color:rgba(63,81,181,0.2);color:rgba(63,81,181,0.9);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z"/></svg></div><div class="feat-title">Active Directory</div><div class="feat-desc">Два режима: Участник домена (Winbind/SSSD) или собственный Контроллер домена (Samba AD DC). Управление пользователями, группами, DNS, GPO и репликацией прямо из UI — без командной строки.</div></div>
       <div class="feat-card" style="border-color:rgba(0,188,212,0.2);"><div class="feat-icon" style="background:rgba(0,188,212,0.1);border-color:rgba(0,188,212,0.2);color:rgba(0,188,212,0.9);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></div><div class="feat-title">TLS-сертификаты</div><div class="feat-desc">Автовыпуск Let's Encrypt (certbot 4.0), самоподписанные с SAN, импорт готовых PEM. Авто-обновление по таймеру (daily 03:30). Управление из браузера без CLI.</div></div>
       <div class="feat-card" style="border-color:rgba(96,165,250,0.2);"><div class="feat-icon" style="background:rgba(96,165,250,0.1);border-color:rgba(96,165,250,0.2);color:rgba(96,165,250,0.9);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg></div><div class="feat-title">RAID Backup Mode</div><div class="feat-desc">Автоматический spindown дисков RAID-массива после настраиваемого периода простоя (1–1440 мин). Корректный сброс Btrfs, подавление RAID-проверки, автопробуждение при I/O. Prometheus-метрики и дашборд-индикатор состояния.</div></div>
+      <div class="feat-card" style="border-color:rgba(41,98,255,0.2);cursor:pointer;" onclick="document.getElementById('containers').scrollIntoView({behavior:'smooth'})"><div class="feat-icon" style="background:rgba(41,98,255,0.1);border-color:rgba(41,98,255,0.2);color:rgba(91,155,248,0.9);"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div><div class="feat-title">Менеджер контейнеров</div><div class="feat-desc">10 готовых приложений (Nextcloud, Immich, Jellyfin, Vaultwarden и др.) — один клик в Cockpit. Rootless Podman, авто-прокси nginx, systemd-юниты, мониторинг CPU/RAM. Поддержка своих compose-файлов.</div></div>
     </div>
   </div>
 </section>
@@ -2598,6 +2600,7 @@ header{
         <tr><td>Веб-файловый менеджер</td><td class="c-syn part">⚡ File Station (базовый)</td><td class="c-rus yes">✅ FileBrowser v2 — полнофункциональный, /files/</td></tr>
         <tr class="hl"><td>Дашборд реалтайм-метрик</td><td class="c-syn yes">✅ DSM Resource Monitor</td><td class="c-rus yes">✅ Встроен: CPU/RAM/сеть/I/O/Guard/UPS/снапшоты</td></tr>
         <tr><td>Мониторинг сетевого трафика</td><td class="c-syn part">⚡ Через пакет</td><td class="c-rus yes">✅ vnStat — история по часам, дням, месяцам</td></tr>
+        <tr class="hl"><td>Менеджер контейнеров</td><td class="c-syn part">⚡ Container Manager (платный пакет)</td><td class="c-rus yes">✅ Встроен: 10 приложений, rootless Podman, авто-nginx, мониторинг</td></tr>
       </tbody>
     </table>
     </div>
@@ -3305,6 +3308,7 @@ header{
       <a href="#dedup">Дедупликация</a>
       <a href="#ups">ИБП</a>
       <a href="#storage-analyzer">Анализатор</a>
+      <a href="#containers">Контейнеры</a>
       <a href="#specs">Характеристики</a>
       <a href="#compare">Сравнение</a>
       <a href="#cta">Контакты</a>
