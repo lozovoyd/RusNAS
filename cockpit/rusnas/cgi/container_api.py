@@ -37,8 +37,11 @@ def run_compose(compose_dir, args):
 def load_installed():
     if not os.path.exists(INSTALLED_FILE):
         return {}
-    with open(INSTALLED_FILE) as f:
-        return json.load(f)
+    try:
+        with open(INSTALLED_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 def save_installed(data):
     os.makedirs(os.path.dirname(INSTALLED_FILE), exist_ok=True)
@@ -137,12 +140,17 @@ def cmd_get_logs():
     if len(sys.argv) < 3:
         err("get_logs requires app_id")
     app_id = sys.argv[2]
-    lines = int(sys.argv[3]) if len(sys.argv) > 3 else 100
+    try:
+        lines = int(sys.argv[3]) if len(sys.argv) > 3 else 100
+    except ValueError:
+        err("get_logs: lines argument must be an integer")
     installed = load_installed()
     app = installed.get(app_id)
     if not app:
         err(f"App not found: {app_id}")
     compose_dir = app.get("compose_dir", "")
+    if not compose_dir or not os.path.isdir(compose_dir):
+        err(f"Compose directory not found for {app_id}")
     result = run_compose(compose_dir, ["logs", "--tail", str(lines), "--no-color"])
     out({"ok": True, "logs": result.stdout + result.stderr})
 
