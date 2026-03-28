@@ -1981,17 +1981,26 @@ header{
         dots.forEach(function(d,i){ d.classList.toggle('active', i===cur); });
         counter.textContent = (cur+1) + ' / ' + total;
       }
-      document.getElementById('snap-prev').onclick = function(){ go(cur-1); };
-      document.getElementById('snap-next').onclick = function(){ go(cur+1); };
-      dots.forEach(function(d){ d.onclick = function(){ go(+d.dataset.i); }; });
+      document.getElementById('snap-prev').onclick = function(){ go(cur-1); resetAuto(); };
+      document.getElementById('snap-next').onclick = function(){ go(cur+1); resetAuto(); };
+      dots.forEach(function(d){ d.onclick = function(){ go(+d.dataset.i); resetAuto(); }; });
       var sx=null;
       track.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;},{passive:true});
       track.addEventListener('touchend',function(e){
         if(sx===null)return;
         var dx=e.changedTouches[0].clientX-sx;
-        if(Math.abs(dx)>40)go(dx<0?cur+1:cur-1);
+        if(Math.abs(dx)>40){ go(dx<0?cur+1:cur-1); resetAuto(); }
         sx=null;
       },{passive:true});
+      // Autoplay
+      var autoTimer = null;
+      var wrap = document.querySelector('.snap-slider-wrap');
+      function startAuto(){ autoTimer = setInterval(function(){ go(cur+1); }, 4000); }
+      function stopAuto(){ clearInterval(autoTimer); autoTimer = null; }
+      function resetAuto(){ stopAuto(); startAuto(); }
+      wrap.addEventListener('mouseenter', stopAuto);
+      wrap.addEventListener('mouseleave', startAuto);
+      startAuto();
     })();
     </script>
 
