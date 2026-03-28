@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """rusNAS Container Manager CGI backend"""
-import sys, os, json, subprocess, string, random
+import sys, os, json, subprocess, string, random, re, shutil
 from datetime import datetime
 
 CONTAINER_USER = "rusnas-containers"
@@ -156,7 +156,6 @@ def cmd_get_logs():
 
 def render_compose(template_path, substitutions):
     """Replace {{VAR:-default}} and {{VAR}} in template."""
-    import re
     with open(template_path) as f:
         content = f.read()
     def replace(m):
@@ -215,6 +214,8 @@ def cmd_install():
     if len(sys.argv) < 3:
         err("install requires app_id")
     app_id = sys.argv[2]
+    if not re.fullmatch(r'[a-zA-Z0-9_-]+', app_id):
+        err("Invalid app_id: only letters, digits, hyphens and underscores allowed")
     params = {}
     for arg in sys.argv[3:]:
         if '=' in arg:
@@ -299,11 +300,9 @@ def cmd_uninstall():
 
     if compose_dir and os.path.isdir(compose_dir):
         run_compose(compose_dir, ["down", "--volumes"])
-        import shutil
         shutil.rmtree(compose_dir, ignore_errors=True)
 
     if not keep_data and data_dir and os.path.isdir(data_dir):
-        import shutil
         shutil.rmtree(data_dir, ignore_errors=True)
 
     conf_path = os.path.join(NGINX_APPS_DIR, f"{app_id}.conf")
@@ -375,6 +374,8 @@ def cmd_install_custom():
     if len(sys.argv) < 4:
         err("install_custom requires name and image")
     name = sys.argv[2]
+    if not re.fullmatch(r'[a-zA-Z0-9_-]+', name):
+        err("Invalid name: only letters, digits, hyphens and underscores allowed")
     image = sys.argv[3]
 
     params = {}
@@ -434,6 +435,8 @@ def cmd_import_compose():
     if len(sys.argv) < 4:
         err("import_compose requires name and compose_path")
     name = sys.argv[2]
+    if not re.fullmatch(r'[a-zA-Z0-9_-]+', name):
+        err("Invalid name: only letters, digits, hyphens and underscores allowed")
     compose_path = sys.argv[3]
     if not os.path.exists(compose_path):
         err(f"File not found: {compose_path}")
@@ -442,7 +445,6 @@ def cmd_import_compose():
     compose_dir = os.path.join(COMPOSE_DIR, app_id)
     os.makedirs(compose_dir, exist_ok=True)
 
-    import shutil
     shutil.copy(compose_path, os.path.join(compose_dir, "docker-compose.yml"))
     subprocess.run(["chown", "-R", f"{CONTAINER_USER}:{CONTAINER_USER}", compose_dir],
                    capture_output=True)
