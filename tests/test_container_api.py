@@ -24,3 +24,28 @@ def test_unknown_command_returns_error():
 def test_get_logs_missing_app():
     r = call_cgi('get_logs', 'nonexistent-app')
     assert r.get('ok') is False
+
+def test_install_missing_app():
+    r = call_cgi('install', 'nonexistent-app-xyz')
+    assert r.get('ok') is False
+    assert 'error' in r
+
+def test_uninstall_missing_app():
+    r = call_cgi('uninstall', 'nonexistent-app')
+    assert r.get('ok') is False
+
+def test_start_missing_app():
+    r = call_cgi('start', 'nonexistent-app')
+    assert r.get('ok') is False
+
+def test_stop_missing_app():
+    r = call_cgi('stop', 'nonexistent-app')
+    assert r.get('ok') is False
+
+def test_restart_missing_app():
+    r = call_cgi('restart', 'nonexistent-app')
+    assert r.get('ok') is False
+
+def test_update_images_missing_app():
+    r = call_cgi('update_images', 'nonexistent-app')
+    assert r.get('ok') is False
