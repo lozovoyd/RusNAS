@@ -378,6 +378,11 @@ function showInstallResult(app, result) {
     document.getElementById("install-progress-area").style.display = "none";
     document.getElementById("install-result-area").style.display = "";
 
+    // Build URL using browser hostname (not server hostname)
+    var appUrl = result.nginx_path
+        ? ("http://" + window.location.hostname + result.nginx_path)
+        : "";
+
     var copyBtnHtml = result.admin_password
         ? '<button class="btn btn-secondary btn-sm" id="copy-pw-btn">Скопировать</button>'
         : '';
@@ -387,8 +392,8 @@ function showInstallResult(app, result) {
             '<div style="font-size:32px;margin-bottom:8px">\u2705</div>' +
             '<h4 style="margin:0 0 16px">' + _esc(name) + ' установлен</h4>' +
         '</div>' +
-        (result.url ? '<div class="form-group"><label>Адрес</label>' +
-            '<a href="' + _esc(result.url) + '" target="_blank" style="color:var(--color-link)">' + _esc(result.url) + '</a>' +
+        (appUrl ? '<div class="form-group"><label>Адрес</label>' +
+            '<a href="' + _esc(appUrl) + '" target="_blank" style="color:var(--color-link)">' + _esc(appUrl) + '</a>' +
             '</div>' : '') +
         (result.admin_password ? '<div class="form-group"><label>Пароль администратора</label>' +
             '<div style="display:flex;gap:8px">' +
@@ -397,6 +402,10 @@ function showInstallResult(app, result) {
             '</div>' +
             '<small class="text-muted">Сохраните пароль — он больше не будет показан.</small>' +
             '</div>' : '') +
+        '<div class="alert alert-info" style="font-size:12px;margin-top:8px">' +
+            '&#9203; Первый запуск занимает 1–2 минуты пока контейнер инициализируется. ' +
+            'Если страница недоступна — подождите и обновите браузер.' +
+        '</div>' +
         '<div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px" id="result-actions">' +
         '</div>';
 
@@ -412,9 +421,9 @@ function showInstallResult(app, result) {
 
     var actionsDiv = document.getElementById("result-actions");
     if (actionsDiv) {
-        if (result.url) {
+        if (appUrl) {
             var openBtn = document.createElement("a");
-            openBtn.href = result.url;
+            openBtn.href = appUrl;
             openBtn.target = "_blank";
             openBtn.className = "btn btn-primary btn-sm";
             openBtn.textContent = "Открыть";
@@ -466,9 +475,9 @@ function renderInstalled(apps) {
                        : "Остановлен";
 
         var category = app.category || "cloud";
-        var url = app.proxy_url
-            || (app.nginx_path ? ("http://" + window.location.hostname + app.nginx_path) : "")
-            || (app.host_ports && Object.values(app.host_ports)[0]
+        var url = app.nginx_path
+            ? ("http://" + window.location.hostname + app.nginx_path)
+            : (app.host_ports && Object.values(app.host_ports)[0]
                ? ("http://" + window.location.hostname + ":" + Object.values(app.host_ports)[0])
                : "");
 
@@ -531,12 +540,36 @@ function updateInstalledBadge() {
     }
 }
 
+function _actionLabel(action) {
+    return action === "start" ? "Запустить" : action === "stop" ? "Стоп" : "Перезапуск";
+}
+
+function showToast(msg, type) {
+    var t = document.createElement("div");
+    t.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 16px;" +
+        "border-radius:var(--radius-sm);font-size:13px;color:#fff;max-width:320px;" +
+        "background:" + (type === "success" ? "var(--success)" : type === "danger" ? "var(--danger)" : "var(--primary)") + ";";
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 3500);
+}
+
 function appAction(action, appId) {
+    // Disable button immediately for feedback
+    var btn = document.querySelector('.app-action-btn[data-action="' + action + '"][data-appid="' + appId + '"]');
+    if (btn) { btn.disabled = true; btn.textContent = "\u2026"; }
+
     cgiCall(action, [appId]).then(function(r) {
-        if (r.ok) loadInstalled();
-        else alert("Ошибка: " + (r.error || "неизвестно"));
+        if (r.ok) {
+            showToast(_actionLabel(action) + ": готово", "success");
+            loadInstalled();
+        } else {
+            showToast("Ошибка: " + (r.error || "неизвестно"), "danger");
+            if (btn) { btn.disabled = false; btn.textContent = _actionLabel(action); }
+        }
     }).catch(function(e) {
-        alert("Ошибка: " + e);
+        showToast("Ошибка: " + String(e), "danger");
+        if (btn) { btn.disabled = false; btn.textContent = _actionLabel(action); }
     });
 }
 

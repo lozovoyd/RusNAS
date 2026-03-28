@@ -271,6 +271,11 @@ def cmd_install():
         **params,
     }
 
+    # Port conflict check BEFORE starting containers
+    if not port_is_free(int(web_port)):
+        suggestion = next_free_port(int(web_port))
+        err(f"Port {web_port} is already in use. Try port {suggestion}.")
+
     compose_dir = os.path.join(COMPOSE_DIR, app_id)
     os.makedirs(compose_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
@@ -288,17 +293,9 @@ def cmd_install():
     if result.returncode != 0:
         err(result.stderr or "podman-compose up failed")
 
-    # Port conflict check before starting containers
-    if not port_is_free(int(web_port)):
-        suggestion = next_free_port(int(web_port))
-        err(f"Port {web_port} is already in use. Try port {suggestion}.")
-
     path_prefix = manifest.get("nginx_path", f"/{app_id}/")
     generate_proxy_config(app_id, path_prefix, web_port)
     generate_systemd_unit(app_id, compose_dir)
-
-    proxy_url = f"http://{socket.gethostname()}{path_prefix}"
-    direct_url = f"http://{socket.gethostname()}:{web_port}/"
 
     installed = load_installed()
     installed[app_id] = {
@@ -309,8 +306,6 @@ def cmd_install():
         "data_dir": data_dir,
         "host_ports": {manifest.get("port_label", "web"): int(web_port)},
         "nginx_path": path_prefix,
-        "proxy_url": proxy_url,
-        "direct_url": direct_url,
         "proxy_active": True,
         "admin_user": admin_user,
         "admin_password": admin_password,
@@ -319,8 +314,9 @@ def cmd_install():
         "version": manifest.get("version", "latest"),
     }
     save_installed(installed)
+    # Return nginx_path and port — JS builds the URL from window.location.hostname
     out({"ok": True, "app_id": app_id, "admin_password": admin_password,
-         "url": proxy_url, "proxy_url": proxy_url, "direct_url": direct_url})
+         "nginx_path": path_prefix, "port": int(web_port)})
 
 def cmd_uninstall():
     if len(sys.argv) < 3:
