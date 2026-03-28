@@ -167,10 +167,10 @@ section{padding:88px 48px;position:relative;z-index:1;}
 .mode-steps li{font-size:12.5px;color:var(--gray);padding:5px 0;padding-left:18px;position:relative;border-bottom:1px solid rgba(255,255,255,0.04);line-height:1.5;}
 .mode-steps li:last-child{border-bottom:none;}
 .mode-steps li::before{content:'→';position:absolute;left:0;color:var(--gray2);}
-.mode-steps li.danger::before{content:'⚡';}
-.mode-steps li.snap::before{content:'📸';}
-.mode-steps li.block::before{content:'🚫';}
-.mode-steps li.off::before{content:'🔴';}
+.mode-steps li.danger::before{content:'!';}
+.mode-steps li.snap::before{content:'◎';}
+.mode-steps li.block::before{content:'✕';}
+.mode-steps li.off::before{content:'●';}
 
 /* Guard PIN note */
 .guard-pin-note{background:rgba(245,166,35,0.05);border:1px solid rgba(245,166,35,0.14);border-radius:12px;padding:18px 22px;display:flex;align-items:flex-start;gap:14px;margin-bottom:52px;}
@@ -1618,7 +1618,7 @@ header{
     <div class="snap-top">
       <!-- Left: intro -->
       <div>
-        <div class="snap-label">📸 Снапшоты Btrfs</div>
+        <div class="snap-label">Снапшоты Btrfs</div>
         <h2 class="snap-title">Машина времени<br>для <span class="snap-accent">каждой папки</span></h2>
         <p class="snap-sub">Мгновенные снапшоты на уровне файловой системы — без копирования данных, без нагрузки на I/O. Откат любой папки к любому моменту за секунды. Умная ротация по политике: система сама удаляет старые снапшоты и сохраняет нужные.</p>
         <div class="snap-stats">
@@ -1688,8 +1688,8 @@ header{
         </div>
         <div class="snap-tl-row">
           <div class="snap-tl-label">Вручную</div>
-          <div class="snap-tl-dot manual" title="Ручной — хранится вечно">★</div>
-          <div class="snap-tl-dot locked" title="Заблокирован — не удаляется ротацией">🔒</div>
+          <div class="snap-tl-dot manual" title="Ручной — хранится вечно"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"/></svg></div>
+          <div class="snap-tl-dot locked" title="Заблокирован — не удаляется ротацией"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></div>
           <span style="font-size:11px;color:var(--gray2);margin-left:4px;">Ручные и locked — не удаляются никогда</span>
         </div>
         <div class="snap-tl-legend">
@@ -1714,43 +1714,43 @@ header{
         <div class="sfc-cmd">btrfs subvolume snapshot -r \<br>/vol/docs \<br>/.snapshots/docs/@2025-01-15_09-00_hourly</div>
       </div>
       <div class="snap-flow-card" data-step="02">
-        <div class="sfc-icon">🗃️</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"/></svg></div>
         <div class="sfc-title">Запись метаданных</div>
         <div class="sfc-desc">После создания снапшота daemon записывает запись в SQLite: путь, тип (hourly/daily/weekly/monthly/manual), метку, флаг locked, временную метку.</div>
         <div class="sfc-cmd">db INSERT: path, type,<br>label, locked=false,<br>created_at=now()</div>
       </div>
       <div class="snap-flow-card" data-step="03">
-        <div class="sfc-icon">🔄</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg></div>
         <div class="sfc-title">Ротация (retention)</div>
         <div class="sfc-desc">Для каждого тома daemon строит множество «защищённых» снапшотов по политике: manual и locked — всегда, последние N, hourly/daily/weekly/monthly окна. Остальные удаляются.</div>
         <div class="sfc-cmd">keep = manual ∪ locked ∪<br>last_N ∪ hourly(24) ∪<br>daily(14) ∪ weekly(8) ∪ monthly(12)</div>
       </div>
       <div class="snap-flow-card" data-step="04">
-        <div class="sfc-icon">👁️</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></div>
         <div class="sfc-title">Browse снапшота</div>
         <div class="sfc-desc">Пользователь нажимает «Открыть» в UI. Daemon монтирует снапшот read-only во временную папку — пользователь видит содержимое прямо в браузере или через SMB. Через 30 мин автоумонтирование.</div>
         <div class="sfc-cmd">mount --bind /.snapshots/docs/<br>@2025-01-15 /tmp/snap-browse/<br>→ доступно через SMB</div>
       </div>
       <div class="snap-flow-card" data-step="05">
-        <div class="sfc-icon">🔁</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg></div>
         <div class="sfc-title">Восстановление тома</div>
         <div class="sfc-desc">Атомарная замена: сначала снапшот становится новым активным subvolume, старый переименовывается в .bak. При ошибке можно откатить. Сервисы останавливаются только на время swap (~2 сек).</div>
         <div class="sfc-cmd">mv /vol/docs /vol/docs.bak<br>btrfs subvolume snapshot \<br>@snap /vol/docs</div>
       </div>
       <div class="snap-flow-card" data-step="06">
-        <div class="sfc-icon">📄</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg></div>
         <div class="sfc-title">Восстановление файла</div>
         <div class="sfc-desc">Пользователь выбирает конкретный файл из смонтированного снапшота в UI. Daemon копирует файл из снапшота на место — оригинал сохраняется как .orig. Весь том не затрагивается.</div>
         <div class="sfc-cmd">cp /.snapshots/@snap/<br>report.xlsx /vol/docs/<br>report.xlsx.orig → report.xlsx</div>
       </div>
       <div class="snap-flow-card" data-step="07">
-        <div class="sfc-icon">🛡️</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg></div>
         <div class="sfc-title">Автоснапшот Guard</div>
         <div class="sfc-desc">rusNAS Guard при обнаружении шифровальщика немедленно создаёт снапшот всех томов до начала блокировки — данные зафиксированы в чистом состоянии. Снапшот автоматически помечается как locked.</div>
         <div class="sfc-cmd">trigger: Guard detect attack<br>→ snapshot all volumes<br>→ mark locked=true</div>
       </div>
       <div class="snap-flow-card" data-step="08">
-        <div class="sfc-icon">📡</div>
+        <div class="sfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/></svg></div>
         <div class="sfc-title">Репликация (опц.)</div>
         <div class="sfc-desc">Инкрементальная репликация снапшотов на удалённый NAS через btrfs send/receive + SSH. Передаётся только разница между снапшотами — минимальный трафик. Настраивается по расписанию в UI.</div>
         <div class="sfc-cmd">btrfs send -p @prev @new | \<br>ssh backup-nas \<br>btrfs receive /backup/</div>
@@ -1786,13 +1786,13 @@ header{
     </div>
     <div class="snap-actions">
       <div class="snap-act-card">
-        <div class="sac-icon">📋</div>
+        <div class="sac-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/></svg></div>
         <div class="sac-title">Список и управление</div>
         <div class="sac-desc">Полная таблица снапшотов по каждому тому: тип, время создания, размер (уникальных данных), метка. Фильтр по типу и дате. Блокировка/разблокировка любого снапшота одной кнопкой.</div>
         <div class="sac-note safe">Просмотр не требует прав записи</div>
       </div>
       <div class="snap-act-card">
-        <div class="sac-icon">🕵️</div>
+        <div class="sac-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg></div>
         <div class="sac-title">Browse — просмотр содержимого</div>
         <div class="sac-desc">Открыть любой снапшот как обычную папку прямо в браузере или через SMB. Daemon монтирует снапшот в отдельную read-only директорию — можно найти и скачать нужный файл без восстановления всего тома.</div>
         <div class="sac-note safe">Снапшот read-only — данные не изменить</div>
@@ -1824,7 +1824,7 @@ header{
 
           <div class="snap-slide" data-theme="green">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">🧾</span><span class="snap-slide-org">Бухгалтерия / 1С</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg></span><span class="snap-slide-org">Бухгалтерия / 1С</span></div>
               <div class="snap-slide-title">Случайно удалили папку — восстановить за 5 минут</div>
               <div class="snap-slide-situation">Бухгалтер удалила папку с закрывающими документами за квартал. Резервная копия — вчерашняя. Данные нужны прямо сейчас, копировать весь том нельзя — он на 2 ТБ. Другие сотрудники продолжают работу.</div>
               <div class="snap-slide-result">✓ Восстановление отдельной папки без остановки сервисов. Время: 3–5 минут.</div>
@@ -1846,7 +1846,7 @@ header{
 
           <div class="snap-slide" data-theme="blue">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">⚖️</span><span class="snap-slide-org">Юридическая компания</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 0 1-2.031.352 5.988 5.988 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.97Zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 0 1-2.031.352 5.989 5.989 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 5.49Z"/></svg></span><span class="snap-slide-org">Юридическая компания</span></div>
               <div class="snap-slide-title">Неизменяемый архив договоров для аудита</div>
               <div class="snap-slide-situation">Нужно хранить подписанные договоры так, чтобы никто не мог изменить или удалить их до прихода аудитора. Требование — доказать что файл существовал и не менялся на конкретную дату.</div>
               <div class="snap-slide-result">✓ Read-only копия на момент времени. Ни root, ни другой администратор не удалит без явного разблокирования.</div>
@@ -1868,7 +1868,7 @@ header{
 
           <div class="snap-slide" data-theme="orange">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">🔧</span><span class="snap-slide-org">ИТ-отдел компании</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l5.653-4.655m5.897-.292c-.193-.86-.554-1.68-1.079-2.404A4.5 4.5 0 0 0 6 11.25a4.5 4.5 0 0 0 4.5 4.5c.317 0 .626-.033.926-.094"/></svg></span><span class="snap-slide-org">ИТ-отдел компании</span></div>
               <div class="snap-slide-title">Страховка перед обновлением ПО — откат за 10 секунд</div>
               <div class="snap-slide-situation">Сегодня обновление 1С. Если что-то пойдёт не так — нужно откатиться за минуты, а не восстанавливать бэкап часами пока все стоят и ждут.</div>
               <div class="snap-slide-result">✓ Откат всего тома за 2–10 секунд вместо восстановления из бэкапа за часы. Снапшот = мгновенный checkpoint.</div>
@@ -1890,7 +1890,7 @@ header{
 
           <div class="snap-slide" data-theme="red">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">🦠</span><span class="snap-slide-org">Любая организация</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12.75c1.148 0 2.278.08 3.383.237 1.037.146 1.866.966 1.866 2.013 0 3.728-2.35 6.75-5.25 6.75S6.75 18.728 6.75 15c0-1.046.83-1.867 1.866-2.013A24.204 24.204 0 0 1 12 12.75Zm0 0c2.883 0 5.647.508 8.207 1.44a23.91 23.91 0 0 1-1.152 6.06M12 12.75c-2.883 0-5.647.508-8.208 1.44a23.916 23.916 0 0 0 1.152 6.061m0 0a23.945 23.945 0 0 0 9.112 3.499"/></svg></span><span class="snap-slide-org">Любая организация</span></div>
               <div class="snap-slide-title">Шифровальщик атаковал сервер — восстановление за минуты</div>
               <div class="snap-slide-situation">Утром файлы с расширением .locked. rusNAS Guard уже заблокировал IP источника и автоматически создал locked-снапшот всех томов до начала шифрования.</div>
               <div class="snap-slide-result">✓ Guard среагировал за секунды, данные зафиксированы до распространения. Восстановление — минуты, не дни.</div>
@@ -1912,7 +1912,7 @@ header{
 
           <div class="snap-slide" data-theme="purple">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">🏥</span><span class="snap-slide-org">Медклиника / Регулятор</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z"/></svg></span><span class="snap-slide-org">Медклиника / Регулятор</span></div>
               <div class="snap-slide-title">Хранение данных пациентов по ФЗ-323 — 5 лет без изменений</div>
               <div class="snap-slide-situation">По закону медданные хранятся не менее 5 лет без изменений. Проверяющий орган может запросить состояние базы на конкретную дату в прошлом.</div>
               <div class="snap-slide-result">✓ Каждый locked-снапшот — нотариально чистая копия на дату. Соответствие регулятору без дополнительного ПО.</div>
@@ -1935,7 +1935,7 @@ header{
 
           <div class="snap-slide" data-theme="green">
             <div class="snap-slide-story">
-              <div class="snap-slide-tag"><span class="snap-slide-icon">📡</span><span class="snap-slide-org">Несколько офисов</span></div>
+              <div class="snap-slide-tag"><span class="snap-slide-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/></svg></span><span class="snap-slide-org">Несколько офисов</span></div>
               <div class="snap-slide-title">Репликация на резервный NAS — только изменения по каналу</div>
               <div class="snap-slide-situation">Основной NAS в офисе, резервный в другом здании. Нужно чтобы резервный имел актуальную копию, но не хочется гнать весь объём по узкому каналу каждый раз.</div>
               <div class="snap-slide-result">✓ Первый раз — весь объём, далее только diff. Канал 100 Мбит/с легко справляется с офисными данными.</div>
@@ -2006,7 +2006,7 @@ header{
   <div class="guard-glow"></div>
   <div class="guard-glow2"></div>
   <div class="guard-inner">
-    <div class="guard-label">🛡 rusNAS Guard</div>
+    <div class="guard-label">rusNAS Guard</div>
     <h2 class="guard-title">Защита от <span class="guard-accent">шифровальщиков</span><br>встроена в ядро системы</h2>
     <p class="guard-sub">Демон мониторинга файловой активности на уровне ядра Linux. Обнаруживает ransomware до того, как он успевает зашифровать данные — и автоматически создаёт снапшот, блокирует IP и выключает устройство.</p>
 
@@ -2029,28 +2029,28 @@ header{
     </div>
     <div class="detect-grid">
       <div class="detect-card c-honey">
-        <div class="detect-icon">🍯</div>
+        <div class="detect-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg></div>
         <div class="detect-trigger dt-honey">Honeypot-файлы</div>
         <div class="detect-title">Файлы-приманки</div>
         <div class="detect-desc">В каждой отслеживаемой папке создаются скрытые «приманки» с именами вида <code style="font-size:11px;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">!~a8f3.docx</code> — они появляются первыми при перечислении директории. Шифровальщик атакует их первыми.</div>
         <div class="detect-detail">Триггер: любое изменение, переименование или удаление приманки = немедленный алерт. Файлы пересоздаются автоматически после срабатывания. Без слов «honeypot», «bait» в именах.</div>
       </div>
       <div class="detect-card c-entropy">
-        <div class="detect-icon">📊</div>
+        <div class="detect-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg></div>
         <div class="detect-trigger dt-entropy">Энтропийный анализ</div>
         <div class="detect-title">Анализ энтропии файлов</div>
         <div class="detect-desc">При каждом сохранении файла (событие <code style="font-size:11px;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">IN_CLOSE_WRITE</code>) читается 16 случайных блоков по 4 КБ и вычисляется энтропия Шеннона. Зашифрованные данные имеют максимальную энтропию.</div>
         <div class="detect-detail">Триггер: энтропия &gt; 7.2 бит/байт (настраивается: 6.5–7.5). Исключены медиафайлы и архивы — у них тоже высокая энтропия. Минимальный размер файла: 16 КБ. Нагрузка: &lt;3 МБ/с при 50 событиях/сек.</div>
       </div>
       <div class="detect-card c-iops">
-        <div class="detect-icon">📈</div>
+        <div class="detect-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/></svg></div>
         <div class="detect-trigger dt-iops">IOPS Anomaly</div>
         <div class="detect-title">Аномальная активность IOPS</div>
         <div class="detect-desc">Счётчик файловых операций (создание, запись, переименование, удаление) в скользящем 60-секундном окне. Baseline строится 7 дней по часам суток — рабочие часы отдельно от ночи.</div>
         <div class="detect-detail">Триггер: текущая скорость &gt; baseline_median + 4×stddev И &gt; 50 ops/мин. В течение первых 7 дней (период обучения) IOPS-детектор отключён, остальные методы работают. Чувствительность: 2×/3×/4× stddev.</div>
       </div>
       <div class="detect-card c-ext">
-        <div class="detect-icon">🔐</div>
+        <div class="detect-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"/></svg></div>
         <div class="detect-trigger dt-ext">Known Extensions</div>
         <div class="detect-title">База расширений шифровальщиков</div>
         <div class="detect-desc">Постоянно обновляемая база из &gt;200 известных расширений файлов-жертв ransomware: <code style="font-size:11px;background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;">.locky .cerber .crypt .wncry .locked .enc</code> и другие.</div>
@@ -2101,7 +2101,7 @@ header{
 
     <!-- PIN NOTE -->
     <div class="guard-pin-note">
-      <div class="guard-pin-icon">🔑</div>
+      <div class="guard-pin-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z"/></svg></div>
       <div class="guard-pin-text">
         <strong>Guard PIN — независимая защита.</strong> Отдельный PIN хранится как bcrypt-хеш в <code style="font-size:11px;background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;">/etc/rusnas-guard/guard.pin</code>. Нужен для запуска/остановки демона, смены режима, изменения настроек и подтверждения алертов. Пароль Cockpit не даёт доступа к Guard — это сделано намеренно: даже при компрометации admin-аккаунта защита остаётся активной. После атаки в режиме Super-Safe устройство стартует в Monitor-only режиме с предупреждением — для возврата к активной защите требуется явное подтверждение с PIN.
       </div>
@@ -2135,7 +2135,7 @@ header{
     <div class="ssd-tier-top">
       <!-- Left: text -->
       <div>
-        <div class="ssd-tier-label">⚡ SSD-уровень</div>
+        <div class="ssd-tier-label">SSD-уровень</div>
         <h2 class="ssd-tier-title">Ускорение HDD-массива<br><span class="ssd-tier-accent">в 5–30 раз</span><br>без замены дисков</h2>
         <p class="ssd-tier-sub">Один SSD-диск добавляется поверх существующего RAID-массива через LVM. Горячие данные (20% файлов = 80% обращений) кешируются на SSD — операции чтения становятся почти как на чистом SSD, ёмкость массива не меняется.</p>
         <div class="ssd-tier-tech">
@@ -2167,11 +2167,11 @@ header{
             </div>
             <div style="display:flex;gap:10px;width:100%;">
               <div style="flex:1;background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.25);border-radius:7px;padding:8px 10px;font-size:11.5px;">
-                ⚡ <strong style="color:var(--orange)">SSD-кеш</strong><br>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;color:var(--orange)"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></svg> <strong style="color:var(--orange)">SSD-кеш</strong><br>
                 <span style="color:var(--gray2)">Горячие данные</span>
               </div>
               <div style="flex:2;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:8px 10px;font-size:11.5px;">
-                💾 <strong style="color:var(--gray)">HDD RAID-массив</strong><br>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;color:var(--gray)"><path d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 2.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125m0 5.625c0 2.278 3.694 4.125 8.25 4.125s8.25-1.847 8.25-4.125"/></svg> <strong style="color:var(--gray)">HDD RAID-массив</strong><br>
                 <span style="color:var(--gray2)">Все данные</span>
               </div>
             </div>
@@ -2187,25 +2187,25 @@ header{
     </div>
     <div class="ssd-boost-grid" style="margin-bottom:40px;">
       <div class="ssd-boost-card sbc-read">
-        <div class="sbc-icon">📖</div>
+        <div class="sbc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg></div>
         <div class="sbc-label">Последовательное чтение</div>
         <div class="sbc-val val-green">+860%</div>
         <div class="sbc-sub">~500 МБ/с → 3 500 МБ/с<br>при 85% cache hit rate</div>
       </div>
       <div class="ssd-boost-card sbc-iops">
-        <div class="sbc-icon">⚡</div>
+        <div class="sbc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></svg></div>
         <div class="sbc-label">IOPS чтения</div>
         <div class="sbc-val val-blue">+140 000</div>
         <div class="sbc-sub">~350K → 490K IOPS<br>критично для БД и 1С</div>
       </div>
       <div class="ssd-boost-card sbc-write">
-        <div class="sbc-icon">✍️</div>
+        <div class="sbc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"/></svg></div>
         <div class="sbc-label">Запись (writeback)</div>
         <div class="sbc-val val-orange">+250%</div>
         <div class="sbc-sub">~200 МБ/с → 700 МБ/с<br>данные сначала на SSD</div>
       </div>
       <div class="ssd-boost-card sbc-rec">
-        <div class="sbc-icon">🎯</div>
+        <div class="sbc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></div>
         <div class="sbc-label">Рекомендуемый SSD</div>
         <div class="sbc-val val-purple">~20%</div>
         <div class="sbc-sub">от объёма данных<br>20 ТБ данных → 4 ТБ SSD</div>
@@ -2219,7 +2219,7 @@ header{
     <div class="ssd-modes">
       <div class="ssd-mode-card safe">
         <div class="smc-head">
-          <span style="font-size:20px;">🔒</span>
+          <span style="font-size:20px;display:inline-flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></svg></span>
           <span class="smc-name">Безопасный режим <span style="font-size:11px;font-weight:500;color:var(--gray2);">(writethrough)</span></span>
         </div>
         <div class="smc-desc">Запись происходит одновременно на SSD и на HDD-массив. SSD ускоряет только чтение. При отключении питания данные сохранены — они уже на HDD.</div>
@@ -2231,7 +2231,7 @@ header{
       </div>
       <div class="ssd-mode-card fast">
         <div class="smc-head">
-          <span style="font-size:20px;">⚡</span>
+          <span style="font-size:20px;display:inline-flex;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></svg></span>
           <span class="smc-name">Быстрый режим <span style="font-size:11px;font-weight:500;color:var(--gray2);">(writeback)</span></span>
         </div>
         <div class="smc-desc">Запись сначала на SSD, потом асинхронно переносится на HDD. Максимальная скорость и чтения и записи. При внезапном отключении до переноса — возможна потеря данных.</div>
@@ -2253,7 +2253,7 @@ header{
   <div class="dedup-glow"></div>
   <div class="dedup-glow2"></div>
   <div class="dedup-inner">
-    <div class="dedup-label">🗜️ Дедупликация</div>
+    <div class="dedup-label">Дедупликация</div>
     <h2 class="dedup-title">Устраняет дубли на уровне блоков.<br><span class="dedup-accent">Место освобождается автоматически.</span></h2>
     <p class="dedup-sub">Три слоя дедупликации работают вместе: offline-сканирование duperemove, COW-рефлинки на уровне файлов и прозрачная дедупликация для Windows-клиентов через SMB vfs_btrfs.</p>
 
@@ -2262,7 +2262,7 @@ header{
       <div class="dedup-methods">
         <div class="dedup-method">
           <div class="dedup-method-head">
-            <span class="dedup-method-icon">🔎</span>
+            <span class="dedup-method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg></span>
             <span class="dedup-method-name">duperemove</span>
             <span class="dedup-method-badge">Offline · блочный уровень</span>
           </div>
@@ -2270,7 +2270,7 @@ header{
         </div>
         <div class="dedup-method">
           <div class="dedup-method-head">
-            <span class="dedup-method-icon">🔗</span>
+            <span class="dedup-method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></svg></span>
             <span class="dedup-method-name">Btrfs reflinks</span>
             <span class="dedup-method-badge">Copy-on-Write · мгновенно</span>
           </div>
@@ -2278,7 +2278,7 @@ header{
         </div>
         <div class="dedup-method">
           <div class="dedup-method-head">
-            <span class="dedup-method-icon">📁</span>
+            <span class="dedup-method-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg></span>
             <span class="dedup-method-name">SMB vfs_btrfs</span>
             <span class="dedup-method-badge">Прозрачно для клиентов</span>
           </div>
@@ -2307,22 +2307,22 @@ header{
     <div class="section-label" style="margin-bottom:12px;">Как это работает</div>
     <div class="dedup-flow">
       <div class="dedup-flow-card">
-        <div class="dfc-icon">🗓️</div>
+        <div class="dfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z"/></svg></div>
         <div class="dfc-title">Расписание</div>
         <div class="dfc-desc">Настройка через UI: выбор томов, дней, времени. Запись в cron, запуск как systemd oneshot.</div>
       </div>
       <div class="dedup-flow-card">
-        <div class="dfc-icon">🔎</div>
+        <div class="dfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg></div>
         <div class="dfc-title">Сканирование</div>
         <div class="dfc-desc">duperemove хеширует блоки выбранных томов, строит карту дублей.</div>
       </div>
       <div class="dedup-flow-card">
-        <div class="dfc-icon">⚙️</div>
+        <div class="dfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg></div>
         <div class="dfc-title">Дедупликация</div>
         <div class="dfc-desc">Идентичные экстенты объединяются через Btrfs ioctl. Файлы остаются независимыми — запись разъединяет блоки.</div>
       </div>
       <div class="dedup-flow-card">
-        <div class="dfc-icon">📊</div>
+        <div class="dfc-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg></div>
         <div class="dfc-title">Статистика</div>
         <div class="dfc-desc">Результат сохраняется в JSON. В UI — SVG timeline с экономией за 7 дней.</div>
       </div>
@@ -2336,7 +2336,7 @@ header{
 <section id="ups" class="ups-section">
   <div class="ups-glow"></div>
   <div class="ups-inner">
-    <div class="ups-label">🔋 Управление ИБП</div>
+    <div class="ups-label">Управление ИБП</div>
     <h2 class="ups-title">Защита от аварийного отключения.<br><span class="ups-accent">Поддержка любого ИБП через NUT.</span></h2>
     <p class="ups-sub">Network UPS Tools 2.8.1 — стандарт управления ИБП в корпоративной среде. Мониторинг в реальном времени, настройка порогов и автоматическое безопасное завершение работы при разряде батареи.</p>
 
@@ -2378,28 +2378,28 @@ header{
       <!-- Features list -->
       <div class="ups-features">
         <div class="ups-feat">
-          <span class="ups-feat-icon">📡</span>
+          <span class="ups-feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z"/></svg></span>
           <div>
             <div class="ups-feat-name">Мониторинг в реальном времени</div>
             <div class="ups-feat-desc">Заряд батареи, запас хода, нагрузка, напряжение, температура. Обновление каждые 10 секунд в дашборде и на странице ИБП.</div>
           </div>
         </div>
         <div class="ups-feat">
-          <span class="ups-feat-icon">⚡</span>
+          <span class="ups-feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"/></svg></span>
           <div>
             <div class="ups-feat-name">Автоматическое завершение работы</div>
             <div class="ups-feat-desc">При разряде батареи ниже порога (настраивается) — upsmon инициирует корректное завершение. Данные на Btrfs не теряются.</div>
           </div>
         </div>
         <div class="ups-feat">
-          <span class="ups-feat-icon">🔔</span>
+          <span class="ups-feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg></span>
           <div>
             <div class="ups-feat-name">Уведомления при событиях</div>
             <div class="ups-feat-desc">Переход на батарею, низкий заряд, восстановление питания, необходима замена батареи — через Telegram и email.</div>
           </div>
         </div>
         <div class="ups-feat">
-          <span class="ups-feat-icon">🔧</span>
+          <span class="ups-feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l5.653-4.655m5.897-.292c-.193-.86-.554-1.68-1.079-2.404A4.5 4.5 0 0 0 6 11.25a4.5 4.5 0 0 0 4.5 4.5c.317 0 .626-.033.926-.094"/></svg></span>
           <div>
             <div class="ups-feat-name">Полная конфигурация через UI</div>
             <div class="ups-feat-desc">Выбор драйвера, порт подключения, SNMP-параметры, пороги заряда и запаса хода — всё настраивается без SSH. Auto-scan USB-устройств встроен.</div>
@@ -2417,7 +2417,7 @@ header{
   <div class="sa-glow"></div>
   <div class="sa-glow2"></div>
   <div class="sa-inner">
-    <div class="sa-label">🔍 Анализатор пространства</div>
+    <div class="sa-label">Анализатор пространства</div>
     <h2 class="sa-title">Видите каждый гигабайт.<br><span class="sa-accent">Прогноз заполнения и точки роста.</span></h2>
     <p class="sa-sub">Встроенный анализатор собирает данные почасово и строит полную картину занятости дисков — по шарам, папкам, пользователям и типам файлов. История роста за 30 дней, линейный прогноз до заполнения.</p>
 
@@ -2426,28 +2426,28 @@ header{
       <div>
         <div class="sa-feats">
           <div class="sa-feat">
-            <div class="sa-feat-icon">🗺️</div>
+            <div class="sa-feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg></div>
             <div>
               <div class="sa-feat-name">Интерактивная тримап</div>
               <div class="sa-feat-desc">Squarified treemap с навигацией по папкам. Каждый прямоугольник — файл или директория. Кликните — провалитесь внутрь. Цвет — тип файла.</div>
             </div>
           </div>
           <div class="sa-feat">
-            <div class="sa-feat-icon">📈</div>
+            <div class="sa-feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"/></svg></div>
             <div>
               <div class="sa-feat-name">Прогноз заполнения</div>
               <div class="sa-feat-desc">Линейная регрессия по истории сканирований. Показывает, через сколько дней закончится место — с момента последнего сканирования.</div>
             </div>
           </div>
           <div class="sa-feat">
-            <div class="sa-feat-icon">👤</div>
+            <div class="sa-feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></div>
             <div>
               <div class="sa-feat-name">Потребление по пользователям</div>
               <div class="sa-feat-desc">Разбивка по UID 1000–60000: сколько занимает каждый пользователь, динамика роста, отклонение от нормы.</div>
             </div>
           </div>
           <div class="sa-feat">
-            <div class="sa-feat-icon">🎯</div>
+            <div class="sa-feat-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L9.568 3Z"/><path d="M6 6h.008v.008H6V6Z"/></svg></div>
             <div>
               <div class="sa-feat-name">Разбивка по типам файлов</div>
               <div class="sa-feat-desc">Donut-диаграмма: документы, видео, образы, архивы, прочее. Клик на тип — переход в файловый браузер с фильтром.</div>
@@ -2499,27 +2499,27 @@ header{
     <div class="section-label" style="margin-bottom:14px;">Пять режимов анализа</div>
     <div class="sa-tabs-strip">
       <div class="sa-ts-card">
-        <div class="sa-ts-icon">📊</div>
+        <div class="sa-ts-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg></div>
         <div class="sa-ts-name">Обзор</div>
         <div class="sa-ts-desc">Карточки объёма, карта тома, SVG-график заполнения с прогнозом, топ-потребители.</div>
       </div>
       <div class="sa-ts-card">
-        <div class="sa-ts-icon">📁</div>
+        <div class="sa-ts-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/></svg></div>
         <div class="sa-ts-name">Шары</div>
         <div class="sa-ts-desc">Таблица SMB-шар: размер, рост, спарклайн динамики, прогноз заполнения на шару.</div>
       </div>
       <div class="sa-ts-card">
-        <div class="sa-ts-icon">🗺️</div>
+        <div class="sa-ts-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></svg></div>
         <div class="sa-ts-name">Папки и файлы</div>
         <div class="sa-ts-desc">Squarified treemap + табличный вид. Фильтр по типу файла. Навигация кликом по папке.</div>
       </div>
       <div class="sa-ts-card">
-        <div class="sa-ts-icon">👤</div>
+        <div class="sa-ts-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg></div>
         <div class="sa-ts-name">Пользователи</div>
         <div class="sa-ts-desc">Потребление по UID. Динамика роста. Отображение квоты если настроена.</div>
       </div>
       <div class="sa-ts-card">
-        <div class="sa-ts-icon">🎯</div>
+        <div class="sa-ts-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L9.568 3Z"/><path d="M6 6h.008v.008H6V6Z"/></svg></div>
         <div class="sa-ts-name">Типы файлов</div>
         <div class="sa-ts-desc">Donut-диаграмма + таблица. Клик на тип — переход в файловый браузер с фильтром.</div>
       </div>
