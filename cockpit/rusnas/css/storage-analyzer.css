@@ -817,17 +817,105 @@ td.sa-trend-flat { color: var(--color-muted); }
 .sa-fill-bar-forecast.crit { color: var(--danger, #E53935); }
 .sa-fill-bar-forecast.ok   { color: var(--success, #43A047); }
 
-/* ── Overview treemap ─────────────────────────────────────────────────── */
+/* ── Overview treemap — div-based enterprise layout ───────────────────── */
 .sa-overview-treemap-wrap {
   background: var(--bg-card);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
   margin-bottom: 14px;
-  min-height: 300px;
-  position: relative;
 }
-.sa-otm-svg { display: block; width: 100%; }
+/* Tile coordinate space */
+.sa-otm-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+/* Individual colored tile */
+.sa-otm-tile {
+  position: absolute;
+  border-radius: 5px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+.sa-otm-tile:hover {
+  filter: brightness(1.28) saturate(1.12);
+  transform: scale(1.014);
+  z-index: 3;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.50);
+}
+/* Folder icon top-left */
+.sa-otm-icon {
+  position: absolute;
+  top: 7px;
+  left: 8px;
+  pointer-events: none;
+}
+/* Percentage badge top-right */
+.sa-otm-pct {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+  background: rgba(0,0,0,0.28);
+  border-radius: 3px;
+  padding: 1px 5px;
+  pointer-events: none;
+}
+/* Name+size bottom overlay */
+.sa-otm-label {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 20px 8px 7px;
+  background: linear-gradient(to top, rgba(0,0,0,0.68) 0%, transparent 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: none;
+}
+.sa-otm-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  line-height: 1.2;
+}
+.sa-otm-size {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.78);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+/* Legend below treemap */
+.sa-otm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--color-border);
+  background: var(--bg-th);
+}
+.sa-otm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sa-otm-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.sa-otm-legend-name { color: var(--color); font-weight: 500; }
+.sa-otm-legend-size { color: var(--color-muted); font-size: 11px; }
 
 /* ── Stats boxes row ──────────────────────────────────────────────────── */
 .sa-stat-boxes {

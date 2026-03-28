@@ -363,16 +363,31 @@ function renderOverviewCards(data) {
     if (fc30dEl) fc30dEl.innerHTML = fcHtml(fc30d);
 }
 
-// ─── Overview treemap (new) ───────────────────────────────────────────────────
+// ─── Overview treemap (enterprise-grade, div-based) ──────────────────────────
+// Vibrant saturated palette — each folder gets a distinct, readable color.
+// Inspired by WinDirStat / TreeSize / Grafana heatmap approach.
 var OTM_COLORS = [
-    { bg: '#1E1B4B', text: '#818CF8' },
-    { bg: '#3B1558', text: '#C084FC' },
-    { bg: '#3A2500', text: '#FCD34D' },
-    { bg: '#0D2845', text: '#60A5FA' },
-    { bg: '#0A2E1E', text: '#34D399' },
-    { bg: '#3B0E12', text: '#FCA5A5' },
-    { bg: '#1A2535', text: '#94A3B8' },
+    '#1976D2',  // Blue
+    '#E53935',  // Red
+    '#388E3C',  // Green
+    '#F57C00',  // Orange
+    '#7B1FA2',  // Purple
+    '#00838F',  // Teal
+    '#D81B60',  // Pink
+    '#0277BD',  // Dark Blue
+    '#558B2F',  // Olive Green
+    '#E65100',  // Deep Orange
+    '#6A1B9A',  // Deep Purple
+    '#00695C',  // Dark Teal
 ];
+
+// Darken a hex color by `amount` (0-255)
+function otmDarken(hex, amount) {
+    var r = Math.max(0, parseInt(hex.slice(1,3),16) - amount);
+    var g = Math.max(0, parseInt(hex.slice(3,5),16) - amount);
+    var b = Math.max(0, parseInt(hex.slice(5,7),16) - amount);
+    return '#' + [r,g,b].map(function(v){ return v.toString(16).padStart(2,'0'); }).join('');
+}
 
 function renderOverviewTreemap(consumers) {
     var wrap = document.getElementById('overviewTreemapWrap');
@@ -382,15 +397,8 @@ function renderOverviewTreemap(consumers) {
         return;
     }
 
-    var W = wrap.offsetWidth || 700;
-    var H = 340;
-
-    // Map consumers to treemap items using .value field (used by squarify)
     var total = consumers.reduce(function(s, c) { return s + (c.used_bytes || c.size || c.bytes || 0); }, 0);
-    if (!total) {
-        wrap.innerHTML = '<div class="sa-empty">Нет данных</div>';
-        return;
-    }
+    if (!total) { wrap.innerHTML = '<div class="sa-empty">Нет данных</div>'; return; }
 
     var items = consumers.slice(0, 12).map(function(c, i) {
         return {
@@ -400,37 +408,77 @@ function renderOverviewTreemap(consumers) {
         };
     }).filter(function(item) { return item.value > 0; });
 
+    // Responsive dimensions
+    var W = wrap.clientWidth || wrap.offsetWidth || 900;
+    var H = Math.max(280, Math.min(380, Math.round(W * 0.38)));
+
     var rects = squarify(items, 0, 0, W, H);
 
-    var svgParts = ['<svg class="sa-otm-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">'];
-    svgParts.push('<defs><clipPath id="otm-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs>');
-    svgParts.push('<g clip-path="url(#otm-clip)">');
+    // ── Build div-based tiles ──────────────────────────────────────────────────
+    var container = document.createElement('div');
+    container.className = 'sa-otm-container';
+    container.style.height = H + 'px';
+
+    var folderSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="rgba(255,255,255,0.45)" style="display:block"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"/></svg>';
 
     rects.forEach(function(r) {
-        var pad = 4;
-        var rw = Math.max(0, r.w - pad * 2);
-        var rh = Math.max(0, r.h - pad * 2);
-        svgParts.push('<rect x="' + (r.x + pad) + '" y="' + (r.y + pad) + '" width="' + rw + '" height="' + rh + '" rx="8" fill="' + r.color.bg + '"/>');
-        if (r.w > 60 && r.h > 36) {
-            var textY = r.y + pad + 22;
-            var textX = r.x + pad + 10;
-            svgParts.push('<text x="' + textX + '" y="' + textY + '" fill="' + r.color.text + '" font-size="12" font-weight="600" font-family="inherit">');
-            // Truncate name if tile is narrow
-            var maxChars = Math.floor((r.w - 20) / 7);
-            var label = r.label;
-            if (label.length > maxChars && maxChars > 3) label = label.slice(0, maxChars - 1) + '…';
-            svgParts.push(escHtml(label));
-            svgParts.push('</text>');
-            if (r.h > 56) {
-                svgParts.push('<text x="' + textX + '" y="' + (textY + 18) + '" fill="' + r.color.text + '" font-size="11" font-family="inherit" opacity="0.8">');
-                svgParts.push(fmtBytes(r.value));
-                svgParts.push('</text>');
-            }
+        var gap = 3;
+        var tw = Math.max(0, r.w - gap * 2);
+        var th = Math.max(0, r.h - gap * 2);
+        if (tw < 4 || th < 4) return;
+
+        var tile = document.createElement('div');
+        tile.className = 'sa-otm-tile';
+        tile.style.cssText = 'left:' + (r.x+gap) + 'px;top:' + (r.y+gap) + 'px;width:' + tw + 'px;height:' + th + 'px;' +
+            'background:linear-gradient(135deg,' + r.color + ' 0%,' + otmDarken(r.color, 40) + ' 100%);';
+
+        // Folder icon (top-left, only if tile is large enough)
+        if (tw > 60 && th > 55) {
+            var iconDiv = document.createElement('div');
+            iconDiv.className = 'sa-otm-icon';
+            iconDiv.innerHTML = folderSvg;
+            tile.appendChild(iconDiv);
         }
+
+        // Name + size label (bottom gradient overlay)
+        if (tw > 44 && th > 36) {
+            var lbl = document.createElement('div');
+            lbl.className = 'sa-otm-label';
+            var maxChars = Math.max(3, Math.floor(tw / 8));
+            var name = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + '…' : r.label;
+            var nameSpan = '<span class="sa-otm-name">' + escHtml(name) + '</span>';
+            var sizeSpan = (th > 58) ? '<span class="sa-otm-size">' + fmtBytes(r.value) + '</span>' : '';
+            lbl.innerHTML = nameSpan + sizeSpan;
+            tile.appendChild(lbl);
+        }
+
+        // Percentage badge (top-right, only large tiles)
+        if (tw > 90 && th > 55) {
+            var pct = Math.round(r.value / total * 100);
+            var pctDiv = document.createElement('div');
+            pctDiv.className = 'sa-otm-pct';
+            pctDiv.textContent = pct + '%';
+            tile.appendChild(pctDiv);
+        }
+
+        container.appendChild(tile);
     });
 
-    svgParts.push('</g></svg>');
-    wrap.innerHTML = svgParts.join('');
+    // ── Legend row ─────────────────────────────────────────────────────────────
+    var legend = document.createElement('div');
+    legend.className = 'sa-otm-legend';
+    rects.forEach(function(r) {
+        var li = document.createElement('span');
+        li.className = 'sa-otm-legend-item';
+        li.innerHTML = '<span class="sa-otm-legend-dot" style="background:' + r.color + '"></span>' +
+            '<span class="sa-otm-legend-name">' + escHtml(r.label) + '</span>' +
+            '<span class="sa-otm-legend-size">' + fmtBytes(r.value) + '</span>';
+        legend.appendChild(li);
+    });
+
+    wrap.innerHTML = '';
+    wrap.appendChild(container);
+    wrap.appendChild(legend);
 }
 
 function renderVolumeMap(volumes) {
