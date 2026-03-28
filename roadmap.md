@@ -190,3 +190,45 @@ btrfs send -p /mnt/data/.snapshots/docs/@prev @curr | ssh user@host btrfs receiv
 - **BUG-18..30:** 13 багов задокументированы и исправлены (см. [bugs.MD](./bugs.MD))
 - **btrfs-problems.md:** 15 известных проблем Btrfs+mdadm с решениями и условиями возникновения
 - Новые антипаттерны в CLAUDE.md: Promise.all .catch(), results[idx], loadData().then(), worstStatus priority, /var/lib/rusnas traverse bit
+
+---
+
+## ✅ RAID Backup Mode — HDD Spindown (реализовано 2026-03-28, ветка feat/raid-backup-mode)
+
+Полное ТЗ: `docs/superpowers/specs/` (RAID Backup Mode spec)
+
+**Концепция:** Автоматическое отключение шпинделей (spindown) RAID-массива после заданного периода простоя — для использования в роли резервного NAS с редкими обращениями.
+
+**Daemon rusnas-spind (`rusnas-spind/`):**
+- `monitor.py` — SpindownMonitor: читает `/proc/diskstats`, state machine: `active → flushing → standby → waking → active`
+- `controller.py` — SpinController: оборачивает `hdparm -y` / `hdparm -C` (dry_run mock для QEMU)
+- `btrfs_helper.py` — BtrfsFlusher: `commit_min=0` + `sync` + restore_commit перед spindown
+- `mdadm_helper.py` — `suppress_check` (записывает `idle` в sync_action + `sync_min=0`) / `restore_check`, `get_member_disks`, `get_mountpoint`
+- `state_writer.py` — атомарные записи JSON: `.tmp` → `os.replace()`, persistence `wakeup_count_total` через `spindown_totals.json`
+- `spind.py` — основной демон: `do_spindown`, `do_wakeup`, адаптивный polling 15s/3s, `SIGHUP`/`SIGTERM`
+- Systemd unit: `rusnas-spind.service` (WorkingDirectory=/usr/lib/rusnas/spind, `--dry-run` на тест-VM)
+
+**CGI бэкенд:**
+- `cockpit/rusnas/cgi/spindown_ctl.py` — 5 команд: `get_state`, `get_config`, `set_config`, `wake_up`, `spindown_now`
+- Путь на VM: `/usr/lib/rusnas/cgi/spindown_ctl.py`
+- Sudoers: `/etc/sudoers.d/rusnas-spindown`
+
+**UI (disks.js):**
+- Кнопка «💾 Backup Mode» + панель на каждую RAID-карточку
+- `_warnIfSleeping(arrayName, actionLabel)` — перехват опасных операций (expand/replace/unmount/subvol) если массив спит
+- Адаптивный polling badge (15s нормальный, 3s при flushing/waking)
+- Idle timeout: 1–1440 мин, SSD warning при наличии dm-cache
+
+**Dashboard (dashboard.js):**
+- Sub-line под каждым RAID-массивом: 💤 Спит / ⏳ Засыпает… / 🔆 Просыпается… / 💾 Бэкап активен
+
+**Prometheus метрики (metrics_server.py):**
+- `rusnas_spindown_state{array}` (0=active,1=flushing,2=standby,3=waking)
+- `rusnas_spindown_wakeup_count_total{array}`
+- `rusnas_spindown_idle_timeout_minutes{array}`
+- `rusnas_spindown_backup_mode_enabled{array}`
+- `rusnas_spindown_last_standby_seconds{array}`
+
+**Deploy:** `./install-spindown.sh`
+
+**Тесты:** `tests/test_backup_mode_ui.py` — 15 Playwright тестов, 15/15 PASS на live VM
