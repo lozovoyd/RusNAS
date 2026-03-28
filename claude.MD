@@ -539,6 +539,28 @@ Automatic RAID spindown for backup use-case. Full spec: `docs/superpowers/specs/
 - CGI called as: `cockpit.spawn(["sudo", "-n", "python3", "/usr/lib/rusnas/cgi/spindown_ctl.py", cmd, ...], {err:"message"})`
 - `_warnIfSleeping(md)` in disks.js: checks state before expand/replace/umount/subvol operations
 
+## rusNAS Container Manager
+
+Containerized app store for rusNAS. Deploy: `./install-containers.sh`
+
+**Key architecture:**
+- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 14 commands via argv
+- User: `rusnas-containers` (rootless Podman), subuid/subgid 100000:65536
+- State: `/etc/rusnas/containers/installed.json` (chmod 644)
+- Catalog: `/usr/share/cockpit/rusnas/catalog/` (10 apps)
+- Compose dir: `/var/lib/rusnas-containers/compose/<appid>/`
+- Nginx apps: `/var/lib/rusnas-containers/nginx-apps/<appid>.conf`
+- Sudoers: `/etc/sudoers.d/rusnas-containers`
+
+**Critical containers.js notes:**
+- `cgiCall(cmd, args)` wraps cockpit.spawn in `new Promise()` — required for Promise.all()
+- All catalog/installed buttons use `data-appid` + `addEventListener` (no inline onclick — CSP)
+- `startStatsPolling()` uses `_statsTimer` stored ID to avoid timer leaks
+- Compose template substitution: `{{VAR:-default}}` pattern in docker-compose.yml files
+- Docker Compose DNS: service key names (under `services:`), NOT `container_name` values
+
+**Catalog apps (10):** nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat
+
 ## Known Bugs and Fixes
 
 > Полная история: [bugs.md](./bugs.md). Ниже — только активные ловушки (паттерны которые легко повторить).
@@ -732,4 +754,5 @@ Host rusnas-vps
 | Bootstrap Installer + License Server | ✅ реализован 2026-03-26 | rusnas-license-server-task.md, ветка feat/bootstrap-installer-spec |
 | Cockpit License Page | ✅ реализована 2026-03-26 | license.html + js/license.js, ветка feat/bootstrap-installer-spec |
 | RAID Backup Mode (HDD Spindown) | ✅ реализован 2026-03-28 | feat/raid-backup-mode branch, tests/test_backup_mode_ui.py |
+| Container Manager | ✅ реализован 2026-03-28 | containers.html + cgi/container_api.py + catalog/ (10 apps), 19 тестов |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |

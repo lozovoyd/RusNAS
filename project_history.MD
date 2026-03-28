@@ -2373,3 +2373,45 @@ Redesign the Storage Analyzer overview tab to match a macOS-inspired mockup: win
 - Deployed to VM via `./deploy-landing.sh`
 - Playwright: #containers FOUND, 11 apps rendered, 4 scenarios, 3 steps
 - Visual check: screenshots at /tmp/lp_cm_0{1,2,3}.png — layout correct
+
+---
+
+## Session 2026-03-28 (Session 16) — Container Manager Module
+
+### Branch: feat/container-manager → merged to main
+
+### What was done:
+Container Manager Cockpit plugin page — full implementation across 11 tasks via subagent-driven development.
+
+### New files:
+- `cockpit/rusnas/containers.html` — 3-tab page (Catalog / Installed / Custom)
+- `cockpit/rusnas/css/containers.css` — app-card grid, install modal, progress UI
+- `cockpit/rusnas/js/containers.js` — all page logic (706 lines)
+- `cockpit/rusnas/cgi/container_api.py` — CGI backend (14 commands)
+- `cockpit/rusnas/catalog/index.json` — 10-app catalog index
+- `cockpit/rusnas/catalog/*/rusnas-app.json` + `docker-compose.yml` — 10 apps: nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat
+- `install-containers.sh` — VM deploy script
+- `tests/test_container_api.py` — 12 CGI unit tests
+- `tests/test_container_metrics.py` — 2 metrics tests
+- `tests/test_containers_ui.py` — 5 Playwright UI tests
+
+### Modified files:
+- `cockpit/rusnas/manifest.json` — added "containers" entry (order 55)
+- `cockpit/rusnas/js/dashboard.js` — container count widget + click nav
+- `cockpit/rusnas/dashboard.html` — db-containers-card added
+- `rusnas-metrics/metrics_server.py` — collect_containers() (count by status, CPU/RAM per container)
+
+### Architecture:
+- CGI pattern: `container_api.py` called via `cockpit.spawn(["sudo","-n","python3",CGI,cmd,...])`
+- Rootless Podman as `rusnas-containers` user (separate system user, subuid/subgid)
+- Compose templates: `{{VAR:-default}}` substitution, network `rusnas-<appid>`, containers `rusnas-<appid>-<role>`
+- nginx location blocks auto-generated per app at `/var/lib/rusnas-containers/nginx-apps/`
+- Sudoers: `rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/lib/rusnas/cgi/container_api.py *`
+
+### Tests: 14/14 unit + 5/5 Playwright UI (all passing)
+
+### Key bugs fixed during development:
+- rocketchat: MONGO_URL must use service key name (`rocketchat-mongo`), not container_name
+- home-assistant: `install_params` had `web_port` but compose uses `network_mode: host` — removed
+- nextcloud: `db_password` added to `install_params` with `generate: true`
+- haiku model delivered Task 4 claiming DONE without writing files — re-dispatched with sonnet
