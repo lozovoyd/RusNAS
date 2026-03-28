@@ -1,0 +1,20 @@
+[Unit]
+Description=rusNAS Spindown Daemon
+After=network.target mdadm.service
+Wants=mdadm.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/lib/rusnas/spind
+ExecStart=/usr/lib/rusnas/spind/spind.py --dry-run
+Restart=on-failure
+RestartSec=10
+RuntimeDirectory=rusnas
+RuntimeDirectoryMode=0755
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rusnas-spind
+
+[Install]
+WantedBy=multi-user.target

@@ -508,6 +508,36 @@ cockpit.spawn(["sudo", "targetcli", ...]);   // ✓
   - Mount status shown on card: `📂 /mnt/data (btrfs)` or `— не смонтирован`
   - `currentMountMap{}` populated from `findmnt -rno SOURCE,TARGET,FSTYPE` on each load
 - **Admin access required**: `superuser: "require"` works in disks.js (not nested iframe). User must enable "Turn on administrative access" in Cockpit main page before first use.
+- **Backup Mode (HDD Spindown):** per-array panel toggled via "Резервный режим" button; `loadSpindownState()` polls CGI on page load; `_warnIfSleeping(md)` blocks destructive ops when array in standby; badge `#spindown-badge-<md>` shows Активен/Спит/Пробуждение
+
+## rusNAS RAID Backup Mode (HDD Spindown)
+
+Automatic RAID spindown for backup use-case. Full spec: `docs/superpowers/specs/` (feat/raid-backup-mode branch).
+
+**Deploy:**
+```bash
+./install-spindown.sh
+```
+
+**Key architecture:**
+- Daemon: `/usr/lib/rusnas/spind/spind.py` + `rusnas-spind.service` (--dry-run on QEMU VM)
+- State: `/run/rusnas/spindown_state.json` (read by dashboard + Prometheus)
+- Totals: `/var/lib/rusnas/spindown_totals.json` (wakeup_count_total persistence across restarts)
+- CGI: `/usr/lib/rusnas/cgi/spindown_ctl.py` — 5 commands: get_state, get_config, set_config, wake_up, spindown_now
+- Config: `/etc/rusnas/spindown.json`
+- Sudoers: `/etc/sudoers.d/rusnas-spindown`
+
+**State machine:** active → flushing → standby → waking → active
+**Monitoring:** 5 Prometheus metrics in `rusnas-metrics/metrics_server.py` (rusnas_spindown_*)
+**UI:** Backup Mode panel per array in `disks.js`; spindown badge + sub-line in dashboard
+**Tests:** `tests/test_backup_mode_ui.py` (15 tests, all pass on VM with dry-run)
+
+**Critical spindown notes:**
+- `--dry-run` flag in systemd unit: QEMU VM doesn't support hdparm -Y; daemon logs `[DRY-RUN]` and skips actual spindown
+- `suppress_check`: writes `idle` to `/sys/block/mdX/md/sync_action` to pause RAID check during standby
+- `wakeup_count_total` persisted in `/var/lib/rusnas/spindown_totals.json` — survives daemon restarts
+- CGI called as: `cockpit.spawn(["sudo", "-n", "python3", "/usr/lib/rusnas/cgi/spindown_ctl.py", cmd, ...], {err:"message"})`
+- `_warnIfSleeping(md)` in disks.js: checks state before expand/replace/umount/subvol operations
 
 ## Known Bugs and Fixes
 
@@ -640,7 +670,7 @@ Host rusnas-vps
 
 Стратегия: Feature Branch Flow. `main` = задеплоенный код. После merge → `./deploy.sh`.
 Формат коммитов: `feat:|fix:|docs:|refactor: описание` + `Authored-By: Dmitrii V. Lozovoi (lozovoyd@gmail.com)`
-**Текущая ветка:** `feat/bootstrap-installer-spec` (реализация системы лицензирования 2026-03-26, не merged в main)
+**Текущая ветка:** `feat/raid-backup-mode` (RAID Backup Mode / HDD Spindown 2026-03-28, не merged в main)
 
 ## Landing Page (marketing site, port 80)
 
@@ -701,4 +731,5 @@ Host rusnas-vps
 | UI Cohesion + Ghost Pill Sidebar | ✅ завершено 2026-03-26 | ui.md, project_history.md |
 | Bootstrap Installer + License Server | ✅ реализован 2026-03-26 | rusnas-license-server-task.md, ветка feat/bootstrap-installer-spec |
 | Cockpit License Page | ✅ реализована 2026-03-26 | license.html + js/license.js, ветка feat/bootstrap-installer-spec |
+| RAID Backup Mode (HDD Spindown) | ✅ реализован 2026-03-28 | feat/raid-backup-mode branch, tests/test_backup_mode_ui.py |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |

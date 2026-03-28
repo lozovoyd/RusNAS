@@ -6,7 +6,7 @@ Port 9100, two endpoints:
   /metrics.json  — JSON format
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import subprocess, json, time, re, os
+import subprocess, json, time, re, os, datetime
 
 PORT = 9100
 
@@ -332,6 +332,69 @@ def collect_guard():
         return {"installed": True, "error": "parse_error"}
 
 
+def _iso_to_ts(iso_str):
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str)
+        return dt.timestamp()
+    except Exception:
+        return 0.0
+
+
+def collect_spindown():
+    """Read /run/rusnas/spindown_state.json and emit 5 Prometheus metrics.
+    Returns Prometheus text string, or "" on any error."""
+    state_path = "/run/rusnas/spindown_state.json"
+    try:
+        with open(state_path) as f:
+            data = json.load(f)
+    except Exception:
+        return ""
+
+    arrays = data.get("arrays")
+    if not isinstance(arrays, dict) or not arrays:
+        return ""
+
+    state_map = {"active": 0, "flushing": 1, "standby": 2, "waking": 3}
+    lines = []
+    now = time.time()
+
+    # Emit HELP/TYPE headers once, then all per-array values
+    lines.append("# HELP rusnas_spindown_state Current spindown state (0=active, 1=flushing, 2=standby, 3=waking)")
+    lines.append("# TYPE rusnas_spindown_state gauge")
+    for array_name, info in arrays.items():
+        state_str = info.get("state", "active")
+        state_val = state_map.get(state_str, 0)
+        lines.append(f'rusnas_spindown_state{{array="{array_name}"}} {state_val}')
+
+    lines.append("# HELP rusnas_spindown_wakeup_count_total Total wakeup events since daemon start")
+    lines.append("# TYPE rusnas_spindown_wakeup_count_total counter")
+    for array_name, info in arrays.items():
+        lines.append(f'rusnas_spindown_wakeup_count_total{{array="{array_name}"}} {info.get("wakeup_count", 0)}')
+
+    lines.append("# HELP rusnas_spindown_idle_timeout_minutes Configured idle timeout in minutes")
+    lines.append("# TYPE rusnas_spindown_idle_timeout_minutes gauge")
+    for array_name, info in arrays.items():
+        lines.append(f'rusnas_spindown_idle_timeout_minutes{{array="{array_name}"}} {info.get("idle_timeout", 0)}')
+
+    lines.append("# HELP rusnas_spindown_backup_mode_enabled 1 if backup mode is enabled for this array")
+    lines.append("# TYPE rusnas_spindown_backup_mode_enabled gauge")
+    for array_name, info in arrays.items():
+        val = 1 if info.get("backup_mode") else 0
+        lines.append(f'rusnas_spindown_backup_mode_enabled{{array="{array_name}"}} {val}')
+
+    lines.append("# HELP rusnas_spindown_last_standby_seconds Seconds since last spindown (0 if not in standby)")
+    lines.append("# TYPE rusnas_spindown_last_standby_seconds gauge")
+    for array_name, info in arrays.items():
+        standby_secs = 0
+        if info.get("state") == "standby" and info.get("spindown_at"):
+            ts = _iso_to_ts(info["spindown_at"])
+            if ts > 0:
+                standby_secs = int(now - ts)
+        lines.append(f'rusnas_spindown_last_standby_seconds{{array="{array_name}"}} {standby_secs}')
+
+    return "\n".join(lines) + "\n"
+
+
 def collect_metrics():
     hostname = read_file("/proc/sys/kernel/hostname").strip()
     io = collect_disk_io()
@@ -467,7 +530,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/metrics", "/metrics/"):
             data = collect_metrics()
-            body = format_prometheus(data).encode()
+            body = (format_prometheus(data) + collect_spindown()).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
             self.send_header("Access-Control-Allow-Origin", "*")
