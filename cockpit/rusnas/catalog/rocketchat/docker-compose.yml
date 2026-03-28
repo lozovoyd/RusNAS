@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  rocketchat:
+    image: rocket.chat:latest
+    container_name: rusnas-rocketchat
+    restart: unless-stopped
+    depends_on:
+      - rocketchat-mongo
+    ports:
+      - "{{WEB_PORT:-3000}}:3000"
+    environment:
+      - MONGO_URL=mongodb://rocketchat-mongo:27017/rocketchat
+      - MONGO_OPLOG_URL=mongodb://rocketchat-mongo:27017/local
+      - ROOT_URL=http://localhost:{{WEB_PORT:-3000}}
+      - PORT=3000
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/rocketchat}}/uploads:/app/uploads
+    networks:
+      - rusnas-rocketchat
+
+  rocketchat-mongo:
+    image: mongo:6
+    container_name: rusnas-rocketchat-mongo
+    restart: unless-stopped
+    command: mongod --oplogSize 128 --replSet rs0
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/rocketchat}}/mongodb:/data/db
+    networks:
+      - rusnas-rocketchat
+
+networks:
+  rusnas-rocketchat:
+    name: rusnas-rocketchat

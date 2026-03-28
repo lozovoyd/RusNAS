@@ -1,3 +1,5 @@
+/* rusNAS Container Manager styles */
+
 /* App catalog grid */
 .app-catalog-grid {
     display: grid;
@@ -22,7 +24,6 @@
     transform: translateY(-1px);
 }
 
-/* App card header */
 .app-card-header {
     display: flex;
     align-items: flex-start;
@@ -59,7 +60,6 @@
     overflow: hidden;
 }
 
-/* App card stats row */
 .app-card-stats {
     display: flex;
     gap: 12px;
@@ -70,7 +70,6 @@
     border-top: 1px solid var(--color-border);
 }
 
-/* App card actions */
 .app-card-actions {
     display: flex;
     gap: 8px;
@@ -133,7 +132,7 @@
     flex-shrink: 0;
 }
 
-/* Mode cards (custom container) */
+/* Mode cards */
 .app-mode-card {
     background: var(--bg-card);
     border: 1px solid var(--color-border);

@@ -1,0 +1,25 @@
+{
+  "id": "nextcloud",
+  "name": {"ru": "Nextcloud", "en": "Nextcloud"},
+  "description": {
+    "ru": "Облачное хранилище с синхронизацией файлов, календарём, контактами и офисными приложениями",
+    "en": "Cloud storage with file sync, calendar, contacts and office apps"
+  },
+  "category": "cloud",
+  "icon": "cloud",
+  "version": "29-apache",
+  "default_port": 8080,
+  "nginx_path": "/nextcloud/",
+  "port_label": "web",
+  "min_ram_mb": 512,
+  "disk_gb": 5,
+  "containers": 2,
+  "featured": true,
+  "install_params": [
+    {"key": "web_port",       "label": "Порт веб-интерфейса", "default": "8080", "type": "port"},
+    {"key": "admin_user",     "label": "Имя администратора",  "default": "admin", "type": "text"},
+    {"key": "admin_password", "label": "Пароль",              "default": "",      "type": "password", "generate": true},
+    {"key": "db_password",    "label": "Пароль базы данных",  "default": "",      "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

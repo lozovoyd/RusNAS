@@ -1,0 +1,11 @@
+version: "3.8"
+services:
+  home-assistant:
+    image: homeassistant/home-assistant:stable
+    container_name: rusnas-home-assistant
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ=Europe/Moscow
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/home-assistant}}/config:/config

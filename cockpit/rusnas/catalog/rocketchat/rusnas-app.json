@@ -1,0 +1,22 @@
+{
+  "id": "rocketchat",
+  "name": {"ru": "Rocket.Chat", "en": "Rocket.Chat"},
+  "description": {
+    "ru": "Корпоративный мессенджер с каналами, видеозвонками и интеграциями",
+    "en": "Enterprise team chat with channels, video calls and integrations"
+  },
+  "category": "chat",
+  "icon": "chat",
+  "version": "latest",
+  "default_port": 3000,
+  "nginx_path": "/chat/",
+  "port_label": "web",
+  "min_ram_mb": 1024,
+  "disk_gb": 5,
+  "containers": 2,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port", "label": "Порт веб-интерфейса", "default": "3000", "type": "port"}
+  ],
+  "compose_template": "docker-compose.yml"
+}

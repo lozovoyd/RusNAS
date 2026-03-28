@@ -1575,6 +1575,49 @@ function renderNmBarChart(containerId, items, labelFn) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
+var DB_CONTAINERS_CGI = "/usr/lib/rusnas/cgi/container_api.py";
+
+function loadContainersWidget() {
+    var el = document.getElementById("db-containers-card");
+    if (!el) return;
+
+    new Promise(function(resolve, reject) {
+        var out = "";
+        cockpit.spawn(
+            ["sudo", "-n", "python3", DB_CONTAINERS_CGI, "list_installed"],
+            { err: "message", superuser: "try" }
+        ).stream(function(d){ out += d; })
+         .done(function(){
+             try { resolve(JSON.parse(out)); }
+             catch(e) { reject(e); }
+         }).fail(reject);
+    }).then(function(r) {
+        var apps = r.apps || [];
+        var running = apps.filter(function(a){ return a.live_status === "running"; }).length;
+        var errors = apps.filter(function(a){ return a.live_status === "error"; }).length;
+        var total = apps.length;
+
+        var cardClass = errors > 0 ? "db-card-crit"
+                      : (running < total && total > 0) ? "db-card-warn"
+                      : "db-card-ok";
+
+        el.className = "db-card " + cardClass;
+        el.innerHTML =
+            '<div class="db-card-title">ПРИЛОЖЕНИЯ</div>' +
+            '<div class="db-card-metric">' + total + '</div>' +
+            '<div class="db-card-sub">' +
+                running + ' работают' +
+                (errors > 0 ? ' &bull; <span style="color:var(--danger)">' + errors + ' ошибок</span>' : '') +
+            '</div>';
+    }).catch(function() {
+        var el2 = document.getElementById("db-containers-card");
+        if (el2) {
+            el2.className = "db-card";
+            el2.innerHTML = '<div class="db-card-title">ПРИЛОЖЕНИЯ</div><div class="db-card-sub text-muted">Не настроено</div>';
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     loadIdentity();
     initMetricsBlock();
@@ -1610,6 +1653,16 @@ document.addEventListener("DOMContentLoaded", function() {
     loadUpsStatus();
     loadSsdCacheStatus();
     loadFbDashStatus();
+
+    // Containers widget — delayed load
+    setTimeout(loadContainersWidget, 1200);
+
+    var contCard = document.getElementById("db-containers-card");
+    if (contCard) {
+        contCard.addEventListener("click", function() {
+            cockpit.jump("/rusnas/containers");
+        });
+    }
 
     // Night Report — delayed init so it doesn't block main dashboard metrics
     setTimeout(initNightReport, 800);

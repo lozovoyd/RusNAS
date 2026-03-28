@@ -1,0 +1,24 @@
+{
+  "id": "vaultwarden",
+  "name": {"ru": "Vaultwarden", "en": "Vaultwarden"},
+  "description": {
+    "ru": "Самохостинг менеджера паролей, совместимый с Bitwarden-клиентами",
+    "en": "Self-hosted password manager compatible with Bitwarden clients"
+  },
+  "category": "security",
+  "icon": "lock",
+  "version": "latest",
+  "default_port": 8880,
+  "nginx_path": "/vault/",
+  "port_label": "web",
+  "min_ram_mb": 64,
+  "disk_gb": 1,
+  "containers": 1,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port",        "label": "Порт веб-интерфейса",       "default": "8880", "type": "port"},
+    {"key": "signups_allowed", "label": "Разрешить регистрацию",      "default": "false", "type": "bool"},
+    {"key": "admin_token",     "label": "Токен администратора (/admin)", "default": "", "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

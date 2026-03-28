@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "apps": [
+    {"id": "nextcloud",      "category": "cloud",    "featured": true},
+    {"id": "immich",         "category": "photo",    "featured": true},
+    {"id": "jellyfin",       "category": "media",    "featured": true},
+    {"id": "vaultwarden",    "category": "security", "featured": false},
+    {"id": "home-assistant", "category": "iot",      "featured": false},
+    {"id": "pihole",         "category": "network",  "featured": false},
+    {"id": "wireguard",      "category": "network",  "featured": false},
+    {"id": "mailcow",        "category": "mail",     "featured": false},
+    {"id": "onlyoffice",     "category": "office",   "featured": false},
+    {"id": "rocketchat",     "category": "chat",     "featured": false}
+  ]
+}
