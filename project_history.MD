@@ -2415,3 +2415,59 @@ Container Manager Cockpit plugin page — full implementation across 11 tasks vi
 - home-assistant: `install_params` had `web_port` but compose uses `network_mode: host` — removed
 - nextcloud: `db_password` added to `install_params` with `generate: true`
 - haiku model delivered Task 4 claiming DONE without writing files — re-dispatched with sonnet
+
+---
+
+## Session 17 — 2026-03-28: nginx Primary Web Server + Container Port Conflict Detection
+
+### Goals:
+- Resolve port conflict issue with Apache occupying :80 (blocked container apps)
+- Make nginx the single public entry point for all web traffic
+- Add port conflict detection before container install
+- Create webservice.md as authoritative web services architecture doc
+
+### Problem solved:
+Container Manager assumed nginx on :80, but Apache was there. OnlyOffice showed "stopped" and clicking "Открыть" gave Apache 404 because nginx proxy configs were being written but not used.
+
+### Architecture changes:
+
+**Before:**
+- Apache: :80 (landing, FileBrowser proxy, WebDAV)
+- nginx: not active on :80
+
+**After (nginx-primary):**
+- nginx: :80 (landing static, proxy to Cockpit :9090, FileBrowser :8088, WebDAV Apache :8091, container apps)
+- Apache: 127.0.0.1:8091 (WebDAV only, internal)
+- FileBrowser: 127.0.0.1:8088 (unchanged)
+- Container apps: 127.0.0.1:8090–8999 (via nginx /etc/nginx/conf.d/rusnas-apps/)
+
+### Modified files:
+- `cockpit/rusnas/cgi/container_api.py`:
+  - `NGINX_APPS_DIR` → `/etc/nginx/conf.d/rusnas-apps/` (was `/var/lib/rusnas-containers/nginx-apps/`)
+  - Added `port_is_free(port)` via `socket.bind()`
+  - Added `next_free_port(start, end)`
+  - Added `cmd_check_ports` command (new API endpoint)
+  - `generate_nginx_proxy` → `generate_proxy_config` (uses new dir)
+  - `cmd_install`: port conflict check before starting containers; stores `proxy_url`, `direct_url`, `proxy_active` in installed.json
+  - `cmd_uninstall`: only reloads nginx if conf file existed
+- `cockpit/rusnas/js/containers.js`:
+  - Install modal: port inputs get live availability indicator (✓/✗)
+  - Auto-fill suggested free port after 1.5s if current port taken
+  - `renderInstalled`: prefer `proxy_url` field over `nginx_path` concat
+- `webservice.md` (new): full architecture doc — nginx routes, Apache internal, FileBrowser, Cockpit, container ports
+- `install-nginx-primary.sh` (new): migration script (installs nginx, moves Apache to :8091, sudoers)
+- `CLAUDE.md`: mandatory reference to webservice.md + updated Container Manager notes
+
+### VM changes applied:
+- nginx enabled and started on :80/:443
+- Apache moved to 127.0.0.1:8091 (all VirtualHost *:80 → 127.0.0.1:8091)
+- `/etc/nginx/sites-available/rusnas.conf` written
+- `/etc/nginx/conf.d/rusnas-apps/` created
+- `/etc/sudoers.d/rusnas-nginx` created
+- rusnas-filebrowser.conf nginx site disabled (replaced by rusnas.conf)
+
+### Verification:
+- `http://10.10.10.72/` → 200 (landing)
+- `http://10.10.10.72/files/` → 200 (FileBrowser)
+- `http://10.10.10.72/webdav/` → 403 (WebDAV, expected, needs auth)
+- All services active: nginx + apache2 + rusnas-fb + cockpit
