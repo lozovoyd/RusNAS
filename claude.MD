@@ -2,6 +2,7 @@
 
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
 > ⚠️ **UI правила и компоненты: [ui.md](./ui.md) — ОБЯЗАТЕЛЬНО читать перед любой работой с UI/CSS/branding (Cockpit Shell, страницы плагина, дизайн-токены, Ghost Pill nav, брендинг)**
+> 🌐 **Веб-сервисы: [webservice.md](./webservice.md) — ОБЯЗАТЕЛЬНО читать перед работой с nginx/Apache/FileBrowser/WebDAV/контейнерными приложениями. nginx = единая точка входа :80/:443; Apache = внутренний :8091 только для WebDAV**
 > Антишифровальщик: [rusnas-guard-task.md](./rusnas-guard-task.md) — ТЗ и архитектура Guard
 > RAID Manager: [rusnas-RAIDmanager.md](./rusnas-RAIDmanager.md) — ТЗ и архитектура RAID Manager
 > Дедупликация: [rusnas-dedup-spec.md](./rusnas-dedup-spec.md) — ТЗ и архитектура Dedup
@@ -543,14 +544,16 @@ Automatic RAID spindown for backup use-case. Full spec: `docs/superpowers/specs/
 
 Containerized app store for rusNAS. Deploy: `./install-containers.sh`
 
-**Key architecture:**
-- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 14 commands via argv
+**Key architecture (см. также [webservice.md](./webservice.md)):**
+- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 15 commands via argv (включая `check_ports`)
 - User: `rusnas-containers` (rootless Podman), subuid/subgid 100000:65536
-- State: `/etc/rusnas/containers/installed.json` (chmod 644)
+- State: `/etc/rusnas/containers/installed.json` (chmod 644); поля: `proxy_url`, `direct_url`, `proxy_active`
 - Catalog: `/usr/share/cockpit/rusnas/catalog/` (10 apps)
 - Compose dir: `/var/lib/rusnas-containers/compose/<appid>/`
-- Nginx apps: `/var/lib/rusnas-containers/nginx-apps/<appid>.conf`
-- Sudoers: `/etc/sudoers.d/rusnas-containers`
+- **Nginx apps: `/etc/nginx/conf.d/rusnas-apps/<appid>.conf`** (НЕ в `/var/lib/rusnas-containers/nginx-apps/`)
+- Sudoers: `/etc/sudoers.d/rusnas-containers` + `/etc/sudoers.d/rusnas-nginx`
+- Port check: `container_api.py check_ports <port>` → `{free, suggestion}` через `socket.bind()`
+- Migration: `./install-nginx-primary.sh` — nginx как primary :80/:443, Apache → :8091
 
 **Critical containers.js notes:**
 - `cgiCall(cmd, args)` wraps cockpit.spawn in `new Promise()` — required for Promise.all()

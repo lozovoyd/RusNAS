@@ -194,10 +194,16 @@ function openInstallModal(appId) {
                     '<input type="text" id="im-' + _esc(p.key) + '" class="form-control" value="' + _esc(val) + '">' +
                     '<button class="btn btn-secondary btn-sm gen-pw-btn" data-target="im-' + _esc(p.key) + '">Новый</button>' +
                     '</div></div>';
+        } else if (p.type === "port") {
+            html += '<div class="form-group"><label>' + _esc(p.label) + '</label>' +
+                    '<div style="display:flex;gap:8px;align-items:center">' +
+                    '<input type="number" id="im-' + _esc(p.key) + '" class="form-control port-check-input"' +
+                    ' value="' + _esc(p.default || "8090") + '" min="1024" max="65535">' +
+                    '<span id="im-' + _esc(p.key) + '-status" style="font-size:12px;white-space:nowrap;color:var(--color-muted)">…</span>' +
+                    '</div></div>';
         } else {
             html += '<div class="form-group"><label>' + _esc(p.label) + '</label>' +
-                    '<input type="' + (p.type === "port" ? "number" : "text") +
-                    '" id="im-' + _esc(p.key) + '" class="form-control" value="' + _esc(p.default || "") + '">' +
+                    '<input type="text" id="im-' + _esc(p.key) + '" class="form-control" value="' + _esc(p.default || "") + '">' +
                     '</div>';
         }
     });
@@ -218,6 +224,45 @@ function openInstallModal(appId) {
             var target = document.getElementById(btn.dataset.target);
             if (target) target.value = _generatePassword();
         });
+    });
+
+    // Attach port-check listeners
+    document.querySelectorAll(".port-check-input").forEach(function(input) {
+        var statusEl = document.getElementById(input.id + "-status");
+        var timer = null;
+        function checkPort() {
+            var port = parseInt(input.value, 10);
+            if (!port || port < 1024 || port > 65535) return;
+            if (statusEl) statusEl.textContent = "Проверка…";
+            cgiCall("check_ports", [String(port)]).then(function(r) {
+                if (!statusEl) return;
+                if (r.free) {
+                    statusEl.textContent = "✓ Свободен";
+                    statusEl.style.color = "var(--success)";
+                } else {
+                    statusEl.textContent = "✗ Занят — предлагаем " + (r.suggestion || "");
+                    statusEl.style.color = "var(--warning)";
+                    if (r.suggestion && r.suggestion !== port) {
+                        // Auto-fill suggested port after brief pause
+                        setTimeout(function() {
+                            if (parseInt(input.value, 10) === port) {
+                                input.value = r.suggestion;
+                                statusEl.textContent = "✓ Свободен (" + r.suggestion + ")";
+                                statusEl.style.color = "var(--success)";
+                            }
+                        }, 1500);
+                    }
+                }
+            }).catch(function() {
+                if (statusEl) { statusEl.textContent = ""; statusEl.style.color = ""; }
+            });
+        }
+        input.addEventListener("input", function() {
+            clearTimeout(timer);
+            timer = setTimeout(checkPort, 600);
+        });
+        // Run initial check
+        checkPort();
     });
 
     document.getElementById("install-modal").classList.remove("hidden");
@@ -421,9 +466,9 @@ function renderInstalled(apps) {
                        : "Остановлен";
 
         var category = app.category || "cloud";
-        var url = app.nginx_path
-            ? ("http://" + window.location.hostname + app.nginx_path)
-            : (app.host_ports && Object.values(app.host_ports)[0]
+        var url = app.proxy_url
+            || (app.nginx_path ? ("http://" + window.location.hostname + app.nginx_path) : "")
+            || (app.host_ports && Object.values(app.host_ports)[0]
                ? ("http://" + window.location.hostname + ":" + Object.values(app.host_ports)[0])
                : "");
 

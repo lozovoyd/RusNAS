@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """rusNAS Container Manager CGI backend"""
-import sys, os, json, subprocess, string, random, re, shutil
+import sys, os, json, subprocess, string, random, re, shutil, socket
 from datetime import datetime
 
 CONTAINER_USER = "rusnas-containers"
 BASE_DIR = "/var/lib/rusnas-containers"
 CATALOG_DIR = "/usr/share/cockpit/rusnas/catalog"
 COMPOSE_DIR = os.path.join(BASE_DIR, "compose")
-NGINX_APPS_DIR = os.path.join(BASE_DIR, "nginx-apps")
+NGINX_APPS_DIR = "/etc/nginx/conf.d/rusnas-apps"
 INSTALLED_FILE = "/etc/rusnas/containers/installed.json"
 
 def err(msg):
@@ -165,7 +165,34 @@ def render_compose(template_path, substitutions):
     content = re.sub(r'\{\{(\w+)(?::-(.*?))?\}\}', replace, content)
     return content
 
-def generate_nginx_proxy(app_id, path_prefix, port):
+def port_is_free(port):
+    """Check if a TCP port is free on localhost."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("127.0.0.1", int(port)))
+        return True
+    except OSError:
+        return False
+
+def next_free_port(start=8090, end=8999):
+    """Return first free port in range [start, end]."""
+    for p in range(int(start), end + 1):
+        if port_is_free(p):
+            return p
+    return None
+
+def cmd_check_ports():
+    """Check if a port is free; suggest next free port if not."""
+    if len(sys.argv) < 3:
+        err("check_ports requires port")
+    port = int(sys.argv[2])
+    free = port_is_free(port)
+    suggestion = port if free else next_free_port(port)
+    out({"ok": True, "port": port, "free": free, "suggestion": suggestion})
+
+def generate_proxy_config(app_id, path_prefix, port):
+    """Write nginx location block to /etc/nginx/conf.d/rusnas-apps/ and reload nginx."""
     conf = f"""# rusNAS auto-generated — {app_id}
 location {path_prefix} {{
     proxy_pass http://127.0.0.1:{port}/;
@@ -261,9 +288,17 @@ def cmd_install():
     if result.returncode != 0:
         err(result.stderr or "podman-compose up failed")
 
+    # Port conflict check before starting containers
+    if not port_is_free(int(web_port)):
+        suggestion = next_free_port(int(web_port))
+        err(f"Port {web_port} is already in use. Try port {suggestion}.")
+
     path_prefix = manifest.get("nginx_path", f"/{app_id}/")
-    generate_nginx_proxy(app_id, path_prefix, web_port)
+    generate_proxy_config(app_id, path_prefix, web_port)
     generate_systemd_unit(app_id, compose_dir)
+
+    proxy_url = f"http://{socket.gethostname()}{path_prefix}"
+    direct_url = f"http://{socket.gethostname()}:{web_port}/"
 
     installed = load_installed()
     installed[app_id] = {
@@ -274,6 +309,9 @@ def cmd_install():
         "data_dir": data_dir,
         "host_ports": {manifest.get("port_label", "web"): int(web_port)},
         "nginx_path": path_prefix,
+        "proxy_url": proxy_url,
+        "direct_url": direct_url,
+        "proxy_active": True,
         "admin_user": admin_user,
         "admin_password": admin_password,
         "installed_at": now_iso(),
@@ -282,7 +320,7 @@ def cmd_install():
     }
     save_installed(installed)
     out({"ok": True, "app_id": app_id, "admin_password": admin_password,
-         "url": f"http://nas.local{path_prefix}"})
+         "url": proxy_url, "proxy_url": proxy_url, "direct_url": direct_url})
 
 def cmd_uninstall():
     if len(sys.argv) < 3:
@@ -308,7 +346,7 @@ def cmd_uninstall():
     conf_path = os.path.join(NGINX_APPS_DIR, f"{app_id}.conf")
     if os.path.exists(conf_path):
         os.remove(conf_path)
-    subprocess.run(["systemctl", "reload", "nginx"], capture_output=True)
+        subprocess.run(["systemctl", "reload", "nginx"], capture_output=True)
 
     unit = f"rusnas-container-{app_id}.service"
     subprocess.run(["systemctl", "disable", unit], capture_output=True)
@@ -478,6 +516,7 @@ if __name__ == "__main__":
         "get_stats": cmd_get_stats,
         "status": cmd_status,
         "get_logs": cmd_get_logs,
+        "check_ports": cmd_check_ports,
         "install": cmd_install,
         "uninstall": cmd_uninstall,
         "start": cmd_app_control,
