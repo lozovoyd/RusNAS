@@ -317,33 +317,51 @@ function doInstall() {
         return '<div class="install-step" id="istep-' + i + '">' +
                '<span class="install-step-icon">&#9723;</span>' +
                '<span>' + _esc(s) + '</span></div>';
-    }).join("");
+    }).join("") +
+    '<div id="install-wait-notice" style="display:none;font-size:12px;color:var(--color-muted);' +
+    'margin-top:10px;text-align:center">&#9203; Скачиваются образы контейнеров — это может занять 2–10 минут при первой установке...</div>';
     document.getElementById("install-steps-list").innerHTML = stepHtml;
 
+    // Animate first (steps.length - 1) steps with timer; last step completes only when backend responds
+    var ANIM_STEPS = steps.length - 1;
     var stepIdx = 0;
     var stepTimer = setInterval(function() {
-        if (stepIdx < steps.length) {
+        if (stepIdx < ANIM_STEPS) {
             if (stepIdx > 0) {
                 var prev = document.getElementById("istep-" + (stepIdx - 1));
                 if (prev) prev.querySelector(".install-step-icon").textContent = "\u2705";
             }
             var curr = document.getElementById("istep-" + stepIdx);
             if (curr) curr.querySelector(".install-step-icon").textContent = "\u23F3";
-            var pct = Math.round(((stepIdx + 1) / steps.length) * 100);
+            // Cap progress at 80% — last 20% reserved for real completion
+            var pct = Math.round(((stepIdx + 1) / steps.length) * 80);
             document.getElementById("install-progress-bar").style.width = pct + "%";
             document.getElementById("install-progress-pct").textContent = pct + "%";
             stepIdx++;
+        } else {
+            // Animation finished but backend still working — keep last step spinning
+            var lastAnimStep = document.getElementById("istep-" + (ANIM_STEPS - 1));
+            if (lastAnimStep) lastAnimStep.querySelector(".install-step-icon").textContent = "\u2705";
+            var pendingStep = document.getElementById("istep-" + ANIM_STEPS);
+            if (pendingStep) pendingStep.querySelector(".install-step-icon").textContent = "\u23F3";
+            // Show "taking long" notice
+            var notice = document.getElementById("install-wait-notice");
+            if (notice) notice.style.display = "";
+            clearInterval(stepTimer); // Stop repeating — UI is in "waiting" state
         }
     }, 2000);
 
     cgiCall("install", [_installAppId].concat(args)).then(function(r) {
         clearInterval(stepTimer);
+        // Complete all steps and reach 100% only now (real completion)
         for (var i = 0; i < steps.length; i++) {
             var s = document.getElementById("istep-" + i);
             if (s) s.querySelector(".install-step-icon").textContent = "\u2705";
         }
         document.getElementById("install-progress-bar").style.width = "100%";
         document.getElementById("install-progress-pct").textContent = "100%";
+        var notice = document.getElementById("install-wait-notice");
+        if (notice) notice.style.display = "none";
 
         if (r.ok) {
             setTimeout(function() {
@@ -362,6 +380,8 @@ function doInstall() {
         loadCatalog();
     }).catch(function(e) {
         clearInterval(stepTimer);
+        var notice = document.getElementById("install-wait-notice");
+        if (notice) notice.style.display = "none";
         document.getElementById("install-progress-area").style.display = "none";
         document.getElementById("install-result-area").style.display = "";
         document.getElementById("install-result-area").innerHTML =
