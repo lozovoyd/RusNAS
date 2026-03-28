@@ -1,0 +1,23 @@
+{
+  "id": "jellyfin",
+  "name": {"ru": "Jellyfin", "en": "Jellyfin"},
+  "description": {
+    "ru": "Медиасервер с поддержкой стриминга фильмов, музыки и фото на любые устройства",
+    "en": "Media server with streaming support for movies, music and photos to any device"
+  },
+  "category": "media",
+  "icon": "play",
+  "version": "latest",
+  "default_port": 8096,
+  "nginx_path": "/jellyfin/",
+  "port_label": "web",
+  "min_ram_mb": 1024,
+  "disk_gb": 2,
+  "containers": 1,
+  "featured": true,
+  "install_params": [
+    {"key": "web_port",  "label": "Порт веб-интерфейса", "default": "8096", "type": "port"},
+    {"key": "media_dir", "label": "Путь к медиафайлам",  "default": "/mnt/data/media", "type": "path"}
+  ],
+  "compose_template": "docker-compose.yml"
+}

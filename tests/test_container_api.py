@@ -49,3 +49,24 @@ def test_restart_missing_app():
 def test_update_images_missing_app():
     r = call_cgi('update_images', 'nonexistent-app')
     assert r.get('ok') is False
+
+def test_catalog_index_has_10_apps():
+    import os, json
+    idx = os.path.join(os.path.dirname(__file__),
+                       '../cockpit/rusnas/catalog/index.json')
+    with open(idx) as f:
+        data = json.load(f)
+    assert len(data['apps']) == 10
+
+def test_catalog_nextcloud_manifest():
+    import os, json
+    p = os.path.join(os.path.dirname(__file__),
+                     '../cockpit/rusnas/catalog/nextcloud/rusnas-app.json')
+    with open(p) as f:
+        data = json.load(f)
+    required = ['id','name','description','category','icon','default_port',
+                'nginx_path','min_ram_mb','version']
+    for key in required:
+        assert key in data, f"Missing key: {key}"
+    compose = os.path.join(os.path.dirname(p), 'docker-compose.yml')
+    assert os.path.exists(compose), "docker-compose.yml missing for nextcloud"

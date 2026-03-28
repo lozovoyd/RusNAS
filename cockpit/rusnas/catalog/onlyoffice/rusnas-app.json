@@ -1,0 +1,23 @@
+{
+  "id": "onlyoffice",
+  "name": {"ru": "ONLYOFFICE", "en": "ONLYOFFICE"},
+  "description": {
+    "ru": "Онлайн-редактор офисных документов совместимый с форматами Microsoft Office",
+    "en": "Online office document editor compatible with Microsoft Office formats"
+  },
+  "category": "office",
+  "icon": "file-text",
+  "version": "latest",
+  "default_port": 8044,
+  "nginx_path": "/office/",
+  "port_label": "web",
+  "min_ram_mb": 2048,
+  "disk_gb": 5,
+  "containers": 1,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port",   "label": "Порт веб-интерфейса", "default": "8044", "type": "port"},
+    {"key": "jwt_secret", "label": "JWT-секрет",          "default": "",     "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

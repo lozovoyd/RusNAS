@@ -1,0 +1,24 @@
+{
+  "id": "mailcow",
+  "name": {"ru": "Mailcow", "en": "Mailcow"},
+  "description": {
+    "ru": "Полноценный почтовый сервер с веб-интерфейсом, антиспамом и антивирусом",
+    "en": "Full-featured mail server with web UI, anti-spam and antivirus"
+  },
+  "category": "mail",
+  "icon": "mail",
+  "version": "latest",
+  "default_port": 8443,
+  "nginx_path": "/mail/",
+  "port_label": "admin",
+  "min_ram_mb": 4096,
+  "disk_gb": 20,
+  "containers": 1,
+  "featured": false,
+  "warning": "Требует настройки DNS",
+  "install_params": [
+    {"key": "web_port",   "label": "Порт веб-интерфейса (HTTPS)", "default": "8443", "type": "port"},
+    {"key": "mail_domain", "label": "Почтовый домен", "default": "mail.example.com", "type": "text"}
+  ],
+  "compose_template": "docker-compose.yml"
+}

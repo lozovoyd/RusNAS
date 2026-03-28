@@ -1,0 +1,22 @@
+{
+  "id": "home-assistant",
+  "name": {"ru": "Home Assistant", "en": "Home Assistant"},
+  "description": {
+    "ru": "Платформа для умного дома с поддержкой тысяч устройств и автоматизаций",
+    "en": "Home automation platform supporting thousands of devices and automations"
+  },
+  "category": "iot",
+  "icon": "home",
+  "version": "stable",
+  "default_port": 8123,
+  "nginx_path": "/hass/",
+  "port_label": "web",
+  "min_ram_mb": 256,
+  "disk_gb": 2,
+  "containers": 1,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port", "label": "Порт веб-интерфейса", "default": "8123", "type": "port"}
+  ],
+  "compose_template": "docker-compose.yml"
+}

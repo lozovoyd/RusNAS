@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  mailcow:
+    image: mailcow/mailcow-dockerized:latest
+    container_name: rusnas-mailcow
+    restart: unless-stopped
+    ports:
+      - "{{WEB_PORT:-8443}}:443"
+      - "25:25"
+      - "143:143"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+    environment:
+      - MAILCOW_HOSTNAME={{MAIL_DOMAIN:-mail.example.com}}
+      - TZ=Europe/Moscow
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/mailcow}}/data:/mailcow/data
+      - {{DATA_DIR:-/mnt/data/containers/mailcow}}/mysql:/var/lib/mysql
+    networks:
+      - rusnas-mailcow
+
+networks:
+  rusnas-mailcow:
+    name: rusnas-mailcow

@@ -1,0 +1,54 @@
+version: "3.8"
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: rusnas-immich-server
+    restart: unless-stopped
+    ports:
+      - "{{WEB_PORT:-2283}}:3001"
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=immich
+      - DB_PASSWORD={{DB_PASSWORD:-immichpass}}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/immich}}/upload:/usr/src/app/upload
+    depends_on:
+      - immich-redis
+      - immich-postgres
+    networks:
+      - rusnas-immich
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    container_name: rusnas-immich-ml
+    restart: unless-stopped
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/immich}}/model-cache:/cache
+    networks:
+      - rusnas-immich
+
+  immich-redis:
+    image: redis:6-alpine
+    container_name: rusnas-immich-redis
+    restart: unless-stopped
+    networks:
+      - rusnas-immich
+
+  immich-postgres:
+    image: postgres:14
+    container_name: rusnas-immich-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=immich
+      - POSTGRES_PASSWORD={{DB_PASSWORD:-immichpass}}
+      - POSTGRES_DB=immich
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/immich}}/pgdata:/var/lib/postgresql/data
+    networks:
+      - rusnas-immich
+
+networks:
+  rusnas-immich:
+    name: rusnas-immich

@@ -1,0 +1,23 @@
+{
+  "id": "pihole",
+  "name": {"ru": "Pi-hole", "en": "Pi-hole"},
+  "description": {
+    "ru": "Сетевой блокировщик рекламы и трекеров на уровне DNS для всей сети",
+    "en": "Network-wide ad and tracker blocker at the DNS level"
+  },
+  "category": "network",
+  "icon": "shield",
+  "version": "latest",
+  "default_port": 8053,
+  "nginx_path": "/pihole/",
+  "port_label": "admin",
+  "min_ram_mb": 128,
+  "disk_gb": 1,
+  "containers": 1,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port",        "label": "Порт веб-интерфейса", "default": "8053", "type": "port"},
+    {"key": "admin_password",  "label": "Пароль администратора", "default": "", "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

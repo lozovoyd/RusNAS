@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: rusnas-jellyfin
+    restart: unless-stopped
+    ports:
+      - "{{WEB_PORT:-8096}}:8096"
+    environment:
+      - JELLYFIN_PublishedServerUrl=http://localhost:{{WEB_PORT:-8096}}
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/jellyfin}}/config:/config
+      - {{DATA_DIR:-/mnt/data/containers/jellyfin}}/cache:/cache
+      - {{MEDIA_DIR:-/mnt/data}}/media:/media:ro
+    networks:
+      - rusnas-jellyfin
+
+networks:
+  rusnas-jellyfin:
+    name: rusnas-jellyfin

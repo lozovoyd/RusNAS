@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: rusnas-onlyoffice
+    restart: unless-stopped
+    ports:
+      - "{{WEB_PORT:-8044}}:80"
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET={{JWT_SECRET:-changeme}}
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/onlyoffice}}/logs:/var/log/onlyoffice
+      - {{DATA_DIR:-/mnt/data/containers/onlyoffice}}/data:/var/www/onlyoffice/Data
+      - {{DATA_DIR:-/mnt/data/containers/onlyoffice}}/lib:/var/lib/onlyoffice
+    networks:
+      - rusnas-onlyoffice
+
+networks:
+  rusnas-onlyoffice:
+    name: rusnas-onlyoffice

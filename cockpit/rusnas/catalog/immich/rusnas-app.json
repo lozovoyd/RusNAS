@@ -1,0 +1,23 @@
+{
+  "id": "immich",
+  "name": {"ru": "Immich", "en": "Immich"},
+  "description": {
+    "ru": "Самохостинг фотографий и видео с AI-распознаванием лиц и объектов",
+    "en": "Self-hosted photo and video backup with AI face and object recognition"
+  },
+  "category": "photo",
+  "icon": "camera",
+  "version": "release",
+  "default_port": 2283,
+  "nginx_path": "/photos/",
+  "port_label": "web",
+  "min_ram_mb": 2048,
+  "disk_gb": 10,
+  "containers": 4,
+  "featured": true,
+  "install_params": [
+    {"key": "web_port",    "label": "Порт веб-интерфейса", "default": "2283", "type": "port"},
+    {"key": "db_password", "label": "Пароль БД",           "default": "",     "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

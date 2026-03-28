@@ -1,0 +1,24 @@
+{
+  "id": "wireguard",
+  "name": {"ru": "WireGuard", "en": "WireGuard"},
+  "description": {
+    "ru": "VPN-сервер WireGuard с удобным веб-интерфейсом для управления клиентами",
+    "en": "WireGuard VPN server with an easy-to-use web UI for client management"
+  },
+  "category": "network",
+  "icon": "vpn",
+  "version": "latest",
+  "default_port": 51821,
+  "nginx_path": "/vpn/",
+  "port_label": "admin",
+  "min_ram_mb": 64,
+  "disk_gb": 1,
+  "containers": 1,
+  "featured": false,
+  "install_params": [
+    {"key": "web_port",        "label": "Порт веб-интерфейса", "default": "51821", "type": "port"},
+    {"key": "wg_host",         "label": "Публичный адрес/домен NAS", "default": "nas.local", "type": "text"},
+    {"key": "admin_password",  "label": "Пароль администратора", "default": "", "type": "password", "generate": true}
+  ],
+  "compose_template": "docker-compose.yml"
+}

@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: rusnas-vaultwarden
+    restart: unless-stopped
+    ports:
+      - "{{WEB_PORT:-8880}}:80"
+    environment:
+      - WEBSOCKET_ENABLED=true
+      - SIGNUPS_ALLOWED={{SIGNUPS_ALLOWED:-false}}
+      - ADMIN_TOKEN={{ADMIN_TOKEN:-changeme}}
+    volumes:
+      - {{DATA_DIR:-/mnt/data/containers/vaultwarden}}/data:/data
+    networks:
+      - rusnas-vaultwarden
+
+networks:
+  rusnas-vaultwarden:
+    name: rusnas-vaultwarden
