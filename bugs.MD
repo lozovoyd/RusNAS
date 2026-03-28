@@ -458,3 +458,17 @@
 **Root cause:** Cockpit sandbox scope isolation между script тегами; `eye.js` загружается после `storage-analyzer.js`.
 **Fix:** Добавлена локальная копия `function escHtml(s)` непосредственно в `storage-analyzer.js` (после `safeJson`).
 **Файлы:** `cockpit/rusnas/js/storage-analyzer.js`
+
+---
+
+### BUG-32 — Container Manager: get_catalog не мерджит данные из индивидуальных манифестов
+**Страница:** /rusnas/containers
+**Статус:** ✅ Исправлено (2026-03-28)
+**Описание:** `cmd_get_catalog()` в `container_api.py` читал только `catalog/index.json` с полями `id`, `category`, `featured`. Индивидуальные манифесты `catalog/<appid>/rusnas-app.json` (name, description, install_params, default_port и т.д.) **не читались**.
+**Симптомы:**
+1. Каталог отображал app ID вместо имён ("nextcloud" вместо "Nextcloud")
+2. Модал установки не имел полей формы (нет password/port) — `install_params` пустой
+3. Кнопка "Установить" открывала пустой modal без форм
+**Root cause:** `cmd_get_catalog()` не читал манифесты из папок приложений.
+**Fix:** `cmd_get_catalog()` теперь мерджит `{**manifest, **index_entry}` для каждого приложения.
+**Файлы:** `cockpit/rusnas/cgi/container_api.py:cmd_get_catalog()`

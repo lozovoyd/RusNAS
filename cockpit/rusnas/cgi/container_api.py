@@ -77,7 +77,24 @@ def cmd_get_catalog():
         out({"ok": True, "apps": []})
     with open(idx) as f:
         data = json.load(f)
-    out({"ok": True, "apps": data.get("apps", [])})
+    # Merge each app entry with its individual rusnas-app.json manifest
+    apps = []
+    for entry in data.get("apps", []):
+        app_id = entry.get("id", "")
+        manifest_path = os.path.join(CATALOG_DIR, app_id, "rusnas-app.json")
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path) as mf:
+                    manifest = json.load(mf)
+                # Merge: index entry takes precedence for id/category/featured,
+                # manifest provides name, description, install_params, etc.
+                merged = {**manifest, **entry}
+                apps.append(merged)
+            except (json.JSONDecodeError, OSError):
+                apps.append(entry)
+        else:
+            apps.append(entry)
+    out({"ok": True, "apps": apps})
 
 def cmd_get_btrfs_volumes():
     r = subprocess.run(

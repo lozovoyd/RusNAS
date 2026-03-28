@@ -2471,3 +2471,35 @@ Container Manager assumed nginx on :80, but Apache was there. OnlyOffice showed 
 - `http://10.10.10.72/files/` → 200 (FileBrowser)
 - `http://10.10.10.72/webdav/` → 403 (WebDAV, expected, needs auth)
 - All services active: nginx + apache2 + rusnas-fb + cockpit
+
+---
+
+## Сессия N — Comprehensive Container Manager Testing (2026-03-28)
+
+### Что сделано:
+Comprehensive automated testing of ALL Container Manager functions (CGI backend + Playwright frontend). Found and fixed 1 critical bug.
+
+### Bug found and fixed:
+
+**BUG-32 — container_api.py: get_catalog не включает name/description/install_params из манифестов**
+- `cmd_get_catalog()` читал только `catalog/index.json`, который содержит лишь `id`, `category`, `featured`
+- Индивидуальные манифесты `catalog/<appid>/rusnas-app.json` с `name`, `description`, `install_params`, `default_port` и т.д. **не мерджились**
+- Следствия:
+  1. Карточки каталога показывали app ID вместо человекочитаемых названий (e.g. "nextcloud" вместо "Nextcloud")
+  2. Модал установки не имел полей формы (password, port) — `install_params` было пустым массивом
+  3. Нельзя было установить ни одно приложение корректно
+- **Fix:** `cmd_get_catalog()` теперь для каждого entry из `index.json` читает `<appid>/rusnas-app.json` и мерджит данные (`{**manifest, **index_entry}` — index entry перекрывает manifest для `id`/`category`/`featured`)
+- **Файл:** `cockpit/rusnas/cgi/container_api.py`
+
+### Test results:
+- Backend CGI: **17/17 passed**
+- Frontend Playwright UI: **45/45 passed**
+- Edge cases: **6/6 passed**
+- **Total: 68/68 passed**
+
+### Test file created:
+- `/Users/dvl92/projects/RusNAS/tests/test_containers_comprehensive.py`
+
+### Modified files:
+- `cockpit/rusnas/cgi/container_api.py` — fix `cmd_get_catalog()` to merge individual manifests
+- `tests/test_containers_comprehensive.py` — new comprehensive test suite (68 tests)

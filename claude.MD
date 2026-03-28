@@ -597,6 +597,7 @@ Containerized app store for rusNAS. Deploy: `./install-containers.sh`
 | `/var/lib/rusnas` права 750 → rusnas-fb crash loop | при создании поддиректорий для других пользователей — `chmod o+x /var/lib/rusnas` (traverse-бит для other) |
 | `branding.css` `[aria-current]` матчит все nav-ссылки | PF6 ставит `aria-current="false"` на ВСЕ ссылки; использовать `[aria-current="page"]` |
 | CSS переменные на `.pf-v6-c-nav` каскадируют на все дочерние | `--pf-v6-c-nav__link--m-current--BackgroundColor` на родителе попадает в inactive items; только прямые `!important` overrides на ссылке |
+| `get_catalog` возвращает только id/category из index.json | `cmd_get_catalog()` обязан мерджить `catalog/<appid>/rusnas-app.json`; иначе install modal пустой — нет `name`/`install_params` |
 
 ## FTP and WebDAV settings (app.js / index.html)
 
