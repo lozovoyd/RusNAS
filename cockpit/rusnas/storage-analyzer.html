@@ -13,22 +13,27 @@
 </head>
 <body>
 
-<!-- Page Header -->
-<div class="sa-page-header">
-  <div class="sa-page-header-left">
-    <h1>💾 Анализ пространства</h1>
+<!-- Window Chrome Header -->
+<div class="sa-window-chrome">
+  <div class="sa-chrome-left">
+    <div class="sa-traffic-lights">
+      <span class="sa-tl sa-tl-red"></span>
+      <span class="sa-tl sa-tl-yellow"></span>
+      <span class="sa-tl sa-tl-green"></span>
+    </div>
+    <span class="sa-chrome-title">АНАЛИЗАТОР ПРОСТРАНСТВА</span>
+  </div>
+  <div class="sa-chrome-right">
     <div class="sa-scan-info" id="scanInfo">
       <span class="sa-scan-age" id="scanAge">Загрузка...</span>
       <span class="sa-scan-dot">•</span>
       <span id="scanDuration"></span>
     </div>
-  </div>
-  <div class="sa-page-header-right">
-    <button class="btn btn-default" id="btnSettings" title="Настройки анализатора">
-      ⚙ Настройки
+    <button class="btn btn-default btn-sm" id="btnSettings" title="Настройки анализатора">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>Настройки
     </button>
-    <button class="btn btn-primary" id="btnScanNow">
-      🔄 Сканировать сейчас
+    <button class="btn btn-primary btn-sm" id="btnScanNow">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path d="M17.65,6.35C16.2,4.9,14.21,4,12,4c-4.42,0-7.99,3.58-7.99,8s3.57,8,7.99,8c3.73,0,6.84-2.55,7.73-6h-2.08 c-0.82,2.33-3.04,4-5.65,4c-3.31,0-6-2.69-6-6s2.69-6,6-6c1.66,0,3.14,0.69,4.22,1.78L13,11h7V4L17.65,6.35z"/></svg>Сканировать
     </button>
   </div>
 </div>
@@ -39,79 +44,62 @@
   <span class="sa-scan-progress-label" id="scanProgressLabel">Сканирование...</span>
 </div>
 
-<!-- Tab Navigation -->
-<div class="advisor-tabs" id="saTabs">
-  <button class="advisor-tab-btn active" data-tab="overview">Обзор</button>
-  <button class="advisor-tab-btn" data-tab="shares">Шары</button>
-  <button class="advisor-tab-btn" data-tab="files">Папки и файлы</button>
-  <button class="advisor-tab-btn" data-tab="users">Пользователи</button>
-  <button class="advisor-tab-btn" data-tab="filetypes">Типы файлов</button>
+<!-- Tab Navigation (underline style) -->
+<div class="sa-tabs-row" id="saTabs">
+  <button class="sa-tab-btn active" data-tab="overview">Обзор</button>
+  <button class="sa-tab-btn" data-tab="shares">Шары</button>
+  <button class="sa-tab-btn" data-tab="files">Папки и файлы</button>
+  <button class="sa-tab-btn" data-tab="users">Пользователи</button>
+  <button class="sa-tab-btn" data-tab="filetypes">Типы файлов</button>
 </div>
 
 <!-- ========== TAB 1: OVERVIEW ========== -->
 <div class="sa-tab-content" id="tab-overview">
 
-  <!-- Summary Cards -->
-  <div class="sa-cards-row" id="overviewCards">
-    <div class="sa-card sa-card-stat" id="cardTotal">
-      <div class="sa-card-label">Всего</div>
-      <div class="sa-card-value" id="valTotal">—</div>
-      <div class="sa-card-sub" id="subTotal"></div>
+  <!-- Fill bar -->
+  <div class="sa-fill-bar-card" id="overviewFillBar">
+    <span class="sa-fill-bar-label" id="fillBarLabel">Заполнение /mnt/data</span>
+    <div class="sa-fill-bar-track">
+      <div class="sa-fill-bar-fill" id="fillBarFill" style="width:0%"></div>
     </div>
-    <div class="sa-card sa-card-stat" id="cardUsed">
-      <div class="sa-card-label">Занято</div>
-      <div class="sa-card-value" id="valUsed">—</div>
-      <div class="sa-bar-wrap">
-        <div class="sa-bar-fill" id="barUsed" style="width:0%"></div>
-      </div>
-      <div class="sa-card-sub" id="subUsed"></div>
+    <span class="sa-fill-bar-forecast" id="fillBarForecast">—</span>
+  </div>
+
+  <!-- Overview Treemap (top consumers) -->
+  <div class="sa-overview-treemap-wrap" id="overviewTreemapWrap">
+    <div class="sa-loading"><div class="sa-spinner"></div> Загрузка...</div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="sa-stat-boxes" id="overviewStatBoxes">
+    <div class="sa-stat-box">
+      <div class="sa-stat-val sa-stat-blue" id="statUsed">—</div>
+      <div class="sa-stat-lbl">ЗАНЯТО</div>
     </div>
-    <div class="sa-card sa-card-stat" id="cardFree">
-      <div class="sa-card-label">Свободно</div>
-      <div class="sa-card-value" id="valFree">—</div>
-      <div class="sa-bar-wrap sa-bar-free">
-        <div class="sa-bar-fill" id="barFree" style="width:0%"></div>
-      </div>
-      <div class="sa-card-sub" id="subFree"></div>
+    <div class="sa-stat-box">
+      <div class="sa-stat-val sa-stat-green" id="statFree">—</div>
+      <div class="sa-stat-lbl">СВОБОДНО</div>
     </div>
-    <div class="sa-card sa-card-stat sa-card-forecast" id="cardForecast">
-      <div class="sa-card-label">Осталось ~</div>
-      <div class="sa-forecast-lines" id="forecastLines">
-        <div class="sa-forecast-row"><span class="sa-fl-label">24ч тренд:</span><span class="sa-fl-val" id="fc24h">нет данных</span></div>
-        <div class="sa-forecast-row sa-fl-main"><span class="sa-fl-label">7д тренд:</span><span class="sa-fl-val" id="fc7d">нет данных</span></div>
-        <div class="sa-forecast-row"><span class="sa-fl-label">30д тренд:</span><span class="sa-fl-val" id="fc30d">нет данных</span></div>
-      </div>
+    <div class="sa-stat-box">
+      <div class="sa-stat-val sa-stat-amber" id="statPct">—</div>
+      <div class="sa-stat-lbl">ЗАПОЛНЕНО</div>
+    </div>
+    <div class="sa-stat-box">
+      <div class="sa-stat-val sa-stat-purple" id="statWeekGrowth">—</div>
+      <div class="sa-stat-lbl">ЗА НЕДЕЛЮ</div>
     </div>
   </div>
 
-  <!-- Volume Map -->
-  <div class="sa-section">
-    <div class="sa-section-title">Тома и массивы</div>
-    <div class="sa-volumes-grid" id="volumesGrid">
-      <div class="sa-loading"><div class="sa-spinner"></div> Загрузка томов...</div>
-    </div>
-  </div>
-
-  <!-- Fill Chart -->
-  <div class="sa-section">
-    <div class="sa-section-header">
-      <div class="sa-section-title">Динамика заполнения</div>
-      <div class="sa-period-btns">
-        <button class="sa-period-btn active" data-days="7">7д</button>
-        <button class="sa-period-btn" data-days="30">30д</button>
-        <button class="sa-period-btn" data-days="90">90д</button>
-      </div>
-    </div>
-    <div class="sa-chart-wrap" id="fillChartWrap">
-      <div class="sa-loading"><div class="sa-spinner"></div></div>
-    </div>
-  </div>
-
-  <!-- Top Consumers -->
-  <div class="sa-section">
-    <div class="sa-section-title">Топ потребителей</div>
-    <div id="topConsumers">
-      <div class="sa-loading"><div class="sa-spinner"></div> Загрузка...</div>
+  <!-- Hidden elements for backward compat (still needed by JS functions) -->
+  <div style="display:none">
+    <div id="volumesGrid"></div>
+    <div id="fillChartWrap"></div>
+    <div id="topConsumers"></div>
+    <div id="overviewCards">
+      <span id="valTotal"></span><span id="valUsed"></span><span id="valFree"></span>
+      <div id="barUsed"></div><div id="barFree"></div>
+      <span id="subUsed"></span><span id="subFree"></span>
+      <span id="fc24h"></span><span id="fc7d"></span><span id="fc30d"></span>
     </div>
   </div>
 

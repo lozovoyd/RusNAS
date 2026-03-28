@@ -81,6 +81,10 @@ function safeJson(str) {
     try { return JSON.parse(str); } catch { return null; }
 }
 
+function escHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ─── API calls via cockpit.spawn ──────────────────────────────────────────────
 function saApi(args) {
     return new Promise((resolve, reject) => {
@@ -102,7 +106,7 @@ function saApi(args) {
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('#saTabs .advisor-tab-btn[data-tab]').forEach(btn => {
+    document.querySelectorAll('#saTabs .sa-tab-btn[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
@@ -173,8 +177,8 @@ function closeModal() {
 
 function switchTab(tab) {
     activeTab = tab;
-    document.querySelectorAll('#saTabs .advisor-tab-btn').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.querySelector(`#saTabs .advisor-tab-btn[data-tab="${tab}"]`);
+    document.querySelectorAll('#saTabs .sa-tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(`#saTabs .sa-tab-btn[data-tab="${tab}"]`);
     if (activeBtn) activeBtn.classList.add('active');
     document.querySelectorAll('.sa-tab-content').forEach(d => d.style.display = 'none');
     const el = document.getElementById('tab-' + tab);
@@ -255,20 +259,24 @@ function loadOverview() {
     saApi(['overview']).then(data => {
         overviewData = data;
         renderOverviewCards(data);
+        renderOverviewTreemap(data.top_consumers || []);
         renderVolumeMap(data.volumes || []);
         renderFillChart(data);
         renderTopConsumers(data.top_consumers || []);
         // Update scan age from fresh data
         if (data.last_scan) {
             const ageEl = document.getElementById('scanAge');
-            ageEl.textContent = 'Последнее: ' + fmtAgo(data.last_scan);
+            if (ageEl) ageEl.textContent = 'Последнее: ' + fmtAgo(data.last_scan);
         }
         if (data.scan_duration) {
-            document.getElementById('scanDuration').textContent = 'Время сканирования: ' + data.scan_duration + ' с';
+            const durEl = document.getElementById('scanDuration');
+            if (durEl) durEl.textContent = 'Время сканирования: ' + data.scan_duration + ' с';
         }
     }).catch(err => {
-        document.getElementById('volumesGrid').innerHTML =
-            '<div class="sa-error">Ошибка загрузки: ' + err + '</div>';
+        const wrap = document.getElementById('overviewTreemapWrap');
+        if (wrap) wrap.innerHTML = '<div class="sa-error">Ошибка загрузки: ' + escHtml(String(err)) + '</div>';
+        const grid = document.getElementById('volumesGrid');
+        if (grid) grid.innerHTML = '<div class="sa-error">Ошибка загрузки: ' + escHtml(String(err)) + '</div>';
     });
 }
 
@@ -278,37 +286,151 @@ function renderOverviewCards(data) {
     vols.forEach(v => { total += v.total || 0; used += v.used || 0; free += v.free || 0; });
     const pct = total ? Math.round(used * 100 / total) : 0;
 
-    document.getElementById('valTotal').textContent = fmtBytes(total);
-    document.getElementById('valUsed').textContent  = fmtBytes(used) + ' (' + pct + '%)';
-    document.getElementById('valFree').textContent  = fmtBytes(free);
+    // ── New stat boxes ──
+    const statUsed = document.getElementById('statUsed');
+    const statFree = document.getElementById('statFree');
+    const statPct  = document.getElementById('statPct');
+    const statWeek = document.getElementById('statWeekGrowth');
+    if (statUsed) statUsed.textContent = fmtBytes(used);
+    if (statFree) statFree.textContent = fmtBytes(free);
+    if (statPct)  statPct.textContent  = pct + '%';
+
+    // Week growth: sum delta from top_shares or top_consumers
+    const shares = data.top_shares || data.top_consumers || [];
+    let weekGrowth = 0;
+    shares.forEach(s => { if (s.delta_7d) weekGrowth += s.delta_7d; });
+    if (statWeek) {
+        statWeek.textContent = weekGrowth >= 0
+            ? '+' + fmtBytes(weekGrowth)
+            : fmtBytes(weekGrowth);
+    }
+
+    // ── Fill bar ──
+    const volPath = vols.length ? vols[0].path : '/mnt/data';
+    const fillLabel = document.getElementById('fillBarLabel');
+    if (fillLabel) fillLabel.textContent = 'Заполнение ' + volPath;
+    const fillFill = document.getElementById('fillBarFill');
+    if (fillFill) fillFill.style.width = pct + '%';
+
+    // Fill bar forecast
+    const fc = data.forecasts || {};
+    let minDays = null;
+    Object.values(fc).forEach(f => {
+        if (f.days_7d != null && (minDays == null || f.days_7d < minDays)) minDays = f.days_7d;
+    });
+    const forecastEl = document.getElementById('fillBarForecast');
+    if (forecastEl) {
+        if (minDays == null) {
+            forecastEl.textContent = 'Нет прогноза';
+            forecastEl.className = 'sa-fill-bar-forecast ok';
+        } else {
+            forecastEl.textContent = '⚠ ~' + minDays + ' дн до 100%';
+            forecastEl.className = 'sa-fill-bar-forecast' + (minDays < 14 ? ' crit' : '');
+        }
+    }
+
+    // ── Legacy hidden elements (keep for backward compat) ──
+    const valTotal = document.getElementById('valTotal');
+    const valUsed  = document.getElementById('valUsed');
+    const valFree  = document.getElementById('valFree');
+    if (valTotal) valTotal.textContent = fmtBytes(total);
+    if (valUsed)  valUsed.textContent  = fmtBytes(used) + ' (' + pct + '%)';
+    if (valFree)  valFree.textContent  = fmtBytes(free);
 
     const barU = document.getElementById('barUsed');
-    barU.style.width = pct + '%';
-    barU.style.background = barColor(pct);
-
+    if (barU) { barU.style.width = pct + '%'; barU.style.background = barColor(pct); }
     const barF = document.getElementById('barFree');
-    barF.style.width = (100 - pct) + '%';
+    if (barF) barF.style.width = (100 - pct) + '%';
+    const subUsed = document.getElementById('subUsed');
+    if (subUsed) subUsed.textContent = pct >= 95 ? 'Критично!' : pct >= 85 ? 'Мало места' : '';
 
-    document.getElementById('subUsed').textContent = pct >= 95 ? '⚠️ Критично!'
-        : pct >= 85 ? '⚠️ Мало места' : '';
-
-    // Forecasts
-    const fc = data.forecasts || {};
-    // Aggregate across volumes: pick min days
-    let fc24h = null, fc7d = null, fc30d = null;
+    // Legacy forecasts
+    let fc7d = null, fc30d = null;
     Object.values(fc).forEach(f => {
         if (f.days_7d  != null && (fc7d  == null || f.days_7d  < fc7d))  fc7d  = f.days_7d;
         if (f.days_30d != null && (fc30d == null || f.days_30d < fc30d)) fc30d = f.days_30d;
     });
-
     function fcHtml(d) {
         if (d == null) return '<span class="sa-fc-nodata">нет данных</span>';
         const cls = d < 7 ? 'sa-fc-critical' : d < 30 ? 'sa-fc-warn' : 'sa-fc-ok';
         return '<span class="' + cls + '">' + fmtDays(d) + '</span>';
     }
-    document.getElementById('fc24h').innerHTML = '<span class="sa-fc-nodata">нет данных</span>';
-    document.getElementById('fc7d').innerHTML  = fcHtml(fc7d);
-    document.getElementById('fc30d').innerHTML = fcHtml(fc30d);
+    const fc24hEl = document.getElementById('fc24h');
+    const fc7dEl  = document.getElementById('fc7d');
+    const fc30dEl = document.getElementById('fc30d');
+    if (fc24hEl) fc24hEl.innerHTML = '<span class="sa-fc-nodata">нет данных</span>';
+    if (fc7dEl)  fc7dEl.innerHTML  = fcHtml(fc7d);
+    if (fc30dEl) fc30dEl.innerHTML = fcHtml(fc30d);
+}
+
+// ─── Overview treemap (new) ───────────────────────────────────────────────────
+var OTM_COLORS = [
+    { bg: '#1E1B4B', text: '#818CF8' },
+    { bg: '#3B1558', text: '#C084FC' },
+    { bg: '#3A2500', text: '#FCD34D' },
+    { bg: '#0D2845', text: '#60A5FA' },
+    { bg: '#0A2E1E', text: '#34D399' },
+    { bg: '#3B0E12', text: '#FCA5A5' },
+    { bg: '#1A2535', text: '#94A3B8' },
+];
+
+function renderOverviewTreemap(consumers) {
+    var wrap = document.getElementById('overviewTreemapWrap');
+    if (!wrap) return;
+    if (!consumers || !consumers.length) {
+        wrap.innerHTML = '<div class="sa-empty">Нет данных о потребителях. Запустите сканирование.</div>';
+        return;
+    }
+
+    var W = wrap.offsetWidth || 700;
+    var H = 340;
+
+    // Map consumers to treemap items using .value field (used by squarify)
+    var total = consumers.reduce(function(s, c) { return s + (c.used_bytes || c.size || c.bytes || 0); }, 0);
+    if (!total) {
+        wrap.innerHTML = '<div class="sa-empty">Нет данных</div>';
+        return;
+    }
+
+    var items = consumers.slice(0, 12).map(function(c, i) {
+        return {
+            label: c.name || c.path || 'папка',
+            value: c.used_bytes || c.size || c.bytes || 0,
+            color: OTM_COLORS[i % OTM_COLORS.length],
+        };
+    }).filter(function(item) { return item.value > 0; });
+
+    var rects = squarify(items, 0, 0, W, H);
+
+    var svgParts = ['<svg class="sa-otm-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">'];
+    svgParts.push('<defs><clipPath id="otm-clip"><rect width="' + W + '" height="' + H + '"/></clipPath></defs>');
+    svgParts.push('<g clip-path="url(#otm-clip)">');
+
+    rects.forEach(function(r) {
+        var pad = 4;
+        var rw = Math.max(0, r.w - pad * 2);
+        var rh = Math.max(0, r.h - pad * 2);
+        svgParts.push('<rect x="' + (r.x + pad) + '" y="' + (r.y + pad) + '" width="' + rw + '" height="' + rh + '" rx="8" fill="' + r.color.bg + '"/>');
+        if (r.w > 60 && r.h > 36) {
+            var textY = r.y + pad + 22;
+            var textX = r.x + pad + 10;
+            svgParts.push('<text x="' + textX + '" y="' + textY + '" fill="' + r.color.text + '" font-size="12" font-weight="600" font-family="inherit">');
+            // Truncate name if tile is narrow
+            var maxChars = Math.floor((r.w - 20) / 7);
+            var label = r.label;
+            if (label.length > maxChars && maxChars > 3) label = label.slice(0, maxChars - 1) + '…';
+            svgParts.push(escHtml(label));
+            svgParts.push('</text>');
+            if (r.h > 56) {
+                svgParts.push('<text x="' + textX + '" y="' + (textY + 18) + '" fill="' + r.color.text + '" font-size="11" font-family="inherit" opacity="0.8">');
+                svgParts.push(fmtBytes(r.value));
+                svgParts.push('</text>');
+            }
+        }
+    });
+
+    svgParts.push('</g></svg>');
+    wrap.innerHTML = svgParts.join('');
 }
 
 function renderVolumeMap(volumes) {

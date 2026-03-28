@@ -448,3 +448,13 @@
 **Описание:** `runArray()` использовал `cockpit.spawn(["bash", "-c", "sudo mdadm --run /dev/"+name], {superuser:"require"})`. Согласно Known Bugs — `bash -c "sudo cmd"` не работает корректно: bash запускается без прав, inner sudo требует tty/пароль.
 **Fix:** Заменено на `cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})`.
 **Файлы:** `disks.js:runArray()`
+
+---
+
+### BUG-31 — Storage Analyzer: escHtml not defined in storage-analyzer.js scope
+**Страница:** /rusnas/storage-analyzer
+**Статус:** ✅ Исправлено (2026-03-28)
+**Описание:** `renderOverviewTreemap()` в `storage-analyzer.js` вызывал `escHtml()`, определённый в `eye.js`. Несмотря на то что `eye.js` загружается на той же странице, в Cockpit iframe контексте функции из других `<script>` тегов не всегда доступны в глобальном скоупе. Результат: `ReferenceError: escHtml is not defined` при попытке отрендерить SVG-треемап — вместо треемапа бесконечный спиннер "Загрузка...".
+**Root cause:** Cockpit sandbox scope isolation между script тегами; `eye.js` загружается после `storage-analyzer.js`.
+**Fix:** Добавлена локальная копия `function escHtml(s)` непосредственно в `storage-analyzer.js` (после `safeJson`).
+**Файлы:** `cockpit/rusnas/js/storage-analyzer.js`

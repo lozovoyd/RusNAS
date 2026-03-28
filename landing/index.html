@@ -2604,6 +2604,670 @@ header{
   </div>
 </section>
 
+<div class="sep"></div>
+
+<!-- ═══════════ CONTAINER MANAGER ═══════════ -->
+<section id="containers" class="cm-section">
+  <div class="cm-glow"></div>
+  <div class="cm-glow2"></div>
+  <div class="cm-inner">
+    <div class="cm-label">Управление контейнерами</div>
+    <h2 class="cm-title">10 готовых приложений.<br><span class="cm-accent">Один клик — готовый сервис.</span></h2>
+    <p class="cm-sub">Встроенный менеджер контейнеров на Podman — rootless, без демона, без рисков. Nextcloud, Jellyfin, Vaultwarden и ещё 7 приложений разворачиваются прямо из Cockpit. Авто-прокси nginx, управление томами, логи в реальном времени.</p>
+
+    <!-- Architecture -->
+    <div class="cm-arch-row">
+      <!-- Left: arch diagram -->
+      <div class="cm-arch-diagram">
+        <div class="cm-arch-title">Архитектура стека</div>
+        <div class="cm-arch-layers">
+
+          <div class="cm-arch-layer cm-al-browser">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="cm-al-name">Браузер / Клиент</span>
+            <span class="cm-al-badge cm-al-user">пользователь</span>
+          </div>
+          <div class="cm-arch-arrow">↓</div>
+          <div class="cm-arch-layer cm-al-nginx">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span class="cm-al-name">nginx Авто-прокси</span>
+            <span class="cm-al-badge cm-al-auto">авто-конфиг</span>
+          </div>
+          <div class="cm-arch-arrow">↓</div>
+          <div class="cm-arch-layer cm-al-podman">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            <span class="cm-al-name">Podman (rootless)</span>
+            <span class="cm-al-badge cm-al-new">изолировано</span>
+          </div>
+          <div class="cm-arch-arrow">↓</div>
+          <div class="cm-arch-layer cm-al-storage">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="cm-al-name">Том /mnt/data</span>
+            <span class="cm-al-badge cm-al-existing">Btrfs RAID</span>
+          </div>
+
+        </div>
+        <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:7px;">
+          <span class="cm-pill">Rootless Podman</span>
+          <span class="cm-pill">podman-compose</span>
+          <span class="cm-pill">Авто nginx proxy</span>
+          <span class="cm-pill">Cockpit UI</span>
+          <span class="cm-pill">Systemd юниты</span>
+        </div>
+      </div>
+
+      <!-- Right: features -->
+      <div class="cm-feats">
+        <div class="cm-feat">
+          <span class="cm-feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <div>
+            <div class="cm-feat-name">Rootless — без прав root</div>
+            <div class="cm-feat-desc">Все контейнеры работают от системного пользователя <code>rusnas-containers</code>. Компрометация контейнера не даёт root-доступа к системе.</div>
+          </div>
+        </div>
+        <div class="cm-feat">
+          <span class="cm-feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </span>
+          <div>
+            <div class="cm-feat-name">Один клик — готовый сервис</div>
+            <div class="cm-feat-desc">Выберите приложение в каталоге, укажите том и порт — Cockpit разворачивает контейнер, создаёт systemd-юнит и nginx-конфиг автоматически.</div>
+          </div>
+        </div>
+        <div class="cm-feat">
+          <span class="cm-feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          </span>
+          <div>
+            <div class="cm-feat-name">Авто-прокси без настройки</div>
+            <div class="cm-feat-desc">nginx генерирует конфиг при установке: каждое приложение доступно на своём порту или субпути. TLS-сертификат от Let's Encrypt — если настроен домен.</div>
+          </div>
+        </div>
+        <div class="cm-feat">
+          <span class="cm-feat-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </span>
+          <div>
+            <div class="cm-feat-name">Логи и мониторинг</div>
+            <div class="cm-feat-desc">Встроенный просмотр логов, статус CPU/RAM каждого контейнера, кнопки старт/стоп/рестарт. Обновление образов — одним нажатием.</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /cm-arch-row -->
+
+    <!-- App catalog -->
+    <div class="cm-catalog-title">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+      Каталог готовых приложений
+    </div>
+    <div class="cm-apps-grid">
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(0,130,255,0.12);border-color:rgba(0,130,255,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4FC3F7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.74V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-1.26z"/><path d="M14 22H6a2 2 0 0 1-2-2V8"/></svg>
+        </div>
+        <div class="cm-app-name">Nextcloud</div>
+        <div class="cm-app-desc">Облачное хранилище, офис, календарь, задачи</div>
+        <span class="cm-app-tag">Офис</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(255,120,50,0.12);border-color:rgba(255,120,50,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFA26B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <div class="cm-app-name">Immich</div>
+        <div class="cm-app-desc">Личный фото-архив с AI-распознаванием</div>
+        <span class="cm-app-tag">Медиа</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(100,200,120,0.12);border-color:rgba(100,200,120,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#69DA93" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </div>
+        <div class="cm-app-name">Jellyfin</div>
+        <div class="cm-app-desc">Медиасервер для видео, музыки, подкастов</div>
+        <span class="cm-app-tag">Медиа</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(80,160,255,0.12);border-color:rgba(80,160,255,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5CA8FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="cm-app-name">Vaultwarden</div>
+        <div class="cm-app-desc">Менеджер паролей совместимый с Bitwarden</div>
+        <span class="cm-app-tag">Безопасность</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(255,190,50,0.12);border-color:rgba(255,190,50,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFD062" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="cm-app-name">Home Assistant</div>
+        <div class="cm-app-desc">Центр управления умным домом и IoT</div>
+        <span class="cm-app-tag">Умный дом</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(150,80,255,0.12);border-color:rgba(150,80,255,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C084FC" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div class="cm-app-name">Pi-hole</div>
+        <div class="cm-app-desc">DNS-сервер с блокировкой рекламы и трекеров</div>
+        <span class="cm-app-tag">Сеть</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(80,220,200,0.12);border-color:rgba(80,220,200,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4DD9C4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="cm-app-name">WireGuard</div>
+        <div class="cm-app-desc">Быстрый и безопасный VPN-сервер</div>
+        <span class="cm-app-tag">VPN</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(255,80,80,0.12);border-color:rgba(255,80,80,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF7070" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <div class="cm-app-name">Mailcow</div>
+        <div class="cm-app-desc">Полноценный почтовый сервер с веб-интерфейсом</div>
+        <span class="cm-app-tag">Почта</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(50,160,255,0.12);border-color:rgba(50,160,255,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#60AEFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div class="cm-app-name">OnlyOffice</div>
+        <div class="cm-app-desc">Офисный пакет с совместным редактированием</div>
+        <span class="cm-app-tag">Офис</span>
+      </div>
+
+      <div class="cm-app">
+        <div class="cm-app-icon" style="background:rgba(255,140,0,0.12);border-color:rgba(255,140,0,0.25);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFA040" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="cm-app-name">Rocket.Chat</div>
+        <div class="cm-app-desc">Корпоративный мессенджер и видеозвонки</div>
+        <span class="cm-app-tag">Коммуникации</span>
+      </div>
+
+      <!-- Custom slot -->
+      <div class="cm-app cm-app-custom">
+        <div class="cm-app-icon" style="background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1);border-style:dashed;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--gray2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+        <div class="cm-app-name" style="color:var(--gray2)">Свой compose</div>
+        <div class="cm-app-desc" style="color:var(--gray2)">Импорт любого docker-compose.yml из файла или URL</div>
+        <span class="cm-app-tag" style="background:rgba(255,255,255,0.06);color:var(--gray2)">Кастом</span>
+      </div>
+
+    </div><!-- /cm-apps-grid -->
+
+    <!-- Use case scenarios -->
+    <div class="cm-scenarios-title">Сценарии использования</div>
+    <div class="cm-scenarios">
+
+      <div class="cm-scenario">
+        <div class="cm-sc-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="cm-sc-name">Домашний офис</div>
+        <div class="cm-sc-desc">Nextcloud + Vaultwarden + Home Assistant — личное облако, пароли и умный дом на одном сервере</div>
+        <div class="cm-sc-apps">
+          <span>Nextcloud</span><span>Vaultwarden</span><span>Home Assistant</span>
+        </div>
+      </div>
+
+      <div class="cm-scenario">
+        <div class="cm-sc-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <div class="cm-sc-name">Малый бизнес</div>
+        <div class="cm-sc-desc">OnlyOffice + Rocket.Chat + Mailcow — корпоративный офис без подписок на внешние SaaS-сервисы</div>
+        <div class="cm-sc-apps">
+          <span>OnlyOffice</span><span>Rocket.Chat</span><span>Mailcow</span>
+        </div>
+      </div>
+
+      <div class="cm-scenario">
+        <div class="cm-sc-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </div>
+        <div class="cm-sc-name">Медиасервер</div>
+        <div class="cm-sc-desc">Immich + Jellyfin — семейный архив фотографий и стриминг фильмов на все устройства в сети</div>
+        <div class="cm-sc-apps">
+          <span>Immich</span><span>Jellyfin</span>
+        </div>
+      </div>
+
+      <div class="cm-scenario">
+        <div class="cm-sc-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div class="cm-sc-name">Сетевая безопасность</div>
+        <div class="cm-sc-desc">Pi-hole + WireGuard — блокировка рекламы для всей сети и защищённый VPN-доступ откуда угодно</div>
+        <div class="cm-sc-apps">
+          <span>Pi-hole</span><span>WireGuard</span>
+        </div>
+      </div>
+
+    </div><!-- /cm-scenarios -->
+
+    <!-- Deploy steps -->
+    <div class="cm-deploy-title">Как запустить приложение</div>
+    <div class="cm-steps">
+      <div class="cm-step">
+        <div class="cm-step-num">1</div>
+        <div class="cm-step-content">
+          <div class="cm-step-name">Открыть каталог</div>
+          <div class="cm-step-desc">В разделе Контейнеры → вкладка «Каталог» — выберите приложение из 10 готовых шаблонов или импортируйте свой compose-файл</div>
+        </div>
+      </div>
+      <div class="cm-step-arrow">→</div>
+      <div class="cm-step">
+        <div class="cm-step-num">2</div>
+        <div class="cm-step-content">
+          <div class="cm-step-name">Настроить и установить</div>
+          <div class="cm-step-desc">Укажите том для данных, порт и (при необходимости) переменные окружения. Нажмите «Установить» — образы скачиваются автоматически</div>
+        </div>
+      </div>
+      <div class="cm-step-arrow">→</div>
+      <div class="cm-step">
+        <div class="cm-step-num">3</div>
+        <div class="cm-step-content">
+          <div class="cm-step-name">Сервис готов</div>
+          <div class="cm-step-desc">nginx-прокси настроен, systemd-юнит создан. Приложение доступно по IP:порт или домену. Старт/стоп/обновление — без SSH</div>
+        </div>
+      </div>
+    </div><!-- /cm-steps -->
+
+  </div><!-- /cm-inner -->
+</section>
+
+<style>
+/* ── CONTAINER MANAGER SECTION ────────────────────────────── */
+.cm-section {
+  background: #060a12;
+  border-top: 1px solid rgba(60,100,200,0.15);
+  border-bottom: 1px solid rgba(60,100,200,0.15);
+  padding: 88px 48px;
+  position: relative;
+  overflow: hidden;
+}
+.cm-glow {
+  position: absolute;
+  top: -150px; right: -150px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(41,98,255,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+.cm-glow2 {
+  position: absolute;
+  bottom: -100px; left: -100px;
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(0,180,200,0.05) 0%, transparent 65%);
+  pointer-events: none;
+}
+.cm-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+.cm-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #5B9BF8;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.cm-title {
+  font-size: clamp(26px, 3.2vw, 42px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+.cm-accent {
+  background: linear-gradient(135deg, #5B9BF8, #00C9C9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.cm-sub {
+  font-size: 15px;
+  color: var(--gray);
+  max-width: 680px;
+  line-height: 1.7;
+  margin-bottom: 48px;
+}
+/* Architecture row */
+.cm-arch-row {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 40px;
+  margin-bottom: 56px;
+  align-items: start;
+}
+.cm-arch-diagram {
+  background: var(--bg-card);
+  border: 1px solid rgba(60,100,200,0.18);
+  border-radius: 14px;
+  padding: 24px;
+}
+.cm-arch-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray2);
+  margin-bottom: 16px;
+}
+.cm-arch-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.cm-arch-layer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.cm-al-browser { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.07); }
+.cm-al-nginx   { background: rgba(0,200,180,0.08);  border-color: rgba(0,200,180,0.2); }
+.cm-al-podman  { background: rgba(60,100,255,0.10); border-color: rgba(60,100,255,0.25); }
+.cm-al-storage { background: rgba(245,166,35,0.08); border-color: rgba(245,166,35,0.2); }
+.cm-al-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  flex: 1;
+}
+.cm-al-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.cm-al-user     { background: rgba(255,255,255,0.08); color: var(--gray); }
+.cm-al-auto     { background: rgba(0,200,180,0.15);   color: #4ecdc4; }
+.cm-al-new      { background: rgba(60,100,255,0.18);  color: #7ba4ff; }
+.cm-al-existing { background: rgba(245,166,35,0.15);  color: var(--orange); }
+.cm-arch-arrow {
+  text-align: center;
+  color: var(--gray2);
+  font-size: 16px;
+  padding: 4px 0;
+}
+.cm-pill {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: rgba(60,100,255,0.12);
+  border: 1px solid rgba(60,100,255,0.22);
+  color: #7BA4FF;
+}
+/* Features list */
+.cm-feats {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.cm-feat {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.cm-feat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(60,100,255,0.1);
+  border: 1px solid rgba(60,100,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7BA4FF;
+  flex-shrink: 0;
+}
+.cm-feat-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.cm-feat-desc {
+  font-size: 13px;
+  color: var(--gray);
+  line-height: 1.65;
+}
+.cm-feat-desc code {
+  font-family: monospace;
+  font-size: 12px;
+  background: rgba(255,255,255,0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #B0C8FF;
+}
+/* App catalog */
+.cm-catalog-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gray);
+}
+.cm-apps-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 48px;
+}
+.cm-app {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 18px 16px;
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+  cursor: default;
+}
+.cm-app:hover {
+  border-color: rgba(91,155,248,0.4);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(41,98,255,0.1);
+}
+.cm-app-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid;
+  margin-bottom: 12px;
+}
+.cm-app-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.cm-app-desc {
+  font-size: 12px;
+  color: var(--gray2);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.cm-app-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(91,155,248,0.12);
+  color: #7BA4FF;
+  border: 1px solid rgba(91,155,248,0.2);
+}
+/* Scenarios */
+.cm-scenarios-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cm-scenarios-title::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  background: #5B9BF8;
+  border-radius: 1px;
+}
+.cm-scenarios {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.cm-scenario {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 22px 18px;
+  transition: border-color 0.2s;
+}
+.cm-scenario:hover { border-color: rgba(91,155,248,0.3); }
+.cm-sc-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: rgba(60,100,255,0.08);
+  border: 1px solid rgba(60,100,255,0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7BA4FF;
+  margin-bottom: 14px;
+}
+.cm-sc-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 7px;
+}
+.cm-sc-desc {
+  font-size: 12.5px;
+  color: var(--gray2);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.cm-sc-apps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.cm-sc-apps span {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0,180,200,0.1);
+  color: #4DD9C4;
+  border: 1px solid rgba(0,180,200,0.18);
+}
+/* Deploy steps */
+.cm-deploy-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray);
+  margin-bottom: 20px;
+}
+.cm-deploy-title::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  background: #5B9BF8;
+  border-radius: 1px;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+.cm-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.cm-step {
+  flex: 1;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.cm-step-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2962FF, #00C9C9);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cm-step-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.cm-step-desc {
+  font-size: 12.5px;
+  color: var(--gray2);
+  line-height: 1.6;
+}
+.cm-step-arrow {
+  font-size: 22px;
+  color: var(--gray2);
+  padding-top: 18px;
+  flex-shrink: 0;
+}
+/* Responsive */
+@media (max-width: 1100px) {
+  .cm-apps-grid { grid-template-columns: repeat(4, 1fr); }
+  .cm-scenarios { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 860px) {
+  .cm-arch-row { grid-template-columns: 1fr; }
+  .cm-apps-grid { grid-template-columns: repeat(3, 1fr); }
+  .cm-steps { flex-direction: column; }
+  .cm-step-arrow { display: none; }
+}
+@media (max-width: 600px) {
+  .cm-apps-grid { grid-template-columns: repeat(2, 1fr); }
+  .cm-scenarios { grid-template-columns: 1fr; }
+}
+</style>
+
 <!-- CTA -->
 <section id="cta" class="cta-section">
   <div class="cta-inner">

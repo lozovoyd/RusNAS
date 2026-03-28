@@ -2296,3 +2296,80 @@ Private key: `rusnas-license-server/operator_private.pem` (в `.gitignore` — �
 RESULTS: 15 PASS  0 FAIL
 ```
 All 15 Playwright UI tests passed on live VM (10.10.10.72) with daemon in --dry-run mode.
+
+---
+
+## Session 2026-03-28-C: Storage Analyzer UI Redesign
+
+**Date:** 2026-03-28
+**Branch:** main
+
+### Goal
+Redesign the Storage Analyzer overview tab to match a macOS-inspired mockup: window chrome header with traffic lights, underline-style tab navigation, fill bar, squarified treemap of top consumers, and 4 stat boxes (ЗАНЯТО / СВОБОДНО / ЗАПОЛНЕНО / ЗА НЕДЕЛЮ).
+
+### Changes made
+
+**cockpit/rusnas/storage-analyzer.html:**
+- Replaced old `.sa-page-header` with `.sa-window-chrome` containing macOS-style traffic lights (red/yellow/green dots) + "АНАЛИЗАТОР ПРОСТРАНСТВА" title
+- SVG icon buttons for Настройки and Сканировать (no emoji)
+- Replaced `advisor-tabs` with `.sa-tabs-row` + `.sa-tab-btn` underline-style tabs
+- Replaced Overview tab content: old 4-card grid + volume map + fill chart + top consumers → new fill bar + treemap + 4 stat boxes
+- Hidden elements added for backward-compat with legacy JS element IDs (volumesGrid, fillChartWrap, topConsumers, etc.)
+
+**cockpit/rusnas/css/storage-analyzer.css:**
+- Added: `.sa-window-chrome`, `.sa-chrome-left/right`, `.sa-traffic-lights`, `.sa-tl`, `.sa-chrome-title`
+- Added: `.sa-tabs-row`, `.sa-tab-btn` (underline style with blue active border)
+- Added: `.sa-fill-bar-card`, `.sa-fill-bar-label/track/fill/forecast`
+- Added: `.sa-overview-treemap-wrap`, `.sa-otm-svg`
+- Added: `.sa-stat-boxes`, `.sa-stat-box`, `.sa-stat-val`, `.sa-stat-lbl`, `.sa-stat-blue/green/amber/purple`
+- Responsive breakpoints for stat boxes (2-col at 700px, 1-col at 480px)
+
+**cockpit/rusnas/js/storage-analyzer.js:**
+- Added local `escHtml(s)` definition (BUG-31 fix — eye.js scope isolation)
+- Updated `switchTab()`: `.advisor-tab-btn` → `.sa-tab-btn`
+- Updated DOMContentLoaded selector: `.advisor-tab-btn` → `.sa-tab-btn`
+- Updated `renderOverviewCards()`: now fills fill bar label/fill/forecast + new stat boxes (statUsed/statFree/statPct/statWeekGrowth); legacy hidden elements also updated for compat
+- Added `OTM_COLORS` palette (7 dark muted colors for treemap tiles)
+- Added `renderOverviewTreemap(consumers)`: SVG squarified treemap using existing `squarify()` function; tile name + size labels; truncates long names per tile width
+- Updated `loadOverview()`: calls `renderOverviewTreemap()` + null guards on `scanAge`/`scanDuration` elements; improved error handling with `escHtml`
+
+### Bug found and fixed
+- **BUG-31**: `escHtml` not defined in `storage-analyzer.js` scope — Cockpit iframe sandbox isolates script tag globals. Fixed by adding local copy of `escHtml()`.
+
+### Test results (Playwright)
+- Traffic lights: 3 ✅
+- Underline tab buttons: 5 ✅
+- Fill bar rendered with correct width (9%) ✅
+- Stat boxes: 4 (1.9 ГБ / 19.0 ГБ / 9% / +0 Б) ✅
+- Treemap SVG rendered (1392×340, indigo tile "documents2 / 1.8 ГБ") ✅
+- Tab switching functional (Шары tab → overview tab) ✅
+- No page errors after BUG-31 fix ✅
+
+### Files modified
+- `cockpit/rusnas/storage-analyzer.html`
+- `cockpit/rusnas/css/storage-analyzer.css`
+- `cockpit/rusnas/js/storage-analyzer.js`
+- `bugs.MD` (BUG-31 added)
+- `project_history.md` (this entry)
+
+## Session 2026-03-28-D: Container Manager Landing Page Section
+
+**Date:** 2026-03-28
+**Branch:** main
+
+### Changes made:
+- Added Container Manager marketing section to `landing/index.html` (before CTA)
+  - Architecture diagram SVG: Browser → nginx proxy → Podman (rootless) → Btrfs volume
+  - App catalog grid: 10 apps (Nextcloud, Immich, Jellyfin, Vaultwarden, Home Assistant, Pi-hole, WireGuard, Mailcow, OnlyOffice, Rocket.Chat) + custom compose slot
+  - 4 usage scenario cards: Домашний офис / Малый бизнес / Медиасервер / Сетевая безопасность
+  - 3-step deploy infographic
+  - Inline CSS with `--blue` accent (#5B9BF8), dark background, SVG icons (no emoji)
+  - Fully responsive: 5→4→3→2→1 column breakpoints for app grid
+
+### Files modified:
+- `landing/index.html` — new `<section id="containers" class="cm-section">` with inline `<style>`
+
+### Testing:
+- Deployed to VM via `./deploy-landing.sh`
+- Playwright: #containers FOUND, 11 apps rendered, 4 scenarios, 3 steps
+- Visual check: screenshots at /tmp/lp_cm_0{1,2,3}.png — layout correct
