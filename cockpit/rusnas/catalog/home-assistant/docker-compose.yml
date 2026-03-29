@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   home-assistant:
-    image: homeassistant/home-assistant:stable
+    image: docker.io/homeassistant/home-assistant:stable
+    mem_limit: 1024m
     container_name: rusnas-home-assistant
     restart: unless-stopped
     network_mode: host

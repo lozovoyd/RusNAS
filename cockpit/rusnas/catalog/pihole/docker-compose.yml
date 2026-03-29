@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   pihole:
-    image: pihole/pihole:latest
+    image: docker.io/pihole/pihole:latest
+    mem_limit: 384m
     container_name: rusnas-pihole
     restart: unless-stopped
     ports:

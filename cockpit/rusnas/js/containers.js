@@ -50,6 +50,7 @@ var _currentCat = "all";
 var _statsTimer = null;
 var _installAppId = null;
 var _volumes = [];
+var _installForce = false;
 
 /* ── tab switching ─────────────────────────────────────────── */
 function switchTab(tabName) {
@@ -208,12 +209,8 @@ function openInstallModal(appId) {
         }
     });
 
-    if (app.min_ram_mb || app.disk_gb) {
-        html += '<div class="alert alert-info" style="font-size:13px">Потребуется' +
-                (app.min_ram_mb ? ' ~' + app.min_ram_mb + ' MB RAM' : '') +
-                (app.disk_gb ? ', ~' + app.disk_gb + ' GB диска' : '') +
-                '. Первый запуск занимает 1–5 минут (загрузка образов).</div>';
-    }
+    // Preflight resource check placeholder (populated after modal open)
+    html += '<div id="install-preflight" style="margin-bottom:4px"></div>';
 
     html += '</div>';
     document.getElementById("install-form-area").innerHTML = html;
@@ -266,6 +263,42 @@ function openInstallModal(appId) {
     });
 
     document.getElementById("install-modal").classList.remove("hidden");
+
+    // Fetch live resource info for preflight display
+    _installForce = false;
+    var prefEl = document.getElementById("install-preflight");
+    if (prefEl && (app.min_ram_mb || app.disk_gb)) {
+        prefEl.innerHTML = '<span style="color:var(--color-muted);font-size:12px">Проверка ресурсов…</span>';
+        var volEl2 = document.getElementById("im-volume");
+        var volPath = volEl2 ? volEl2.value : "/mnt/data";
+        cgiCall("get_resources", [volPath]).then(function(res) {
+            if (!prefEl || !res.ok) return;
+            var ramOk = !app.min_ram_mb || res.avail_ram_mb >= Math.round(app.min_ram_mb * 0.8);
+            var diskOk = !app.disk_gb || res.free_disk_gb >= app.disk_gb * 0.9;
+            var ramClass = ramOk ? "success" :
+                (res.avail_ram_mb >= Math.round(app.min_ram_mb * 0.5) ? "warning" : "danger");
+            var diskClass = diskOk ? "success" : "warning";
+            var html2 = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">';
+            if (app.min_ram_mb) {
+                html2 += '<span class="badge badge-' + ramClass + '">RAM: ' + res.avail_ram_mb +
+                    ' MB доступно / нужно ~' + app.min_ram_mb + ' MB</span>';
+            }
+            if (app.disk_gb) {
+                html2 += '<span class="badge badge-' + diskClass + '">Диск: ' + res.free_disk_gb +
+                    ' GB свободно / нужно ~' + app.disk_gb + ' GB</span>';
+            }
+            html2 += '</div>';
+            if (ramClass === "danger") {
+                html2 += '<div class="alert alert-danger" style="font-size:12px;margin-bottom:6px">' +
+                    'Недостаточно оперативной памяти. Система может быть нестабильна.' +
+                    ' Установка будет выполнена принудительно.</div>';
+                _installForce = true;
+            }
+            prefEl.innerHTML = html2;
+        }).catch(function() {
+            if (prefEl) prefEl.innerHTML = '';
+        });
+    }
 }
 
 function _generatePassword() {
@@ -300,6 +333,7 @@ function doInstall() {
         var el = document.getElementById("im-" + p.key);
         if (el) args.push(p.key + "=" + el.value);
     });
+    if (_installForce) args.push("force=true");
 
     // Switch to progress view
     document.getElementById("install-form-area").style.display = "none";

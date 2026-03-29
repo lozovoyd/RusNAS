@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   wireguard:
-    image: weejewel/wg-easy:latest
+    image: docker.io/weejewel/wg-easy:latest
+    mem_limit: 256m
     container_name: rusnas-wireguard
     restart: unless-stopped
     ports:

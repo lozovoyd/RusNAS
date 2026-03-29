@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   onlyoffice:
-    image: onlyoffice/documentserver:latest
+    image: docker.io/onlyoffice/documentserver:latest
+    mem_limit: 3072m
     container_name: rusnas-onlyoffice
     restart: unless-stopped
     ports:

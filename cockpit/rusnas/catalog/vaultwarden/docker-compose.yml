@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   vaultwarden:
-    image: vaultwarden/server:latest
+    image: docker.io/vaultwarden/server:latest
+    mem_limit: 256m
     container_name: rusnas-vaultwarden
     restart: unless-stopped
     ports:

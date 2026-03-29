@@ -3,7 +3,6 @@
 import sys, os, json, subprocess, string, random, re, shutil, socket
 from datetime import datetime
 
-CONTAINER_USER = "rusnas-containers"
 BASE_DIR = "/var/lib/rusnas-containers"
 CATALOG_DIR = "/usr/share/cockpit/rusnas/catalog"
 COMPOSE_DIR = os.path.join(BASE_DIR, "compose")
@@ -26,11 +25,11 @@ def generate_password(length=16):
     return ''.join(random.SystemRandom().choice(chars) for _ in range(length))
 
 def run_podman(args):
-    cmd = ["sudo", "-u", CONTAINER_USER, "podman"] + args
+    cmd = ["podman"] + args
     return subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
 def run_compose(compose_dir, args):
-    cmd = ["sudo", "-u", CONTAINER_USER, "podman-compose", "-f",
+    cmd = ["podman-compose", "-f",
            os.path.join(compose_dir, "docker-compose.yml")] + args
     return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
@@ -168,7 +167,7 @@ def cmd_get_logs():
     compose_dir = app.get("compose_dir", "")
     if not compose_dir or not os.path.isdir(compose_dir):
         err(f"Compose directory not found for {app_id}")
-    result = run_compose(compose_dir, ["logs", "--tail", str(lines), "--no-color"])
+    result = run_compose(compose_dir, ["logs", "--tail", str(lines)])
     out({"ok": True, "logs": result.stdout + result.stderr})
 
 def render_compose(template_path, substitutions):
@@ -208,17 +207,84 @@ def cmd_check_ports():
     suggestion = port if free else next_free_port(port)
     out({"ok": True, "port": port, "free": free, "suggestion": suggestion})
 
-def generate_proxy_config(app_id, path_prefix, port):
-    """Write nginx location block to /etc/nginx/conf.d/rusnas-apps/ and reload nginx."""
-    conf = f"""# rusNAS auto-generated — {app_id}
-location {path_prefix} {{
-    proxy_pass http://127.0.0.1:{port}/;
-    proxy_set_header Host $host;
+def cmd_get_resources():
+    """Return available RAM (MB) and free disk (GB) for a given volume path."""
+    path = sys.argv[2] if len(sys.argv) > 2 else "/mnt/data"
+    avail_ram_mb = 0
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    avail_ram_mb = int(line.split()[1]) // 1024
+                    break
+    except OSError:
+        pass
+    free_disk_gb = 0
+    try:
+        usage = shutil.disk_usage(path if os.path.exists(path) else "/")
+        free_disk_gb = round(usage.free / (1024 ** 3), 1)
+    except OSError:
+        pass
+    out({"ok": True, "avail_ram_mb": avail_ram_mb, "free_disk_gb": free_disk_gb})
+
+def generate_proxy_config(app_id, path_prefix, port, strip_prefix=True, websocket=False):
+    """Write nginx location block(s) to /etc/nginx/conf.d/rusnas-apps/ and reload nginx.
+
+    strip_prefix=False + websocket=True (e.g. Rocket.Chat):
+      Generates 3 location blocks — API gets /prefix stripped (RC API lives at /api/v1/),
+      WebSocket gets /prefix stripped with upgrade headers, SPA/assets keep full path.
+    strip_prefix=True (default, most apps):
+      Single location block that strips the path prefix before proxying.
+    """
+    base_headers = """    proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_read_timeout 300s;
-    client_max_body_size 4G;
+    client_max_body_size 4G;"""
+
+    # Special case: apps that serve SPA at sub-path but API at root path (e.g. Rocket.Chat)
+    if not strip_prefix and websocket:
+        # Strip the path prefix (e.g. /chat) to reach the path-less version
+        prefix_no_slash = path_prefix.rstrip('/')
+        conf = f"""# rusNAS auto-generated — {app_id}
+# API: strip {prefix_no_slash} prefix (RC serves API at /api/v1/, not {prefix_no_slash}/api/v1/)
+location ~ ^{prefix_no_slash}/api/ {{
+    rewrite ^{prefix_no_slash}(/.*)$ $1 break;
+    proxy_pass http://127.0.0.1:{port};
+{base_headers}
+}}
+
+# WebSocket: strip {prefix_no_slash} prefix
+location {prefix_no_slash}/websocket {{
+    rewrite ^{prefix_no_slash}(/.*)$ $1 break;
+    proxy_pass http://127.0.0.1:{port};
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_http_version 1.1;
+    proxy_read_timeout 600s;
+}}
+
+# SPA, assets, sockjs: keep {prefix_no_slash} prefix
+location {path_prefix} {{
+    proxy_pass http://127.0.0.1:{port};
+{base_headers}
+}}
+"""
+    else:
+        proxy_target = f"http://127.0.0.1:{port}/" if strip_prefix else f"http://127.0.0.1:{port}"
+        ws_headers = """
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_http_version 1.1;""" if websocket else ""
+        conf = f"""# rusNAS auto-generated — {app_id}
+location {path_prefix} {{
+    proxy_pass {proxy_target};
+{base_headers}{ws_headers}
 }}
 """
     os.makedirs(NGINX_APPS_DIR, exist_ok=True)
@@ -235,10 +301,9 @@ After=network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User={CONTAINER_USER}
 WorkingDirectory={compose_dir}
-ExecStart=/usr/bin/podman-compose up -d
-ExecStop=/usr/bin/podman-compose down
+ExecStart=/usr/bin/podman-compose -f {compose_dir}/docker-compose.yml up -d
+ExecStop=/usr/bin/podman-compose -f {compose_dir}/docker-compose.yml down
 TimeoutStartSec=300
 
 [Install]
@@ -277,6 +342,16 @@ def cmd_install():
     admin_user = params.get("admin_user", "admin")
     admin_password = params.get("admin_password") or generate_password()
 
+    # Derive ROOT_URL from nginx_path so containers behind reverse proxy work correctly
+    nginx_path = manifest.get("nginx_path", f"/{app_id}/")
+    try:
+        import socket as _socket
+        server_ip = _socket.gethostbyname(_socket.gethostname())
+    except Exception:
+        server_ip = "localhost"
+    # ROOT_URL = http://<server_ip><nginx_path_without_trailing_slash>
+    root_url = f"http://{server_ip}{nginx_path.rstrip('/')}"
+
     data_dir = os.path.join(volume_path, "containers", app_id)
     subs = {
         "DATA_DIR": data_dir,
@@ -285,6 +360,7 @@ def cmd_install():
         "ADMIN_PASSWORD": admin_password,
         "DB_PASSWORD": generate_password(12),
         "DB_ROOT_PASSWORD": generate_password(12),
+        "ROOT_URL": root_url,
         **params,
     }
 
@@ -292,6 +368,23 @@ def cmd_install():
     if not port_is_free(int(web_port)):
         suggestion = next_free_port(int(web_port))
         err(f"Port {web_port} is already in use. Try port {suggestion}.")
+
+    # Soft RAM check — block if < 80% of min_ram_mb available (override with force=true)
+    min_ram_mb = manifest.get("min_ram_mb", 0)
+    if min_ram_mb > 0:
+        avail_ram_mb = 0
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        avail_ram_mb = int(line.split()[1]) // 1024
+                        break
+        except OSError:
+            pass
+        force = params.get("force", "false").lower() == "true"
+        if avail_ram_mb > 0 and avail_ram_mb < int(min_ram_mb * 0.8) and not force:
+            err(f"Недостаточно RAM: доступно {avail_ram_mb} MB, нужно ~{min_ram_mb} MB. "
+                f"Для принудительной установки передайте force=true.")
 
     compose_dir = os.path.join(COMPOSE_DIR, app_id)
     os.makedirs(compose_dir, exist_ok=True)
@@ -303,15 +396,51 @@ def cmd_install():
     with open(compose_file, 'w') as f:
         f.write(rendered)
 
-    subprocess.run(["chown", "-R", f"{CONTAINER_USER}:{CONTAINER_USER}",
+    subprocess.run(["chmod", "-R", "755",
                     compose_dir, data_dir], capture_output=True)
+
+    # Pull images first with a generous timeout (large images like onlyoffice can be 3+ GB)
+    pull_result = subprocess.run(
+        ["podman-compose", "-f", os.path.join(compose_dir, "docker-compose.yml"), "pull"],
+        capture_output=True, text=True, timeout=7200)
+    # Non-fatal: if pull fails, up -d will attempt pull again or use cached images
 
     result = run_compose(compose_dir, ["up", "-d"])
     if result.returncode != 0:
         err(result.stderr or "podman-compose up failed")
 
+    # Rocket.Chat: initialize MongoDB replica set after first install
+    if app_id == "rocketchat":
+        import time
+        mongo_container = "rusnas-rocketchat-mongo"
+        for _ in range(30):
+            ping = subprocess.run(
+                ["podman", "exec", mongo_container, "mongosh", "--quiet",
+                 "--eval", "db.adminCommand('ping').ok"],
+                capture_output=True, text=True)
+            if ping.returncode == 0 and "1" in ping.stdout:
+                break
+            time.sleep(1)
+        subprocess.run(
+            ["podman", "exec", mongo_container, "mongosh", "--quiet", "--eval",
+             "try { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) }"
+             " catch(e) { if (e.codeName!='AlreadyInitialized') throw e }"],
+            capture_output=True, text=True)
+        # Wait for PRIMARY to be elected before starting Rocket.Chat
+        for _ in range(20):
+            state = subprocess.run(
+                ["podman", "exec", mongo_container, "mongosh", "--quiet",
+                 "--eval", "rs.status().myState"],
+                capture_output=True, text=True)
+            if state.stdout.strip() == "1":
+                break
+            time.sleep(1)
+
     path_prefix = manifest.get("nginx_path", f"/{app_id}/")
-    generate_proxy_config(app_id, path_prefix, web_port)
+    # Apps with ROOT_URL set to include the sub-path serve at that path, so nginx must NOT strip prefix
+    nginx_strip = manifest.get("nginx_strip_prefix", True)
+    nginx_ws = manifest.get("nginx_websocket", False)
+    generate_proxy_config(app_id, path_prefix, web_port, strip_prefix=nginx_strip, websocket=nginx_ws)
     generate_systemd_unit(app_id, compose_dir)
 
     installed = load_installed()
@@ -460,7 +589,7 @@ services:
     with open(os.path.join(compose_dir, "docker-compose.yml"), 'w') as f:
         f.write(compose_content)
 
-    subprocess.run(["chown", "-R", f"{CONTAINER_USER}:{CONTAINER_USER}", compose_dir],
+    subprocess.run(["chmod", "-R", "755", compose_dir],
                    capture_output=True)
     result = run_compose(compose_dir, ["up", "-d"])
     if result.returncode != 0:
@@ -497,7 +626,7 @@ def cmd_import_compose():
     os.makedirs(compose_dir, exist_ok=True)
 
     shutil.copy(compose_path, os.path.join(compose_dir, "docker-compose.yml"))
-    subprocess.run(["chown", "-R", f"{CONTAINER_USER}:{CONTAINER_USER}", compose_dir],
+    subprocess.run(["chmod", "-R", "755", compose_dir],
                    capture_output=True)
 
     result = run_compose(compose_dir, ["up", "-d"])
@@ -530,6 +659,7 @@ if __name__ == "__main__":
         "status": cmd_status,
         "get_logs": cmd_get_logs,
         "check_ports": cmd_check_ports,
+        "get_resources": cmd_get_resources,
         "install": cmd_install,
         "uninstall": cmd_uninstall,
         "start": cmd_app_control,

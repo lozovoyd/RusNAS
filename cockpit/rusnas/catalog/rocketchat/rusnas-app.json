@@ -10,6 +10,8 @@
   "version": "latest",
   "default_port": 3000,
   "nginx_path": "/chat/",
+  "nginx_strip_prefix": false,
+  "nginx_websocket": true,
   "port_label": "web",
   "min_ram_mb": 1024,
   "disk_gb": 5,

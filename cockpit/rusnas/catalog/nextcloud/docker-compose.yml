@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   nextcloud-db:
-    image: mariadb:11
+    image: docker.io/library/mariadb:11
     container_name: rusnas-nextcloud-db
     restart: unless-stopped
     environment:
@@ -15,7 +15,8 @@ services:
       - rusnas-nextcloud
 
   nextcloud-app:
-    image: nextcloud:29-apache
+    image: docker.io/library/nextcloud:29-apache
+    mem_limit: 1024m
     container_name: rusnas-nextcloud-app
     restart: unless-stopped
     depends_on:

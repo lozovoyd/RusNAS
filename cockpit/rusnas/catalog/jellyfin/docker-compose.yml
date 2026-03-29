@@ -1,7 +1,8 @@
 version: "3.8"
 services:
   jellyfin:
-    image: jellyfin/jellyfin:latest
+    image: docker.io/jellyfin/jellyfin:latest
+    mem_limit: 2048m
     container_name: rusnas-jellyfin
     restart: unless-stopped
     ports:
