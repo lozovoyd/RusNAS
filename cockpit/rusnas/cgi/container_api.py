@@ -480,6 +480,8 @@ def cmd_uninstall():
 
     if compose_dir and os.path.isdir(compose_dir):
         run_compose(compose_dir, ["down", "--volumes"])
+        # Remove container images used by this app
+        subprocess.run(["podman", "image", "prune", "-af"], capture_output=True)
         shutil.rmtree(compose_dir, ignore_errors=True)
 
     if not keep_data and data_dir and os.path.isdir(data_dir):
