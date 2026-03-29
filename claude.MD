@@ -545,15 +545,59 @@ Automatic RAID spindown for backup use-case. Full spec: `docs/superpowers/specs/
 Containerized app store for rusNAS. Deploy: `./install-containers.sh`
 
 **Key architecture (см. также [webservice.md](./webservice.md)):**
-- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 15 commands via argv (включая `check_ports`)
-- User: `rusnas-containers` (rootless Podman), subuid/subgid 100000:65536
-- State: `/etc/rusnas/containers/installed.json` (chmod 644); поля: `proxy_url`, `direct_url`, `proxy_active`
-- Catalog: `/usr/share/cockpit/rusnas/catalog/` (10 apps)
+- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 16 commands via argv (включая `check_ports`, `get_resources`)
+- **Podman запускается от root** (не rootless) — rootless Podman на Debian 13 / QEMU требует D-Bus (aardvark-dns) → 502 без сессии systemd
+- **aardvark-dns проблема на этой VM**: aardvark-dns запускается только на первом сетевом bridge (10.89.0.1), новые podman-сети (10.89.1.x) остаются без DNS. Фикс: `network_mode: host` для контейнеров, которым нужна межконтейнерная связь (rocketchat ↔ mongo). В этом режиме контейнеры общаются через `localhost`.
+- **Container image storage**: перемещено на `/mnt/data` через `/etc/containers/storage.conf` (`graphRoot = "/mnt/data/containers/storage"`) — root disk был заполнен (94%)
+- State: `/etc/rusnas/containers/installed.json` (chmod 644); поля: `nginx_path`, `proxy_active`, `host_ports`
+- Catalog: `/usr/share/cockpit/rusnas/catalog/` (10 apps); URL строится на клиенте: `window.location.hostname + app.nginx_path`
 - Compose dir: `/var/lib/rusnas-containers/compose/<appid>/`
 - **Nginx apps: `/etc/nginx/conf.d/rusnas-apps/<appid>.conf`** (НЕ в `/var/lib/rusnas-containers/nginx-apps/`)
 - Sudoers: `/etc/sudoers.d/rusnas-containers` + `/etc/sudoers.d/rusnas-nginx`
 - Port check: `container_api.py check_ports <port>` → `{free, suggestion}` через `socket.bind()`
+- **Resource check: `container_api.py get_resources <path>` → `{avail_ram_mb, free_disk_gb}` из `/proc/meminfo` + `shutil.disk_usage`**
+- `cmd_install()` выполняет soft RAM check (80% от `min_ram_mb`); блокирует если недостаточно, если не передан `force=true`
+- **Rocket.Chat post-install**: `cmd_install()` автоматически запускает MongoDB replica set init (`rs.initiate()`) и ждёт PRIMARY election перед запуском Rocket.Chat
+- **Все 9 docker-compose шаблонов (кроме mailcow) имеют `mem_limit`** — ограничение cgroup предотвращает OOM всей системы
+- **Rocket.Chat требует MongoDB 8.0+** (mongo:8, НЕ mongo:6) — Rocket.Chat 8.x несовместим с MongoDB 6.x
 - Migration: `./install-nginx-primary.sh` — nginx как primary :80/:443, Apache → :8091
+- **cmd_uninstall()**: после `podman-compose down --volumes` запускает `podman image prune -af` — без этого образы остаются на диске и занимают несколько GB
+
+**Rocket.Chat nginx sub-path (критично):**
+
+Rocket.Chat с `ROOT_URL=http://host/chat` требует **3 отдельных location блока** в nginx:
+```nginx
+# 1. API: стриппать /chat (RC регистрирует API на /api/v1/, а НЕ /chat/api/v1/)
+location ~ ^/chat/api/ {
+    rewrite ^/chat(/.*)$ $1 break;
+    proxy_pass http://127.0.0.1:3000;
+    ...
+}
+# 2. WebSocket: стриппать /chat + upgrade заголовки
+location /chat/websocket {
+    rewrite ^/chat(/.*)$ $1 break;
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_http_version 1.1;
+}
+# 3. SPA + assets + sockjs: НЕ стриппать (RC отдаёт их на /chat/*)
+location /chat/ {
+    proxy_pass http://127.0.0.1:3000;
+    ...
+}
+```
+**Почему:** Meteor catch-all перехватывает ВСЕ `/chat/*` и отдаёт SPA HTML. Express API маршруты регистрируются на `/api/v1/...` (без sub-path), но sockjs и статика — на `/chat/...`. Если сделать один блок без стриппинга — API возвращает HTML. Если со стриппингом — SPA не загружается (RC отвечает "Unknown path" на `/`).
+
+`nginx_strip_prefix: false` + `nginx_websocket: true` в манифесте → `generate_proxy_config()` генерирует 3 блока автоматически.
+
+**Rocket.Chat Site_Url в MongoDB**: env var `ROOT_URL` перезаписывается значением из БД при старте. При изменении ROOT_URL — нужно обновить и БД:
+```bash
+podman exec rusnas-rocketchat-mongo mongosh rocketchat --quiet << 'EOF'
+db.rocketchat_settings.updateOne({_id:"Site_Url"},{$set:{value:"http://10.10.10.72/chat"}})
+EOF
+```
+Затем `podman restart rusnas-rocketchat`.
 
 **Critical containers.js notes:**
 - `cgiCall(cmd, args)` wraps cockpit.spawn in `new Promise()` — required for Promise.all()
@@ -561,6 +605,8 @@ Containerized app store for rusNAS. Deploy: `./install-containers.sh`
 - `startStatsPolling()` uses `_statsTimer` stored ID to avoid timer leaks
 - Compose template substitution: `{{VAR:-default}}` pattern in docker-compose.yml files
 - Docker Compose DNS: service key names (under `services:`), NOT `container_name` values
+- `_installForce` глобальная переменная — устанавливается preflight проверкой при нехватке RAM, передаётся как `force=true` в `doInstall()`
+- Preflight: `openInstallModal()` вызывает `get_resources` после показа modal → badges success/warning/danger в `#install-preflight`
 
 **Catalog apps (10):** nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat
 
@@ -598,6 +644,13 @@ Containerized app store for rusNAS. Deploy: `./install-containers.sh`
 | `branding.css` `[aria-current]` матчит все nav-ссылки | PF6 ставит `aria-current="false"` на ВСЕ ссылки; использовать `[aria-current="page"]` |
 | CSS переменные на `.pf-v6-c-nav` каскадируют на все дочерние | `--pf-v6-c-nav__link--m-current--BackgroundColor` на родителе попадает в inactive items; только прямые `!important` overrides на ссылке |
 | `get_catalog` возвращает только id/category из index.json | `cmd_get_catalog()` обязан мерджить `catalog/<appid>/rusnas-app.json`; иначе install modal пустой — нет `name`/`install_params` |
+| `podman-compose logs --no-color` падает | эта версия podman-compose не поддерживает `--no-color`; убрать флаг из `cmd_get_logs()` |
+| MongoDB lock file после force-kill контейнера | `mongod.lock` остаётся; следующий старт падает (exit 100); фикс: `podman-compose down` (graceful), а не kill; при ручном fix — `rm /mnt/data/containers/<app>/mongodb/mongod.lock` |
+| Rocket.Chat 8.x + MongoDB 6.x несовместимы | Rocket.Chat 8.x требует MongoDB 8.0+; используй `mongo:8` в docker-compose шаблоне |
+| aardvark-dns на этой VM только на первом bridge | rootless aardvark-dns слушает только на `10.89.0.1` (podman1); контейнеры на `rusnas-rocketchat` сети (podman2/10.89.1.x) не могут резолвить друг друга; фикс: `network_mode: host` для rocketchat |
+| Rocket.Chat sub-path nginx: один location блок не работает | Meteor catch-all перехватывает `/chat/api/*` и возвращает HTML; API живёт на `/api/v1/` без sub-path; нужны 3 блока: `~ ^/chat/api/` (rewrite), `/chat/websocket` (rewrite+WS), `/chat/` (без rewrite) |
+| Rocket.Chat Site_Url перезаписывает ROOT_URL env | При рестарте RC читает Site_Url из MongoDB и игнорирует env; при изменении ROOT_URL нужно обновить обе: env в compose + запись в БД через mongosh |
+| `podman image prune` не вызывается при uninstall | `cmd_uninstall()` удаляет data dir и compose dir, но образы остаются в `/mnt/data/containers/storage`; добавлен `podman image prune -af` после `down --volumes` |
 
 ## FTP and WebDAV settings (app.js / index.html)
 

@@ -2503,3 +2503,43 @@ Comprehensive automated testing of ALL Container Manager functions (CGI backend 
 ### Modified files:
 - `cockpit/rusnas/cgi/container_api.py` — fix `cmd_get_catalog()` to merge individual manifests
 - `tests/test_containers_comprehensive.py` — new comprehensive test suite (68 tests)
+
+---
+
+## Session 2026-03-29 — Rocket.Chat nginx sub-path fix + container image cleanup
+
+### Goal
+Починить Rocket.Chat (устанавливается через Container Manager, открывается через `/chat/`).
+
+### Problems solved
+
+**1. Образы контейнеров не удаляются при uninstall**
+`cmd_uninstall()` удалял compose dir и data dir, но не удалял образы из `/mnt/data/containers/storage`. После нескольких установок/удалений образы занимали ~10GB. Фикс: добавлен `podman image prune -af` после `podman-compose down --volumes`.
+
+**2. Rocket.Chat не запускался (no container found)**
+Контейнер падал при старте. Причины: MongoDB 6.x несовместим с Rocket.Chat 8.x (нужен `mongo:8`), aardvark-dns не работает на второй podman-сети. Фикс: `mongo:8`, `network_mode: host`, `MONGO_URL=mongodb://localhost:27017/...?directConnection=true`.
+
+**3. Rocket.Chat "Unknown path" (один nginx location блок)**
+С `proxy_pass http://host:3000/;` (trailing slash) nginx стриппал `/chat/` → RC получал `/` → "Unknown path" (RC с ROOT_URL=/chat обслуживает только `/chat/`). С `proxy_pass http://host:3000;` (без slash) страница грузилась, но API возвращало HTML.
+
+**Архитектурное открытие:** Rocket.Chat с ROOT_URL=`http://host/chat`:
+- SPA и assets → на `/chat/*` (Meteor catch-all)
+- REST API → на `/api/v1/*` (без sub-path prefix), НЕ `/chat/api/v1/*`
+- sockjs → на `/chat/sockjs/*` (как SPA)
+- WebSocket → на `/websocket` (без prefix)
+
+**Решение — 3 nginx location блока:**
+```
+location ~ ^/chat/api/   → rewrite /chat → /   (API без prefix)
+location /chat/websocket → rewrite /chat → / + WS headers
+location /chat/          → без rewrite           (SPA+assets+sockjs)
+```
+
+**4. Site_Url в MongoDB перезаписывает ROOT_URL**
+После рестарта RC читает `Site_Url` из MongoDB и игнорирует env var. При первой установке `Site_Url` был `http://localhost:3000` из прошлого запуска. Фикс: при изменении ROOT_URL — обновлять и БД через mongosh. В `cmd_install()` для rocketchat добавлено обновление Site_Url после rs.initiate.
+
+### Files changed
+- `cockpit/rusnas/cgi/container_api.py` — `generate_proxy_config()`: поддержка 3-блочного nginx для RC; `cmd_uninstall()`: `podman image prune -af`; ROOT_URL derivation in `cmd_install()`
+- `cockpit/rusnas/catalog/rocketchat/docker-compose.yml` — mongo:8, network_mode: host, directConnection=true
+- `cockpit/rusnas/catalog/rocketchat/rusnas-app.json` — `nginx_strip_prefix: false`, `nginx_websocket: true`
+- `CLAUDE.md` — секция Rocket.Chat nginx sub-path, новые баги в Known Bugs
