@@ -1,136 +1,136 @@
-# Task: rusnas-guard — Ransomware Protection Daemon for rusNAS
+# Задача: rusnas-guard — Демон защиты от шифровальщиков для rusNAS
 
-## Overview
+## Обзор
 
-`rusnas-guard` is a system daemon that monitors file activity on rusNAS shares and detects ransomware-like behavior using multiple detection methods. It integrates with the rusNAS Cockpit plugin as a new page section.
+`rusnas-guard` — это системный демон, который отслеживает файловую активность на шарах rusNAS и обнаруживает поведение, характерное для шифровальщиков, используя несколько методов детекции. Интегрируется с Cockpit-плагином rusNAS как отдельная страница.
 
-The daemon is **protocol-agnostic**: detection is based on inotify/fanotify at the kernel level, so it covers SMB, NFS, FTP, WebDAV, and local access equally.
-
----
-
-## Architecture
-
-### Daemon: `rusnas-guard`
-
-- Written in **Python 3** (available on Debian 13, low dependency footprint)
-- Runs as a **systemd service**: `rusnas-guard.service`
-- Communicates with the Cockpit plugin via a **Unix socket** (`/run/rusnas-guard/control.sock`)
-- Persists configuration in `/etc/rusnas-guard/config.json`
-- Writes structured event log to `/var/log/rusnas-guard/events.jsonl` (JSON Lines)
-- State file (current mode, stats) at `/run/rusnas-guard/state.json`
-
-### Cockpit Plugin Page: `guard.html` / `js/guard.js`
-
-New page in the rusNAS Cockpit plugin, order 4 in manifest.json.
+Демон **не зависит от протокола**: детекция основана на inotify/fanotify на уровне ядра, поэтому одинаково покрывает SMB, NFS, FTP, WebDAV и локальный доступ.
 
 ---
 
-## Detection Methods
+## Архитектура
 
-Each method can be **independently enabled or disabled** via configuration.
+### Демон: `rusnas-guard`
 
-### 1. Honeypot Files
+- Написан на **Python 3** (доступен в Debian 13, минимальные зависимости)
+- Работает как **systemd-сервис**: `rusnas-guard.service`
+- Общается с Cockpit-плагином через **Unix-сокет** (`/run/rusnas-guard/control.sock`)
+- Хранит конфигурацию в `/etc/rusnas-guard/config.json`
+- Записывает структурированный журнал событий в `/var/log/rusnas-guard/events.jsonl` (JSON Lines)
+- Файл состояния (текущий режим, статистика) в `/run/rusnas-guard/state.json`
 
-Create hidden "bait" files inside each monitored directory. The files are named with low ASCII characters so they appear first in directory enumeration (e.g. `!~rusnas_guard_bait_a8f3.docx`, `!~rusnas_guard_bait_k2x9.xlsx`). Multiple file types and sizes to keep ransomware busy.
+### Страница Cockpit-плагина: `guard.html` / `js/guard.js`
 
-**Trigger:** any modification, rename, or deletion of a bait file = immediate alert regardless of other thresholds.
-
-**Implementation:**
-- On daemon start: scan all monitored paths, create bait files if missing
-- Bait files are recreated automatically if deleted (after alert is fired)
-- Store bait file names in config so they survive restarts
-- Bait directory names should NOT contain words like "honeypot", "bait", "guard"
-
-### 2. Entropy Analysis
-
-On `IN_CLOSE_WRITE` event: read 16 random 4KB blocks from the modified file, compute Shannon entropy.
-
-**Trigger:** entropy > 7.2 bits/byte (configurable threshold).
-
-**Exclusions (skip entropy check, not worth computing):**
-- Files with extensions: `.mp4`, `.mkv`, `.avi`, `.mov`, `.mp3`, `.flac`, `.zip`, `.gz`, `.bz2`, `.xz`, `.7z`, `.rar`, `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
-- Files smaller than 16KB (too small for reliable entropy)
-
-**Performance:** sampling 16×4KB = 64KB max read per file. At 50 events/sec this is ~3MB/sec I/O — negligible.
-
-**Rate limiting:** if events arrive faster than 200/sec from a single source path, skip entropy and rely on IOPS anomaly detection instead.
-
-### 3. IOPS Anomaly Detection
-
-Track file operation counts (create, write, rename, delete) in a **60-second sliding window** per monitored volume.
-
-**Baseline:** computed over the first 7 days of operation (configurable). Stored as median + stddev per hour-of-day (to account for business hours vs night).
-
-**Trigger:** current rate > baseline_median + 4×stddev AND rate > 50 ops/min (configurable minimum, to avoid false positives on fresh installs with no baseline).
-
-During the first 7 days (baseline learning period): IOPS anomaly detection is disabled, all other methods work normally.
-
-### 4. Known Ransomware Extensions
-
-Maintain a list of known ransomware file extensions (e.g. `.locky`, `.cerber`, `.crypt`, `.encrypted`, `.enc`, `.locked`, `.wnry`, `.wncry`, etc.).
-
-**Trigger:** any file created or renamed TO a known ransomware extension.
-
-**Update mechanism:** list is stored in `/etc/rusnas-guard/ransom_extensions.txt`, one extension per line. Admin can update manually or via UI. Do NOT auto-update from external URLs in the daemon itself (security risk — separate maintenance task).
-
-Include ~200 known extensions in the default list at install time, sourced from public lists (fsrm.experiant.ca format).
+Новая страница в Cockpit-плагине rusNAS, порядок 4 в manifest.json.
 
 ---
 
-## Response Modes
+## Методы детекции
 
-Three modes, switchable from the UI (requires guard PIN):
+Каждый метод может быть **независимо включён или выключен** через конфигурацию.
 
-### Mode 1: Monitor
-- Log all detections to events log
-- Send notifications (email + Telegram) per notification settings
-- **No automatic blocking**
+### 1. Файлы-приманки (Honeypot)
 
-### Mode 2: Active
-On detection trigger:
-1. Create Btrfs snapshot of affected volume immediately (`btrfs subvolume snapshot`)
-2. If replication configured: initiate async replication to remote NAS via `btrfs send | ssh`
-3. Block the source IP via nftables: `nft add rule inet filter input ip saddr <IP> drop`
-4. For SMB: `smbcontrol smbd close-share <sharename>` to drop active connections from that IP
-5. Send notification with details: which files, which IP, which detection method triggered, snapshot name
-6. Log event
+Создание скрытых «файлов-наживок» внутри каждой отслеживаемой директории. Файлы именуются символами с низкими ASCII-кодами, чтобы появляться первыми при перечислении содержимого каталога (например, `!~rusnas_guard_bait_a8f3.docx`, `!~rusnas_guard_bait_k2x9.xlsx`). Несколько типов файлов и размеров, чтобы занять шифровальщик.
 
-### Mode 3: Super-Safe
-On detection trigger:
-1. Create Btrfs snapshot of ALL volumes immediately
-2. If replication configured: initiate async replication
-3. Send notification
-4. Log event
-5. Stop all file services: `systemctl stop smbd nmbd nfs-kernel-server vsftpd apache2 rsyncd`
-6. Wait 30 seconds (allow notifications to be delivered and replication to start)
-7. Execute: `systemctl poweroff`
+**Триггер:** любая модификация, переименование или удаление файла-приманки = немедленное оповещение вне зависимости от других пороговых значений.
 
-**Super-safe mode requires explicit confirmation in the UI when enabling** — show a warning dialog: "This mode will shut down the entire device when an attack is detected. Are you sure?"
+**Реализация:**
+- При запуске демона: сканирование всех отслеживаемых путей, создание файлов-приманок если отсутствуют
+- Файлы-приманки автоматически пересоздаются при удалении (после срабатывания оповещения)
+- Имена файлов-приманок хранятся в конфигурации для сохранения между перезапусками
+- Имена директорий приманок НЕ должны содержать слова типа "honeypot", "bait", "guard"
+
+### 2. Анализ энтропии
+
+При событии `IN_CLOSE_WRITE`: чтение 16 случайных блоков по 4КБ из модифицированного файла, вычисление энтропии Шеннона.
+
+**Триггер:** энтропия > 7.2 бит/байт (настраиваемый порог).
+
+**Исключения (пропуск проверки энтропии, вычисление бессмысленно):**
+- Файлы с расширениями: `.mp4`, `.mkv`, `.avi`, `.mov`, `.mp3`, `.flac`, `.zip`, `.gz`, `.bz2`, `.xz`, `.7z`, `.rar`, `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
+- Файлы меньше 16КБ (слишком малы для надёжной оценки энтропии)
+
+**Производительность:** выборка 16×4КБ = максимум 64КБ чтения на файл. При 50 событиях/сек это ~3МБ/сек ввода-вывода — пренебрежимо мало.
+
+**Ограничение частоты:** если события приходят быстрее 200/сек от одного исходного пути, энтропия пропускается и используется детекция аномалий IOPS.
+
+### 3. Детекция аномалий IOPS
+
+Отслеживание количества файловых операций (создание, запись, переименование, удаление) в **скользящем 60-секундном окне** для каждого отслеживаемого тома.
+
+**Базовая линия:** вычисляется за первые 7 дней работы (настраиваемо). Хранится как медиана + стандартное отклонение по часам суток (для учёта рабочих часов vs ночного времени).
+
+**Триггер:** текущая скорость > медиана_базовой_линии + 4×стд_отклонение И скорость > 50 операций/мин (настраиваемый минимум, чтобы избежать ложных срабатываний на свежих установках без базовой линии).
+
+В течение первых 7 дней (период обучения базовой линии): детекция аномалий IOPS отключена, все остальные методы работают нормально.
+
+### 4. Известные расширения шифровальщиков
+
+Ведение списка известных расширений файлов шифровальщиков (например, `.locky`, `.cerber`, `.crypt`, `.encrypted`, `.enc`, `.locked`, `.wnry`, `.wncry` и т.д.).
+
+**Триггер:** любой файл, созданный или переименованный В известное расширение шифровальщика.
+
+**Механизм обновления:** список хранится в `/etc/rusnas-guard/ransom_extensions.txt`, одно расширение на строку. Администратор может обновлять вручную или через UI. НЕ обновлять автоматически с внешних URL в самом демоне (риск безопасности — отдельная задача обслуживания).
+
+При установке включить ~200 известных расширений из публичных списков (формат fsrm.experiant.ca).
 
 ---
 
-## Guard PIN
+## Режимы реагирования
 
-A separate PIN/password stored as bcrypt hash in `/etc/rusnas-guard/guard.pin`.
+Три режима, переключаемые из UI (требуется PIN Guard):
 
-Required for:
-- Starting the daemon
-- Stopping the daemon
-- Changing the response mode
-- Changing any detection settings
-- Acknowledging and clearing alerts
+### Режим 1: Мониторинг
+- Логирование всех обнаружений в журнал событий
+- Отправка уведомлений (email + Telegram) по настройкам уведомлений
+- **Автоматическая блокировка не выполняется**
 
-The Cockpit admin password does NOT grant access to guard controls. This is intentional — even if an attacker compromises the admin account, they cannot disable the guard.
+### Режим 2: Активный
+При срабатывании детекции:
+1. Немедленное создание Btrfs-снапшота затронутого тома (`btrfs subvolume snapshot`)
+2. Если настроена репликация: инициирование асинхронной репликации на удалённый NAS через `btrfs send | ssh`
+3. Блокировка IP-адреса источника через nftables: `nft add rule inet filter input ip saddr <IP> drop`
+4. Для SMB: `smbcontrol smbd close-share <sharename>` для разрыва активных соединений с данного IP
+5. Отправка уведомления с деталями: какие файлы, какой IP, какой метод детекции сработал, имя снапшота
+6. Запись в журнал
 
-**PIN setup:** on first visit to the Guard page, if no PIN is set, prompt to create one. PIN must be at least 6 characters.
+### Режим 3: Суперзащита
+При срабатывании детекции:
+1. Немедленное создание Btrfs-снапшота ВСЕХ томов
+2. Если настроена репликация: инициирование асинхронной репликации
+3. Отправка уведомления
+4. Запись в журнал
+5. Остановка всех файловых сервисов: `systemctl stop smbd nmbd nfs-kernel-server vsftpd apache2 rsyncd`
+6. Ожидание 30 секунд (для доставки уведомлений и начала репликации)
+7. Выполнение: `systemctl poweroff`
 
-**PIN verification:** Cockpit plugin sends PIN to daemon via Unix socket. Daemon verifies bcrypt hash. Returns `{"ok": true}` or `{"ok": false}`. Session token valid for 30 minutes (stored in daemon memory only, not persisted).
+**Режим суперзащиты требует явного подтверждения в UI при включении** — показать диалог предупреждения: «Этот режим выключит всё устройство при обнаружении атаки. Вы уверены?»
 
 ---
 
-## Snapshot Configuration
+## PIN Guard
 
-Configurable per-volume:
+Отдельный PIN/пароль, хранящийся как bcrypt-хеш в `/etc/rusnas-guard/guard.pin`.
+
+Требуется для:
+- Запуска демона
+- Остановки демона
+- Смены режима реагирования
+- Изменения любых настроек детекции
+- Подтверждения и очистки оповещений
+
+Пароль администратора Cockpit НЕ даёт доступ к элементам управления Guard. Это намеренно — даже если атакующий скомпрометирует учётную запись администратора, он не сможет отключить Guard.
+
+**Установка PIN:** при первом визите на страницу Guard, если PIN не установлен, предложить создать его. PIN должен быть не менее 6 символов.
+
+**Верификация PIN:** Cockpit-плагин отправляет PIN демону через Unix-сокет. Демон проверяет bcrypt-хеш. Возвращает `{"ok": true}` или `{"ok": false}`. Токен сессии действителен 30 минут (хранится только в памяти демона, не персистится).
+
+---
+
+## Конфигурация снапшотов
+
+Настраивается для каждого тома:
 
 ```json
 {
@@ -148,15 +148,15 @@ Configurable per-volume:
 }
 ```
 
-Remote replication uses `btrfs send` piped over SSH. SSH key is generated on first save of remote config (`ssh-keygen -t ed25519`). UI shows the public key for the admin to add to the remote NAS.
+Удалённая репликация использует `btrfs send` через SSH-канал. SSH-ключ генерируется при первом сохранении конфигурации удалённого доступа (`ssh-keygen -t ed25519`). UI показывает публичный ключ для добавления администратором на удалённый NAS.
 
 ---
 
-## Monitored Paths
+## Отслеживаемые пути
 
-Admin configures which paths to monitor. Default: all Btrfs mount points found via `findmnt --real -t btrfs`.
+Администратор настраивает, какие пути отслеживать. По умолчанию: все точки монтирования Btrfs, найденные через `findmnt --real -t btrfs`.
 
-Each path entry:
+Каждая запись пути:
 ```json
 {
   "path": "/mnt/data",
@@ -170,78 +170,78 @@ Each path entry:
 
 ---
 
-## Cockpit Plugin: Guard Page (`guard.html` / `js/guard.js`)
+## Cockpit-плагин: страница Guard (`guard.html` / `js/guard.js`)
 
-### Layout
+### Компоновка
 
-**Top bar:**
-- Daemon status indicator: green "Running" / red "Stopped" / yellow "Starting"
-- Start / Stop buttons (both require PIN dialog)
-- Current mode selector: Monitor / Active / Super-Safe (requires PIN, Super-Safe shows confirmation dialog)
+**Верхняя панель:**
+- Индикатор состояния демона: зелёный «Работает» / красный «Остановлен» / жёлтый «Запускается»
+- Кнопки Запуск / Остановка (обе требуют PIN-диалог)
+- Текущий режим: Мониторинг / Активный / Суперзащита (требует PIN, Суперзащита показывает диалог подтверждения)
 
-**PIN Dialog:** modal overlay, simple password input, submits to daemon socket.
+**PIN-диалог:** модальное окно, простое поле пароля, отправляет на сокет демона.
 
-### Dashboard Section
+### Секция обзора
 
-Real-time stats, refreshed every 5 seconds via `guardCmd("status")` через Unix socket:
+Статистика в реальном времени, обновляется каждые 5 секунд через `guardCmd("status")` по Unix-сокету:
 
-- **Events today** — count of detection events in last 24h
-- **Current IOPS** — ops/min across all monitored volumes (live, обновляется каждую секунду через `_update_state()` в daemon)
-- **Baseline status** — "Обучение (день N из 7)" or "Активен"
-- **Last snapshot** — timestamp of last auto-snapshot
-- **Monitored paths** — count of active paths
-- **Active blocks** — count of currently blocked IPs
+- **Событий сегодня** — количество событий детекции за последние 24ч
+- **Текущий IOPS** — операций/мин по всем отслеживаемым томам (живые данные, обновляется каждую секунду через `_update_state()` в демоне)
+- **Статус базовой линии** — «Обучение (день N из 7)» или «Активен»
+- **Последний снапшот** — время последнего автоматического снапшота
+- **Отслеживаемые пути** — количество активных путей
+- **Активные блокировки** — количество заблокированных IP-адресов
 
 > **Реализовано иначе:** в ТЗ предполагалось чтение `state.json` через `cockpit.file().watch()`. В реальности все данные приходят через socket `cmd=status`. Это надёжнее — нет race conditions при записи файла.
 
-**Event Log Table** (last 50 events, newest first):
-| Time | Path | Method | Source IP | Action Taken | Status |
-|------|------|--------|-----------|--------------|--------|
+**Таблица журнала событий** (последние 50 событий, новые сверху):
+| Время | Путь | Метод | IP источника | Предпринятое действие | Статус |
+|-------|------|-------|--------------|----------------------|--------|
 
-Each row expandable to show: affected files list, entropy value if applicable, IOPS rate.
+Каждая строка раскрывается для показа: список затронутых файлов, значение энтропии (если применимо), скорость IOPS.
 
-**Acknowledge button** per event (requires PIN) — marks event as reviewed, removes IP block if in Active mode.
+**Кнопка подтверждения** для каждого события (требует PIN) — отмечает событие как просмотренное, снимает блокировку IP при активном режиме.
 
-**"Clear all blocks"** button (requires PIN) — removes all nftables rules added by the guard.
+**Кнопка «Очистить все блокировки»** (требует PIN) — удаляет все правила nftables, добавленные Guard.
 
-### Detection Settings Section
+### Секция настроек детекции
 
-Toggle switches for each detection method (require PIN to change):
-- Honeypot files: on/off
-- Entropy analysis: on/off + threshold slider (6.5–7.5 bits/byte, default 7.2)
-- IOPS anomaly: on/off + sensitivity (multiplier: 2×/3×/4× stddev)
-- Known extensions: on/off + link to view/edit extension list
+Переключатели для каждого метода детекции (для изменения требуется PIN):
+- Файлы-приманки: вкл/выкл
+- Анализ энтропии: вкл/выкл + ползунок порога (6.5–7.5 бит/байт, по умолчанию 7.2)
+- Аномалии IOPS: вкл/выкл + чувствительность (множитель: 2×/3×/4× стд.отклонение)
+- Известные расширения: вкл/выкл + ссылка для просмотра/редактирования списка расширений
 
-### Monitored Paths Section
+### Секция отслеживаемых путей
 
-Table of monitored paths with per-path toggles for each detection method.
-"Add path" button — directory picker (text input).
-"Remove" button per path.
+Таблица отслеживаемых путей с переключателями для каждого метода детекции по каждому пути.
+Кнопка «Добавить путь» — выбор директории (текстовое поле).
+Кнопка «Удалить» для каждого пути.
 
-### Snapshot Settings Section
+### Секция настроек снапшотов
 
-Per-volume snapshot configuration:
-- Local snapshot: on/off
-- Remote replication: on/off, host/user/path fields
-- "Generate SSH key" button — calls daemon to generate key, shows public key in textarea for copy
+Конфигурация снапшотов для каждого тома:
+- Локальный снапшот: вкл/выкл
+- Удалённая репликация: вкл/выкл, поля хост/пользователь/путь
+- Кнопка «Сгенерировать SSH-ключ» — вызывает демон для генерации ключа, показывает публичный ключ в текстовом поле для копирования
 
-### Notifications
+### Уведомления
 
-Reuse the existing rusNAS notification settings (email + Telegram) — guard uses the same configured channels. No separate notification config needed.
+Используются существующие настройки уведомлений rusNAS (email + Telegram) — Guard использует те же настроенные каналы. Отдельная конфигурация уведомлений не нужна.
 
 ---
 
-## Daemon Socket Protocol
+## Протокол сокета демона
 
-Simple JSON over Unix socket. Each message is a single JSON object followed by newline.
+Простой JSON через Unix-сокет. Каждое сообщение — один JSON-объект, за которым следует перенос строки.
 
 **Сокет:** `/run/rusnas-guard/control.sock`, права **0o666** — доступен без root. Безопасность обеспечивается PIN-аутентификацией, а не правами ФС.
 
 **Аутентификация:**
-- Unauthenticated commands (без PIN): `status`, `get_events`, `get_config`, `has_pin`, `set_pin_initial`
-- Authenticated commands: всё остальное. Принимают `pin` или `token`. При успехе возвращают новый `token` (TTL 30 мин, только в памяти daemon).
+- Неаутентифицированные команды (без PIN): `status`, `get_events`, `get_config`, `has_pin`, `set_pin_initial`
+- Аутентифицированные команды: всё остальное. Принимают `pin` или `token`. При успехе возвращают новый `token` (TTL 30 мин, только в памяти daemon).
 
-**Requests:**
+**Запросы:**
 ```json
 {"cmd": "status"}
 {"cmd": "has_pin"}
@@ -260,7 +260,7 @@ Simple JSON over Unix socket. Each message is a single JSON object followed by n
 {"cmd": "acknowledge_post_attack", "token": "..."}
 ```
 
-**Response:**
+**Ответ:**
 ```json
 {"ok": true, "data": {...}}
 {"ok": false, "error": "Invalid PIN or session expired"}
@@ -270,30 +270,30 @@ Simple JSON over Unix socket. Each message is a single JSON object followed by n
 
 ---
 
-## File Structure
+## Структура файлов
 
 ```
 /etc/rusnas-guard/
-    config.json          # main configuration
-    guard.pin            # bcrypt hash of PIN
-    ransom_extensions.txt # known ransomware extensions list
-    replication_key      # SSH private key for remote replication
-    replication_key.pub  # SSH public key
+    config.json          # основная конфигурация
+    guard.pin            # bcrypt-хеш PIN
+    ransom_extensions.txt # список известных расширений шифровальщиков
+    replication_key      # приватный SSH-ключ для удалённой репликации
+    replication_key.pub  # публичный SSH-ключ
 
 /var/log/rusnas-guard/
-    events.jsonl         # append-only JSON Lines event log
+    events.jsonl         # журнал событий в формате JSON Lines (только дополнение)
 
 /run/rusnas-guard/
-    control.sock         # Unix domain socket
-    state.json           # current runtime state (daemon writes, UI reads)
+    control.sock         # Unix domain сокет
+    state.json           # текущее состояние среды выполнения (демон пишет, UI читает)
 
 /usr/lib/rusnas-guard/
-    guard.py             # main daemon
-    detector.py          # inotify watcher + detection logic
-    entropy.py           # entropy computation
-    honeypot.py          # honeypot management
-    response.py          # blocking, snapshots, notifications
-    socket_server.py     # Unix socket server
+    guard.py             # основной демон
+    detector.py          # inotify-наблюдатель + логика детекции
+    entropy.py           # вычисление энтропии
+    honeypot.py          # управление файлами-приманками
+    response.py          # блокировка, снапшоты, уведомления
+    socket_server.py     # сервер Unix-сокетов
 
 /usr/share/cockpit/rusnas/
     guard.html
@@ -305,7 +305,7 @@ Simple JSON over Unix socket. Each message is a single JSON object followed by n
 
 ---
 
-## systemd Service
+## Сервис systemd
 
 ```ini
 [Unit]
@@ -327,72 +327,72 @@ WantedBy=multi-user.target
 
 > **Реализовано:** `RuntimeDirectory=rusnas-guard` автоматически создаёт `/run/rusnas-guard/` при запуске сервиса и удаляет его при остановке. `RuntimeDirectoryMode=0755` обязателен — без этого Cockpit bridge (не-root) не может подключиться к сокету, даже если сам сокет имеет права 0o666.
 
-**Daemon lifecycle (отличие от ТЗ):**
+**Жизненный цикл демона (отличие от ТЗ):**
 
-В ТЗ предполагалось, что Start/Stop кнопки включают/выключают systemd-сервис. В реальности реализовано иначе:
+В ТЗ предполагалось, что кнопки Запуск/Остановка включают/выключают systemd-сервис. В реальности реализовано иначе:
 
 - **systemd-сервис запущен всегда** (enabled=true на старте). Процесс не останавливается.
-- **Start** в UI (`cmd=start`) запускает внутренний **Detector thread** — inotify watcher начинает мониторинг.
-- **Stop** в UI (`cmd=stop`) останавливает Detector thread — мониторинг прекращается, но сокет-сервер остаётся доступен.
+- **Запуск** в UI (`cmd=start`) запускает внутренний **Detector thread** — inotify-наблюдатель начинает мониторинг.
+- **Остановка** в UI (`cmd=stop`) останавливает Detector thread — мониторинг прекращается, но сокет-сервер остаётся доступен.
 
 Преимущество: UI всегда может подключиться к сокету и прочитать статус, даже когда мониторинг выключен. Нет race condition между остановкой systemd и следующим обращением UI.
 
-**Default state:** disabled. On fresh install the daemon is installed but not enabled (`systemctl disable rusnas-guard`).
+**Состояние по умолчанию:** отключён. При свежей установке демон установлен, но не включён (`systemctl disable rusnas-guard`).
 
-Post-attack behavior: daemon writes `/etc/rusnas-guard/post_attack` flag before initiating shutdown. On next start, if flag exists, daemon starts in Monitor mode only and shows warning banner in UI. Admin must acknowledge (with PIN) to clear the flag.
-
----
-
-## Dependencies
-
-All available in Debian 13:
-- `python3-inotify` (inotify bindings)
-- `python3-bcrypt` (PIN hashing)
-- `btrfs-progs` (snapshot commands)
-- `nftables` (IP blocking)
-- `openssh-client` (remote replication)
+Поведение после атаки: демон записывает флаг `/etc/rusnas-guard/post_attack` перед инициированием выключения. При следующем запуске, если флаг существует, демон стартует только в режиме Мониторинга и показывает предупреждающий баннер в UI. Администратор должен подтвердить (с PIN), чтобы очистить флаг.
 
 ---
 
-## Acceptance Criteria
+## Зависимости
 
-1. Daemon starts and stops only with correct PIN from Cockpit UI.
-2. All four detection methods work independently (each can be disabled without affecting others).
-3. Honeypot files are created in each monitored path on daemon start and recreated after deletion.
-4. Entropy check fires on high-entropy file writes (test: write random bytes to a file).
-5. IOPS anomaly fires when operation rate exceeds configured threshold (test: `for i in $(seq 1 1000); do touch /mnt/data/test_$i; done`).
-6. Known extensions trigger immediately on file rename to `.locked`, `.encrypted`, etc.
-7. In Monitor mode: no blocking occurs, only logging and notifications.
-8. In Active mode: source IP is blocked via nftables and snapshot is created on detection.
-9. In Super-Safe mode: after detection — snapshot, stop services, poweroff. Test with dry-run flag.
-10. Dashboard shows live IOPS and event log with 5-second refresh.
-11. Acknowledge clears IP block and marks event as reviewed.
-12. Remote replication SSH key generation works and public key is shown in UI.
-13. Guard PIN is independent of Cockpit admin credentials.
-14. Daemon CPU usage < 5% under normal load (50 file ops/min across all shares).
-15. No regressions in existing rusNAS plugin pages (storage, disks, users).
+Все доступны в Debian 13:
+- `python3-inotify` (биндинги inotify)
+- `python3-bcrypt` (хеширование PIN)
+- `btrfs-progs` (команды снапшотов)
+- `nftables` (блокировка IP)
+- `openssh-client` (удалённая репликация)
 
 ---
 
-## Known Bugs Fixed During Implementation
+## Критерии приёмки
+
+1. Демон запускается и останавливается только с правильным PIN из Cockpit UI.
+2. Все четыре метода детекции работают независимо (каждый может быть отключён без влияния на остальные).
+3. Файлы-приманки создаются в каждом отслеживаемом пути при запуске демона и пересоздаются после удаления.
+4. Проверка энтропии срабатывает при записи файлов с высокой энтропией (тест: запись случайных байтов в файл).
+5. Аномалия IOPS срабатывает при превышении настроенного порога операций (тест: `for i in $(seq 1 1000); do touch /mnt/data/test_$i; done`).
+6. Известные расширения срабатывают немедленно при переименовании файла в `.locked`, `.encrypted` и т.д.
+7. В режиме Мониторинга: блокировка не происходит, только логирование и уведомления.
+8. В Активном режиме: IP-адрес источника блокируется через nftables и создаётся снапшот при детекции.
+9. В режиме Суперзащиты: после детекции — снапшот, остановка сервисов, выключение. Тестирование с флагом dry-run.
+10. Обзорная панель показывает IOPS в реальном времени и журнал событий с обновлением каждые 5 секунд.
+11. Подтверждение снимает блокировку IP и отмечает событие как просмотренное.
+12. Генерация SSH-ключа для удалённой репликации работает, публичный ключ отображается в UI.
+13. PIN Guard независим от учётных данных администратора Cockpit.
+14. Потребление CPU демоном < 5% при нормальной нагрузке (50 файловых операций/мин по всем шарам).
+15. Нет регрессий в существующих страницах плагина rusNAS (хранилище, диски, пользователи).
+
+---
+
+## Известные баги, исправленные при реализации
 
 | Баг | Причина | Исправление |
 |-----|---------|-------------|
-| IOPS counter always 0 | `InotifyTrees` возвращает `watch_path` = поддиректория события (`/mnt/data/docs`), а `_iops_windows` заполнен ключами root-путей (`/mnt/data`) | Добавлен `_root_path(watch_path)` хелпер; нормализует поддиректорию до корневого пути перед lookup |
+| Счётчик IOPS всегда 0 | `InotifyTrees` возвращает `watch_path` = поддиректория события (`/mnt/data/docs`), а `_iops_windows` заполнен ключами root-путей (`/mnt/data`) | Добавлен `_root_path(watch_path)` хелпер; нормализует поддиректорию до корневого пути перед lookup |
 | Detector thread крашится молча | `_iops_windows[watch_path]` → `KeyError` на первом событии в поддиректории, поток падает | Та же причина; исправлено тем же фиксом |
 | `current_iops` не обновляется без событий | `_update_state()` в guard.py не вызывал `get_iops()` — счётчик обновлялся только при inotify-событии | `_update_state()` теперь вызывает `self._detector.get_iops()` каждую секунду |
-| Socket timeout при `superuser: "require"` | Cockpit polkit-эскалация не propagates между iframe Guard и shell когда admin уже разблокирован на другой странице | Убрано `superuser: "require"` из `cockpit.channel()`; сокет `chmod 0o666`; безопасность — PIN |
-| Extensions list показывает "Файл не найден" | `/etc/rusnas-guard/` был `chmod 700`; Cockpit bridge (не-root) не мог войти в директорию | `chmod 755 /etc/rusnas-guard/` при установке |
+| Таймаут сокета при `superuser: "require"` | Cockpit polkit-эскалация не propagates между iframe Guard и shell когда admin уже разблокирован на другой странице | Убрано `superuser: "require"` из `cockpit.channel()`; сокет `chmod 0o666`; безопасность — PIN |
+| Список расширений показывает «Файл не найден» | `/etc/rusnas-guard/` был `chmod 700`; Cockpit bridge (не-root) не мог войти в директорию | `chmod 755 /etc/rusnas-guard/` при установке |
 | `/run/rusnas-guard/` пропадает после ребута | Tmpfs очищается при перезагрузке, папка не пересоздавалась | `RuntimeDirectory=rusnas-guard` в systemd unit автоматически создаёт папку при старте сервиса |
-| Honeypot ложные срабатывания (бесконечный цикл) | `_refresh_baits()` обходил все поддиректории → inotify → `is_bait()` True → `recreate_bait()` → снова inotify | Модуль-уровень `_creating_baits: set` в `honeypot.py`; пути добавляются перед записью, удаляются через 1с; `is_guard_creating()` проверяется в `detector.py` до `_fire()` |
+| Ложные срабатывания приманок (бесконечный цикл) | `_refresh_baits()` обходил все поддиректории → inotify → `is_bait()` True → `recreate_bait()` → снова inotify | Модуль-уровень `_creating_baits: set` в `honeypot.py`; пути добавляются перед записью, удаляются через 1с; `is_guard_creating()` проверяется в `detector.py` до `_fire()` |
 | Дублирование событий от одного файла | InotifyTrees при наличии `/mnt/data` и `/mnt/data/documents` стреляет дважды | `_dedup_watch_paths()` удаляет поддиректории перед передачей в InotifyTrees; остаётся только топовый путь |
-| Samba streams_xattr → honeypot срабатывает на чтение | `vfs objects = streams_xattr` открывает bait-файлы для чтения xattr → `IN_OPEN` → false positive | Добавлен `HONEYPOT_EVENTS` фильтр: honeypot стреляет только на write/delete/rename, не на read |
-| Детектор не запускается после ребута сервера | Daemon стартовал как служба, но Detector thread ждал команды из UI | Добавлен `auto_start: true` (default) в конфиг; `run()` вызывает `start_guard()` автоматически при старте |
+| Samba streams_xattr → приманка срабатывает на чтение | `vfs objects = streams_xattr` открывает bait-файлы для чтения xattr → `IN_OPEN` → ложное срабатывание | Добавлен `HONEYPOT_EVENTS` фильтр: приманка стреляет только на write/delete/rename, не на read |
+| Детектор не запускается после ребута сервера | Демон стартовал как служба, но Detector thread ждал команды из UI | Добавлен `auto_start: true` (по умолчанию) в конфиг; `run()` вызывает `start_guard()` автоматически при старте |
 
-## Out of Scope
+## За пределами области задачи
 
-- iSCSI block-level entropy monitoring (future task — requires different approach at block device level)
-- Machine learning model (future task)
-- Auto-update of ransomware extension list from external URLs
-- Windows FSRM integration
-- Anti-virus scanning (separate feature: vfs_virusfilter + ClamAV)
+- Мониторинг энтропии блочного уровня iSCSI (будущая задача — требует другого подхода на уровне блочного устройства)
+- Модель машинного обучения (будущая задача)
+- Автообновление списка расширений шифровальщиков с внешних URL
+- Интеграция с Windows FSRM
+- Антивирусное сканирование (отдельная функция: vfs_virusfilter + ClamAV)

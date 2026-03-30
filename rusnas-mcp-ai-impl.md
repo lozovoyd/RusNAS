@@ -1,10 +1,10 @@
-# rusNAS MCP Server + AI Agent — Implementation Plan
+# rusNAS MCP Server + AI Agent — План реализации
 
 > Статус: **планируется** (ветка feature/mcp-ai)
 > ТЗ: [rusnas_mcp_ai.MD](./rusnas_mcp_ai.MD)
 
 К реализации в ближайшей итерации:
-openEYEagent - если функция включена в настройках AI , при открытии любой страницы (ну например дашбоард) ее текстовый вариант отправляем в AI обработку с просьбой выделить значимые моменты для пользователя и например в открывшейся слева панели - выводим все что нашла AI модель с MCP
+openEYEagent — если функция включена в настройках AI, при открытии любой страницы (например, дашборд) её текстовый вариант отправляется в AI-обработку с просьбой выделить значимые моменты для пользователя, и в открывшейся слева панели выводится всё, что нашла AI-модель с MCP.
 
 
 
@@ -12,18 +12,18 @@ openEYEagent - если функция включена в настройках 
 
 ## Контекст
 
-Добавляем AI-ассистента прямо в Cockpit UI. Пользователь управляет NAS на естественном языке: "Создай снапшот", "Покажи состояние дисков", "Почему RAID деградировал?"
+Добавляем AI-ассистента прямо в Cockpit UI. Пользователь управляет NAS на естественном языке: «Создай снапшот», «Покажи состояние дисков», «Почему RAID деградировал?»
 
 Реализация в **два этапа** (две ветки/сессии):
 
-| Session | Что делаем |
-|---------|-----------|
-| **Session 1 (этот PR)** | Cockpit AI чат + NAS API через cockpit.spawn. Без внешних pip-зависимостей. |
-| **Session 2** | HTTP SSE mode (порт 8765, Bearer token) для Claude Desktop / Cursor + `pip install mcp` SDK |
+| Сессия | Что делаем |
+|--------|-----------|
+| **Сессия 1 (этот PR)** | Cockpit AI-чат + NAS API через cockpit.spawn. Без внешних pip-зависимостей. |
+| **Сессия 2** | HTTP SSE режим (порт 8765, Bearer token) для Claude Desktop / Cursor + `pip install mcp` SDK |
 
 ---
 
-## Архитектура Session 1
+## Архитектура Сессии 1
 
 ```
 ai.html / ai.js  ──fetch()──▶  [Выбранный провайдер]
@@ -37,7 +37,7 @@ ai.html / ai.js  ──fetch()──▶  [Выбранный провайдер]
                                  rusnas-snap / testparm / mdadm / smartctl / ...
 ```
 
-Провайдер выбирается в настройках UI. API ключ хранится в `localStorage` браузера — на VM не передаётся.
+Провайдер выбирается в настройках UI. API-ключ хранится в `localStorage` браузера — на VM не передаётся.
 
 ---
 
@@ -45,25 +45,25 @@ ai.html / ai.js  ──fetch()──▶  [Выбранный провайдер]
 
 | Файл | Тип | Описание |
 |------|-----|----------|
-| `cockpit/rusnas/scripts/mcp-api.py` | Новый | NAS command dispatcher (JSON stdio, argv dispatch) |
+| `cockpit/rusnas/scripts/mcp-api.py` | Новый | Диспетчер NAS-команд (JSON stdio, диспетчеризация через argv) |
 | `cockpit/rusnas/ai.html` | Новый | Страница AI-чата |
-| `cockpit/rusnas/js/ai.js` | Новый | Claude API + tool calling loop + renderMessages |
+| `cockpit/rusnas/js/ai.js` | Новый | Claude API + цикл вызова инструментов + renderMessages |
 | `cockpit/rusnas/css/ai.css` | Новый | Стили страницы |
-| `cockpit/rusnas/manifest.json` | Изменить | Добавить entry + CSP connect-src |
-| `install-mcp.sh` | Новый | Deploy: sudoers + log dir + скрипт |
+| `cockpit/rusnas/manifest.json` | Изменить | Добавить запись + CSP connect-src |
+| `install-mcp.sh` | Новый | Деплой: sudoers + каталог логов + скрипт |
 
 ---
 
-## 1. Backend: mcp-api.py
+## 1. Бэкенд: mcp-api.py
 
-Паттерн: argv dispatch + `ok(data)` / `err(msg)` helpers — идентично `network-api.py`.
+Паттерн: диспетчеризация через argv + хелперы `ok(data)` / `err(msg)` — идентично `network-api.py`.
 
 ### Команды (11 штук)
 
 | Команда | Реализация |
 |---------|-----------|
 | `get-status` | /proc/meminfo + /proc/loadavg + uptime + df -h |
-| `list-shares` | testparm -s (python3 inline parse) + /etc/exports |
+| `list-shares` | testparm -s (python3 inline-парсинг) + /etc/exports |
 | `list-disks` | lsblk -J + /proc/mdstat |
 | `list-raid` | mdadm --detail /dev/md* |
 | `list-snapshots SUBVOL` | sudo rusnas-snap list `<subvol>` |
@@ -89,7 +89,7 @@ rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/share/cockpit/rusnas/scripts/mc
 
 ---
 
-## 2. Frontend: ai.html + ai.js + ai.css
+## 2. Фронтенд: ai.html + ai.js + ai.css
 
 ### Структура страницы
 
@@ -121,30 +121,30 @@ connect-src 'self' https: ws://localhost wss://localhost;
 
 ---
 
-## Провайдеры (Provider Abstraction Layer)
+## Провайдеры (уровень абстракции)
 
 Три типа провайдеров с разными форматами API:
 
-| Провайдер | Формат | Tool calling | Auth header |
-|-----------|--------|-------------|-------------|
-| **Anthropic** | Свой (`/v1/messages`) | Нативный (`tool_use`) | `x-api-key` |
+| Провайдер | Формат | Вызов инструментов | Заголовок авторизации |
+|-----------|--------|-------------------|----------------------|
+| **Anthropic** | Собственный (`/v1/messages`) | Нативный (`tool_use`) | `x-api-key` |
 | **OpenAI-совместимый** | OpenAI (`/v1/chat/completions`) | Нативный (`tool_calls`) | `Authorization: Bearer` |
-| **Yandex GPT** | Свой (`/foundationModels/v1/completion`) | Нет → ReAct режим | `Authorization: Api-Key` |
+| **Yandex GPT** | Собственный (`/foundationModels/v1/completion`) | Нет → режим ReAct | `Authorization: Api-Key` |
 
-OpenRouter, Groq, локальный LM Studio, self-hosted vLLM — всё это **OpenAI-совместимый** тип, отличается только base URL.
+OpenRouter, Groq, локальный LM Studio, self-hosted vLLM — всё это **OpenAI-совместимый** тип, отличается только базовым URL.
 
 ### Настройки провайдера (localStorage)
 
 ```javascript
 rusnas_ai_provider    // "anthropic" | "openai" | "yandex"
-rusnas_ai_api_key     // API ключ выбранного провайдера
+rusnas_ai_api_key     // API-ключ выбранного провайдера
 rusnas_ai_base_url    // Только для openai-совместимого (https://openrouter.ai/api/v1 и т.п.)
 rusnas_ai_model       // Имя модели (зависит от провайдера)
 rusnas_ai_folder_id   // Только для Yandex (folder_id для modelUri)
 rusnas_ai_history     // История чата (последние 50 сообщений)
 ```
 
-### Структура settings UI
+### Структура UI настроек
 
 ```
 Провайдер:   [▼ Anthropic Claude | OpenAI-совместимый | Yandex GPT]
@@ -181,7 +181,7 @@ async function callAnthropic(messages) {
     // POST api.anthropic.com/v1/messages
     // headers: { "x-api-key": key, "anthropic-version": "2023-06-01" }
     // body: { model, max_tokens, system, tools: TOOLS_SCHEMA_ANTHROPIC, messages }
-    // stop_reason === "tool_use" → tool_use блоки
+    // stop_reason === "tool_use" → блоки tool_use
 }
 
 // OpenAI-совместимый — tool_calls
@@ -216,9 +216,9 @@ async function sendMessage(userText) {
 }
 ```
 
-### ReAct промпт для Yandex GPT
+### Промпт ReAct для Yandex GPT
 
-Когда `toolSupport === false` — добавляем в system prompt:
+Когда `toolSupport === false` — добавляем в системный промпт:
 
 ```
 Если тебе нужна информация о NAS, используй инструменты в формате:
@@ -239,13 +239,13 @@ ACTION: tool_name(arg1, arg2)
 ### TOOLS_SCHEMA — два формата
 
 ```javascript
-// Anthropic format
+// Формат Anthropic
 var TOOLS_SCHEMA_ANTHROPIC = [
     { name: "get_status", description: "...", input_schema: { type: "object", properties: {} } },
     ...
 ];
 
-// OpenAI format
+// Формат OpenAI
 var TOOLS_SCHEMA_OPENAI = [
     { type: "function", function: { name: "get_status", description: "...", parameters: {...} } },
     ...
@@ -262,7 +262,7 @@ function getToolsSchema() {
 
 ```bash
 #!/bin/bash
-# Деплой mcp-api.py + sudoers + log dir на VM
+# Деплой mcp-api.py + sudoers + каталог логов на VM
 VM="rusnas@10.10.10.72"
 
 scp cockpit/rusnas/scripts/mcp-api.py $VM:/tmp/
@@ -283,18 +283,18 @@ echo "✓ MCP API deployed"
 ## Порядок реализации
 
 1. `mcp-api.py` — все 11 команд + логирование
-2. `ai.html` — layout + settings UI с переключением провайдеров
-3. `ai.css` — стили чата, бабблов, provider selector
+2. `ai.html` — разметка + UI настроек с переключением провайдеров
+3. `ai.css` — стили чата, пузырьков, селектора провайдеров
 4. `ai.js`:
    - TOOLS_SCHEMA (два формата: Anthropic + OpenAI)
    - `callAnthropic()` / `callOpenAI()` / `callYandex()` + `normalizeResponse()`
    - `callLLM()` — единая точка входа
    - `executeTool()` + агентный цикл `sendMessage()`
-   - `renderMessages()` + settings save/load
-5. `manifest.json` — entry + CSP (`connect-src 'self' https:`)
+   - `renderMessages()` + сохранение/загрузка настроек
+5. `manifest.json` — запись + CSP (`connect-src 'self' https:`)
 6. `install-mcp.sh`
 7. `./deploy.sh && ./install-mcp.sh`
-8. Тест с Anthropic → затем OpenRouter → затем Yandex GPT
+8. Тестирование с Anthropic → затем OpenRouter → затем Yandex GPT
 9. CLAUDE.md + project_history.MD
 
 ---
@@ -303,34 +303,34 @@ echo "✓ MCP API deployed"
 
 | Паттерн | Источник |
 |---------|---------|
-| `ok(data)` / `err(msg)` helpers | `cockpit/rusnas/scripts/network-api.py:15–20` |
-| cockpit.spawn JSON wrapper | `cockpit/rusnas/js/network.js:netApi()` |
-| localStorage save/load settings | `cockpit/rusnas/js/dedup.js:loadSettings()` |
-| Collapsible sections | `cockpit/rusnas/css/style.css` |
+| Хелперы `ok(data)` / `err(msg)` | `cockpit/rusnas/scripts/network-api.py:15–20` |
+| Обёртка cockpit.spawn для JSON | `cockpit/rusnas/js/network.js:netApi()` |
+| Сохранение/загрузка настроек через localStorage | `cockpit/rusnas/js/dedup.js:loadSettings()` |
+| Сворачиваемые секции | `cockpit/rusnas/css/style.css` |
 
 ---
 
-## Что НЕ делаем в Session 1
+## Что НЕ делаем в Сессии 1
 
 - Ollama (сложная установка, не критично — через OpenAI-совместимый режим если нужно)
-- HTTP SSE / внешний MCP транспорт → Session 2
-- `pip install mcp` SDK → Session 2
-- Создание/удаление SMB шар через AI (только read + snapshots)
-- Нативный Yandex tool calling (async API) — ReAct режима достаточно для MVP
+- HTTP SSE / внешний MCP-транспорт → Сессия 2
+- `pip install mcp` SDK → Сессия 2
+- Создание/удаление SMB-шар через AI (только чтение + снапшоты)
+- Нативный вызов инструментов Yandex (async API) — режима ReAct достаточно для MVP
 
 ---
 
 ## Верификация
 
 ```bash
-# Backend тест
+# Тест бэкенда
 ssh rusnas@10.10.10.72 "sudo python3 /usr/share/cockpit/rusnas/scripts/mcp-api.py get-status"
 # → JSON: {cpu_percent, ram_total, ram_used, uptime, disks}
 
 ssh rusnas@10.10.10.72 "sudo python3 /usr/share/cockpit/rusnas/scripts/mcp-api.py list-snapshots documents"
 # → JSON: [{name, created, size}, ...]
 
-# UI тест
+# Тест UI
 # Открыть http://10.10.10.72:9090/rusnas/ai.html
 # Ввести ANTHROPIC_API_KEY в настройках
 # Написать: "Покажи состояние дисков"

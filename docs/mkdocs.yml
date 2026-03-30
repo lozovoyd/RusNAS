@@ -1,4 +1,4 @@
-site_name: RusNAS Documentation
+site_name: Документация RusNAS
 site_description: "Программный комплекс управления сетевым хранилищем данных — документация разработчика и API"
 site_url: ""
 repo_url: https://github.com/lozovoyd/RusNAS
@@ -101,27 +101,27 @@ nav:
       - UI дизайн-система: guides/ui-design.md
       - Известные баги: guides/known-bugs.md
       - Веб-сервисы (nginx/Apache): guides/webservices.md
-  - API Reference:
+  - Справочник API:
       - JavaScript:
           - eye.js (Утилиты): api/js/eye.md
           - app.js (Хранилище): api/js/app.md
-          - dashboard.js: api/js/dashboard.md
-          - disks.js (RAID): api/js/disks.md
-          - guard.js: api/js/guard.md
-          - snapshots.js: api/js/snapshots.md
-          - network.js: api/js/network.md
-          - performance.js: api/js/performance.md
-          - storage-analyzer.js: api/js/storage-analyzer.md
-          - dedup.js: api/js/dedup.md
-          - ups.js: api/js/ups.md
-          - users.js: api/js/users.md
-          - ai.js: api/js/ai.md
-          - containers.js: api/js/containers.md
-          - license.js: api/js/license.md
+          - dashboard.js (Дашборд): api/js/dashboard.md
+          - disks.js (Диски и RAID): api/js/disks.md
+          - guard.js (Антишифровальщик): api/js/guard.md
+          - snapshots.js (Снапшоты): api/js/snapshots.md
+          - network.js (Сеть): api/js/network.md
+          - performance.js (Оптимизация): api/js/performance.md
+          - storage-analyzer.js (Анализатор): api/js/storage-analyzer.md
+          - dedup.js (Дедупликация): api/js/dedup.md
+          - ups.js (ИБП): api/js/ups.md
+          - users.js (Пользователи): api/js/users.md
+          - ai.js (AI-ассистент): api/js/ai.md
+          - containers.js (Контейнеры): api/js/containers.md
+          - license.js (Лицензирование): api/js/license.md
       - Python:
-          - Guard Daemon: api/python/guard.md
-          - Container API: api/python/container-api.md
-          - Spindown Daemon: api/python/spind.md
-          - Network API: api/python/network-api.md
-          - Storage Analyzer API: api/python/storage-analyzer.md
-          - Metrics Server: api/python/metrics.md
+          - Демон Guard: api/python/guard.md
+          - API контейнеров: api/python/container-api.md
+          - Демон засыпания дисков: api/python/spind.md
+          - API сети: api/python/network-api.md
+          - API анализатора: api/python/storage-analyzer.md
+          - Сервер метрик: api/python/metrics.md

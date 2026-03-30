@@ -1,4 +1,4 @@
-# Metrics Server API
+# API сервера метрик
 
 **metrics_server.py** — HTTP-сервер метрик (Prometheus + JSON).
 
@@ -6,14 +6,14 @@
 - **Порт:** 9100
 - **Сервис:** `rusnas-metrics.service`
 
-## Endpoints
+## Точки доступа (endpoints)
 
 | URL | Format | Описание |
 |-----|--------|----------|
 | `GET /metrics` | Prometheus text | Метрики для Prometheus scrape |
 | `GET /metrics.json` | JSON | Метрики для Dashboard JS |
 
-## Метрики
+## Доступные метрики
 
 | Имя | Тип | Описание |
 |-----|-----|----------|
@@ -27,6 +27,6 @@
 | `rusnas_spindown_state` | gauge | Состояние Backup Mode (0=active, 1=flushing, 2=standby, 3=waking) |
 | `rusnas_spindown_wakeup_count_total` | counter | Всего пробуждений |
 
-## Warm-up период
+## Период разогрева
 
 Первые показания дельты (CPU, Net, Disk I/O) требуют 1 секунду для накопления базовой линии. В этот период значения = 0.

@@ -1,4 +1,4 @@
-# Storage Analyzer API
+# API анализатора пространства
 
 **storage-analyzer-api.py** — API анализатора дискового пространства.
 
@@ -6,7 +6,7 @@
 - **DB:** `/var/lib/rusnas/storage_history.db` (SQLite WAL)
 - **Collector:** `storage-collector.py` (ежечасный таймер)
 
-## Команды API
+## Доступные команды
 
 | Команда | Аргументы | Описание |
 |---------|-----------|----------|
@@ -17,7 +17,7 @@
 | `file_types` | `volume_path` | Распределение по типам |
 | `forecast` | `volume_path` | Прогноз заполнения (линейная регрессия) |
 
-## Таблицы БД (storage_history.db)
+## Таблицы базы данных (storage_history.db)
 
 ### volume_snapshots
 | Поле | Тип | Описание |

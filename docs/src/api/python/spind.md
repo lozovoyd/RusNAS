@@ -1,4 +1,4 @@
-# Spindown Daemon API
+# API демона засыпания дисков
 
 **spind.py** — демон засыпания дисков RAID-массивов (Backup Mode).
 
@@ -7,7 +7,7 @@
 - **State:** `/run/rusnas/spindown_state.json` (runtime)
 - **Config:** `/etc/rusnas/spindown.json`
 
-## State Machine
+## Конечный автомат состояний
 
 ```mermaid
 stateDiagram-v2

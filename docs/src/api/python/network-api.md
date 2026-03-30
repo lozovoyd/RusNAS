@@ -1,4 +1,4 @@
-# Network API
+# API управления сетью
 
 **network-api.py** — backend управления сетевой конфигурацией.
 
@@ -6,7 +6,7 @@
 - **Вызов:** `cockpit.spawn(["sudo", "-n", "python3", path, cmd, ...])`
 - **Config:** `/etc/network/interfaces` (ifupdown)
 
-## Команды
+## Доступные команды
 
 | Группа | Команда | Описание |
 |--------|---------|----------|

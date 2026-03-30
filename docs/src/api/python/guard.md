@@ -1,4 +1,4 @@
-# Guard Daemon API
+# API демона Guard
 
 **rusnas-guard** — демон антишифровальщика. Обнаруживает и блокирует ransomware-атаки в реальном времени.
 
@@ -7,37 +7,37 @@
 - **Сокет:** `/run/rusnas-guard/control.sock` (JSON-RPC)
 - **Спецификация:** [Guard ТЗ](../../specs/guard.md)
 
-## guard.py — Entry Point
+## guard.py — Точка входа
 
-Главный файл демона. Запускает socket server и detector thread.
+Главный файл демона. Запускает socket-сервер и поток детектора.
 
 ::: guard
 
-## detector.py — inotify Watcher
+## detector.py — Наблюдатель inotify
 
 Мониторинг файловой системы через inotify. 4 метода обнаружения.
 
 ::: detector
 
-## entropy.py — Shannon Entropy
+## entropy.py — Энтропия Шеннона
 
 Вычисление энтропии Шеннона для обнаружения зашифрованных файлов.
 
 ::: entropy
 
-## honeypot.py — Bait Files
+## honeypot.py — Файлы-приманки
 
 Управление файлами-приманками в контролируемых директориях.
 
 ::: honeypot
 
-## response.py — Blocking & Snapshots
+## response.py — Реагирование
 
 Реагирование на атаки: создание снапшотов, блокировка IP, остановка сервисов.
 
 ::: response
 
-## socket_server.py — Unix Socket JSON-RPC
+## socket_server.py — Unix-сокет JSON-RPC
 
 Сервер управления Guard через Unix domain socket.
 
