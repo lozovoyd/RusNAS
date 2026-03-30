@@ -18,6 +18,11 @@ var _rollbackState = null;     // { iface, timer } | null — active auto-revert
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
+/**
+ * Format byte count into human-readable string.
+ * @param {number} b - Byte count
+ * @returns {string}
+ */
 function fmtBytes(b) {
     b = parseInt(b) || 0;
     if (b === 0) return "0 Б";
@@ -26,6 +31,11 @@ function fmtBytes(b) {
     return (b / Math.pow(1024, i)).toFixed(1) + "\u00a0" + u[Math.min(i,4)];
 }
 
+/**
+ * Format bytes/sec into human-readable speed string.
+ * @param {number} bps - Bytes per second
+ * @returns {string}
+ */
 function fmtSpeed(bps) {
     bps = parseInt(bps) || 0;
     if (bps < 1024)        return bps + "\u00a0Б/с";
@@ -34,21 +44,41 @@ function fmtSpeed(bps) {
     return (bps/1073741824).toFixed(2) + "\u00a0ГБ/с";
 }
 
+/**
+ * Safely parse JSON string, returning null on failure.
+ * @param {string} str - JSON string to parse
+ * @returns {Object|null}
+ */
 function safeJson(str) {
     try { return JSON.parse(str.trim()); } catch(e) { return null; }
 }
 
+/**
+ * Validate an IPv4 address string.
+ * @param {string} ip - IPv4 address to validate
+ * @returns {boolean}
+ */
 function validateIp(ip) {
     return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) ||
            /^[0-9a-fA-F:]+$/.test(ip);
 }
 
+/**
+ * Validate an IPv4 CIDR notation string.
+ * @param {string} s - CIDR string (e.g. '192.168.1.0/24')
+ * @returns {boolean}
+ */
 function validateCidr(s) {
     var m = s.match(/^([\d.]+)\/(\d+)$/);
     if (m) return {valid: true, ip: m[1], prefix: parseInt(m[2])};
     return {valid: false};
 }
 
+/**
+ * Convert subnet mask to CIDR prefix length.
+ * @param {string} mask - Subnet mask (e.g. '255.255.255.0')
+ * @returns {number}
+ */
 function maskToPrefix(mask) {
     if (/^\d+$/.test(mask)) return parseInt(mask);
     var parts = mask.split(".");
@@ -60,6 +90,11 @@ function maskToPrefix(mask) {
     return 24;
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s)
         .replace(/&/g,"&amp;").replace(/</g,"&lt;")
@@ -68,6 +103,11 @@ function escHtml(s) {
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
 
+/**
+ * Execute a network API command via cockpit.spawn.
+ * @param {Array<string>} args - API command arguments
+ * @returns {Promise<Object>}
+ */
 function netApi(args) {
     return new Promise(function(resolve, reject) {
         var out = "";
@@ -91,6 +131,11 @@ function netApi(args) {
 
 var _tabLoaded = {};
 
+/**
+ * Switch between network tabs (interfaces/dns/routes/diag/certs/domain).
+ * @param {string} tabName - Tab name to activate
+ * @returns {void}
+ */
 function switchTab(tabName) {
     document.querySelectorAll(".net-tab-content").forEach(function(el) {
         el.style.display = "none";
@@ -115,6 +160,10 @@ function switchTab(tabName) {
 
 // ── Interfaces tab ────────────────────────────────────────────────────────────
 
+/**
+ * Load network interface data and render interface cards.
+ * @returns {void}
+ */
 function loadInterfaces() {
     netApi(["get-interfaces"]).then(function(data) {
         if (!data.ok) {
@@ -143,6 +192,10 @@ function loadInterfaces() {
     });
 }
 
+/**
+ * Render the network connectivity status bar.
+ * @returns {void}
+ */
 function renderStatusBar() {
     var bar = document.getElementById("ifaceStatusBar");
     if (!bar) return;
@@ -156,6 +209,10 @@ function renderStatusBar() {
     }).join("");
 }
 
+/**
+ * Render network interface cards with status and sparklines.
+ * @returns {void}
+ */
 function renderIfaceCards() {
     var container = document.getElementById("ifaceCards");
     if (_netInterfaces.length === 0) {
@@ -232,11 +289,19 @@ function renderIfaceCards() {
 
 var _sparkData = {};  // {iface: {rx: [], tx: []}}  max 60 points
 
+/**
+ * Start periodic network traffic polling.
+ * @returns {void}
+ */
 function startTrafficPoll() {
     if (_trafficTimer) return;
     _trafficTimer = setInterval(pollTraffic, 1000);
 }
 
+/**
+ * Poll current network traffic counters.
+ * @returns {void}
+ */
 function pollTraffic() {
     cockpit.file("/proc/net/dev").read().then(function(content) {
         if (!content) return;
@@ -269,6 +334,13 @@ function pollTraffic() {
     });
 }
 
+/**
+ * Update a traffic sparkline with new rate data.
+ * @param {string} dir - Direction ('rx' or 'tx')
+ * @param {string} iface - Interface name
+ * @param {number} rate - Current rate in bytes/sec
+ * @returns {void}
+ */
 function updateSparkline(dir, iface, rate) {
     var speedEl = document.getElementById(dir + "-speed-" + iface);
     var svgEl   = document.getElementById(dir + "-spark-" + iface);
@@ -293,6 +365,11 @@ function updateSparkline(dir, iface, rate) {
 
 // ── Interface Modal ────────────────────────────────────────────────────────────
 
+/**
+ * Open the interface configuration edit modal.
+ * @param {string} ifaceName - Interface name to configure
+ * @returns {void}
+ */
 function openIfaceModal(ifaceName) {
     var iface = _netInterfaces.find(function(i){ return i.name === ifaceName; });
     if (!iface) return;
@@ -320,14 +397,28 @@ function openIfaceModal(ifaceName) {
     document.getElementById("ifaceModal").style.display = "flex";
 }
 
+/**
+ * Show/hide static IP fields based on DHCP mode.
+ * @param {boolean} show - Whether to show static fields
+ * @returns {void}
+ */
 function toggleIfaceStaticFields(show) {
     document.getElementById("ifaceStaticFields").style.display = show ? "" : "none";
 }
 
+/**
+ * Show/hide IPv6 fields based on selected mode.
+ * @param {string} mode - IPv6 mode (auto|static|disabled)
+ * @returns {void}
+ */
 function toggleIfaceIpv6Fields(mode) {
     document.getElementById("ifaceIpv6Fields").style.display = (mode === "static") ? "" : "none";
 }
 
+/**
+ * Save interface configuration with safety rollback.
+ * @returns {void}
+ */
 function saveIfaceModal() {
     var name    = document.getElementById("ifaceModalName").value;
     var mode    = document.querySelector('input[name="ifaceMode"]:checked').value;
@@ -371,12 +462,23 @@ function saveIfaceModal() {
     doSaveIface(name, cfg);
 }
 
+/**
+ * Show an error message in the interface modal.
+ * @param {string} msg - Error message
+ * @returns {void}
+ */
 function showIfaceError(msg) {
     var el = document.getElementById("ifaceModalError");
     el.textContent = msg;
     el.style.display = "";
 }
 
+/**
+ * Execute interface configuration save via backend.
+ * @param {string} name - Interface name
+ * @param {Object} cfg - Interface configuration object
+ * @returns {void}
+ */
 function doSaveIface(name, cfg) {
     document.getElementById("ifaceModal").style.display = "none";
     netApi(["set-interface", name, JSON.stringify(cfg)]).then(function(data) {
@@ -412,6 +514,12 @@ function doSaveIface(name, cfg) {
 
 var REVERT_TIMEOUT_SECS = 90;
 
+/**
+ * Start a countdown for automatic network rollback.
+ * @param {string} iface - Interface name
+ * @param {number} seconds - Countdown seconds
+ * @returns {void}
+ */
 function startRollbackCountdown(iface, seconds) {
     if (_rollbackState && _rollbackState.timer) {
         clearInterval(_rollbackState.timer);
@@ -438,6 +546,13 @@ function startRollbackCountdown(iface, seconds) {
     };
 }
 
+/**
+ * Show network safety confirmation modal after config change.
+ * @param {string} oldIface - Interface name
+ * @param {Object} newCfg - New configuration
+ * @param {number} seconds - Rollback countdown seconds
+ * @returns {void}
+ */
 function showNetSafetyModal(oldIface, newCfg, seconds) {
     var changes = [];
     var oldMode = oldIface.config_mode || "dhcp";
@@ -464,16 +579,30 @@ function showNetSafetyModal(oldIface, newCfg, seconds) {
     document.getElementById("netSafetyModal").style.display  = "flex";
 }
 
+/**
+ * Bring a network interface down.
+ * @param {string} name - Interface name
+ * @returns {void}
+ */
 function doIfdown(name) {
     netApi(["ifdown", name]).then(function() { loadInterfaces(); });
 }
 
+/**
+ * Bring a network interface up.
+ * @param {string} name - Interface name
+ * @returns {void}
+ */
 function doIfup(name) {
     netApi(["ifup", name]).then(function() { loadInterfaces(); });
 }
 
 // ── VLAN Modal ─────────────────────────────────────────────────────────────────
 
+/**
+ * Open the VLAN creation modal.
+ * @returns {void}
+ */
 function openVlanModal() {
     var sel = document.getElementById("vlanParent");
     sel.innerHTML = _netInterfaces
@@ -489,6 +618,10 @@ function openVlanModal() {
     document.getElementById("vlanModal").style.display = "flex";
 }
 
+/**
+ * Save VLAN configuration.
+ * @returns {void}
+ */
 function saveVlanModal() {
     var parent = document.getElementById("vlanParent").value;
     var vid    = parseInt(document.getElementById("vlanId").value);
@@ -526,6 +659,10 @@ function saveVlanModal() {
 
 // ── DNS tab ───────────────────────────────────────────────────────────────────
 
+/**
+ * Load DNS resolver configuration.
+ * @returns {void}
+ */
 function loadDns() {
     netApi(["get-dns"]).then(function(data) {
         if (!data.ok) return;
@@ -562,6 +699,10 @@ function loadDns() {
     });
 }
 
+/**
+ * Load /etc/hosts entries.
+ * @returns {void}
+ */
 function loadHosts() {
     netApi(["get-hosts"]).then(function(data) {
         if (!data.ok) return;
@@ -570,6 +711,10 @@ function loadHosts() {
     });
 }
 
+/**
+ * Render the hosts table with edit/delete controls.
+ * @returns {void}
+ */
 function renderHostsTable() {
     var tbody = document.getElementById("hostsTbody");
     if (_netHosts.length === 0) {
@@ -601,6 +746,11 @@ function renderHostsTable() {
     });
 }
 
+/**
+ * Open modal to add/edit a host entry.
+ * @param {number} idx - Host index to edit, -1 for new
+ * @returns {void}
+ */
 function openHostModal(idx) {
     _hostEditIdx = idx;
     var h = idx >= 0 ? _netHosts[idx] : null;
@@ -612,6 +762,10 @@ function openHostModal(idx) {
     document.getElementById("hostModal").style.display = "flex";
 }
 
+/**
+ * Save host entry from the modal.
+ * @returns {void}
+ */
 function saveHostModal() {
     var ip      = document.getElementById("hostIp").value.trim();
     var name    = document.getElementById("hostName").value.trim();
@@ -635,6 +789,10 @@ function saveHostModal() {
     saveHosts();
 }
 
+/**
+ * Write hosts entries back to /etc/hosts.
+ * @returns {void}
+ */
 function saveHosts() {
     netApi(["set-hosts", JSON.stringify(_netHosts)]).then(function(data) {
         if (!data.ok) alert("Ошибка сохранения: " + (data.error||""));
@@ -642,6 +800,10 @@ function saveHosts() {
     });
 }
 
+/**
+ * Save DNS resolver configuration.
+ * @returns {void}
+ */
 function saveDns() {
     var s1 = document.getElementById("dnsServer1").value.trim();
     var s2 = document.getElementById("dnsServer2").value.trim();
@@ -657,6 +819,10 @@ function saveDns() {
     });
 }
 
+/**
+ * Test DNS resolution and display results.
+ * @returns {void}
+ */
 function testDns() {
     var host = "google.com";
     var resultEl = document.getElementById("dnsTestResult");
@@ -679,6 +845,10 @@ function testDns() {
     });
 }
 
+/**
+ * Detach resolvconf management for manual DNS control.
+ * @returns {void}
+ */
 function detachResolvconf() {
     var out = "";
     cockpit.spawn(["sudo", "-n", "rm", "-f", "/etc/resolv.conf"], {err:"message"})
@@ -694,6 +864,10 @@ function detachResolvconf() {
 
 // ── Routes tab ────────────────────────────────────────────────────────────────
 
+/**
+ * Load network routing table.
+ * @returns {void}
+ */
 function loadRoutes() {
     netApi(["get-routes"]).then(function(data) {
         if (!data.ok) return;
@@ -702,6 +876,10 @@ function loadRoutes() {
     });
 }
 
+/**
+ * Render the routes table with add/delete controls.
+ * @returns {void}
+ */
 function renderRoutesTable() {
     var tbody = document.getElementById("routesTbody");
     if (_netRoutes.length === 0) {
@@ -739,6 +917,10 @@ function renderRoutesTable() {
     });
 }
 
+/**
+ * Open modal to add a static route.
+ * @returns {void}
+ */
 function openRouteModal() {
     var sel = document.getElementById("routeIface");
     sel.innerHTML = _netInterfaces.map(function(i){
@@ -752,6 +934,10 @@ function openRouteModal() {
     document.getElementById("routeModal").style.display = "flex";
 }
 
+/**
+ * Save static route from the modal.
+ * @returns {void}
+ */
 function saveRouteModal() {
     var network = document.getElementById("routeNetwork").value.trim();
     var gateway = document.getElementById("routeGateway").value.trim();
@@ -774,6 +960,11 @@ function saveRouteModal() {
 
 // ── Diagnostics tab ───────────────────────────────────────────────────────────
 
+/**
+ * Switch between diagnostic tools (ping/traceroute/dns/port/wol).
+ * @param {string} tool - Diagnostic tool name
+ * @returns {void}
+ */
 function switchDiagTool(tool) {
     _diagTool = tool;
     document.querySelectorAll(".net-tool-btn").forEach(function(btn) {
@@ -786,6 +977,11 @@ function switchDiagTool(tool) {
     if (form) form.style.display = "";
 }
 
+/**
+ * Append HTML output to the diagnostics results area.
+ * @param {string} html - HTML content to append
+ * @returns {void}
+ */
 function appendDiag(html) {
     var el = document.getElementById("diagOutput");
     el.innerHTML += html;
@@ -793,11 +989,19 @@ function appendDiag(html) {
     document.getElementById("diagOutputHeader").style.display = "";
 }
 
+/**
+ * Clear the diagnostics results area.
+ * @returns {void}
+ */
 function clearDiag() {
     document.getElementById("diagOutput").innerHTML = "";
     document.getElementById("diagOutputHeader").style.display = "none";
 }
 
+/**
+ * Stop a running diagnostic process.
+ * @returns {void}
+ */
 function stopDiag() {
     if (_diagProc) {
         _diagProc.close();
@@ -807,6 +1011,10 @@ function stopDiag() {
     document.getElementById("btnStopTrace").style.display = "none";
 }
 
+/**
+ * Run a ping diagnostic to a target host.
+ * @returns {void}
+ */
 function runPing() {
     var host  = document.getElementById("pingHost").value.trim();
     var count = document.getElementById("pingCount").value;
@@ -843,6 +1051,10 @@ function runPing() {
     });
 }
 
+/**
+ * Run a traceroute diagnostic to a target host.
+ * @returns {void}
+ */
 function runTraceroute() {
     var host = document.getElementById("traceHost").value.trim();
     if (!host) { alert("Введите хост"); return; }
@@ -889,6 +1101,10 @@ function runTraceroute() {
     });
 }
 
+/**
+ * Run a DNS lookup diagnostic.
+ * @returns {void}
+ */
 function runDnsLookup() {
     var host   = document.getElementById("dnsLookupHost").value.trim();
     var type   = document.getElementById("dnsLookupType").value;
@@ -920,6 +1136,10 @@ function runDnsLookup() {
     });
 }
 
+/**
+ * Run a TCP port check diagnostic.
+ * @returns {void}
+ */
 function runPortCheck() {
     var host  = document.getElementById("portHost").value.trim();
     var port  = document.getElementById("portNum").value.trim();
@@ -950,6 +1170,10 @@ function runPortCheck() {
     });
 }
 
+/**
+ * Send a Wake-on-LAN magic packet.
+ * @returns {void}
+ */
 function runWol() {
     var mac   = document.getElementById("wolMac").value.trim();
     var iface = document.getElementById("wolIface").value;
@@ -977,6 +1201,10 @@ function runWol() {
     });
 }
 
+/**
+ * Populate WoL interface select with available interfaces.
+ * @returns {void}
+ */
 function populateWolIfaceSelect() {
     var sel = document.getElementById("wolIface");
     if (!sel) return;
@@ -988,6 +1216,12 @@ function populateWolIfaceSelect() {
 
 // ── Confirm modal ─────────────────────────────────────────────────────────────
 
+/**
+ * Show a generic confirmation dialog.
+ * @param {string} msg - Confirmation message
+ * @param {Function} cb - Callback on confirmation
+ * @returns {void}
+ */
 function openConfirm(msg, cb) {
     _confirmCb = cb;
     document.getElementById("confirmMsg").textContent = msg;
@@ -996,12 +1230,20 @@ function openConfirm(msg, cb) {
 
 // ── Modals close / dismiss ────────────────────────────────────────────────────
 
+/**
+ * Close all open modal dialogs.
+ * @returns {void}
+ */
 function closeAllModals() {
     document.querySelectorAll(".modal-overlay").forEach(function(m) {
         m.style.display = "none";
     });
 }
 
+/**
+ * Wire up modal dismiss buttons and overlay clicks.
+ * @returns {void}
+ */
 function wireModalDismiss() {
     document.querySelectorAll("[data-dismiss='modal']").forEach(function(btn) {
         btn.addEventListener("click", closeAllModals);
@@ -1015,6 +1257,12 @@ function wireModalDismiss() {
 
 // ── Reconnect countdown ────────────────────────────────────────────────────────
 
+/**
+ * Start a reconnect countdown after IP change.
+ * @param {string} newIp - New IP address to reconnect to
+ * @param {number} seconds - Countdown seconds
+ * @returns {void}
+ */
 function startReconnectCountdown(newIp, seconds) {
     document.getElementById("reconnectModal").style.display = "flex";
     document.getElementById("reconnectNewIp").textContent = newIp;
@@ -1041,6 +1289,11 @@ var CERTS_API = "/usr/share/cockpit/rusnas/scripts/certs-api.py";
 var _certsData = [];
 var _certDetailsCurrent = null;
 
+/**
+ * Execute a TLS certificates API command.
+ * @param {Array<string>} args - API command arguments
+ * @returns {Promise<Object>}
+ */
 function certsApi(args) {
     return new Promise(function(resolve, reject) {
         var out = "";
@@ -1062,6 +1315,10 @@ function certsApi(args) {
 
 // ── Load certs ────────────────────────────────────────────────────────────────
 
+/**
+ * Load TLS certificate list and render the certificates tab.
+ * @returns {void}
+ */
 function loadCerts() {
     document.getElementById("certsLoading").style.display = "";
     document.getElementById("certsTable").style.display   = "none";
@@ -1089,6 +1346,10 @@ function loadCerts() {
     checkCertbot();
 }
 
+/**
+ * Check if certbot is installed on the system.
+ * @returns {void}
+ */
 function checkCertbot() {
     certsApi(["check-certbot"]).then(function(data) {
         var alertEl = document.getElementById("certsNoCertbot");
@@ -1100,6 +1361,10 @@ function checkCertbot() {
     });
 }
 
+/**
+ * Render the TLS certificates table.
+ * @returns {void}
+ */
 function renderCertsTable() {
     var tbody = document.getElementById("certsTbody");
 
@@ -1175,6 +1440,10 @@ function renderCertsTable() {
     });
 }
 
+/**
+ * Update certificate expiration warning badge.
+ * @returns {void}
+ */
 function updateCertExpBadge() {
     var badge = document.getElementById("certExpBadge");
     var expiring = _certsData.filter(function(c) {
@@ -1190,6 +1459,11 @@ function updateCertExpBadge() {
 
 // ── Cert details modal ────────────────────────────────────────────────────────
 
+/**
+ * Open certificate details modal.
+ * @param {number} idx - Certificate index in the list
+ * @returns {void}
+ */
 function openCertDetails(idx) {
     var c = _certsData[idx];
     if (!c) return;
@@ -1226,6 +1500,11 @@ function openCertDetails(idx) {
     document.getElementById("certDetailsModal").style.display = "flex";
 }
 
+/**
+ * Renew a Let's Encrypt certificate.
+ * @param {string} name - Certificate name
+ * @returns {void}
+ */
 function renewCert(name) {
     document.getElementById("certDetailsModal").style.display = "none";
     var loadingMsg = '<div class="net-loading"><div class="net-spinner"></div> Обновление сертификата ' + escHtml(name) + '...</div>';
@@ -1243,6 +1522,10 @@ function renewCert(name) {
 
 // ── Let's Encrypt modal ───────────────────────────────────────────────────────
 
+/**
+ * Open the Let's Encrypt certificate issuance modal.
+ * @returns {void}
+ */
 function openLeModal() {
     document.getElementById("leDomain").value  = "";
     document.getElementById("leEmail").value   = "";
@@ -1257,6 +1540,10 @@ function openLeModal() {
     document.getElementById("leModal").style.display = "flex";
 }
 
+/**
+ * Issue a new Let's Encrypt certificate.
+ * @returns {void}
+ */
 function issueLetEncrypt() {
     var domain  = document.getElementById("leDomain").value.trim();
     var email   = document.getElementById("leEmail").value.trim();
@@ -1300,6 +1587,10 @@ function issueLetEncrypt() {
 
 // ── Self-signed modal ─────────────────────────────────────────────────────────
 
+/**
+ * Open the self-signed certificate creation modal.
+ * @returns {void}
+ */
 function openSelfSignedModal() {
     document.getElementById("ssCommonName").value = "";
     document.getElementById("ssOrg").value = "rusNAS";
@@ -1310,6 +1601,10 @@ function openSelfSignedModal() {
     document.getElementById("selfSignedModal").style.display = "flex";
 }
 
+/**
+ * Create a new self-signed TLS certificate.
+ * @returns {void}
+ */
 function createSelfSigned() {
     var cn      = document.getElementById("ssCommonName").value.trim();
     var org     = document.getElementById("ssOrg").value.trim() || "rusNAS";
@@ -1337,6 +1632,10 @@ function createSelfSigned() {
 
 // ── Import cert modal ─────────────────────────────────────────────────────────
 
+/**
+ * Open the certificate import modal.
+ * @returns {void}
+ */
 function openImportModal() {
     document.getElementById("importName").value     = "";
     document.getElementById("importCertPem").value  = "";
@@ -1346,6 +1645,10 @@ function openImportModal() {
     document.getElementById("importCertModal").style.display = "flex";
 }
 
+/**
+ * Import a certificate from pasted PEM data.
+ * @returns {void}
+ */
 function saveImportCert() {
     var name    = document.getElementById("importName").value.trim();
     var certPem = document.getElementById("importCertPem").value.trim();
@@ -1375,6 +1678,10 @@ function saveImportCert() {
 
 // ── Daemon status ─────────────────────────────────────────────────────────────
 
+/**
+ * Load auto-renewal daemon status.
+ * @returns {void}
+ */
 function loadCertDaemonStatus() {
     certsApi(["daemon-status"]).then(function(data) {
         if (!data.ok) return;
@@ -1398,6 +1705,10 @@ function loadCertDaemonStatus() {
     });
 }
 
+/**
+ * Toggle the certificate auto-renewal daemon.
+ * @returns {void}
+ */
 function toggleCertDaemon() {
     var btn = document.getElementById("btnToggleCertDaemon");
     var enabling = btn.textContent.trim() === "Включить";
@@ -1406,6 +1717,10 @@ function toggleCertDaemon() {
     });
 }
 
+/**
+ * Show certificate operation log in a modal.
+ * @returns {void}
+ */
 function showCertLog() {
     var wrap = document.getElementById("certLogWrap");
     wrap.style.display = "";
@@ -1418,6 +1733,10 @@ function showCertLog() {
 
 // ── LE method hint ────────────────────────────────────────────────────────────
 
+/**
+ * Update the Let's Encrypt validation method hint text.
+ * @returns {void}
+ */
 function updateLeMethodHint() {
     var method = document.getElementById("leMethod").value;
     var hints = {
@@ -1618,6 +1937,11 @@ var _dcState = { provisioned: false, domain: "", realm: "", fsmo: {} };
 var _domainTabLoaded = false;
 var _dcGroupCurrent = "";
 
+/**
+ * Execute a domain/AD API command.
+ * @param {Array<string>} args - API command arguments
+ * @returns {Promise<Object>}
+ */
 function domainApi(args) {
     return new Promise(function(resolve, reject) {
         var out = "";
@@ -1639,6 +1963,10 @@ function domainApi(args) {
 
 // ── Mode selector ──────────────────────────────────────────────────────────
 
+/**
+ * Load domain membership status and configuration.
+ * @returns {void}
+ */
 function loadDomain() {
     document.getElementById("domainLoading").style.display = "";
     document.getElementById("domainMemberPanel").style.display = "none";
@@ -1663,6 +1991,11 @@ function loadDomain() {
     });
 }
 
+/**
+ * Update domain mode selector UI (standalone/member/DC).
+ * @param {string} mode - Current domain mode
+ * @returns {void}
+ */
 function updateDomainModeSelector(mode) {
     var isDc = (mode === "dc");
     document.getElementById("domainModeCardMember").classList.toggle("active", !isDc);
@@ -1671,18 +2004,31 @@ function updateDomainModeSelector(mode) {
     document.querySelector('#domainModeCardDc input[type=radio]').checked = isDc;
 }
 
+/**
+ * Show the domain member configuration panel.
+ * @returns {void}
+ */
 function showMemberPanel() {
     document.getElementById("domainMemberPanel").style.display = "";
     document.getElementById("domainDcPanel").style.display = "none";
     loadMemberOverview();
 }
 
+/**
+ * Show the domain controller configuration panel.
+ * @returns {void}
+ */
 function showDcPanel() {
     document.getElementById("domainMemberPanel").style.display = "none";
     document.getElementById("domainDcPanel").style.display = "";
     loadDcOverview();
 }
 
+/**
+ * Display a domain operation error message.
+ * @param {string} msg - Error message
+ * @returns {void}
+ */
 function showDomainError(msg) {
     document.getElementById("domainLoading").innerHTML =
         '<div class="net-alert net-alert-danger">' + escHtml(msg) + '</div>';
@@ -1690,6 +2036,10 @@ function showDomainError(msg) {
 
 // ── Mode selector click handlers ───────────────────────────────────────────
 
+/**
+ * Initialize domain mode selector event handlers.
+ * @returns {void}
+ */
 function initDomainModeSelector() {
     document.getElementById("domainModeCardMember").addEventListener("click", function() {
         if (_domainMode === "dc") {
@@ -1708,6 +2058,12 @@ function initDomainModeSelector() {
 
 // ── Sub-tabs ───────────────────────────────────────────────────────────────
 
+/**
+ * Initialize sub-tab switching within a panel.
+ * @param {string} containerSelector - CSS selector for tab container
+ * @param {string} contentPrefix - ID prefix for content panels
+ * @returns {void}
+ */
 function initSubtabs(containerSelector, contentPrefix) {
     var container = document.querySelector(containerSelector);
     if (!container) return;
@@ -1724,6 +2080,11 @@ function initSubtabs(containerSelector, contentPrefix) {
     });
 }
 
+/**
+ * Handle domain sub-tab switch to load data.
+ * @param {string} tab - Sub-tab name
+ * @returns {void}
+ */
 function onDomainSubtabSwitch(tab) {
     if (tab === "member-overview") loadMemberOverview();
     else if (tab === "member-join") loadMemberJoin();
@@ -1742,6 +2103,10 @@ function onDomainSubtabSwitch(tab) {
 // MEMBER MODE
 // ══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Load domain member overview information.
+ * @returns {void}
+ */
 function loadMemberOverview() {
     var el = document.getElementById("memberOverviewContent");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>';
@@ -1754,6 +2119,12 @@ function loadMemberOverview() {
     });
 }
 
+/**
+ * Render domain member overview panel.
+ * @param {Object} r - Domain info response
+ * @param {HTMLElement} el - Container element
+ * @returns {void}
+ */
 function renderMemberOverview(r, el) {
     var joined = r.joined;
     var joinedHtml = joined
@@ -1761,6 +2132,12 @@ function renderMemberOverview(r, el) {
         : '<span style="color:#dc2626;font-weight:700">○ Не подключён к домену</span>';
 
     var svcs = r.services || {};
+    /**
+     * Svc Badge.
+     * @param {string} name
+     * @param {string} key
+     * @returns {void}
+     */
     function svcBadge(name, key) {
         var st = svcs[key] || "unknown";
         return '<span class="domain-svc-badge ' + (st === "active" ? "active" : "inactive") + '">'
@@ -1827,6 +2204,12 @@ function renderMemberOverview(r, el) {
     }
 }
 
+/**
+ * Build HTML for an info item row.
+ * @param {string} label - Item label
+ * @param {string} value - Item value
+ * @returns {string}
+ */
 function infoItem(label, value) {
     return '<div class="domain-info-item">'
         + '<div class="domain-info-label">' + escHtml(label) + '</div>'
@@ -1836,6 +2219,10 @@ function infoItem(label, value) {
 
 // ── Join / Leave ───────────────────────────────────────────────────────────
 
+/**
+ * Load the domain join form data.
+ * @returns {void}
+ */
 function loadMemberJoin() {
     var el = document.getElementById("memberJoinContent");
     if (_domainState.joined) {
@@ -1845,6 +2232,11 @@ function loadMemberJoin() {
     }
 }
 
+/**
+ * Render the domain join/leave form.
+ * @param {HTMLElement} el - Container element
+ * @returns {void}
+ */
 function renderJoinForm(el) {
     el.innerHTML = '<div class="domain-join-section">'
         + '<div class="domain-join-title">🔗 Присоединиться к домену</div>'
@@ -1946,6 +2338,12 @@ function renderJoinForm(el) {
     });
 }
 
+/**
+ * Set progress step state in a multi-step wizard.
+ * @param {number} i - Step index (1-based)
+ * @param {string} state - Step state (active|done|error)
+ * @returns {void}
+ */
 function setStep(i, state) {
     var icon = document.getElementById("joinStepIcon" + i);
     if (!icon) return;
@@ -1956,6 +2354,11 @@ function setStep(i, state) {
     else icon.textContent = "○";
 }
 
+/**
+ * Render the domain leave form.
+ * @param {HTMLElement} el - Container element
+ * @returns {void}
+ */
 function renderLeaveForm(el) {
     el.innerHTML = '<div class="domain-join-section">'
         + '<div class="net-alert net-alert-warn" style="margin-bottom:16px">⚠ Покидание домена прервёт доступ доменных пользователей к шарам. SMB-соединения будут разорваны.</div>'
@@ -1994,6 +2397,10 @@ function renderLeaveForm(el) {
 
 // ── Domain users / groups (member mode) ───────────────────────────────────
 
+/**
+ * Load domain user list.
+ * @returns {void}
+ */
 function loadDomainUsers() {
     var el = document.getElementById("domainUsersList");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2017,6 +2424,10 @@ function loadDomainUsers() {
     });
 }
 
+/**
+ * Load domain group list.
+ * @returns {void}
+ */
 function loadDomainGroups() {
     var el = document.getElementById("domainGroupsList");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2038,6 +2449,10 @@ function loadDomainGroups() {
     });
 }
 
+/**
+ * Load permitted login groups configuration.
+ * @returns {void}
+ */
 function loadPermittedGroups() {
     var el = document.getElementById("permittedGroupsList");
     el.innerHTML = '<span class="net-muted" style="font-size:0.85rem">Загрузка...</span>';
@@ -2062,6 +2477,10 @@ function loadPermittedGroups() {
 
 // ── Samba global settings ──────────────────────────────────────────────────
 
+/**
+ * Load global Samba/AD configuration.
+ * @returns {void}
+ */
 function loadSmbGlobal() {
     var el = document.getElementById("smbGlobalForm");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2104,6 +2523,10 @@ function loadSmbGlobal() {
 // DC MODE
 // ══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Load domain controller overview.
+ * @returns {void}
+ */
 function loadDcOverview() {
     var el = document.getElementById("dcOverviewContent");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div> Загрузка...</div>';
@@ -2116,6 +2539,12 @@ function loadDcOverview() {
     });
 }
 
+/**
+ * Render domain controller overview panel.
+ * @param {Object} r - DC info response
+ * @param {HTMLElement} el - Container element
+ * @returns {void}
+ */
 function renderDcOverview(r, el) {
     var svcs = r.services || {};
     var provisioned = r.provisioned;
@@ -2175,6 +2604,12 @@ function renderDcOverview(r, el) {
             + '<button class="btn btn-primary btn-sm" id="btnGotoProvision">🚀 Создать домен</button>';
     }
 
+    /**
+     * Svc Badge.
+     * @param {string} name
+     * @param {string} key
+     * @returns {void}
+     */
     function svcBadge(name, key) {
         var st = svcs[key] || "unknown";
         return '<span class="domain-svc-badge ' + (st === "active" ? "active" : "inactive") + '">'
@@ -2228,6 +2663,10 @@ function renderDcOverview(r, el) {
 
 // ── DC Deprovision ─────────────────────────────────────────────────────────
 
+/**
+ * Initialize DC deprovision confirmation modal.
+ * @returns {void}
+ */
 function initDcDeprovisionModal() {
     var modal = document.getElementById("dcDeprovisionModal");
     if (!modal) return;
@@ -2270,6 +2709,10 @@ function initDcDeprovisionModal() {
 
 // ── DC Provision ───────────────────────────────────────────────────────────
 
+/**
+ * Initialize DC provisioning wizard.
+ * @returns {void}
+ */
 function initDcProvision() {
     var fqdnEl = document.getElementById("dcDomainFqdn");
     var nbEl = document.getElementById("dcNetbiosName");
@@ -2323,6 +2766,12 @@ function initDcProvision() {
                 + '</div>';
         }).join("");
 
+        /**
+         * Dc Step.
+         * @param {number} i
+         * @param {*} st
+         * @returns {void}
+         */
         function dcStep(i, st) {
             var el2 = document.getElementById("dcStep" + i);
             if (!el2) return;
@@ -2363,6 +2812,10 @@ function initDcProvision() {
 
 // ── DC Users ───────────────────────────────────────────────────────────────
 
+/**
+ * Load domain controller user management.
+ * @returns {void}
+ */
 function loadDcUsers() {
     var el = document.getElementById("dcUsersTable");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2418,6 +2871,11 @@ function loadDcUsers() {
     });
 }
 
+/**
+ * Open password change modal for a DC user.
+ * @param {string} username - Domain username
+ * @returns {void}
+ */
 function openDcPassModal(username) {
     document.getElementById("dcPassUsername").textContent = username;
     document.getElementById("dcPassNew").value = "";
@@ -2428,6 +2886,10 @@ function openDcPassModal(username) {
 
 // ── DC Groups ──────────────────────────────────────────────────────────────
 
+/**
+ * Load domain controller group management.
+ * @returns {void}
+ */
 function loadDcGroups() {
     var el = document.getElementById("dcGroupsTable");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2464,6 +2926,11 @@ function loadDcGroups() {
     });
 }
 
+/**
+ * Open group members management modal.
+ * @param {string} groupName - Domain group name
+ * @returns {void}
+ */
 function openGroupMembersModal(groupName) {
     _dcGroupCurrent = groupName;
     document.getElementById("dcGroupMembersName").textContent = groupName;
@@ -2473,6 +2940,11 @@ function openGroupMembersModal(groupName) {
     loadGroupMembers(groupName);
 }
 
+/**
+ * Load members of a domain group.
+ * @param {string} groupName - Domain group name
+ * @returns {void}
+ */
 function loadGroupMembers(groupName) {
     var el = document.getElementById("dcGroupMembersContent");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2501,6 +2973,10 @@ function loadGroupMembers(groupName) {
 
 // ── DC Replication ─────────────────────────────────────────────────────────
 
+/**
+ * Load domain controller replication status.
+ * @returns {void}
+ */
 function loadDcRepl() {
     var el = document.getElementById("dcReplContent");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2527,6 +3003,10 @@ function loadDcRepl() {
 
 // ── DC DNS ─────────────────────────────────────────────────────────────────
 
+/**
+ * Load DNS zones managed by the domain controller.
+ * @returns {void}
+ */
 function loadDcDnsZones() {
     var sel = document.getElementById("dcDnsZone");
     if (!sel) return;
@@ -2535,6 +3015,10 @@ function loadDcDnsZones() {
     }
 }
 
+/**
+ * Query a DNS record on the domain controller.
+ * @returns {void}
+ */
 function queryDcDns() {
     var zone = document.getElementById("dcDnsZone").value;
     if (!zone) { alert("Выберите зону"); return; }
@@ -2568,6 +3052,10 @@ function queryDcDns() {
 
 // ── DC GPO ─────────────────────────────────────────────────────────────────
 
+/**
+ * Load Group Policy Objects list.
+ * @returns {void}
+ */
 function loadDcGpo() {
     var el = document.getElementById("dcGpoTable");
     el.innerHTML = '<div class="net-loading"><div class="net-spinner"></div></div>';
@@ -2590,6 +3078,10 @@ function loadDcGpo() {
 // DOMAIN MODAL HANDLERS
 // ══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Initialize all domain-related modal event handlers.
+ * @returns {void}
+ */
 function initDomainModals() {
     // DC User modal
     var btnAddUser = document.getElementById("btnAddDcUser");
@@ -2816,6 +3308,10 @@ function initDomainModals() {
 // DOMAIN INIT
 // ══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Initialize the domain tab with all sub-components.
+ * @returns {void}
+ */
 function initDomainTab() {
     if (_domainTabLoaded) return;
     _domainTabLoaded = true;

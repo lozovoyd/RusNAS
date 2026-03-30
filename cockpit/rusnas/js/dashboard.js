@@ -37,8 +37,18 @@ var prevDisk = {};
 var smartCache = {};
 
 // ── Utilities ─────────────────────────────────────────────────────────────
+/**
+ * Get DOM element by ID (shorthand for getElementById).
+ * @param {string} id - Element ID
+ * @returns {HTMLElement|null}
+ */
 function el(id) { return document.getElementById(id); }
 
+/**
+ * Format byte count into human-readable string.
+ * @param {number} bytes - Byte count
+ * @returns {string}
+ */
 function fmtBytes(bytes) {
     if (bytes === null || bytes === undefined) return "—";
     if (bytes < 1024) return bytes + " Б";
@@ -48,16 +58,31 @@ function fmtBytes(bytes) {
     return (bytes / 1099511627776).toFixed(2) + " ТБ";
 }
 
+/**
+ * Format bytes/sec into human-readable speed string.
+ * @param {number} bps - Bytes per second
+ * @returns {string}
+ */
 function fmtSpeed(bps) {
     if (bps < 1024) return bps.toFixed(0) + " Б/с";
     if (bps < 1048576) return (bps / 1024).toFixed(1) + " КБ/с";
     return (bps / 1048576).toFixed(1) + " МБ/с";
 }
+/**
+ * Format IOPS count with K/M suffix.
+ * @param {number} n - IOPS value
+ * @returns {string}
+ */
 function fmtIops(n) {
     if (n < 1000) return Math.round(n) + " IOPS";
     return (n / 1000).toFixed(1) + "k IOPS";
 }
 
+/**
+ * Format seconds into uptime string (days, hours, minutes).
+ * @param {number} sec - Uptime in seconds
+ * @returns {string}
+ */
 function fmtUptime(sec) {
     sec = Math.floor(sec);
     var d = Math.floor(sec / 86400);
@@ -68,28 +93,54 @@ function fmtUptime(sec) {
     return m + "м";
 }
 
+/**
+ * Format seconds into short duration string.
+ * @param {number} sec - Duration in seconds
+ * @returns {string}
+ */
 function fmtDuration(sec) {
     if (sec < 3600) return Math.floor(sec / 60) + " мин назад";
     if (sec < 86400) return Math.floor(sec / 3600) + "ч назад";
     return Math.floor(sec / 86400) + "д назад";
 }
 
+/**
+ * Get CSS class name based on usage percentage.
+ * @param {number} pct - Usage percentage (0-100)
+ * @returns {string}
+ */
 function pctClass(pct) {
     if (pct >= 95) return "db-crit";
     if (pct >= 80) return "db-warn";
     return "db-ok";
 }
 
+/**
+ * Get CSS class name for progress bar based on percentage.
+ * @param {number} pct - Usage percentage (0-100)
+ * @returns {string}
+ */
 function pctBarClass(pct) {
     if (pct >= 95) return "crit";
     if (pct >= 80) return "warn";
     return "";
 }
 
+/**
+ * Generate colored status dot HTML.
+ * @param {boolean} active - Whether the service is active
+ * @returns {string}
+ */
 function statusDot(active) {
     return active ? "✅" : "🔴";
 }
 
+/**
+ * Push a value onto a fixed-size history array.
+ * @param {Array<number>} arr - History array to modify
+ * @param {number} val - Value to push
+ * @returns {void}
+ */
 function pushHistory(arr, val) {
     arr.push(val);
     if (arr.length > HISTORY) arr.shift();
@@ -98,6 +149,16 @@ function pushHistory(arr, val) {
 // ── Sparkline renderer ────────────────────────────────────────────────────
 // ── Sparkline helpers ──────────────────────────────────────────────────────
 
+/**
+ * Calculate SVG points for a sparkline chart.
+ * @param {Array<number>} values - Data values
+ * @param {number} w - Chart width
+ * @param {number} h - Chart height
+ * @param {number} padT - Top padding
+ * @param {number} padB - Bottom padding
+ * @param {number} fixedMax - Fixed maximum value (0 for auto)
+ * @returns {Array<Object>}
+ */
 function _sparkPoints(values, w, h, padT, padB, fixedMax) {
     var maxVal = fixedMax !== undefined
         ? Math.max(fixedMax, Math.max.apply(null, values.concat([1])))
@@ -111,6 +172,11 @@ function _sparkPoints(values, w, h, padT, padB, fixedMax) {
     });
 }
 
+/**
+ * Build SVG path string from sparkline points.
+ * @param {Array<Object>} pts - Array of {x,y} point objects
+ * @returns {string}
+ */
 function _sparkPath(pts) {
     if (!pts.length) return '';
     var d = 'M' + pts[0].x + ',' + pts[0].y;
@@ -126,6 +192,14 @@ function _sparkPath(pts) {
     return d;
 }
 
+/**
+ * Build SVG grid lines for sparkline background.
+ * @param {number} w - Chart width
+ * @param {number} h - Chart height
+ * @param {number} padT - Top padding
+ * @param {number} padB - Bottom padding
+ * @returns {string}
+ */
 function _sparkGridLines(w, h, padT, padB) {
     var out = '';
     [0.33, 0.66].forEach(function(f) {
@@ -136,6 +210,14 @@ function _sparkGridLines(w, h, padT, padB) {
     return out;
 }
 
+/**
+ * Render a single-series sparkline SVG chart.
+ * @param {string} svgId - SVG element ID
+ * @param {Array<number>} values - Data values to plot
+ * @param {string} color - Line color
+ * @param {number} fixedMax - Fixed maximum value (0 for auto)
+ * @returns {void}
+ */
 function renderSparkline(svgId, values, color, fixedMax) {
     var svg = el(svgId);
     if (!svg) return;
@@ -162,6 +244,15 @@ function renderSparkline(svgId, values, color, fixedMax) {
         '<circle cx="' + last.x + '" cy="' + last.y + '" r="2.5" fill="' + color + '"/>';
 }
 
+/**
+ * Render a dual-series sparkline SVG chart (e.g. read/write).
+ * @param {string} svgId - SVG element ID
+ * @param {Array<number>} v1 - First series values
+ * @param {string} c1 - First series color
+ * @param {Array<number>} v2 - Second series values
+ * @param {string} c2 - Second series color
+ * @returns {void}
+ */
 function renderDualSparkline(svgId, v1, c1, v2, c2) {
     var svg = el(svgId);
     if (!svg) return;
@@ -169,6 +260,11 @@ function renderDualSparkline(svgId, v1, c1, v2, c2) {
     var h = svg.clientHeight || 56;
     var padT = 4, padB = 3;
     var maxVal = Math.max.apply(null, v1.concat(v2).concat([1]));
+    /**
+     * Pts.
+     * @param {*} vals
+     * @returns {void}
+     */
     function pts(vals) {
         var n = vals.length;
         return vals.map(function(v, i) {
@@ -199,14 +295,27 @@ function renderDualSparkline(svgId, v1, c1, v2, c2) {
 }
 
 // ── Section: Identity Bar ─────────────────────────────────────────────────
+/**
+ * Update the date/time display in the dashboard header.
+ * @returns {void}
+ */
 function updateDateTime() {
     var now = new Date();
+    /**
+     * Pad.
+     * @param {number} n
+     * @returns {void}
+     */
     var pad = function(n){ return n < 10 ? "0" + n : n; };
     el("db-datetime").textContent =
         pad(now.getDate()) + "." + pad(now.getMonth()+1) + "." + now.getFullYear() +
         "  " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
 }
 
+/**
+ * Load NAS hostname and OS info for the dashboard header.
+ * @returns {void}
+ */
 function loadIdentity() {
     cockpit.spawn(["bash", "-c",
         "cat /proc/sys/kernel/hostname; echo '---'; " +
@@ -225,6 +334,10 @@ function loadIdentity() {
 }
 
 // ── Section A1: Storage ───────────────────────────────────────────────────
+/**
+ * Load storage volume usage data and render cards.
+ * @returns {void}
+ */
 function loadStorage() {
     cockpit.spawn(["bash", "-c",
         "df -k --output=source,fstype,size,used,avail,target -x tmpfs -x devtmpfs -x squashfs 2>/dev/null | tail -n +2"
@@ -278,6 +391,11 @@ function loadStorage() {
 }
 
 // ── Spindown helpers ───────────────────────────────────────────────────────
+/**
+ * Format ISO timestamp as relative 'time ago' string.
+ * @param {string} isoString - ISO 8601 timestamp
+ * @returns {string}
+ */
 function dbTimeAgo(isoString) {
     if (!isoString) return "";
     try {
@@ -289,6 +407,10 @@ function dbTimeAgo(isoString) {
     } catch(e) { return ""; }
 }
 
+/**
+ * Load RAID spindown state for backup mode badges.
+ * @returns {void}
+ */
 function dbLoadSpindown() {
     return new Promise(function(resolve) {
         cockpit.spawn(["sudo", "-n", "python3", DB_SPINDOWN_CGI, "get_state"],
@@ -307,6 +429,11 @@ function dbLoadSpindown() {
     });
 }
 
+/**
+ * Render spindown status lines below RAID cards.
+ * @param {Object} sdMap - Spindown state map by array name
+ * @returns {void}
+ */
 function renderRaidSpindownLines(sdMap) {
     Object.keys(sdMap).forEach(function(arrayName) {
         var lineEl = document.getElementById("db-spindown-line-" + arrayName);
@@ -332,6 +459,10 @@ function renderRaidSpindownLines(sdMap) {
 }
 
 // ── Section A2: RAID ──────────────────────────────────────────────────────
+/**
+ * Load RAID array status and render RAID section.
+ * @returns {void}
+ */
 function loadRaid() {
     var mdstatP = new Promise(function(res, rej) {
         cockpit.spawn(["bash", "-c", "cat /proc/mdstat"], {err: "message"}).done(res).fail(rej);
@@ -438,6 +569,11 @@ function loadRaid() {
     });
 }
 
+/**
+ * Parse /proc/mdstat output into structured array objects.
+ * @param {string} text - Raw mdstat content
+ * @returns {Array<Object>}
+ */
 function parseMdstat(text) {
     var result = [];
     var lines  = text.split("\n");
@@ -490,6 +626,10 @@ function parseMdstat(text) {
 }
 
 // ── Section A3: Disk Health ───────────────────────────────────────────────
+/**
+ * Load S.M.A.R.T. health status for all disks.
+ * @returns {void}
+ */
 function loadDiskHealth() {
     cockpit.spawn(["bash", "-c",
         "ls /dev/sd? /dev/nvme?n? /dev/vd? 2>/dev/null; true"
@@ -531,6 +671,11 @@ function loadDiskHealth() {
     });
 }
 
+/**
+ * Render disk health badges and table.
+ * @param {Array<Object>} results - Array of disk health check results
+ * @returns {void}
+ */
 function renderDiskHealth(results) {
     var ok = results.filter(function(r){ return r.ok === true; }).length;
     var fail = results.filter(function(r){ return r.ok === false; }).length;
@@ -550,6 +695,10 @@ function renderDiskHealth(results) {
 }
 
 // ── SSD-кеш статус в карточке ДИСКИ ──────────────────────────────────────
+/**
+ * Load SSD cache tier status from config.
+ * @returns {void}
+ */
 function loadSsdCacheStatus() {
     var statusEl = el("ssd-cache-status");
     if (!statusEl) return;
@@ -606,6 +755,10 @@ var SERVICES = [
     { id: "tgt",        label: "iSCSI" },
 ];
 
+/**
+ * Load systemd service statuses for dashboard badges.
+ * @returns {void}
+ */
 function loadServices() {
     var statuses  = {};   // id → true/false
     var dcModes   = {};   // id → true if active via fallback
@@ -614,6 +767,10 @@ function loadServices() {
     // Count total checks needed (some services have a fallback)
     SERVICES.forEach(function(svc) { pending++; if (svc.fallback) pending++; });
 
+    /**
+     * Check Done.
+     * @returns {void}
+     */
     function checkDone() {
         pending--;
         if (pending === 0) renderServices(statuses, dcModes);
@@ -634,6 +791,12 @@ function loadServices() {
     });
 }
 
+/**
+ * Render service status badges on the dashboard.
+ * @param {Object} statuses - Map of service name to active status
+ * @param {Object} dcModes - Data collection mode flags
+ * @returns {void}
+ */
 function renderServices(statuses, dcModes) {
     var html = SERVICES.map(function(svc) {
         var primary  = statuses[svc.id];
@@ -658,6 +821,11 @@ function renderServices(statuses, dcModes) {
 }
 
 // ── Section B1: CPU ───────────────────────────────────────────────────────
+/**
+ * Parse batched CPU/load average output.
+ * @param {string} out - Combined /proc/stat + /proc/loadavg output
+ * @returns {void}
+ */
 function _parseCpuOut(out) {
     var lines = out.trim().split("\n");
     var cpuLine = lines[0]; // cpu  user nice system idle ...
@@ -693,6 +861,10 @@ function _parseCpuOut(out) {
     }
 }
 
+/**
+ * Load CPU usage and render sparkline.
+ * @returns {void}
+ */
 function loadCpu() {
     cockpit.spawn(["bash", "-c",
         "cat /proc/stat | head -1; cat /proc/loadavg; nproc; " +
@@ -701,7 +873,17 @@ function loadCpu() {
 }
 
 // ── Section B2: RAM ───────────────────────────────────────────────────────
+/**
+ * Parse batched /proc/meminfo output.
+ * @param {string} out - Combined meminfo output
+ * @returns {void}
+ */
 function _parseRamOut(out) {
+    /**
+     * Get.
+     * @param {string} key
+     * @returns {string}
+     */
     var get = function(key) {
         var m = out.match(new RegExp(key + ":\\s+(\\d+)"));
         return m ? parseInt(m[1]) * 1024 : 0;
@@ -723,11 +905,21 @@ function _parseRamOut(out) {
     el("swap-detail").textContent = "Swap: " + fmtBytes(swapUsed) + " / " + fmtBytes(swapTotal);
 }
 
+/**
+ * Load RAM usage and render sparkline.
+ * @returns {void}
+ */
 function loadRam() {
     cockpit.spawn(["bash", "-c", "cat /proc/meminfo"], {err: "message"}).done(_parseRamOut);
 }
 
 // ── Section B3: Network ───────────────────────────────────────────────────
+/**
+ * Parse batched /proc/net/dev output for network throughput.
+ * @param {string} out - Raw /proc/net/dev content
+ * @param {number} now - Current timestamp
+ * @returns {void}
+ */
 function _parseNetOut(out, now) {
     var lines = out.trim().split("\n").slice(2);
     var best = null, bestBytes = 0;
@@ -760,12 +952,22 @@ function _parseNetOut(out, now) {
     el("net-tx-val").textContent = fmtSpeed(Math.max(0, txSpeed));
 }
 
+/**
+ * Load network throughput and render sparkline.
+ * @returns {void}
+ */
 function loadNet() {
     cockpit.spawn(["bash", "-c", "cat /proc/net/dev"], {err: "message"})
     .done(function(out) { _parseNetOut(out, Date.now()); });
 }
 
 // ── Section C: Disk I/O ───────────────────────────────────────────────────
+/**
+ * Parse batched /proc/diskstats output for disk I/O.
+ * @param {string} out - Raw /proc/diskstats content
+ * @param {number} now - Current timestamp
+ * @returns {void}
+ */
 function _parseDiskOut(out, now) {
     var lines = out.trim().split("\n");
     var totalR = 0, totalW = 0;
@@ -822,12 +1024,20 @@ function _parseDiskOut(out, now) {
     }
 }
 
+/**
+ * Load disk I/O stats and render sparkline.
+ * @returns {void}
+ */
 function loadDiskIO() {
     cockpit.spawn(["bash", "-c", "cat /proc/diskstats"], {err: "message"})
     .done(function(out) { _parseDiskOut(out, Date.now()); });
 }
 
 // ── Section D1: Events ────────────────────────────────────────────────────
+/**
+ * Load recent system events for the dashboard widget.
+ * @returns {void}
+ */
 function loadEvents() {
     cockpit.spawn(["bash", "-c",
         "journalctl -n 12 --no-pager -o short-iso -q 2>/dev/null | tail -n 12"
@@ -856,11 +1066,20 @@ function loadEvents() {
     });
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 // ── Section D2: Snapshots ─────────────────────────────────────────────────
+/**
+ * Load snapshot summary for the dashboard widget.
+ * @returns {void}
+ */
 function loadSnapshots() {
     // Get active schedule paths first, then cross-reference with storage-info
     var schedP = new Promise(function(resolve) {
@@ -935,6 +1154,10 @@ function loadSnapshots() {
 // ── Section E: Guard ──────────────────────────────────────────────────────
 var guardPollFast = false;
 
+/**
+ * Load Guard daemon status for the dashboard widget.
+ * @returns {void}
+ */
 function loadGuard() {
     cockpit.spawn(["bash", "-c", "cat /run/rusnas-guard/state.json 2>/dev/null || echo null"],
         {err: "message"})
@@ -1011,6 +1234,10 @@ function loadGuard() {
     .fail(function() { renderGuardNotInstalled(); });
 }
 
+/**
+ * Render Guard 'not installed' state on dashboard.
+ * @returns {void}
+ */
 function renderGuardNotInstalled() {
     el("card-guard").className = "db-card";
     el("guard-status-dot").className = "db-status-dot db-dot-gray";
@@ -1022,6 +1249,10 @@ function renderGuardNotInstalled() {
     el("guard-post-attack-banner").className = "db-post-attack hidden";
 }
 
+/**
+ * Render Guard 'stopped' state on dashboard.
+ * @returns {void}
+ */
 function renderGuardStopped() {
     el("card-guard").className = "db-card";
     el("guard-status-dot").className = "db-status-dot db-dot-gray";
@@ -1031,6 +1262,12 @@ function renderGuardStopped() {
     el("guard-stats").className = "db-guard-stats hidden";
 }
 
+/**
+ * Check if a timestamp is within a given age threshold.
+ * @param {number} ts - Unix timestamp to check
+ * @param {number} maxAgeSec - Maximum age in seconds
+ * @returns {boolean}
+ */
 function isRecentEvent(ts, maxAgeSec) {
     try {
         var d = new Date(ts);
@@ -1040,6 +1277,10 @@ function isRecentEvent(ts, maxAgeSec) {
 
 // ── UPS Status ────────────────────────────────────────────────────────────
 
+/**
+ * Load UPS status for the dashboard widget.
+ * @returns {void}
+ */
 function loadUpsStatus() {
     // Read UPS name from config first
     cockpit.file("/etc/nut/ups.conf").read()
@@ -1056,6 +1297,11 @@ function loadUpsStatus() {
     });
 }
 
+/**
+ * Fetch UPS status for dashboard display.
+ * @param {string} upsName - UPS device name
+ * @returns {void}
+ */
 function fetchDashUpsStatus(upsName) {
     cockpit.spawn(["sudo", "-n", "upsc", "-j", upsName + "@localhost"],
         {err: "message"})
@@ -1078,6 +1324,11 @@ function fetchDashUpsStatus(upsName) {
     });
 }
 
+/**
+ * Render UPS status card on the dashboard.
+ * @param {Object} data - UPS variable map from upsc
+ * @returns {void}
+ */
 function renderDashUps(data) {
     var status = data["ups.status"] || "";
     var flags = status.split(" ");
@@ -1125,6 +1376,10 @@ function renderDashUps(data) {
     el("db-ups-nodev").classList.add("hidden");
 }
 
+/**
+ * Render UPS 'no device' state on the dashboard.
+ * @returns {void}
+ */
 function renderUpsNoDevice() {
     el("card-ups").className = "db-card";
     el("ups-status-dot").className = "db-status-dot db-dot-gray";
@@ -1135,6 +1390,10 @@ function renderUpsNoDevice() {
 }
 
 // ── FileBrowser Status ────────────────────────────────────────────────────
+/**
+ * Load FileBrowser status for the dashboard widget.
+ * @returns {void}
+ */
 function loadFbDashStatus() {
     cockpit.spawn(["bash", "-c", "systemctl is-active rusnas-filebrowser 2>/dev/null || echo inactive"],
         { err: "message" })
@@ -1158,16 +1417,30 @@ function loadFbDashStatus() {
 }
 
 // ── Alert Banner ──────────────────────────────────────────────────────────
+/**
+ * Show a persistent alert banner at the top of the dashboard.
+ * @param {string} msg - Alert message
+ * @param {string} cls - CSS class for styling
+ * @returns {void}
+ */
 function showAlertBanner(msg, cls) {
     var b = el("db-alert-banner");
     b.textContent = msg;
     b.className = "db-alert-banner " + cls;
 }
+/**
+ * Hide the dashboard alert banner.
+ * @returns {void}
+ */
 function hideAlertBanner() {
     el("db-alert-banner").className = "db-alert-banner hidden";
 }
 
 // ── Metrics Endpoint ──────────────────────────────────────────────────────
+/**
+ * Initialize the metrics block with click-to-expand CPU modal.
+ * @returns {void}
+ */
 function initMetricsBlock() {
     var host = window.location.hostname;
     var promUrl = "http://" + host + ":9100/metrics";
@@ -1217,6 +1490,10 @@ window.closeCpuModal = function() {
     _cmInterval = null;
 };
 
+/**
+ * Refresh CPU details in the expanded CPU modal.
+ * @returns {void}
+ */
 function refreshCpuModal() {
     cockpit.spawn(["bash", "-c",
         "cat /proc/stat; echo '===S==='; " +
@@ -1227,12 +1504,25 @@ function refreshCpuModal() {
     ], { err: "message" }).done(renderCpuModal);
 }
 
+/**
+ * Get color for CPU usage bar based on percentage.
+ * @param {number} pct - CPU usage percentage
+ * @returns {string}
+ */
 function _cpuBarColor(pct) {
     if (pct >= 80) return "#ef4444";
     if (pct >= 60) return "#f59e0b";
     return "#22c55e";
 }
 
+/**
+ * Build HTML for a labeled progress bar (CPU modal).
+ * @param {string} label - Bar label
+ * @param {number} pct - Percentage value
+ * @param {string} color - Bar color
+ * @param {string} sub - Subtitle text
+ * @returns {string}
+ */
 function cmBar(label, pct, color, sub) {
     var cls = pct >= 80 ? "db-crit" : pct >= 60 ? "db-warn" : "db-ok";
     return '<div class="cm-bar-row">' +
@@ -1243,6 +1533,11 @@ function cmBar(label, pct, color, sub) {
         '</div>';
 }
 
+/**
+ * Render detailed CPU per-core info in the modal.
+ * @param {string} out - Raw /proc/stat output
+ * @returns {void}
+ */
 function renderCpuModal(out) {
     var parts = out.split("===S===\n");
     if (parts.length < 5) return;
@@ -1282,6 +1577,11 @@ function renderCpuModal(out) {
     }).join("");
 
     // Memory
+    /**
+     * Get M.
+     * @param {*} k
+     * @returns {string}
+     */
     var getM = function(k) {
         var m = memText.match(new RegExp(k + ":\\s+(\\d+)"));
         return m ? parseInt(m[1]) * 1024 : 0;
@@ -1326,6 +1626,10 @@ function renderCpuModal(out) {
 }
 
 // ── Tick loops ────────────────────────────────────────────────────────────
+/**
+ * Execute all fast-refresh metrics (2-second interval).
+ * @returns {void}
+ */
 function tickFast() {
     updateDateTime();
     loadFastMetrics();
@@ -1333,6 +1637,10 @@ function tickFast() {
 }
 
 // ── Batched fast metrics — 4 /proc reads in ONE spawn (75% fewer processes) ──
+/**
+ * Load CPU, RAM, network, and disk I/O via single batched spawn.
+ * @returns {void}
+ */
 function loadFastMetrics() {
     var now = Date.now();
     cockpit.spawn(["bash", "-c",
@@ -1352,24 +1660,44 @@ function loadFastMetrics() {
     });
 }
 
+/**
+ * Refresh storage volume cards (60-second interval).
+ * @returns {void}
+ */
 function tickStorage() {
     loadStorage();
     loadRaid();
     loadServices();
 }
 
+/**
+ * Refresh S.M.A.R.T. disk health (60-second interval).
+ * @returns {void}
+ */
 function tickSmart() {
     loadDiskHealth();
 }
 
+/**
+ * Refresh system events widget (30-second interval).
+ * @returns {void}
+ */
 function tickEvents() {
     loadEvents();
 }
 
+/**
+ * Refresh snapshot widget (60-second interval).
+ * @returns {void}
+ */
 function tickSnaps() {
     loadSnapshots();
 }
 
+/**
+ * Refresh Guard status widget (10-second interval).
+ * @returns {void}
+ */
 function tickGuard() {
     if (!guardPollFast) loadGuard();
 }
@@ -1397,6 +1725,10 @@ window.closeNetModal = function() {
     _nmInterval = null;
 };
 
+/**
+ * Refresh the live network traffic stats section.
+ * @returns {void}
+ */
 function refreshNetLive() {
     // Re-use the values already shown in the mini card
     var rxVal = el("net-rx-val") ? el("net-rx-val").textContent : "—";
@@ -1407,6 +1739,10 @@ function refreshNetLive() {
     if (el("nm-iface-name")) el("nm-iface-name").textContent = iface;
 }
 
+/**
+ * Load vnStat traffic statistics data.
+ * @returns {void}
+ */
 function loadVnstat() {
     var now = Date.now();
     if (_nmVnstatData && (now - _vnstatLastFetch) < VNSTAT_CACHE_MS) {
@@ -1429,6 +1765,11 @@ function loadVnstat() {
         });
 }
 
+/**
+ * Render vnStat traffic charts and tables.
+ * @param {Object} data - Parsed vnStat JSON data
+ * @returns {void}
+ */
 function renderVnstat(data) {
     if (!data || !data.interfaces || !data.interfaces.length) {
         el("nm-chart-7d").innerHTML = '<span class="text-muted" style="font-size:12px">Нет данных</span>';
@@ -1511,6 +1852,13 @@ function renderVnstat(data) {
     }
 }
 
+/**
+ * Render a horizontal bar chart for network metrics.
+ * @param {string} containerId - Container element ID
+ * @param {Array<Object>} items - Data items to chart
+ * @param {Function} labelFn - Function to generate bar labels
+ * @returns {void}
+ */
 function renderNmBarChart(containerId, items, labelFn) {
     var container = el(containerId);
     if (!container || !items || !items.length) return;
@@ -1536,7 +1884,17 @@ function renderNmBarChart(containerId, items, labelFn) {
         return;
     }
 
+    /**
+     * Scale Y.
+     * @param {*} v
+     * @returns {void}
+     */
     var scaleY = function(v) { return innerH - (v / maxVal) * innerH; };
+    /**
+     * Bar H.
+     * @param {*} v
+     * @returns {void}
+     */
     var barH   = function(v) { return (v / maxVal) * innerH; };
 
     var svgParts = ['<svg width="100%" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible">'];
@@ -1577,6 +1935,10 @@ function renderNmBarChart(containerId, items, labelFn) {
 // ── Init ──────────────────────────────────────────────────────────────────
 var DB_CONTAINERS_CGI = "/usr/lib/rusnas/cgi/container_api.py";
 
+/**
+ * Load container apps status for the dashboard widget.
+ * @returns {void}
+ */
 function loadContainersWidget() {
     var el = document.getElementById("db-containers-card");
     if (!el) return;
@@ -1706,11 +2068,19 @@ document.addEventListener("DOMContentLoaded", function() {
 var NR_HOURS = 8;
 var _nrData  = null;
 
+/**
+ * Check if Night Report should be displayed based on time of day.
+ * @returns {boolean}
+ */
 function shouldShowNightReport() {
     var hour = new Date().getHours();
     return hour >= 5 && hour <= 18;  // show in working hours, hide overnight
 }
 
+/**
+ * Initialize the Night Report widget on the dashboard.
+ * @returns {void}
+ */
 function initNightReport() {
     var widget = document.getElementById("night-report");
     if (!widget) return;
@@ -1719,6 +2089,11 @@ function initNightReport() {
     var now     = new Date();
     var fromTs  = Date.now() - NR_HOURS * 3600000;
     var fromDate = new Date(fromTs);
+    /**
+     * Pad.
+     * @param {number} n
+     * @returns {void}
+     */
     var pad = function(n) { return String(n).padStart(2, "0"); };
 
     el("nr-period").textContent =
@@ -1747,6 +2122,10 @@ function initNightReport() {
     });
 }
 
+/**
+ * Collect all data and refresh the Night Report display.
+ * @returns {void}
+ */
 function refreshNightReport() {
     var widget = document.getElementById("night-report");
     if (widget) { widget.style.opacity = "0.5"; widget.style.transition = "opacity 0.2s"; }
@@ -1758,6 +2137,11 @@ function refreshNightReport() {
 
 // ── Data collectors ───────────────────────────────────────────────────────────
 
+/**
+ * Collect snapshot data for Night Report.
+ * @param {number} fromTs - Start timestamp for data collection
+ * @returns {Promise<Object>}
+ */
 function nrCollectSnapshots(fromTs) {
     // Read snapshot events from rusnas-snap events, filter by time
     return new Promise(function(res) {
@@ -1783,6 +2167,11 @@ function nrCollectSnapshots(fromTs) {
     });
 }
 
+/**
+ * Collect Guard events for Night Report.
+ * @param {number} fromTs - Start timestamp for data collection
+ * @returns {Promise<Object>}
+ */
 function nrCollectGuard(fromTs) {
     return new Promise(function(res) {
         cockpit.spawn(["sudo", "-n", "tail", "-n", "500", "/var/log/rusnas-guard/events.jsonl"], {err: "message"})
@@ -1806,6 +2195,10 @@ function nrCollectGuard(fromTs) {
     });
 }
 
+/**
+ * Collect storage metrics for Night Report.
+ * @returns {Promise<Object>}
+ */
 function nrCollectStorage() {
     return new Promise(function(res) {
         cockpit.spawn(["df", "--output=target,used,avail", "-BM", "-t", "btrfs"], {err: "message"})
@@ -1824,6 +2217,10 @@ function nrCollectStorage() {
     });
 }
 
+/**
+ * Collect dedup run data for Night Report.
+ * @returns {Promise<Object>}
+ */
 function nrCollectDedup() {
     return new Promise(function(res) {
         cockpit.spawn(["cat", "/var/lib/rusnas/dedup-last.json"], {err: "message"})
@@ -1841,6 +2238,10 @@ function nrCollectDedup() {
     });
 }
 
+/**
+ * Collect S.M.A.R.T. alerts for Night Report.
+ * @returns {Promise<Object>}
+ */
 function nrCollectSmartAlerts() {
     return new Promise(function(res) {
         cockpit.spawn(["bash", "-c",
@@ -1877,6 +2278,11 @@ function nrCollectSmartAlerts() {
 
 // ── Render functions ──────────────────────────────────────────────────────────
 
+/**
+ * Render the complete Night Report from collected data.
+ * @param {Object} data - Aggregated Night Report data
+ * @returns {void}
+ */
 function nrRender(data) {
     nrRenderSummary(data);
     nrRenderStatus(data);
@@ -1887,6 +2293,14 @@ function nrRender(data) {
     nrRenderStorage(data.storage, data.smart);
 }
 
+/**
+ * Set a Night Report stat card value.
+ * @param {string} id - Stat element ID suffix
+ * @param {string} value - Display value
+ * @param {string} sub - Subtitle text
+ * @param {string} colorClass - CSS class for coloring
+ * @returns {void}
+ */
 function nrSetStat(id, value, sub, colorClass) {
     var valEl = document.getElementById("nrv-" + id);
     var subEl = document.getElementById("nrs-" + id + "-sub");
@@ -1894,6 +2308,11 @@ function nrSetStat(id, value, sub, colorClass) {
     if (subEl) subEl.textContent = sub || "";
 }
 
+/**
+ * Calculate overall health score (0-100) for Night Report.
+ * @param {Object} data - Aggregated Night Report data
+ * @returns {number}
+ */
 function nrCalcHealth(data) {
     var score = 100;
     if (data.guard) {
@@ -1906,6 +2325,11 @@ function nrCalcHealth(data) {
     return Math.max(0, Math.min(100, score));
 }
 
+/**
+ * Render the Night Report summary header.
+ * @param {Object} data - Aggregated Night Report data
+ * @returns {void}
+ */
 function nrRenderSummary(data) {
     var snap = data.snapshots;
     var guard = data.guard;
@@ -1938,6 +2362,11 @@ function nrRenderSummary(data) {
         score >= 90 ? "nr-v-green" : score >= 70 ? "nr-v-amber" : "nr-v-red");
 }
 
+/**
+ * Render Night Report status indicator.
+ * @param {Object} data - Aggregated Night Report data
+ * @returns {void}
+ */
 function nrRenderStatus(data) {
     var guard = data.guard;
     var smart = data.smart;
@@ -1953,6 +2382,11 @@ function nrRenderStatus(data) {
         "<span class='nr-status-dot'></span><span>" + label + "</span></div>";
 }
 
+/**
+ * Render Night Report events section.
+ * @param {Object} data - Aggregated Night Report data
+ * @returns {void}
+ */
 function nrRenderEvents(data) {
     var container = el("nr-events");
     if (!container) return;
@@ -1991,6 +2425,11 @@ function nrRenderEvents(data) {
     }).join("");
 }
 
+/**
+ * Render Night Report Guard section.
+ * @param {Object} guard - Guard events data
+ * @returns {void}
+ */
 function nrRenderGuard(guard) {
     var container = el("nr-guard-block");
     if (!container) return;
@@ -2009,6 +2448,11 @@ function nrRenderGuard(guard) {
         "</div>";
 }
 
+/**
+ * Render Night Report snapshots section.
+ * @param {Object} snapshots - Snapshot data
+ * @returns {void}
+ */
 function nrRenderSnaps(snapshots) {
     var container = el("nr-snaps");
     if (!container) return;
@@ -2026,6 +2470,11 @@ function nrRenderSnaps(snapshots) {
     "Всего: <span style='color:#3b82f6'>" + snapshots.count + " снэпшотов</span></div>";
 }
 
+/**
+ * Render Night Report dedup section.
+ * @param {Object} dedup - Dedup run data
+ * @returns {void}
+ */
 function nrRenderDedup(dedup) {
     var container = el("nr-dedup-list");
     if (!container) return;
@@ -2044,6 +2493,12 @@ function nrRenderDedup(dedup) {
     }).join("");
 }
 
+/**
+ * Render Night Report storage and S.M.A.R.T. section.
+ * @param {Object} storage - Storage metrics
+ * @param {Object} smart - S.M.A.R.T. health data
+ * @returns {void}
+ */
 function nrRenderStorage(storage, smart) {
     var changesEl = el("nr-storage-changes");
     var alertsEl  = el("nr-alerts-block");

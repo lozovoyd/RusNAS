@@ -4,12 +4,23 @@
 const CONTAINER_CGI = "/usr/lib/rusnas/cgi/container_api.py";
 
 /* ── helpers ───────────────────────────────────────────────── */
+/**
+ * Escape HTML special characters.
+ * @param {string} s - Raw string
+ * @returns {string}
+ */
 function _esc(s) {
     return String(s || "")
         .replace(/&/g,"&amp;").replace(/</g,"&lt;")
         .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
+/**
+ * Execute a container CGI command via cockpit.spawn.
+ * @param {string} cmd - CGI command name
+ * @param {Array<string>} args - Command arguments
+ * @returns {Promise<Object>}
+ */
 function cgiCall(cmd, args) {
     args = args || [];
     return new Promise(function(resolve, reject) {
@@ -27,6 +38,11 @@ function cgiCall(cmd, args) {
 }
 
 /* App icon SVG by category */
+/**
+ * Get SVG icon markup for an app category.
+ * @param {string} category - App category name
+ * @returns {string}
+ */
 function _appIconSvg(category) {
     var icons = {
         cloud: '<path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z"/>',
@@ -53,6 +69,11 @@ var _volumes = [];
 var _installForce = false;
 
 /* ── tab switching ─────────────────────────────────────────── */
+/**
+ * Switch between catalog/installed/stats tabs.
+ * @param {string} tabName - Tab name to activate
+ * @returns {void}
+ */
 function switchTab(tabName) {
     document.querySelectorAll(".tab-content").forEach(function(el) {
         el.style.display = "none";
@@ -73,6 +94,10 @@ document.querySelectorAll("#containers-tabs .advisor-tab-btn[data-tab]").forEach
 });
 
 /* ── catalog ───────────────────────────────────────────────── */
+/**
+ * Load application catalog from the CGI backend.
+ * @returns {Promise<Object>}
+ */
 function loadCatalog() {
     return new Promise(function(resolve, reject) {
         Promise.all([
@@ -95,6 +120,11 @@ function loadCatalog() {
     });
 }
 
+/**
+ * Render the app catalog grid with install/manage buttons.
+ * @param {Object} cat - Catalog data with apps array
+ * @returns {void}
+ */
 function renderCatalog(cat) {
     _currentCat = cat;
     var grid = document.getElementById("catalog-grid");
@@ -157,6 +187,11 @@ document.querySelectorAll(".cat-filter-btn").forEach(function(btn) {
 });
 
 /* ── install modal ─────────────────────────────────────────── */
+/**
+ * Open the app installation modal with preflight resource checks.
+ * @param {string} appId - Application identifier
+ * @returns {void}
+ */
 function openInstallModal(appId) {
     _installAppId = appId;
     var app = _catalogApps.find(function(a) { return a.id === appId; });
@@ -227,6 +262,10 @@ function openInstallModal(appId) {
     document.querySelectorAll(".port-check-input").forEach(function(input) {
         var statusEl = document.getElementById(input.id + "-status");
         var timer = null;
+        /**
+         * Check if a port is available for container binding.
+         * @returns {void}
+         */
         function checkPort() {
             var port = parseInt(input.value, 10);
             if (!port || port < 1024 || port > 65535) return;
@@ -301,6 +340,10 @@ function openInstallModal(appId) {
     }
 }
 
+/**
+ * Generate a random secure password for app installation.
+ * @returns {string}
+ */
 function _generatePassword() {
     var chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
     var result = "";
@@ -321,6 +364,10 @@ document.getElementById("install-confirm-btn").addEventListener("click", functio
     doInstall();
 });
 
+/**
+ * Execute container app installation via podman-compose.
+ * @returns {void}
+ */
 function doInstall() {
     var app = _catalogApps.find(function(a) { return a.id === _installAppId; });
     if (!app) return;
@@ -427,6 +474,12 @@ function doInstall() {
     });
 }
 
+/**
+ * Display installation result with connection URL and credentials.
+ * @param {Object} app - App manifest data
+ * @param {Object} result - Install result from CGI
+ * @returns {void}
+ */
 function showInstallResult(app, result) {
     var name = typeof app.name === "object" ? (app.name.ru || app.id) : app.id;
     document.getElementById("install-progress-area").style.display = "none";
@@ -494,6 +547,10 @@ function showInstallResult(app, result) {
 }
 
 /* ── installed ─────────────────────────────────────────────── */
+/**
+ * Load list of installed container apps.
+ * @returns {void}
+ */
 function loadInstalled() {
     cgiCall("list_installed").then(function(r) {
         _installedApps = {};
@@ -507,6 +564,11 @@ function loadInstalled() {
     });
 }
 
+/**
+ * Render the installed apps grid with action buttons.
+ * @param {Array<Object>} apps - Array of installed app objects
+ * @returns {void}
+ */
 function renderInstalled(apps) {
     var list = document.getElementById("installed-list");
     var empty = document.getElementById("installed-empty");
@@ -582,6 +644,10 @@ function renderInstalled(apps) {
     });
 }
 
+/**
+ * Update the installed tab badge count.
+ * @returns {void}
+ */
 function updateInstalledBadge() {
     var count = Object.keys(_installedApps).length;
     var badge = document.getElementById("installed-count-badge");
@@ -594,10 +660,21 @@ function updateInstalledBadge() {
     }
 }
 
+/**
+ * Get localized label for a container action.
+ * @param {string} action - Action name (start|stop|restart)
+ * @returns {string}
+ */
 function _actionLabel(action) {
     return action === "start" ? "Запустить" : action === "stop" ? "Стоп" : "Перезапуск";
 }
 
+/**
+ * Show a temporary toast notification.
+ * @param {string} msg - Toast message
+ * @param {string} type - Toast type (success|error|info)
+ * @returns {void}
+ */
 function showToast(msg, type) {
     var t = document.createElement("div");
     t.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 16px;" +
@@ -608,6 +685,12 @@ function showToast(msg, type) {
     setTimeout(function() { t.remove(); }, 3500);
 }
 
+/**
+ * Execute a container action (start/stop/restart).
+ * @param {string} action - Action to perform
+ * @param {string} appId - Application identifier
+ * @returns {void}
+ */
 function appAction(action, appId) {
     // Disable button immediately for feedback
     var btn = document.querySelector('.app-action-btn[data-action="' + action + '"][data-appid="' + appId + '"]');
@@ -627,6 +710,12 @@ function appAction(action, appId) {
     });
 }
 
+/**
+ * Show uninstall confirmation dialog for an app.
+ * @param {string} appId - Application identifier
+ * @param {string} name - Application display name
+ * @returns {void}
+ */
 function confirmUninstall(appId, name) {
     if (!confirm("Удалить " + name + "?\n\nОстановить контейнеры и удалить конфигурацию?")) return;
     var keepData = confirm("Сохранить данные приложения на диске?");
@@ -643,6 +732,10 @@ function confirmUninstall(appId, name) {
 }
 
 /* Stats polling */
+/**
+ * Start polling container resource stats every 5 seconds.
+ * @returns {void}
+ */
 function startStatsPolling() {
     if (_statsTimer) clearInterval(_statsTimer);
     _statsTimer = setInterval(function() {
@@ -666,6 +759,11 @@ function startStatsPolling() {
 }
 
 /* Logs modal */
+/**
+ * Open the container logs modal for an app.
+ * @param {string} appId - Application identifier
+ * @returns {void}
+ */
 function openLogs(appId) {
     var name = (_installedApps[appId] || {}).name;
     if (typeof name === "object") name = name.ru || appId;
@@ -789,6 +887,11 @@ fileInput.addEventListener("change", function() {
     if (fileInput.files[0]) readComposeFile(fileInput.files[0]);
 });
 
+/**
+ * Read a docker-compose file and display in a modal.
+ * @param {string} file - Path to compose file
+ * @returns {void}
+ */
 function readComposeFile(file) {
     var reader = new FileReader();
     reader.onload = function(e) {

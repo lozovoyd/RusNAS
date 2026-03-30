@@ -27,10 +27,18 @@ var PAGE_LABELS = {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
+/**
+ * Check if openEYE agent is enabled via localStorage.
+ * @returns {boolean}
+ */
 function isEnabled() {
     return localStorage.getItem(EYE_ENABLED_KEY) === "true";
 }
 
+/**
+ * Get human-readable page name from current URL path.
+ * @returns {string}
+ */
 function getPageName() {
     var path = window.location.pathname;
     var match = path.match(/\/([^\/]+)\.html/);
@@ -38,6 +46,10 @@ function getPageName() {
     return PAGE_LABELS[key] || key;
 }
 
+/**
+ * Get AI provider credentials from localStorage.
+ * @returns {Object}
+ */
 function getProviderCreds() {
     var provider = localStorage.getItem("rusnas_ai_provider") || "yandex";
     if (provider === "yandex") {
@@ -58,6 +70,10 @@ function getProviderCreds() {
 
 // ── Text extraction ───────────────────────────────────────────────────────────
 
+/**
+ * Extract visible text content from the current page (max 5000 chars).
+ * @returns {string}
+ */
 function extractPageText() {
     // Prefer .page-wrap (rusNAS standard content container)
     var root = document.querySelector(".page-wrap") || document.body;
@@ -71,6 +87,13 @@ function extractPageText() {
 
 // ── AI call via mcp-api.py proxy ──────────────────────────────────────────────
 
+/**
+ * Send page text to AI provider via mcp-api.py proxy for analysis.
+ * @param {string} pageText - Extracted page text content
+ * @param {string} pageName - Human-readable page name
+ * @param {Function} callback - Callback(findings, error) with results
+ * @returns {void}
+ */
 function callAI(pageText, pageName, callback) {
     var creds = getProviderCreds();
     if (!creds.key) {
@@ -136,6 +159,11 @@ function callAI(pageText, pageName, callback) {
 
 // ── Parse AI findings ─────────────────────────────────────────────────────────
 
+/**
+ * Parse AI response text into structured findings array.
+ * @param {string} text - Raw AI response text (may contain JSON or markdown)
+ * @returns {Array<Object>}
+ */
 function parseFindings(text) {
     // Strip possible markdown code fences
     var clean = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
@@ -173,6 +201,10 @@ var _userDismissed = false; // true after user manually closes — suppresses au
 
 var EYE_OPEN_KEY = "openeye-open"; // localStorage key for panel open state
 
+/**
+ * Build and inject the openEYE floating panel and FAB button into the DOM.
+ * @returns {void}
+ */
 function buildPanel() {
     if (document.getElementById("eye-panel")) return; // already exists
 
@@ -228,6 +260,10 @@ function buildPanel() {
     });
 }
 
+/**
+ * Show the openEYE analysis panel.
+ * @returns {void}
+ */
 function openPanel() {
     var panel = document.getElementById("eye-panel");
     if (!panel) return;
@@ -235,6 +271,10 @@ function openPanel() {
     _panelOpen = true;
 }
 
+/**
+ * Hide the openEYE analysis panel.
+ * @returns {void}
+ */
 function closePanel() {
     var panel = document.getElementById("eye-panel");
     if (!panel) return;
@@ -247,6 +287,12 @@ function closePanel() {
 var LEVEL_ICONS = { critical: "🔴", warning: "🟡", info: "🔵", ok: "🟢" };
 var LEVEL_NAMES = { critical: "Критично", warning: "Предупреждения", info: "Информация", ok: "Норма" };
 
+/**
+ * Update the status indicator dot and text in the panel header.
+ * @param {string} state - CSS class for the status dot (analyzing|done|error)
+ * @param {string} text - Status text to display
+ * @returns {void}
+ */
 function setStatus(state, text) {
     var dot  = document.getElementById("eye-status-dot");
     var span = document.getElementById("eye-status-text");
@@ -254,6 +300,10 @@ function setStatus(state, text) {
     if (span) span.textContent = text;
 }
 
+/**
+ * Set the panel to loading/analyzing state with spinner.
+ * @returns {void}
+ */
 function setLoading() {
     setStatus("analyzing", "Анализирую...");
     var fab = document.getElementById("eye-fab");
@@ -268,6 +318,11 @@ function setLoading() {
     if (btn) btn.disabled = true;
 }
 
+/**
+ * Render AI analysis findings grouped by severity level.
+ * @param {Array<Object>} findings - Array of {level, text} finding objects
+ * @returns {void}
+ */
 function renderFindings(findings) {
     setStatus("done", "Анализ завершён");
     var fab = document.getElementById("eye-fab");
@@ -307,6 +362,11 @@ function renderFindings(findings) {
     body.innerHTML = html;
 }
 
+/**
+ * Render an error message in the panel body.
+ * @param {string} msg - Error message to display
+ * @returns {void}
+ */
 function renderError(msg) {
     setStatus("error", "Ошибка");
     var fab = document.getElementById("eye-fab");
@@ -321,6 +381,11 @@ function renderError(msg) {
         '</div>';
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s)
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -329,6 +394,10 @@ function escHtml(s) {
 
 // ── Main analysis ─────────────────────────────────────────────────────────────
 
+/**
+ * Run the full AI analysis cycle: extract text, call AI, render results.
+ * @returns {void}
+ */
 function runAnalysis() {
     var pageName = getPageName();
     var pageEl   = document.getElementById("eye-panel-page");

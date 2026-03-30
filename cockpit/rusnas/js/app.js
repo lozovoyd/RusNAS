@@ -1,15 +1,31 @@
 // ─── Modal helpers ───────────────────────────────────────────────────────────
 
+/**
+ * Show a modal dialog.
+ * @param {string} id - Modal element ID
+ * @returns {void}
+ */
 function showModal(id) {
     document.getElementById(id).classList.remove("hidden");
 }
 
+/**
+ * Hide a modal dialog.
+ * @param {string} id - Modal element ID
+ * @returns {void}
+ */
 function closeModal(id) {
     document.getElementById(id).classList.add("hidden");
 }
 
 // ─── FileBrowser URL helper ───────────────────────────────────────────────────
 
+/**
+ * Build FileBrowser URL with optional path and sort parameters.
+ * @param {string} path - File path to open
+ * @param {Object} options - URL options {sort, order}
+ * @returns {string}
+ */
 function getFileBrowserUrl(path, options) {
     var base = window.location.protocol + '//' + window.location.hostname + '/files/';
     var params = new URLSearchParams();
@@ -24,6 +40,11 @@ function getFileBrowserUrl(path, options) {
 var SKIP_TARGETS = /^(\/boot|\/sys|\/proc|\/dev|\/run|\/snap|\/efi)(\/|$)/;
 var SKIP_FSTYPES = /tmpfs|devtmpfs|sysfs|proc|cgroup|pstore|efivarfs|hugetlbfs|mqueue|debugfs|tracefs|configfs|fusectl|bpf/;
 
+/**
+ * List Btrfs subvolumes for a mount point.
+ * @param {string} mountPoint - Btrfs mount point path
+ * @returns {Promise<Object>}
+ */
 function spawnBtrfsSubvols(mountPoint) {
     return new Promise(function(resolve) {
         var proc = cockpit.spawn(
@@ -46,6 +67,12 @@ function spawnBtrfsSubvols(mountPoint) {
 }
 
 // Populate volume <select> element(s). targetId — optional specific select ID to populate.
+/**
+ * Populate volume select elements with mounted volumes and Btrfs subvolumes.
+ * @param {Function} callback - Callback with first volume target
+ * @param {string} targetId - Optional select element ID (default 'sm-volume')
+ * @returns {void}
+ */
 function loadVolumeSelects(callback, targetId) {
     var selIds = targetId ? [targetId] : ["sm-volume"];
     var proc = cockpit.spawn(["findmnt", "-rno", "TARGET,SOURCE,FSTYPE,SIZE"], { err: "message" });
@@ -110,6 +137,14 @@ function loadVolumeSelects(callback, targetId) {
 
 // ─── Populate owner/group selects ────────────────────────────────────────────
 
+/**
+ * Populate owner and group select dropdowns.
+ * @param {string} userSelId - User select element ID
+ * @param {string} groupSelId - Group select element ID
+ * @param {string} currentUser - Currently selected user
+ * @param {string} currentGroup - Currently selected group
+ * @returns {void}
+ */
 function populateOwnerSelects(userSelId, groupSelId, currentUser, currentGroup) {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 && $1!=\"nobody\" {print $1}' /etc/passwd"],
@@ -138,6 +173,12 @@ function populateOwnerSelects(userSelId, groupSelId, currentUser, currentGroup) 
     });
 }
 
+/**
+ * Populate a container with user checkboxes for NFS access.
+ * @param {string} containerId - Container element ID
+ * @param {Array<string>} selectedUsers - Pre-selected usernames
+ * @returns {void}
+ */
 function populateUserCheckboxes(containerId, selectedUsers) {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 && $1!=\"nobody\" {print $1}' /etc/passwd"],
@@ -161,6 +202,10 @@ function populateUserCheckboxes(containerId, selectedUsers) {
 
 var _tabsLoaded = {};
 
+/**
+ * Initialize storage page tab switching (Shares/iSCSI/WORM/Services).
+ * @returns {void}
+ */
 function setupStorageTabs() {
     var tabPanels = ["shares", "iscsi", "worm", "services", "filebrowser"];
     document.querySelectorAll("#storage-tabs .advisor-tab-btn").forEach(function(btn) {
@@ -193,6 +238,10 @@ function setupStorageTabs() {
 
 // ─── Unified Share Modal Tabs ─────────────────────────────────────────────────
 
+/**
+ * Initialize tab switching within the share creation/edit modal.
+ * @returns {void}
+ */
 function setupShareModalTabs() {
     document.querySelectorAll("#share-modal .tab-btn").forEach(function(btn) {
         btn.addEventListener("click", function() {
@@ -241,6 +290,10 @@ function setupShareModalTabs() {
 
 // ─── Service Status Bar ───────────────────────────────────────────────────────
 
+/**
+ * Load SMB and NFS service status badges.
+ * @returns {void}
+ */
 function loadServiceStatus() {
     cockpit.spawn(["bash", "-c",
         "systemctl is-active smbd 2>/dev/null || echo inactive; echo '---';" +
@@ -259,6 +312,10 @@ function loadServiceStatus() {
 
 // ─── Parse SMB config (returns Promise<SmbShare[]>) ──────────────────────────
 
+/**
+ * Parse smb.conf into structured share objects via testparm.
+ * @returns {Promise<Array<Object>>}
+ */
 function parseSmbConf() {
     return new Promise(function(resolve) {
         var cmd = "python3 -c \"\nimport subprocess\nout=subprocess.check_output(['testparm','-s'],stderr=subprocess.DEVNULL,text=True)\nshare=None\nskip={'global','homes','printers','print$'}\ndata={}\nfor line in out.splitlines():\n  line=line.strip()\n  if line.startswith('['):\n    name=line.strip('[]')\n    share=name if name not in skip else None\n    if share: data[share]={'name':share}\n  elif share and '=' in line:\n    k,v=line.split('=',1)\n    data[share][k.strip().replace(' ','_')]=v.strip()\nfor n,s in data.items():\n  print(n+'\\\\t'+s.get('path','')+'\\\\t'+s.get('guest_ok','no')+'\\\\t'+s.get('browseable','yes')+'\\\\t'+s.get('writable','yes')+'\\\\t'+s.get('valid_users',''))\n\"";
@@ -283,6 +340,10 @@ function parseSmbConf() {
 
 // ─── Parse NFS exports (returns Promise<NfsShare[]>) ─────────────────────────
 
+/**
+ * Parse /etc/exports into structured NFS share objects.
+ * @returns {Promise<Array<Object>>}
+ */
 function parseNfsExports() {
     return new Promise(function(resolve) {
         cockpit.spawn(
@@ -309,6 +370,10 @@ function parseNfsExports() {
 
 // ─── Load + Render unified Shares table ──────────────────────────────────────
 
+/**
+ * Load and merge all SMB and NFS shares, then render table.
+ * @returns {void}
+ */
 function loadAllShares() {
     var tbody = document.getElementById("shares-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
@@ -361,6 +426,11 @@ function loadAllShares() {
     });
 }
 
+/**
+ * Render the unified SMB+NFS shares table.
+ * @param {Array<Object>} shares - Merged array of share objects
+ * @returns {void}
+ */
 function renderSharesTable(shares) {
     var tbody = document.getElementById("shares-body");
     window._sharesData = shares;
@@ -418,6 +488,11 @@ function renderSharesTable(shares) {
 var _shareModalMode = "create";
 var _shareModalData = null;
 
+/**
+ * Open the share creation/edit modal.
+ * @param {Object|null} shareData - Existing share data for edit mode, null for create
+ * @returns {void}
+ */
 function openShareModal(shareData) {
     _shareModalMode = shareData ? "edit" : "create";
     _shareModalData = shareData || null;
@@ -520,6 +595,10 @@ function openShareModal(shareData) {
 
 // ─── Save unified Share modal ─────────────────────────────────────────────────
 
+/**
+ * Save share settings: create directory, write SMB/NFS configs.
+ * @returns {void}
+ */
 function saveShareModal() {
     var name = _shareModalMode === "edit" ? _shareModalData.name : document.getElementById("sm-name").value.trim();
     if (!name) { alert("Введите имя шары"); return; }
@@ -614,6 +693,11 @@ function saveShareModal() {
 
 // ─── Delete share entry ───────────────────────────────────────────────────────
 
+/**
+ * Delete a share from smb.conf and/or /etc/exports.
+ * @param {Object} shareData - Share data with name, path, and protocol flags
+ * @returns {void}
+ */
 function deleteShareEntry(shareData) {
     var protocols = [];
     if (shareData.smb) protocols.push("SMB");
@@ -648,6 +732,11 @@ var _iscsiState = { backstores: [], targets: [], loaded: false };
 var _iscsiDeleteCtx = null;
 
 /// Helper: run a targetcli command
+/**
+ * Execute a targetcli command with sudo.
+ * @param {Array<string>} args - targetcli arguments
+ * @returns {Promise<string>}
+ */
 function _tcli(args) {
     return new Promise(function(resolve, reject) {
         cockpit.spawn(["sudo", "targetcli"].concat(args), { err: "message" })
@@ -657,6 +746,10 @@ function _tcli(args) {
 
 // Read and parse saveconfig.json (rtslib-fb saves to /etc/rtslib-fb-target/)
 var _SAVECONFIG_PATH = "/etc/rtslib-fb-target/saveconfig.json";
+/**
+ * Read iSCSI saveconfig.json after forcing a save.
+ * @returns {Promise<Object>}
+ */
 function _readSaveconfig() {
     return new Promise(function(resolve, reject) {
         cockpit.file(_SAVECONFIG_PATH, { superuser: "try" }).read()
@@ -673,6 +766,11 @@ function _readSaveconfig() {
 // Actual rtslib-fb JSON structure:
 //   storage_objects: flat array, each with { name, plugin, dev, size, ... }
 //   targets: flat array, each with { wwn, fabric, tpgs: [{ luns, node_acls, portals, ... }] }
+/**
+ * Parse iSCSI config into backstores and targets state.
+ * @param {Object} cfg - Parsed saveconfig.json object
+ * @returns {void}
+ */
 function _iscsiLoadConfig(cfg) {
     var backstores = [];
     var targets = [];
@@ -680,6 +778,11 @@ function _iscsiLoadConfig(cfg) {
     // First pass: collect lunUsage — which targets reference each backstore
     // lun.storage_object in JSON is "/backstores/fileio/backup1" — normalize to "fileio/backup1"
     var lunUsage = {};
+    /**
+     * Norm Store.
+     * @param {string} s
+     * @returns {void}
+     */
     function _normStore(s) { return s.replace(/^\/backstores\//, ""); }
     (cfg.targets || []).forEach(function(tgt) {
         if (tgt.fabric !== "iscsi") return;
@@ -730,6 +833,10 @@ function _iscsiLoadConfig(cfg) {
     _iscsiState.targets = targets;
 }
 
+/**
+ * Load and render iSCSI LUNs and Targets.
+ * @returns {void}
+ */
 function loadISCSI() {
     var lb = document.getElementById("luns-body");
     var tb = document.getElementById("targets-body");
@@ -752,6 +859,11 @@ function loadISCSI() {
     });
 }
 
+/**
+ * Render the iSCSI LUN Manager table.
+ * @param {Array<Object>} backstores - Parsed backstore objects
+ * @returns {void}
+ */
 function renderLunsTable(backstores) {
     var tbody = document.getElementById("luns-body");
     if (!backstores.length) {
@@ -784,6 +896,11 @@ function renderLunsTable(backstores) {
     });
 }
 
+/**
+ * Render the iSCSI Target Manager table.
+ * @param {Array<Object>} targets - Parsed target objects
+ * @returns {void}
+ */
 function renderTargetsTable(targets) {
     var tbody = document.getElementById("targets-body");
     if (!targets.length) {
@@ -822,12 +939,22 @@ function renderTargetsTable(targets) {
 }
 
 // Escape for HTML attribute/content
+/**
+ * Escape HTML special characters.
+ * @param {string} s - Raw string
+ * @returns {string}
+ */
 function _esc(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
 // ── LUN Modal ────────────────────────────────────────────────────────────────
 
+/**
+ * Open the LUN creation/edit modal.
+ * @param {Object|null} existing - Existing LUN data for edit, null for create
+ * @returns {void}
+ */
 function openLunModal(existing) {
     document.getElementById("lun-name").value = existing ? existing.name : "";
     document.getElementById("lun-name").disabled = !!existing;
@@ -842,6 +969,10 @@ function openLunModal(existing) {
     showModal("iscsi-lun-modal");
 }
 
+/**
+ * Toggle LUN type fields (fileio vs block) in the modal.
+ * @returns {void}
+ */
 function _iscsiToggleLunType() {
     var t = document.getElementById("lun-type").value;
     document.getElementById("lun-fileio-fields").style.display = t === "fileio" ? "" : "none";
@@ -849,12 +980,20 @@ function _iscsiToggleLunType() {
     _iscsiToggleCreateFile();
 }
 
+/**
+ * Toggle file creation option for fileio LUN.
+ * @returns {void}
+ */
 function _iscsiToggleCreateFile() {
     var create = document.getElementById("lun-create-file").checked;
     document.getElementById("lun-size-row").style.display    = create ? "" : "none";
     document.getElementById("lun-existing-hint").style.display = create ? "none" : "";
 }
 
+/**
+ * Save LUN configuration via targetcli commands.
+ * @returns {void}
+ */
 function saveLun() {
     var name = document.getElementById("lun-name").value.trim();
     var type = document.getElementById("lun-type").value;
@@ -893,6 +1032,10 @@ function saveLun() {
 
 // ── Scan unregistered .img files ─────────────────────────────────────────────
 
+/**
+ * Scan for block devices not registered as iSCSI backstores.
+ * @returns {void}
+ */
 function scanUnregisteredLuns() {
     var btn = document.getElementById("btn-scan-luns");
     btn.disabled = true;
@@ -949,6 +1092,11 @@ function scanUnregisteredLuns() {
 
 // ── LUN Delete ───────────────────────────────────────────────────────────────
 
+/**
+ * Show LUN deletion confirmation dialog.
+ * @param {Object} bs - Backstore object to delete
+ * @returns {void}
+ */
 function confirmDeleteLun(bs) {
     _iscsiDeleteCtx = { type: "lun", data: bs };
     document.getElementById("iscsi-delete-msg").textContent =
@@ -966,6 +1114,10 @@ function confirmDeleteLun(bs) {
     showModal("iscsi-delete-modal");
 }
 
+/**
+ * Execute confirmed LUN deletion via targetcli.
+ * @returns {void}
+ */
 function _iscsiExecuteDeleteLun() {
     if (!_iscsiDeleteCtx || _iscsiDeleteCtx.type !== "lun") return;
     var bs = _iscsiDeleteCtx.data;
@@ -988,6 +1140,11 @@ function _iscsiExecuteDeleteLun() {
 
 // ── Target Modal ─────────────────────────────────────────────────────────────
 
+/**
+ * Open the iSCSI target creation/edit modal.
+ * @param {Object|null} existing - Existing target data for edit, null for create
+ * @returns {void}
+ */
 function openTargetModal(existing) {
     var ts = Math.floor(Date.now() / 1000);
     var defIqn = "iqn.2026-03.com.rusnas:target-" + ts;
@@ -1023,6 +1180,10 @@ function openTargetModal(existing) {
     showModal("iscsi-target-modal");
 }
 
+/**
+ * Save iSCSI target configuration via targetcli.
+ * @returns {void}
+ */
 function saveTarget() {
     var iqn = document.getElementById("target-iqn").value.trim();
     var isEdit = document.getElementById("target-iqn").disabled;
@@ -1085,6 +1246,11 @@ function saveTarget() {
 
 // ── Target Delete ────────────────────────────────────────────────────────────
 
+/**
+ * Show target deletion confirmation dialog.
+ * @param {Object} target - Target object to delete
+ * @returns {void}
+ */
 function confirmDeleteTarget(target) {
     _iscsiDeleteCtx = { type: "target", data: target };
     var suffix = target.iqn.split(":").pop();
@@ -1095,6 +1261,10 @@ function confirmDeleteTarget(target) {
     showModal("iscsi-delete-modal");
 }
 
+/**
+ * Execute confirmed iSCSI target deletion.
+ * @returns {void}
+ */
 function _iscsiExecuteDeleteTarget() {
     if (!_iscsiDeleteCtx || _iscsiDeleteCtx.type !== "target") return;
     var iqn = _iscsiDeleteCtx.data.iqn;
@@ -1106,6 +1276,10 @@ function _iscsiExecuteDeleteTarget() {
     .catch(function(err) { alert("Ошибка удаления Target: " + (err.message || err)); });
 }
 
+/**
+ * Close the iSCSI deletion confirmation modal.
+ * @returns {void}
+ */
 function closeIscsiDeleteModal() {
     closeModal("iscsi-delete-modal");
     _iscsiDeleteCtx = null;
@@ -1116,6 +1290,10 @@ function closeIscsiDeleteModal() {
 var FB_SCRIPTS = "/usr/share/cockpit/rusnas";
 var _fbUserModalData = null;
 
+/**
+ * Load FileBrowser service status.
+ * @returns {void}
+ */
 function loadFbStatus() {
     var badge = document.getElementById("fb-status-badge");
     var btnStart = document.getElementById("btn-fb-start");
@@ -1139,6 +1317,11 @@ function loadFbStatus() {
     });
 }
 
+/**
+ * Start or stop the FileBrowser service.
+ * @param {string} action - Action: 'start' or 'stop'
+ * @returns {void}
+ */
 function startStopFb(action) {
     cockpit.spawn(["sudo", "-n", "systemctl", action, "rusnas-filebrowser"],
         { err: "message" })
@@ -1148,6 +1331,10 @@ function startStopFb(action) {
     .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+/**
+ * Load FileBrowser user list from CLI.
+ * @returns {void}
+ */
 function loadFileBrowserUsers() {
     var wrap = document.getElementById("fb-users-wrap");
     if (!wrap) return;
@@ -1173,6 +1360,11 @@ function loadFileBrowserUsers() {
     });
 }
 
+/**
+ * Render the FileBrowser users table.
+ * @param {Array<Object>} users - Array of user objects with permissions
+ * @returns {void}
+ */
 function renderFbUsersTable(users) {
     var wrap = document.getElementById("fb-users-wrap");
     if (!wrap) return;
@@ -1220,6 +1412,12 @@ function renderFbUsersTable(users) {
     });
 }
 
+/**
+ * Open the FileBrowser user permissions modal.
+ * @param {string} username - Username to edit
+ * @param {Object} data - User permission data
+ * @returns {void}
+ */
 function openFbUserModal(username, data) {
     _fbUserModalData = { username: username, data: data };
     document.getElementById("fb-modal-username").textContent = username;
@@ -1231,6 +1429,10 @@ function openFbUserModal(username, data) {
     showModal("fb-user-modal");
 }
 
+/**
+ * Save FileBrowser user access permissions.
+ * @returns {void}
+ */
 function saveFbUserAccess() {
     if (!_fbUserModalData) return;
     var username = _fbUserModalData.username;
@@ -1350,6 +1552,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // ─── FTP (vsftpd) ─────────────────────────────────────────────────────────────
 
+/**
+ * Load FTP (vsftpd) configuration and status.
+ * @returns {void}
+ */
 function loadFtp() {
     cockpit.spawn(["bash", "-c",
         "systemctl is-active vsftpd 2>/dev/null || true; echo '---'; " +
@@ -1380,6 +1586,10 @@ function loadFtp() {
     });
 }
 
+/**
+ * Save FTP configuration and restart vsftpd.
+ * @returns {void}
+ */
 function saveFtp() {
     var anon    = document.getElementById("ftp-anonymous").checked ? "YES" : "NO";
     var write   = document.getElementById("ftp-write").checked     ? "YES" : "NO";
@@ -1410,6 +1620,10 @@ function saveFtp() {
 var WEBDAV_CONF = "/etc/apache2/sites-enabled/webdav.conf";
 var WEBDAV_PASS = "/etc/apache2/webdav.passwords";
 
+/**
+ * Load WebDAV (Apache) configuration and user list.
+ * @returns {void}
+ */
 function loadWebdav() {
     cockpit.spawn(["bash", "-c",
         "systemctl is-active apache2 2>/dev/null || true; echo '---'; " +
@@ -1447,6 +1661,10 @@ function loadWebdav() {
     });
 }
 
+/**
+ * Save WebDAV configuration and reload Apache.
+ * @returns {void}
+ */
 function saveWebdav() {
     var alias = document.getElementById("webdav-alias").value.trim() || "/webdav";
     var path  = document.getElementById("webdav-path").value.trim();
@@ -1474,6 +1692,10 @@ function saveWebdav() {
     .fail(function(e) { alert("Ошибка сохранения WebDAV: " + e); });
 }
 
+/**
+ * Add a new WebDAV user with digest authentication.
+ * @returns {void}
+ */
 function addWebdavUser() {
     var user = document.getElementById("webdav-new-user").value.trim();
     var pass = document.getElementById("webdav-new-pass").value;
@@ -1509,6 +1731,11 @@ function addWebdavUser() {
     });
 }
 
+/**
+ * Remove a WebDAV user.
+ * @param {string} user - Username to remove
+ * @returns {void}
+ */
 function removeWebdavUser(user) {
     if (!confirm("Удалить пользователя " + user + "?")) return;
     cockpit.spawn(["bash", "-c",
@@ -1532,12 +1759,21 @@ var GRACE_LABELS = {
     "2592000": "30 дней",
 };
 
+/**
+ * Convert seconds into human-readable grace period label.
+ * @param {number} sec - Grace period in seconds
+ * @returns {string}
+ */
 function graceLabel(sec) {
     return GRACE_LABELS[String(sec)] || (sec < 3600 ? Math.round(sec/60) + " мин"
         : sec < 86400 ? Math.round(sec/3600) + " ч"
         : Math.round(sec/86400) + " д");
 }
 
+/**
+ * Load WORM (Write Once Read Many) configuration.
+ * @returns {void}
+ */
 function loadWorm() {
     cockpit.file(WORM_CONFIG, { superuser: "require" }).read()
         .then(function(content) {
@@ -1552,6 +1788,10 @@ function loadWorm() {
         });
 }
 
+/**
+ * Render the WORM paths table.
+ * @returns {void}
+ */
 function renderWorm() {
     var tbody = document.getElementById("worm-body");
     var paths = (_wormConfig || {}).paths || [];
@@ -1588,6 +1828,10 @@ function renderWorm() {
     }).join("");
 }
 
+/**
+ * Load WORM directory status (file count, age).
+ * @returns {void}
+ */
 function loadWormStatus() {
     var paths = ((_wormConfig || {}).paths || []).filter(function(p){ return p.enabled !== false; });
     if (!paths.length) return;
@@ -1601,6 +1845,11 @@ function loadWormStatus() {
         });
 }
 
+/**
+ * Save WORM configuration to JSON file.
+ * @param {Function} callback - Optional callback on success
+ * @returns {void}
+ */
 function saveWormConfig(callback) {
     var content = JSON.stringify(_wormConfig, null, 2);
     cockpit.file(WORM_CONFIG, { superuser: "require" })
@@ -1609,6 +1858,12 @@ function saveWormConfig(callback) {
         .catch(function(e) { alert("Ошибка сохранения WORM config: " + e); });
 }
 
+/**
+ * Enable or disable a WORM path.
+ * @param {number} idx - Path index
+ * @param {boolean} enabled - New state
+ * @returns {void}
+ */
 function toggleWormPath(idx, enabled) {
     _wormConfig.paths[idx].enabled = enabled;
     saveWormConfig(function() {
@@ -1617,6 +1872,11 @@ function toggleWormPath(idx, enabled) {
     });
 }
 
+/**
+ * Remove a WORM path from configuration.
+ * @param {number} idx - Path index to remove
+ * @returns {void}
+ */
 function removeWormPath(idx) {
     var p = _wormConfig.paths[idx];
     if (!confirm("Удалить WORM-путь " + p.path + "?\n\nСуществующие заблокированные файлы останутся с chattr +i — разблокировка только вручную.")) return;
@@ -1625,6 +1885,10 @@ function removeWormPath(idx) {
     saveWormConfig(renderWorm);
 }
 
+/**
+ * Open the WORM path addition modal with directory browser.
+ * @returns {void}
+ */
 function openAddWormModal() {
     document.getElementById("worm-path-input").value = "";
     document.getElementById("worm-grace-select").value = "86400";
@@ -1639,6 +1903,10 @@ function openAddWormModal() {
 
     var paths = {};
     var pending = 2;
+    /**
+     * Done.
+     * @returns {void}
+     */
     function done() {
         if (--pending > 0) return;
         sugg.innerHTML = "";
@@ -1685,6 +1953,10 @@ function openAddWormModal() {
     showModal("add-worm-modal");
 }
 
+/**
+ * Browse directories in the WORM path selection modal.
+ * @returns {void}
+ */
 function wormBrowsePath() {
     var cur  = document.getElementById("worm-path-input").value.trim() || "/mnt";
     var sugg = document.getElementById("worm-path-suggestions");
@@ -1726,6 +1998,11 @@ function wormBrowsePath() {
     });
 }
 
+/**
+ * Check if a WORM path matches an existing SMB share.
+ * @param {string} path - Path to check
+ * @returns {void}
+ */
 function checkWormSambaMatch(path) {
     cockpit.spawn(["bash", "-c",
         "grep -r 'path\\s*=\\s*" + path.replace(/\//g, "\\/") + "' /etc/samba/smb.conf 2>/dev/null | head -1; true"
@@ -1735,6 +2012,10 @@ function checkWormSambaMatch(path) {
     });
 }
 
+/**
+ * Convert selected grace period value to seconds.
+ * @returns {number}
+ */
 function getWormGraceSeconds() {
     var sel = document.getElementById("worm-grace-select").value;
     if (sel === "custom") {
@@ -1745,6 +2026,10 @@ function getWormGraceSeconds() {
     return parseInt(sel);
 }
 
+/**
+ * Confirm and add a new WORM path.
+ * @returns {void}
+ */
 function confirmAddWorm() {
     var path  = document.getElementById("worm-path-input").value.trim();
     var errEl = document.getElementById("worm-add-error");
@@ -1780,6 +2065,11 @@ function confirmAddWorm() {
     });
 }
 
+/**
+ * Show unlock confirmation dialog for a WORM path.
+ * @param {number} idx - WORM path index
+ * @returns {void}
+ */
 function wormUnlockPrompt(idx) {
     var p    = _wormConfig.paths[idx];
     var path = prompt("Разблокировать файл или папку (введите полный путь):\nБаза: " + p.path);
@@ -1797,6 +2087,13 @@ function wormUnlockPrompt(idx) {
 
 // ── Samba vfs_worm helpers ─────────────────────────────────────────────────────
 
+/**
+ * Add WORM settings to an SMB share in smb.conf.
+ * @param {string} sharePath - Share filesystem path
+ * @param {number} gracePeriod - Grace period in seconds
+ * @param {Function} callback - Callback on success
+ * @returns {void}
+ */
 function addSambaWorm(sharePath, gracePeriod, callback) {
     var script =
         "python3 << 'PYEOF'\n" +
@@ -1817,6 +2114,11 @@ function addSambaWorm(sharePath, gracePeriod, callback) {
         .always(function() { if (callback) callback(); });
 }
 
+/**
+ * Remove WORM settings from an SMB share.
+ * @param {string} sharePath - Share filesystem path
+ * @returns {void}
+ */
 function removeSambaWorm(sharePath) {
     var script =
         "sed -i '/^\\s*vfs objects = worm/d; /^\\s*worm:grace_period/d' /etc/samba/smb.conf && " +

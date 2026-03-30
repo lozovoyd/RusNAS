@@ -9,6 +9,11 @@ const APT_HOST = "activate.rusnas.ru/apt/";
 const BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 // ── Base62 decode ──────────────────────────────────────────────────────────
+/**
+ * Decode a Base62-encoded string into a Uint8Array.
+ * @param {string} s - Base62-encoded string
+ * @returns {Uint8Array}
+ */
 function base62Decode(s) {
     let n = BigInt(0);
     for (const c of s) {
@@ -30,6 +35,11 @@ function base62Decode(s) {
 }
 
 // ── Normalize activation code ──────────────────────────────────────────────
+/**
+ * Normalize activation code by stripping prefix, whitespace, and dashes.
+ * @param {string} input - Raw activation code input
+ * @returns {string}
+ */
 function normalizeActivationCode(input) {
     let s = input.trim();
     if (s.toUpperCase().startsWith("RNAC-")) s = s.slice(5);
@@ -37,6 +47,11 @@ function normalizeActivationCode(input) {
 }
 
 // ── Verify and decode Ed25519 activation code ──────────────────────────────
+/**
+ * Verify Ed25519 signature and decode activation code payload.
+ * @param {string} rawBase62 - Base62-encoded activation code (signature + payload)
+ * @returns {Promise<Object>}
+ */
 async function verifyAndDecode(rawBase62) {
     const blob = base62Decode(rawBase62);
     if (blob.length < 64) throw new Error("Activation code too short");
@@ -58,6 +73,11 @@ async function verifyAndDecode(rawBase62) {
 }
 
 // ── File helpers ────────────────────────────────────────────────────────────
+/**
+ * Read file contents via Cockpit file API.
+ * @param {string} path - Absolute file path to read
+ * @returns {Promise<string>}
+ */
 function readFile(path) {
     return new Promise(function(resolve, reject) {
         cockpit.file(path).read()
@@ -66,6 +86,13 @@ function readFile(path) {
     });
 }
 
+/**
+ * Write content to a file via Cockpit file API.
+ * @param {string} path - Absolute file path to write
+ * @param {string} content - Content to write
+ * @param {boolean} superuser - Whether to use superuser privileges
+ * @returns {Promise<void>}
+ */
 function writeFile(path, content, superuser) {
     return new Promise(function(resolve, reject) {
         cockpit.file(path, superuser ? { superuser: "require" } : {})
@@ -76,12 +103,21 @@ function writeFile(path, content, superuser) {
 }
 
 // ── HTML escape helper ──────────────────────────────────────────────────────
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
                            .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
 // ── Load license status ─────────────────────────────────────────────────────
+/**
+ * Load and display current license status from /etc/rusnas/license.json.
+ * @returns {Promise<void>}
+ */
 async function loadLicenseStatus() {
     var loadingEl = document.getElementById("lic-loading");
     var infoEl    = document.getElementById("lic-info");
@@ -147,6 +183,10 @@ async function loadLicenseStatus() {
 }
 
 // ── Activation ──────────────────────────────────────────────────────────────
+/**
+ * Activate license: verify Ed25519 signature, write license.json and apt credentials.
+ * @returns {Promise<void>}
+ */
 async function activateLicense() {
     var btn   = document.getElementById("btn-activate");
     var errEl = document.getElementById("activate-error");

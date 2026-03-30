@@ -13,6 +13,11 @@ var _pollTimer   = null;
 
 // ── Утилиты ──────────────────────────────────────────────────────────────────
 
+/**
+ * Format byte count into human-readable string with Russian units.
+ * @param {number} b - Byte count
+ * @returns {string}
+ */
 function fmtBytes(b) {
     b = parseInt(b) || 0;
     if (b === 0) return "0 Б";
@@ -21,20 +26,41 @@ function fmtBytes(b) {
     return (b / Math.pow(1024, i)).toFixed(1) + " " + units[Math.min(i,4)];
 }
 
+/**
+ * Format number with Russian locale separators.
+ * @param {number} n - Number to format
+ * @returns {string}
+ */
 function fmtNum(n) {
     return (parseInt(n)||0).toLocaleString("ru");
 }
 
+/**
+ * Format Unix timestamp to localized date/time string.
+ * @param {number} ts - Unix timestamp in seconds
+ * @returns {string}
+ */
 function fmtTs(ts) {
     if (!ts) return "—";
     var d = new Date(ts * 1000);
     return d.toLocaleString("ru", {day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit"});
 }
 
+/**
+ * Safely parse JSON string, returning null on failure.
+ * @param {string} str - JSON string to parse
+ * @returns {Object|null}
+ */
 function safeJson(str) {
     try { return JSON.parse(str.trim()); } catch(e) { return null; }
 }
 
+/**
+ * Briefly show a message element, then auto-hide after timeout.
+ * @param {string} id - DOM element ID to show
+ * @param {number} ms - Milliseconds before hiding (default 3000)
+ * @returns {void}
+ */
 function showMsg(id, ms) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -84,6 +110,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
 // ── Загрузка данных ───────────────────────────────────────────────────────────
 
+/**
+ * Load all deduplication data: last run, history, config, volumes, Samba shares.
+ * @returns {void}
+ */
 function loadAll() {
     loadLastRun();
     loadHistory();
@@ -93,6 +123,10 @@ function loadAll() {
     checkRunning();
 }
 
+/**
+ * Load the last dedup run status from dedup-last.json.
+ * @returns {void}
+ */
 function loadLastRun() {
     cockpit.spawn(["cat", DEDUP_LAST], {superuser: "try", err: "message"})
     .done(function(out) {
@@ -105,6 +139,10 @@ function loadLastRun() {
     });
 }
 
+/**
+ * Load dedup history data from dedup-history.json.
+ * @returns {void}
+ */
 function loadHistory() {
     cockpit.spawn(["cat", DEDUP_HISTORY], {superuser: "try", err: "message"})
     .done(function(out) {
@@ -119,6 +157,10 @@ function loadHistory() {
     });
 }
 
+/**
+ * Load dedup configuration from dedup-config.json.
+ * @returns {void}
+ */
 function loadConfig() {
     cockpit.spawn(["cat", DEDUP_CONFIG], {err: "message"})
     .done(function(out) {
@@ -131,6 +173,10 @@ function loadConfig() {
     });
 }
 
+/**
+ * Load mounted Btrfs volumes for the volume selection table.
+ * @returns {void}
+ */
 function loadVolumes() {
     cockpit.spawn(["findmnt", "-t", "btrfs", "-o", "TARGET,SOURCE", "--real", "-n"], {err: "message"})
     .done(function(out) {
@@ -142,6 +188,10 @@ function loadVolumes() {
     });
 }
 
+/**
+ * Load SMB shares from smb.conf via Python parser (handles non-standard format).
+ * @returns {void}
+ */
 function loadSambaShares() {
     // configparser не работает с smb.conf (нестандартный формат) — пишем скрипт во tmpfile
     var py = [
@@ -178,6 +228,10 @@ function loadSambaShares() {
 
 // ── Рендер статус-карточек ────────────────────────────────────────────────────
 
+/**
+ * Render dedup status cards: last run time, saved bytes, files scanned.
+ * @returns {void}
+ */
 function renderStatusCards() {
     var d = _lastData;
     if (!d) {
@@ -218,6 +272,10 @@ function renderStatusCards() {
 
 // ── Инфографика временной шкалы ───────────────────────────────────────────────
 
+/**
+ * Render SVG timeline infographic showing last dedup run window.
+ * @returns {void}
+ */
 function renderTimeline() {
     var svg = document.getElementById("timeline-chart");
     if (!svg) return;
@@ -284,6 +342,10 @@ function renderTimeline() {
 
 // ── История: bar chart ────────────────────────────────────────────────────────
 
+/**
+ * Render SVG bar chart of dedup savings history (last 7 days).
+ * @returns {void}
+ */
 function renderHistoryChart() {
     var svg = document.getElementById("history-chart");
     if (!svg) return;
@@ -321,6 +383,10 @@ function renderHistoryChart() {
     svg.innerHTML = out.join("");
 }
 
+/**
+ * Update the big stats display with latest saved bytes and files count.
+ * @returns {void}
+ */
 function renderBigStats() {
     if (_lastData) {
         document.getElementById("big-saved").textContent = fmtBytes(_lastData.saved_bytes);
@@ -330,6 +396,11 @@ function renderBigStats() {
 
 // ── Тома ──────────────────────────────────────────────────────────────────────
 
+/**
+ * Render the Btrfs volumes table with enable/disable checkboxes.
+ * @param {string} raw - Raw findmnt output
+ * @returns {void}
+ */
 function renderVolumeTable(raw) {
     var tbody = document.getElementById("volumes-tbody");
     var rows = (raw||"").trim().split("\n").filter(Boolean);
@@ -353,6 +424,11 @@ function renderVolumeTable(raw) {
 
 // ── SMB шары ──────────────────────────────────────────────────────────────────
 
+/**
+ * Render the SMB shares table with vfs_btrfs toggle checkboxes.
+ * @param {string} raw - Pipe-delimited share data from Python parser
+ * @returns {void}
+ */
 function renderSambaTable(raw) {
     var tbody = document.getElementById("samba-tbody");
     var rows = (raw||"").trim().split("\n").filter(Boolean);
@@ -376,6 +452,10 @@ function renderSambaTable(raw) {
 
 // ── Настройки: populate ───────────────────────────────────────────────────────
 
+/**
+ * Populate settings UI from loaded config (schedule, advanced options).
+ * @returns {void}
+ */
 function populateSettings() {
     // Расписание
     var schedEnabled = !!_config.schedule_enabled;
@@ -417,6 +497,11 @@ function populateSettings() {
     renderTimeline();
 }
 
+/**
+ * Parse cron day-of-week field into array of day numbers.
+ * @param {string} s - Cron day field (e.g. '1-5', '0,6', '*')
+ * @returns {Array<number>}
+ */
 function parseCronDays(s) {
     if (s === "*") return [0,1,2,3,4,5,6];
     var result = [];
@@ -433,6 +518,10 @@ function parseCronDays(s) {
 
 // ── Расписание: select времени и дни ─────────────────────────────────────────
 
+/**
+ * Build time select options for the schedule dropdown (00:00-06:30).
+ * @returns {void}
+ */
 function buildSchedTimeSelect() {
     var sel = document.getElementById("sched-time");
     for (var h = 0; h <= 6; h++) {
@@ -447,6 +536,10 @@ function buildSchedTimeSelect() {
     }
 }
 
+/**
+ * Build day-of-week checkboxes for the schedule configuration.
+ * @returns {void}
+ */
 function buildSchedDays() {
     var days = [
         {n:1, l:"Пн"}, {n:2, l:"Вт"}, {n:3, l:"Ср"},
@@ -463,6 +556,10 @@ function buildSchedDays() {
 
 // ── Сохранение расписания ─────────────────────────────────────────────────────
 
+/**
+ * Save dedup schedule: update config and write/remove cron file.
+ * @returns {void}
+ */
 function saveSchedule() {
     var enabled = document.getElementById("sched-enabled").checked;
     var timeVal = document.getElementById("sched-time").value || "03:00";
@@ -507,6 +604,10 @@ function saveSchedule() {
 
 // ── Сохранение томов ──────────────────────────────────────────────────────────
 
+/**
+ * Save selected Btrfs volumes to dedup config.
+ * @returns {void}
+ */
 function saveVolumeConfig() {
     var vols = [];
     document.querySelectorAll(".vol-cb:checked").forEach(function(cb) {
@@ -518,6 +619,10 @@ function saveVolumeConfig() {
 
 // ── Сохранение SMB ────────────────────────────────────────────────────────────
 
+/**
+ * Save Samba vfs_btrfs settings by modifying smb.conf sections.
+ * @returns {void}
+ */
 function saveSambaConfig() {
     var toEnable  = [];
     var toDisable = [];
@@ -545,6 +650,10 @@ function saveSambaConfig() {
 
 // ── Расширенные параметры ─────────────────────────────────────────────────────
 
+/**
+ * Save advanced duperemove arguments (hash DB, extra flags) to config.
+ * @returns {void}
+ */
 function saveAdvancedConfig() {
     var useDb  = document.getElementById("use-hashdb").checked;
     var dbPath = document.getElementById("hashdb-path").value.trim() || "/var/lib/rusnas/dedup.db";
@@ -560,6 +669,11 @@ function saveAdvancedConfig() {
 
 // ── Запись конфига ────────────────────────────────────────────────────────────
 
+/**
+ * Write dedup config JSON to disk via Cockpit file API.
+ * @param {Function} cb - Optional callback on success
+ * @returns {void}
+ */
 function writeConfig(cb) {
     var configStr = JSON.stringify(_config, null, 2);
     cockpit.spawn(["mkdir", "-p", "/etc/rusnas"], {superuser: "require", err: "message"})
@@ -572,6 +686,10 @@ function writeConfig(cb) {
 
 // ── Запуск / Остановка ────────────────────────────────────────────────────────
 
+/**
+ * Start the deduplication service and begin polling for completion.
+ * @returns {void}
+ */
 function runDedup() {
     document.getElementById("btn-run").disabled = true;
     document.getElementById("run-spinner").classList.remove("hidden");
@@ -588,6 +706,10 @@ function runDedup() {
     });
 }
 
+/**
+ * Stop the running deduplication service.
+ * @returns {void}
+ */
 function stopDedup() {
     cockpit.spawn(["systemctl", "stop", "rusnas-dedup.service"], {superuser: "require", err: "message"})
     .done(function() {
@@ -597,6 +719,10 @@ function stopDedup() {
     });
 }
 
+/**
+ * Check if rusnas-dedup.service is currently active.
+ * @returns {void}
+ */
 function checkRunning() {
     cockpit.spawn(["systemctl", "is-active", "rusnas-dedup.service"], {err: "message"})
     .done(function(out) {
@@ -607,6 +733,11 @@ function checkRunning() {
     .fail(function() { setRunningState(false); });
 }
 
+/**
+ * Update UI elements to reflect running/stopped state.
+ * @param {boolean} running - Whether dedup is currently running
+ * @returns {void}
+ */
 function setRunningState(running) {
     document.getElementById("btn-run").disabled = running;
     document.getElementById("btn-stop").disabled = !running;
@@ -622,6 +753,10 @@ function setRunningState(running) {
     }
 }
 
+/**
+ * Start polling dedup service status every 5 seconds.
+ * @returns {void}
+ */
 function startPolling() {
     stopPolling();
     _pollTimer = setInterval(function() {
@@ -638,12 +773,20 @@ function startPolling() {
     }, 5000);
 }
 
+/**
+ * Stop the dedup service status polling timer.
+ * @returns {void}
+ */
 function stopPolling() {
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
 }
 
 // ── Лог ───────────────────────────────────────────────────────────────────────
 
+/**
+ * Open log modal and display last 200 lines of the dedup log.
+ * @returns {void}
+ */
 function showLog() {
     var modal = document.getElementById("log-modal");
     modal.classList.add("open");

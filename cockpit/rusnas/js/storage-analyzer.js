@@ -5,6 +5,12 @@
 'use strict';
 
 // ─── FileBrowser URL helper ───────────────────────────────────────────────────
+/**
+ * Build FileBrowser URL with optional path and sort parameters.
+ * @param {string} path - File path
+ * @param {Object} options - URL options {sort, order}
+ * @returns {string}
+ */
 function getFileBrowserUrl(path, options) {
     const base = window.location.protocol + '//' + window.location.hostname + '/files/';
     const params = new URLSearchParams();
@@ -39,6 +45,11 @@ let fileViewMode  = 'treemap'; // treemap | list
 let scanRunning   = false;
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
+/**
+ * Format byte count into human-readable string.
+ * @param {number} b - Byte count
+ * @returns {string}
+ */
 function fmtBytes(b) {
     if (b == null || isNaN(b)) return '—';
     const abs = Math.abs(b);
@@ -49,12 +60,22 @@ function fmtBytes(b) {
     return b + ' Б';
 }
 
+/**
+ * Format Unix timestamp to localized date string.
+ * @param {number} ts - Unix timestamp in seconds
+ * @returns {string}
+ */
 function fmtDate(ts) {
     if (!ts) return '—';
     const d = new Date(ts * 1000);
     return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Format Unix timestamp as relative time ago.
+ * @param {number} ts - Unix timestamp in seconds
+ * @returns {string}
+ */
 function fmtAgo(ts) {
     if (!ts) return '—';
     const sec = Math.floor(Date.now() / 1000) - ts;
@@ -64,12 +85,22 @@ function fmtAgo(ts) {
     return Math.floor(sec / 86400) + ' дн. назад';
 }
 
+/**
+ * Format day count with Russian pluralization.
+ * @param {number} d - Number of days
+ * @returns {string}
+ */
 function fmtDays(d) {
     if (d == null) return 'нет данных';
     if (d > 365) return '>1 года';
     return d + ' дн.';
 }
 
+/**
+ * Get color for a usage bar based on percentage.
+ * @param {number} pct - Usage percentage (0-100)
+ * @returns {string}
+ */
 function barColor(pct) {
     if (pct >= 95) return 'var(--danger)';
     if (pct >= 85) return '#FF6F00';
@@ -77,15 +108,30 @@ function barColor(pct) {
     return 'var(--success)';
 }
 
+/**
+ * Safely parse JSON string, returning null on failure.
+ * @param {string} str - JSON string to parse
+ * @returns {Object|null}
+ */
 function safeJson(str) {
     try { return JSON.parse(str); } catch { return null; }
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ─── API calls via cockpit.spawn ──────────────────────────────────────────────
+/**
+ * Execute a storage-analyzer-api.py command via cockpit.spawn.
+ * @param {Array<string>} args - API command arguments
+ * @returns {Promise<Object>}
+ */
 function saApi(args) {
     return new Promise((resolve, reject) => {
         let out = '';
@@ -171,10 +217,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadScanStatus();
 });
 
+/**
+ * Close the currently open modal.
+ * @returns {void}
+ */
 function closeModal() {
     document.getElementById('settingsModal').style.display = 'none';
 }
 
+/**
+ * Switch between analyzer tabs (overview/shares/files/users/types).
+ * @param {string} tab - Tab name to activate
+ * @returns {void}
+ */
 function switchTab(tab) {
     activeTab = tab;
     document.querySelectorAll('#saTabs .sa-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -192,6 +247,10 @@ function switchTab(tab) {
 }
 
 // ─── SCAN STATUS / HEADER ────────────────────────────────────────────────────
+/**
+ * Load current scan status and update the scan button.
+ * @returns {void}
+ */
 function loadScanStatus() {
     saApi(['scan-status']).then(data => {
         const ageEl  = document.getElementById('scanAge');
@@ -217,6 +276,11 @@ function loadScanStatus() {
     });
 }
 
+/**
+ * Update UI to reflect scanning/idle state.
+ * @param {boolean} on - Whether scanning is in progress
+ * @returns {void}
+ */
 function setScanning(on) {
     scanRunning = on;
     const btn = document.getElementById('btnScanNow');
@@ -234,6 +298,10 @@ function setScanning(on) {
     }
 }
 
+/**
+ * Start a new storage scan and poll for completion.
+ * @returns {void}
+ */
 function startScan() {
     if (scanRunning) return;
     setScanning(true);
@@ -255,6 +323,10 @@ function startScan() {
 }
 
 // ─── TAB 1: OVERVIEW ─────────────────────────────────────────────────────────
+/**
+ * Load overview data and render all overview widgets.
+ * @returns {void}
+ */
 function loadOverview() {
     saApi(['overview']).then(data => {
         overviewData = data;
@@ -280,6 +352,11 @@ function loadOverview() {
     });
 }
 
+/**
+ * Render overview stat cards (total, used, free, forecast).
+ * @param {Object} data - Storage overview data
+ * @returns {void}
+ */
 function renderOverviewCards(data) {
     const vols = data.volumes || [];
     let total = 0, used = 0, free = 0;
@@ -350,6 +427,11 @@ function renderOverviewCards(data) {
         if (f.days_7d  != null && (fc7d  == null || f.days_7d  < fc7d))  fc7d  = f.days_7d;
         if (f.days_30d != null && (fc30d == null || f.days_30d < fc30d)) fc30d = f.days_30d;
     });
+    /**
+     * Fc Html.
+     * @param {boolean} d
+     * @returns {void}
+     */
     function fcHtml(d) {
         if (d == null) return '<span class="sa-fc-nodata">нет данных</span>';
         const cls = d < 7 ? 'sa-fc-critical' : d < 30 ? 'sa-fc-warn' : 'sa-fc-ok';
@@ -382,6 +464,12 @@ var OTM_COLORS = [
 ];
 
 // Darken a hex color by `amount` (0-255)
+/**
+ * Darken a hex color by a given amount.
+ * @param {string} hex - Hex color string
+ * @param {number} amount - Darken amount (0-1)
+ * @returns {string}
+ */
 function otmDarken(hex, amount) {
     var r = Math.max(0, parseInt(hex.slice(1,3),16) - amount);
     var g = Math.max(0, parseInt(hex.slice(3,5),16) - amount);
@@ -389,6 +477,11 @@ function otmDarken(hex, amount) {
     return '#' + [r,g,b].map(function(v){ return v.toString(16).padStart(2,'0'); }).join('');
 }
 
+/**
+ * Render the overview treemap of top consumers.
+ * @param {Array<Object>} consumers - Top consumer entries
+ * @returns {void}
+ */
 function renderOverviewTreemap(consumers) {
     var wrap = document.getElementById('overviewTreemapWrap');
     if (!wrap) return;
@@ -481,6 +574,11 @@ function renderOverviewTreemap(consumers) {
     wrap.appendChild(legend);
 }
 
+/**
+ * Render the volume usage map (stacked bar segments).
+ * @param {Array<Object>} volumes - Volume data array
+ * @returns {void}
+ */
 function renderVolumeMap(volumes) {
     const grid = document.getElementById('volumesGrid');
     if (!volumes.length) {
@@ -511,6 +609,11 @@ function renderVolumeMap(volumes) {
     });
 }
 
+/**
+ * Render the SVG fill/usage trend chart with forecast.
+ * @param {Object} data - Storage data with history points
+ * @returns {void}
+ */
 function renderFillChart(data) {
     const wrap = document.getElementById('fillChartWrap');
     const vols  = data.volumes || [];
@@ -545,7 +648,17 @@ function renderFillChart(data) {
     const tsRange = Math.max(tsForecast - tsMin, 86400);
     const yMin = 0, yMax = 100;
 
+    /**
+     * Tx.
+     * @param {number} ts
+     * @returns {void}
+     */
     function tx(ts) { return pad.left + ((ts - tsMin) / tsRange) * iW; }
+    /**
+     * Ty.
+     * @param {number} pct
+     * @returns {void}
+     */
     function ty(pct) { return pad.top + (1 - pct / 100) * iH; }
 
     // Build actual line
@@ -596,6 +709,11 @@ function renderFillChart(data) {
     </svg>`;
 }
 
+/**
+ * Render the top disk space consumers table.
+ * @param {Array<Object>} consumers - Sorted consumer entries
+ * @returns {void}
+ */
 function renderTopConsumers(consumers) {
     const wrap = document.getElementById('topConsumers');
     if (!consumers.length) {
@@ -622,6 +740,10 @@ function renderTopConsumers(consumers) {
 }
 
 // ─── TAB 2: SHARES ───────────────────────────────────────────────────────────
+/**
+ * Load share-level storage data for the shares tab.
+ * @returns {void}
+ */
 function loadShares() {
     const period = document.getElementById('sharesPeriod').value;
     const tbody  = document.getElementById('sharesTbody');
@@ -635,6 +757,11 @@ function loadShares() {
     });
 }
 
+/**
+ * Render the shares storage table with sparklines.
+ * @param {Array<Object>} shares - Share storage data
+ * @returns {void}
+ */
 function renderSharesTable(shares) {
     const tbody = document.getElementById('sharesTbody');
     const alertEl = document.getElementById('sharesForecastAlert');
@@ -693,6 +820,12 @@ function renderSharesTable(shares) {
     });
 }
 
+/**
+ * Toggle inline detail expansion for a share row.
+ * @param {string} name - Share name
+ * @param {HTMLElement} btn - Toggle button element
+ * @returns {void}
+ */
 function toggleShareDetail(name, btn) {
     const row = document.getElementById('detail-' + name);
     const expanded = row.style.display !== 'none';
@@ -728,6 +861,11 @@ function toggleShareDetail(name, btn) {
 
 }
 
+/**
+ * Calculate forecast date from days-until-full.
+ * @param {number} days - Days until full
+ * @returns {string}
+ */
 function forecastDate(days) {
     const d = new Date(Date.now() + days * 86400000);
     return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
@@ -736,6 +874,10 @@ function forecastDate(days) {
 // ─── TAB 3: FILES ─────────────────────────────────────────────────────────────
 // If filePath is still '/', replace it with the first known volume mount point.
 // Uses overviewData if already loaded, otherwise falls back to a quick API call.
+/**
+ * Auto-set the file path from the first available volume.
+ * @returns {void}
+ */
 function autoSetFilePath() {
     if (filePath !== '/') return;
     const vols = overviewData && overviewData.volumes;
@@ -753,6 +895,10 @@ function autoSetFilePath() {
     }).catch(() => {});
 }
 
+/**
+ * Load file/directory listing for the files tab.
+ * @returns {void}
+ */
 function loadFiles() {
     const ftype   = document.getElementById('filterFiletype').value;
     const older   = document.getElementById('filterOlderThan').value;
@@ -767,6 +913,11 @@ function loadFiles() {
     }
 }
 
+/**
+ * Update the breadcrumb navigation for the files tab.
+ * @param {string} path - Current directory path
+ * @returns {void}
+ */
 function updateBreadcrumb(path) {
     const bc = document.getElementById('fileBreadcrumb');
     bc.innerHTML = '';
@@ -797,11 +948,24 @@ function updateBreadcrumb(path) {
     });
 }
 
+/**
+ * Navigate to a directory in the files tab.
+ * @param {string} path - Directory path to navigate to
+ * @returns {void}
+ */
 function navigateTo(path) {
     filePath = path;
     loadFiles();
 }
 
+/**
+ * Load treemap data for a directory.
+ * @param {string} path - Directory path
+ * @param {string} ftype - File type filter
+ * @param {string} older - Age filter
+ * @param {string} sort - Sort order
+ * @returns {void}
+ */
 function loadTreemap(path, ftype, older, sort) {
     const wrap = document.getElementById('treemapWrap');
     wrap.innerHTML = '<div class="sa-loading"><div class="sa-spinner"></div> Загрузка...</div>';
@@ -817,6 +981,14 @@ function loadTreemap(path, ftype, older, sort) {
     });
 }
 
+/**
+ * Load file list data for a directory.
+ * @param {string} path - Directory path
+ * @param {string} ftype - File type filter
+ * @param {string} older - Age filter
+ * @param {string} sort - Sort order
+ * @returns {void}
+ */
 function loadFileList(path, ftype, older, sort) {
     const tbody = document.getElementById('fileListTbody');
     tbody.innerHTML = '<tr><td colspan="5" class="sa-loading"><div class="sa-spinner"></div></td></tr>';
@@ -828,6 +1000,13 @@ function loadFileList(path, ftype, older, sort) {
     });
 }
 
+/**
+ * Render the file listing table.
+ * @param {Array<Object>} entries - File/directory entries
+ * @param {HTMLElement} tbody - Table body element
+ * @param {string} path - Current directory path
+ * @returns {void}
+ */
 function renderFileList(entries, tbody, path) {
     if (!entries.length) {
         tbody.innerHTML = '<tr><td colspan="5" class="sa-empty">Нет файлов</td></tr>';
@@ -859,6 +1038,11 @@ const TYPE_COLORS = {
     archive: '#8E24AA', backup: '#00897B', code: '#43A047', other: '#757575',
 };
 
+/**
+ * Classify file by extension and return a color for treemap.
+ * @param {Object} entry - File entry with name and type
+ * @returns {string}
+ */
 function guessColor(entry) {
     if (entry.type === 'dir') return '#37474F';
     const ext = entry.name.split('.').pop().toLowerCase();
@@ -877,6 +1061,15 @@ function guessColor(entry) {
     return '#546E7A';
 }
 
+/**
+ * Implement squarified treemap layout algorithm.
+ * @param {Array<Object>} items - Data items with size
+ * @param {number} x - Container X
+ * @param {number} y - Container Y
+ * @param {number} w - Container width
+ * @param {number} h - Container height
+ * @returns {Array<Object>}
+ */
 function squarify(items, x, y, w, h) {
     if (!items.length) return [];
     if (items.length === 1) {
@@ -891,6 +1084,17 @@ function squarify(items, x, y, w, h) {
     return results;
 }
 
+/**
+ * Process one row in the squarified treemap algorithm.
+ * @param {Array<Object>} items - Remaining items
+ * @param {number} x - Current X
+ * @param {number} y - Current Y
+ * @param {number} w - Current width
+ * @param {number} h - Current height
+ * @param {number} total - Total area
+ * @param {Array<Object>} results - Accumulated results
+ * @returns {Array<Object>}
+ */
 function squarifyRow(items, x, y, w, h, total, results) {
     if (!items.length) return;
     if (items.length === 1) {
@@ -945,6 +1149,16 @@ function squarifyRow(items, x, y, w, h, total, results) {
     }
 }
 
+/**
+ * Calculate worst aspect ratio for a squarify row.
+ * @param {Array<Object>} row - Current row items
+ * @param {number} rowTotal - Row total size
+ * @param {number} shorter - Shorter side length
+ * @param {number} w - Width
+ * @param {number} h - Height
+ * @param {number} total - Total size
+ * @returns {number}
+ */
 function worstRatio(row, rowTotal, shorter, w, h, total) {
     const area  = (rowTotal / total) * w * h;
     const side  = shorter;
@@ -957,6 +1171,12 @@ function worstRatio(row, rowTotal, shorter, w, h, total) {
     return worst;
 }
 
+/**
+ * Render an interactive treemap visualization.
+ * @param {Array<Object>} entries - File/directory entries
+ * @param {HTMLElement} wrap - Container element
+ * @returns {void}
+ */
 function renderTreemap(entries, wrap) {
     wrap.innerHTML = '';
     const W = wrap.clientWidth  || 600;
@@ -1059,6 +1279,10 @@ function renderTreemap(entries, wrap) {
 }
 
 // ─── TAB 4: USERS ─────────────────────────────────────────────────────────────
+/**
+ * Load per-user storage usage data.
+ * @returns {void}
+ */
 function loadUsers() {
     const tbody = document.getElementById('usersTbody');
     tbody.innerHTML = '<tr><td colspan="6" class="sa-loading"><div class="sa-spinner"></div></td></tr>';
@@ -1071,6 +1295,11 @@ function loadUsers() {
     });
 }
 
+/**
+ * Render the user storage usage table.
+ * @param {Array<Object>} users - User usage data
+ * @returns {void}
+ */
 function renderUsersTable(users) {
     const tbody = document.getElementById('usersTbody');
     if (!users.length) {
@@ -1111,6 +1340,10 @@ function renderUsersTable(users) {
 }
 
 // ─── TAB 5: FILE TYPES ───────────────────────────────────────────────────────
+/**
+ * Load file type breakdown data.
+ * @returns {void}
+ */
 function loadFiletypes() {
     const tbody = document.getElementById('filetypesTbody');
     tbody.innerHTML = '<tr><td colspan="5" class="sa-loading"><div class="sa-spinner"></div></td></tr>';
@@ -1123,6 +1356,11 @@ function loadFiletypes() {
     });
 }
 
+/**
+ * Render the file type breakdown table and donut chart.
+ * @param {Array<Object>} breakdown - File type breakdown data
+ * @returns {void}
+ */
 function renderFiletypes(breakdown) {
     const tbody = document.getElementById('filetypesTbody');
     const svg   = document.getElementById('donutSvg');
@@ -1167,6 +1405,13 @@ function renderFiletypes(breakdown) {
     });
 }
 
+/**
+ * Render an SVG donut chart.
+ * @param {HTMLElement} svg - SVG element to render into
+ * @param {Array<Object>} breakdown - Segment data
+ * @param {number} total - Total bytes
+ * @returns {void}
+ */
 function renderDonut(svg, breakdown, total) {
     svg.innerHTML = '';
     const cx = 110, cy = 110, R = 85, r = 55;
@@ -1212,6 +1457,13 @@ function renderDonut(svg, breakdown, total) {
 }
 
 // ─── SPARKLINE helper ─────────────────────────────────────────────────────────
+/**
+ * Build an inline SVG sparkline from values.
+ * @param {Array<number>} values - Data values
+ * @param {number} w - Width
+ * @param {number} h - Height
+ * @returns {string}
+ */
 function buildSparkline(values, w, h) {
     if (!values || values.length < 2) return '';
     const min = Math.min(...values);

@@ -159,6 +159,11 @@ var TOOLS_OPENAI = [
 ];
 
 // Convert OpenAI tools → Anthropic tools
+/**
+ * Convert OpenAI-format tool definitions to Anthropic format.
+ * @param {Array<Object>} tools - OpenAI-format tool definitions
+ * @returns {Array<Object>}
+ */
 function toAnthropicTools(tools) {
     return tools.map(function(t) {
         return {
@@ -171,6 +176,12 @@ function toAnthropicTools(tools) {
 
 // ── Tool name → mcp-api.py command ────────────────────────────────────────────
 
+/**
+ * Map tool name and input to mcp-api.py CLI arguments.
+ * @param {string} name - Tool function name
+ * @param {Object} input - Tool input parameters
+ * @returns {Array<string>|null}
+ */
 function toolToCmd(name, input) {
     switch (name) {
         case "get_status":      return ["get-status"];
@@ -190,6 +201,11 @@ function toolToCmd(name, input) {
 
 // ── NAS command via cockpit.spawn ──────────────────────────────────────────────
 
+/**
+ * Execute a NAS command via mcp-api.py through cockpit.spawn.
+ * @param {Array<string>} args - Command arguments for mcp-api.py
+ * @returns {Promise<Object>}
+ */
 function nasCmd(args) {
     return new Promise(function(resolve, reject) {
         var out = "";
@@ -214,9 +230,21 @@ var _nasContext = "";
 
 // ── Settings accessors ─────────────────────────────────────────────────────────
 
+/**
+ * Get the currently selected AI provider from localStorage.
+ * @returns {string}
+ */
 function getProvider()  { return localStorage.getItem(KEY_PROVIDER) || "yandex"; }
+/**
+ * Get the max tokens setting from localStorage.
+ * @returns {number}
+ */
 function getMaxTokens() { return parseInt(localStorage.getItem(KEY_MAXTOKENS) || "2048", 10); }
 
+/**
+ * Get Yandex GPT API credentials from localStorage.
+ * @returns {Object}
+ */
 function getYandexCreds() {
     return {
         key:    localStorage.getItem(KEY_YA_KEY)    || YANDEX_DEFAULT_KEY,
@@ -225,6 +253,10 @@ function getYandexCreds() {
     };
 }
 
+/**
+ * Get Anthropic API credentials from localStorage.
+ * @returns {Object}
+ */
 function getAnthropicCreds() {
     return {
         key:   localStorage.getItem(KEY_AN_KEY)   || "",
@@ -239,6 +271,11 @@ function getAnthropicCreds() {
 
 var AI_TMP_FILE = "/tmp/rusnas-ai-req.json";
 
+/**
+ * Send messages to AI provider via mcp-api.py proxy (bypasses CORS).
+ * @param {Array<Object>} messages - Chat messages in OpenAI format
+ * @returns {Promise<Object>}
+ */
 function callViaProxy(messages) {
     return new Promise(function(resolve, reject) {
         var provider = getProvider();
@@ -301,6 +338,12 @@ function callViaProxy(messages) {
 }
 
 // Normalize provider response → internal format {stopReason, text, toolCalls, rawMessage}
+/**
+ * Normalize provider-specific response to internal format.
+ * @param {Object} data - Raw provider response
+ * @param {string} provider - Provider name ('yandex' or 'anthropic')
+ * @returns {Object}
+ */
 function normalizeResponse(data, provider) {
     if (provider === "yandex") {
         var choice = data.choices && data.choices[0];
@@ -335,6 +378,11 @@ function normalizeResponse(data, provider) {
 }
 
 // Convert OpenAI-format messages → Anthropic format
+/**
+ * Convert OpenAI-format message history to Anthropic format.
+ * @param {Array<Object>} messages - Messages in OpenAI format
+ * @returns {Array<Object>}
+ */
 function convertToAnthropicMessages(messages) {
     var result = [];
     var i = 0;
@@ -381,12 +429,21 @@ function convertToAnthropicMessages(messages) {
 
 // ── Unified call ───────────────────────────────────────────────────────────────
 
+/**
+ * Unified AI call wrapper that routes through the proxy.
+ * @param {Array<Object>} messages - Chat messages in OpenAI format
+ * @returns {Promise<Object>}
+ */
 async function callAI(messages) {
     return callViaProxy(messages);
 }
 
 // ── System prompt ──────────────────────────────────────────────────────────────
 
+/**
+ * Build the system prompt for the AI assistant with NAS context.
+ * @returns {string}
+ */
 function buildSystemPrompt() {
     return "Ты AI-ассистент для управления NAS-сервером rusNAS на базе Debian Linux.\n" +
         "Отвечай ТОЛЬКО на русском языке. Будь кратким и конкретным.\n" +
@@ -398,6 +455,11 @@ function buildSystemPrompt() {
 
 // ── Execute a tool call ────────────────────────────────────────────────────────
 
+/**
+ * Execute a single tool call and return the result message.
+ * @param {Object} toolCall - Tool call object {id, function: {name, arguments}}
+ * @returns {Promise<Object>}
+ */
 async function executeTool(toolCall) {
     var id   = toolCall.id;
     var name = toolCall.function.name;
@@ -425,6 +487,11 @@ async function executeTool(toolCall) {
 
 // ── Main send loop ─────────────────────────────────────────────────────────────
 
+/**
+ * Main send loop: process user message, call AI, execute tools, render.
+ * @param {string} userText - User's input message text
+ * @returns {Promise<void>}
+ */
 async function sendMessage(userText) {
     if (_thinking || !userText.trim()) return;
 
@@ -475,11 +542,20 @@ async function sendMessage(userText) {
 
 // ── DOM helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Hide the empty state placeholder in the chat area.
+ * @returns {void}
+ */
 function hideEmpty() {
     var el = document.getElementById("ai-empty");
     if (el) el.style.display = "none";
 }
 
+/**
+ * Append a user message bubble to the chat DOM.
+ * @param {string} text - User message text
+ * @returns {void}
+ */
 function appendUserMsg(text) {
     var wrap = document.getElementById("ai-messages");
     var div = document.createElement("div");
@@ -489,6 +565,11 @@ function appendUserMsg(text) {
     scrollMessages();
 }
 
+/**
+ * Append an assistant text response bubble to the chat DOM.
+ * @param {string} text - Assistant response text (supports markdown)
+ * @returns {void}
+ */
 function appendAssistantText(text) {
     if (!text) return;
     var wrap = document.getElementById("ai-messages");
@@ -499,6 +580,11 @@ function appendAssistantText(text) {
     scrollMessages();
 }
 
+/**
+ * Append tool call blocks with collapsible headers to the chat DOM.
+ * @param {Array<Object>} toolCalls - Array of tool call objects
+ * @returns {void}
+ */
 function appendToolCallBlocks(toolCalls) {
     var wrap = document.getElementById("ai-messages");
     toolCalls.forEach(function(tc) {
@@ -533,6 +619,13 @@ function appendToolCallBlocks(toolCalls) {
     scrollMessages();
 }
 
+/**
+ * Update a tool call block's status badge and result text.
+ * @param {string} elId - Base element ID for the tool block
+ * @param {string} status - Status string (running|done|error)
+ * @param {string} resultText - Optional result text to display
+ * @returns {void}
+ */
 function updateToolStatus(elId, status, resultText) {
     var statusEl = document.getElementById(elId + "-status");
     var bodyEl   = document.getElementById(elId);
@@ -544,6 +637,10 @@ function updateToolStatus(elId, status, resultText) {
     scrollMessages();
 }
 
+/**
+ * Append a 'thinking' animation element to the chat DOM.
+ * @returns {HTMLElement}
+ */
 function appendThinking() {
     var wrap = document.getElementById("ai-messages");
     var div = document.createElement("div");
@@ -554,16 +651,30 @@ function appendThinking() {
     return div;
 }
 
+/**
+ * Scroll the chat messages container to the bottom.
+ * @returns {void}
+ */
 function scrollMessages() {
     var wrap = document.getElementById("ai-messages");
     if (wrap) wrap.scrollTop = wrap.scrollHeight;
 }
 
+/**
+ * Enable or disable the send button.
+ * @param {boolean} d - True to disable, false to enable
+ * @returns {void}
+ */
 function setSendDisabled(d) {
     var btn = document.getElementById("ai-send");
     if (btn) btn.disabled = d;
 }
 
+/**
+ * Show an error banner at the top of the chat area.
+ * @param {string} msg - Error message to display
+ * @returns {void}
+ */
 function showError(msg) {
     var banner = document.getElementById("ai-error-banner");
     var text   = document.getElementById("ai-error-text");
@@ -573,6 +684,11 @@ function showError(msg) {
     }
 }
 
+/**
+ * Convert basic markdown (bold, code, newlines) to HTML.
+ * @param {string} text - Text with markdown formatting
+ * @returns {string}
+ */
 function formatMarkdown(text) {
     return esc(text)
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -580,6 +696,11 @@ function formatMarkdown(text) {
         .replace(/\n/g, '<br>');
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function esc(s) {
     return String(s)
         .replace(/&/g, "&amp;")
@@ -590,6 +711,12 @@ function esc(s) {
 
 // ── Status bar ─────────────────────────────────────────────────────────────────
 
+/**
+ * Update the AI status bar dot and text.
+ * @param {string} state - CSS class for the status dot
+ * @param {string} text - Status text to display
+ * @returns {void}
+ */
 function setStatus(state, text) {
     var dot  = document.getElementById("ai-status-dot");
     var span = document.getElementById("ai-status-text");
@@ -597,6 +724,10 @@ function setStatus(state, text) {
     if (span) span.textContent = text;
 }
 
+/**
+ * Update the model name badge in the header bar.
+ * @returns {void}
+ */
 function updateModelBadge() {
     var badge = document.getElementById("ai-model-badge");
     if (!badge) return;
@@ -610,6 +741,10 @@ function updateModelBadge() {
     }
 }
 
+/**
+ * Update status bar based on current provider and API key availability.
+ * @returns {void}
+ */
 function updateStatusFromSettings() {
     var provider = getProvider();
     if (provider === "yandex") {
@@ -623,6 +758,10 @@ function updateStatusFromSettings() {
 
 // ── Settings UI ────────────────────────────────────────────────────────────────
 
+/**
+ * Load all AI settings from localStorage and populate settings form.
+ * @returns {void}
+ */
 function loadSettingsToUI() {
     var provider = getProvider();
     var ya = getYandexCreds();
@@ -653,6 +792,11 @@ function loadSettingsToUI() {
     switchProviderFields(provider);
 }
 
+/**
+ * Show/hide provider-specific settings fields.
+ * @param {string} provider - Provider name ('yandex' or 'anthropic')
+ * @returns {void}
+ */
 function switchProviderFields(provider) {
     var yandexFields    = document.getElementById("ai-yandex-fields");
     var anthropicFields = document.getElementById("ai-anthropic-fields");
@@ -660,6 +804,10 @@ function switchProviderFields(provider) {
     if (anthropicFields) anthropicFields.style.display = provider === "anthropic" ? "" : "none";
 }
 
+/**
+ * Save all AI settings from the form to localStorage.
+ * @returns {void}
+ */
 function saveSettings() {
     var provider = (document.getElementById("ai-provider-select") || {}).value || "yandex";
     localStorage.setItem(KEY_PROVIDER, provider);
@@ -686,6 +834,10 @@ function saveSettings() {
     updateStatusFromSettings();
 }
 
+/**
+ * Test AI provider connection by sending a simple message.
+ * @returns {Promise<void>}
+ */
 async function testConnection() {
     saveSettings();
     var btn = document.getElementById("ai-settings-test");
@@ -703,10 +855,18 @@ async function testConnection() {
 
 // ── History ────────────────────────────────────────────────────────────────────
 
+/**
+ * Save chat message history to localStorage.
+ * @returns {void}
+ */
 function saveHistory() {
     try { localStorage.setItem(KEY_HISTORY, JSON.stringify(_messages)); } catch(e) {}
 }
 
+/**
+ * Load chat message history from localStorage.
+ * @returns {Array<Object>}
+ */
 function loadHistory() {
     try {
         var raw = localStorage.getItem(KEY_HISTORY);
@@ -715,6 +875,10 @@ function loadHistory() {
     return [];
 }
 
+/**
+ * Restore saved chat history messages to the DOM on page load.
+ * @returns {void}
+ */
 function restoreHistoryToDOM() {
     if (!_messages.length) return;
     hideEmpty();
@@ -737,6 +901,10 @@ function restoreHistoryToDOM() {
 
 // ── Load initial NAS context ───────────────────────────────────────────────────
 
+/**
+ * Load initial NAS system context for the AI system prompt.
+ * @returns {Promise<void>}
+ */
 async function loadNasContext() {
     try {
         var status = await nasCmd(["get-status"]);
@@ -832,6 +1000,10 @@ document.addEventListener("DOMContentLoaded", function() {
     bindChips();
 });
 
+/**
+ * Build HTML for the empty chat state with suggestion chips.
+ * @returns {string}
+ */
 function buildEmptyHTML() {
     return '<div class="ai-empty-icon">🤖</div>' +
         '<div class="ai-empty-title">Привет! Я AI-ассистент rusNAS</div>' +
@@ -846,6 +1018,10 @@ function buildEmptyHTML() {
         '</div>';
 }
 
+/**
+ * Bind click handlers to suggestion chip elements.
+ * @returns {void}
+ */
 function bindChips() {
     var chips = {
         "chip-status": "Покажи текущее состояние системы: uptime, нагрузку, использование памяти и дисков",

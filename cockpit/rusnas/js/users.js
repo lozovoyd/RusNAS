@@ -1,10 +1,24 @@
 // ─── Modal helpers ────────────────────────────────────────────────────────────
 
+/**
+ * Show a modal dialog by removing the 'hidden' class.
+ * @param {string} id - DOM element ID of the modal
+ * @returns {void}
+ */
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
+/**
+ * Hide a modal dialog by adding the 'hidden' class.
+ * @param {string} id - DOM element ID of the modal
+ * @returns {void}
+ */
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 
+/**
+ * Load system users (UID >= 1000) with Samba status, then render table.
+ * @returns {void}
+ */
 function loadUsers() {
     var tbody = document.getElementById("users-body");
     tbody.innerHTML = "<tr><td colspan='5'>Загрузка...</td></tr>";
@@ -50,6 +64,11 @@ function loadUsers() {
     });
 }
 
+/**
+ * Render the users table with edit/delete action buttons.
+ * @param {Array<Object>} rows - Array of {name, groups, samba} user objects
+ * @returns {void}
+ */
 function renderUsers(rows) {
     var tbody = document.getElementById("users-body");
     if (rows.length === 0) {
@@ -79,6 +98,10 @@ function renderUsers(rows) {
     });
 }
 
+/**
+ * Create a new system user with optional Samba access and group membership.
+ * @returns {void}
+ */
 function addUser() {
     var name     = document.getElementById("user-name").value.trim();
     var password = document.getElementById("user-password").value;
@@ -113,6 +136,11 @@ function addUser() {
         .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+/**
+ * Open the edit user modal pre-populated with current user data.
+ * @param {string} name - Username to edit
+ * @returns {void}
+ */
 function openEditUser(name) {
     document.getElementById("edit-user-name").value = name;
     document.getElementById("edit-user-password").value = "";
@@ -135,6 +163,10 @@ function openEditUser(name) {
     });
 }
 
+/**
+ * Save edited user settings: password, groups, and Samba access.
+ * @returns {void}
+ */
 function saveEditUser() {
     var name     = document.getElementById("edit-user-name").value.trim();
     var password = document.getElementById("edit-user-password").value;
@@ -180,6 +212,11 @@ function saveEditUser() {
         .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+/**
+ * Delete a system user (preserves home directory).
+ * @param {string} name - Username to delete
+ * @returns {void}
+ */
 function deleteUser(name) {
     if (!confirm("Удалить пользователя " + name + "?\nДомашняя директория будет сохранена.")) return;
     var cmd = "smbpasswd -x " + name + " 2>/dev/null || true; userdel " + name;
@@ -192,6 +229,10 @@ function deleteUser(name) {
 
 // ─── Groups ───────────────────────────────────────────────────────────────────
 
+/**
+ * Load system groups (GID >= 1000) and render the groups table.
+ * @returns {void}
+ */
 function loadGroups() {
     var tbody = document.getElementById("groups-body");
     tbody.innerHTML = "<tr><td colspan='3'>Загрузка...</td></tr>";
@@ -228,6 +269,10 @@ function loadGroups() {
     });
 }
 
+/**
+ * Create a new system group.
+ * @returns {void}
+ */
 function addGroup() {
     var name = document.getElementById("group-name").value.trim();
     if (!name) { alert("Введите имя группы"); return; }
@@ -244,6 +289,11 @@ function addGroup() {
         .fail(function(err) { alert("Ошибка: " + err); });
 }
 
+/**
+ * Delete a system group.
+ * @param {string} name - Group name to delete
+ * @returns {void}
+ */
 function deleteGroup(name) {
     if (!confirm("Удалить группу " + name + "?")) return;
     cockpit.spawn(["bash", "-c", "groupdel " + name], {superuser: "require"})
@@ -253,6 +303,10 @@ function deleteGroup(name) {
 
 // ─── Group select helpers ─────────────────────────────────────────────────────
 
+/**
+ * Refresh group dropdown options in user creation modal.
+ * @returns {void}
+ */
 function refreshGroupSelects() {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 {print $1}' /etc/group"],
@@ -268,6 +322,12 @@ function refreshGroupSelects() {
     });
 }
 
+/**
+ * Populate a container with group checkboxes, pre-checking selected groups.
+ * @param {string} containerId - DOM element ID for the checkbox container
+ * @param {Array<string>} selected - Currently selected group names
+ * @returns {void}
+ */
 function loadGroupCheckboxes(containerId, selected) {
     cockpit.spawn(
         ["bash", "-c", "awk -F: '$3>=1000 {print $1}' /etc/group"],
@@ -292,6 +352,10 @@ function loadGroupCheckboxes(containerId, selected) {
 
 // ─── Users init ───────────────────────────────────────────────────────────────
 
+/**
+ * Initialize users page: bind event listeners and load data.
+ * @returns {void}
+ */
 function initUsers() {
     document.getElementById("btn-add-user").addEventListener("click", function() {
         refreshGroupSelects();

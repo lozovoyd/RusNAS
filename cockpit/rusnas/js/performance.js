@@ -7,6 +7,11 @@ var _appliedItems = {};   // id → true if applied this session
 
 // ─── Spawn helper (returns Promise) ──────────────────────────────────────────
 
+/**
+ * Spawn a command with sudo via cockpit.spawn, returning a Promise.
+ * @param {Array<string>} args - Command arguments
+ * @returns {Promise<string>}
+ */
 function spawnP(args) {
     return new Promise(function(res, rej) {
         cockpit.spawn(["sudo", "-n"].concat(args), {err: "message"})
@@ -14,6 +19,11 @@ function spawnP(args) {
     });
 }
 
+/**
+ * Spawn a command with sudo, returning empty string on failure.
+ * @param {Array<string>} args - Command arguments
+ * @returns {Promise<string>}
+ */
 function spawnSafe(args) {
     return new Promise(function(res) {
         cockpit.spawn(["sudo", "-n"].concat(args), {err: "message"})
@@ -22,11 +32,21 @@ function spawnSafe(args) {
 }
 
 // Convert sysctl param (e.g. "vm.swappiness") to /proc/sys/ path
+/**
+ * Convert sysctl parameter name to /proc/sys/ file path.
+ * @param {string} param - Sysctl parameter (e.g. 'vm.swappiness')
+ * @returns {string}
+ */
 function sysctlPath(param) {
     return "/proc/sys/" + param.replace(/\./g, "/");
 }
 
 // No-sudo variant — for reads that don't need root (sysctl -n, /proc, /sys reads)
+/**
+ * Spawn a command without sudo via cockpit.spawn.
+ * @param {Array<string>} args - Command arguments
+ * @returns {Promise<string>}
+ */
 function spawnNoSudo(args) {
     return new Promise(function(res) {
         cockpit.spawn(args, {err: "message"})
@@ -35,12 +55,23 @@ function spawnNoSudo(args) {
 }
 
 // Write a single sysfs/procfs file as root via cockpit.file
+/**
+ * Write a value to a /proc/sys file via cockpit.file superuser.
+ * @param {string} path - File path to write
+ * @param {string} value - Value to write
+ * @returns {Promise<void>}
+ */
 function writeSysFile(path, value) {
     return cockpit.file(path, {superuser: "require"}).replace(value + "\n")
         .catch(function(e) { return Promise.reject("tee " + path + ": " + e); });
 }
 
 // List /sys/block devices matching regex, return Promise<string[]>
+/**
+ * List block devices matching a pattern via lsblk.
+ * @param {string} pattern - Device name pattern
+ * @returns {Promise<Array<string>>}
+ */
 function listBlockDevices(pattern) {
     return spawnNoSudo(["ls", "/sys/block"]).then(function(out) {
         return out.trim().split("\n").filter(function(d) { return d && pattern.test(d); });
@@ -58,6 +89,18 @@ function listBlockDevices(pattern) {
 //   rollbackFn(originalValue)→Promise
 // }
 
+/**
+ * Create a tuning item descriptor for a sysctl parameter.
+ * @param {string} id - Unique item ID
+ * @param {string} cat - Category name
+ * @param {string} param - Sysctl parameter name
+ * @param {string} label - Display label
+ * @param {string} desc - Description text
+ * @param {string} impact - Impact description
+ * @param {string} recommended - Recommended value
+ * @param {string} unit - Unit suffix
+ * @returns {Object}
+ */
 function makeSysctlItem(id, cat, param, label, desc, impact, recommended, unit) {
     return {
         id: id, category: cat, param: param, label: label, desc: desc,
@@ -83,6 +126,10 @@ function makeSysctlItem(id, cat, param, label, desc, impact, recommended, unit) 
     };
 }
 
+/**
+ * Build the complete list of all 12-level tuning items.
+ * @returns {Array<Object>}
+ */
 function ITEMS() {
     return [
         // ── Memory ──────────────────────────────────────────────────────────
@@ -489,6 +536,12 @@ function ITEMS() {
 
 var SYSCTL_FILE = "/etc/sysctl.d/99-rusnas-perf.conf";
 
+/**
+ * Persist a sysctl parameter to /etc/sysctl.d/99-rusnas-perf.conf.
+ * @param {string} param - Sysctl parameter name
+ * @param {string} value - Parameter value
+ * @returns {Promise<void>}
+ */
 function writeSysctlConf(param, value) {
     return cockpit.file(SYSCTL_FILE, {superuser: "require"}).read()
     .then(function(content) {
@@ -508,6 +561,11 @@ function writeSysctlConf(param, value) {
     });
 }
 
+/**
+ * Remove a sysctl parameter from the persistent config.
+ * @param {string} param - Sysctl parameter name
+ * @returns {Promise<void>}
+ */
 function removeSysctlConf(param) {
     return cockpit.file(SYSCTL_FILE, {superuser: "require"}).read()
     .then(function(content) {
@@ -521,6 +579,11 @@ function removeSysctlConf(param) {
     .catch(function() {});
 }
 
+/**
+ * Write mdadm stripe_cache_size as a systemd service.
+ * @param {string} value - Stripe cache size value
+ * @returns {Promise<void>}
+ */
 function writeStripeService(value) {
     var svc = [
         "[Unit]",
@@ -543,6 +606,10 @@ function writeStripeService(value) {
 
 // ─── System Profile Detection ─────────────────────────────────────────────────
 
+/**
+ * Auto-detect system profile (RAM, disks, NIC speed, RAID level).
+ * @returns {Promise<Object>}
+ */
 function detectProfile() {
     var profile = { ramGB: 0, cpuCores: 1, hddCount: 0, ssdCount: 0,
                     raidDevices: [], raidDisks: 0, netIface: "", netSpeed: 1000 };
@@ -614,6 +681,11 @@ function detectProfile() {
     });
 }
 
+/**
+ * Render the detected system profile summary.
+ * @param {Object} p - Detected profile object
+ * @returns {void}
+ */
 function renderProfile(p) {
     document.getElementById("prof-ram-val").textContent = p.ramGB + " ГБ";
     document.getElementById("prof-cpu-val").textContent = p.cpuCores + " ядер";
@@ -634,6 +706,11 @@ function renderProfile(p) {
 
 // ─── Load and render tuning table ─────────────────────────────────────────────
 
+/**
+ * Load all tuning items and their current values.
+ * @param {Object} profile - Detected system profile
+ * @returns {Promise<void>}
+ */
 function loadTuningTable(profile) {
     var items = ITEMS();
     _tuneItems = items;
@@ -657,6 +734,11 @@ function loadTuningTable(profile) {
     });
 }
 
+/**
+ * Render the tuning parameters table with current/recommended values.
+ * @param {Array<Object>} items - Tuning item objects
+ * @returns {void}
+ */
 function renderTuningTable(items) {
     var categories = [];
     var byCategory = {};
@@ -729,18 +811,35 @@ function renderTuningTable(items) {
     });
 }
 
+/**
+ * Compare current and recommended values for equality.
+ * @param {string} cur - Current value
+ * @param {string} rec - Recommended value
+ * @returns {boolean}
+ */
 function valuesEqual(cur, rec) {
     if (!cur || !rec) return false;
     // Normalize spaces for multi-value sysctls like "4096 87380 ..."
     return cur.trim().replace(/\s+/g, " ") === rec.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Truncate a string to N characters with ellipsis.
+ * @param {string} s - String to truncate
+ * @param {number} n - Maximum length
+ * @returns {string}
+ */
 function truncate(s, n) {
     s = String(s || "");
     if (s.length <= n) return s;
     return s.substring(0, n) + "…";
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function escHtml(s) {
     return String(s || "")
         .replace(/&/g, "&amp;").replace(/</g, "&lt;")
@@ -749,6 +848,11 @@ function escHtml(s) {
 
 // ─── Apply logic ──────────────────────────────────────────────────────────────
 
+/**
+ * Apply a single tuning item to the running system.
+ * @param {string} id - Tuning item ID
+ * @returns {Promise<void>}
+ */
 function applySingleItem(id) {
     var item = _tuneItems.find(function(x) { return x.id === id; });
     if (!item) return;
@@ -790,6 +894,10 @@ var _confirmTimer       = null;
 var _pendingPersistIds  = [];
 var _CONFIRM_SECONDS    = 60;
 
+/**
+ * Apply all selected tuning items with confirm/rollback flow.
+ * @returns {Promise<void>}
+ */
 function applySelected() {
     var ids = [];
     document.querySelectorAll(".perf-chk:checked:not(:disabled)").forEach(function(chk) {
@@ -824,12 +932,22 @@ function applySelected() {
     });
 }
 
+/**
+ * Get the sysctl parameter name for a tuning item ID.
+ * @param {string} id - Tuning item ID
+ * @returns {string}
+ */
 function _itemParam(id) {
     var item = _tuneItems.find(function(x) { return x.id === id; });
     return item ? item.param : id;
 }
 
 // Apply in-memory only (applyFn), no persistFn yet
+/**
+ * Apply a tuning item in-memory (without persisting).
+ * @param {string} id - Tuning item ID
+ * @returns {Promise<void>}
+ */
 function _applyInMemory(id) {
     var item = _tuneItems.find(function(x) { return x.id === id; });
     if (!item) return Promise.resolve();
@@ -849,6 +967,11 @@ function _applyInMemory(id) {
     });
 }
 
+/**
+ * Show the confirm/rollback phase after applying changes.
+ * @param {Array<string>} appliedIds - IDs of applied tuning items
+ * @returns {void}
+ */
 function _showConfirmPhase(appliedIds) {
     _pendingPersistIds = appliedIds;
     var modal    = document.getElementById("perf-confirm-modal");
@@ -875,6 +998,10 @@ function _showConfirmPhase(appliedIds) {
     }, 1000);
 }
 
+/**
+ * Execute automatic rollback of applied changes after timeout.
+ * @returns {void}
+ */
 function _autoRollback() {
     if (_confirmTimer) { clearInterval(_confirmTimer); _confirmTimer = null; }
     document.getElementById("perf-confirm-modal").classList.add("hidden");
@@ -888,6 +1015,10 @@ function _autoRollback() {
     });
 }
 
+/**
+ * Confirm and persist all applied tuning changes.
+ * @returns {Promise<void>}
+ */
 function confirmChanges() {
     if (_confirmTimer) { clearInterval(_confirmTimer); _confirmTimer = null; }
     document.getElementById("perf-confirm-modal").classList.add("hidden");
@@ -919,6 +1050,10 @@ function confirmChanges() {
     });
 }
 
+/**
+ * Cancel pending changes and rollback to previous values.
+ * @returns {void}
+ */
 function cancelConfirm() {
     if (_confirmTimer) { clearInterval(_confirmTimer); _confirmTimer = null; }
     document.getElementById("perf-confirm-modal").classList.add("hidden");
@@ -932,6 +1067,11 @@ function cancelConfirm() {
     });
 }
 
+/**
+ * Rollback in-memory changes for specified item IDs.
+ * @param {Array<string>} ids - Tuning item IDs to rollback
+ * @returns {Promise<void>}
+ */
 function _inMemoryRollback(ids) {
     var chain = Promise.resolve();
     ids.forEach(function(id) {
@@ -947,6 +1087,10 @@ function _inMemoryRollback(ids) {
     return chain;
 }
 
+/**
+ * Rollback all persisted tuning changes to system defaults.
+ * @returns {Promise<void>}
+ */
 function rollbackAll() {
     if (!Object.keys(_appliedItems).length) {
         showBanner("Нет применённых изменений для отката", "info");
@@ -991,6 +1135,11 @@ var _infoData = {
     thp_defrag:       { title: "THP Defragmentation", body: "Transparent HugePages — ядро объединяет 4 КБ страницы в 2 МБ страницы для снижения TLB промахов.<br><br><b>defrag=never:</b> Отключает фоновую дефрагментацию памяти. Дефрагментация может вызывать кратковременные паузы (latency spikes) при перераспределении памяти.<br><br><b>enabled=madvise:</b> THP включается только для процессов, запросивших это явно (madvise). Не влияет на Samba, NFS и ядро — они не используют madvise." }
 };
 
+/**
+ * Open the detailed info modal for a tuning parameter.
+ * @param {string} id - Tuning item ID
+ * @returns {void}
+ */
 function openInfoModal(id) {
     var data = _infoData[id];
     if (!data) return;
@@ -1001,6 +1150,12 @@ function openInfoModal(id) {
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 
+/**
+ * Show a status banner message.
+ * @param {string} msg - Banner message text
+ * @param {string} type - Banner type (success|warning|danger)
+ * @returns {void}
+ */
 function showBanner(msg, type) {
     var el = document.getElementById("perf-status-banner");
     el.className = "alert alert-" + (type === "success" ? "success" : type === "danger" ? "danger" : "info");
@@ -1013,6 +1168,10 @@ function showBanner(msg, type) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Initialize the Performance Tuner page.
+ * @returns {void}
+ */
 function init() {
     document.getElementById("tuning-table").innerHTML =
         "<div style='padding:24px;text-align:center;color:var(--color-muted)'>Загрузка данных…</div>";

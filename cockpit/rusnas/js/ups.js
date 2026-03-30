@@ -14,10 +14,21 @@ var _nutInstalled = false;
 
 // ── Утилиты ──────────────────────────────────────────────────────────────────
 
+/**
+ * Safely parse JSON string, returning null on failure.
+ * @param {string} str - JSON string to parse
+ * @returns {Object|null}
+ */
 function safeJson(str) {
     try { return JSON.parse(str.trim()); } catch(e) { return null; }
 }
 
+/**
+ * Show a global alert banner with auto-hide after 4 seconds.
+ * @param {string} type - Alert type (success|warning|danger)
+ * @param {string} msg - Alert message text
+ * @returns {void}
+ */
 function showAlert(type, msg) {
     var el = document.getElementById("global-alert");
     el.className = "alert alert-" + type;
@@ -26,6 +37,12 @@ function showAlert(type, msg) {
     setTimeout(function() { el.classList.add("hidden"); }, 4000);
 }
 
+/**
+ * Briefly show a message element, then auto-hide after timeout.
+ * @param {string} id - DOM element ID to show
+ * @param {number} ms - Milliseconds before hiding (default 3000)
+ * @returns {void}
+ */
 function showMsg(id, ms) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -33,6 +50,11 @@ function showMsg(id, ms) {
     setTimeout(function() { el.classList.add("hidden"); }, ms || 3000);
 }
 
+/**
+ * Format seconds into human-readable runtime string.
+ * @param {number} secs - Runtime in seconds
+ * @returns {string}
+ */
 function fmtRuntime(secs) {
     secs = parseInt(secs) || 0;
     if (!secs) return "—";
@@ -44,6 +66,10 @@ function fmtRuntime(secs) {
 
 // ── Проверка установки NUT ────────────────────────────────────────────────────
 
+/**
+ * Check if NUT (upsc) is installed and show/hide appropriate UI.
+ * @returns {void}
+ */
 function checkNutInstalled() {
     cockpit.spawn(["which", "upsc"], { err: "message" })
     .done(function() {
@@ -62,6 +88,10 @@ function checkNutInstalled() {
 
 // ── Установка NUT ─────────────────────────────────────────────────────────────
 
+/**
+ * Install the NUT package via apt-get with streaming log output.
+ * @returns {void}
+ */
 function installNut() {
     var log = document.getElementById("install-log");
     log.classList.remove("hidden");
@@ -83,6 +113,10 @@ function installNut() {
 
 // ── Загрузка статуса UPS ──────────────────────────────────────────────────────
 
+/**
+ * Load UPS name from config then fetch current UPS status.
+ * @returns {void}
+ */
 function loadUpsStatus() {
     // Сначала читаем имя UPS из конфига
     cockpit.file(UPS_CONF).read()
@@ -96,6 +130,10 @@ function loadUpsStatus() {
     .fail(function() { fetchUpsStatus(); });
 }
 
+/**
+ * Fetch UPS status via upsc (JSON mode with text fallback).
+ * @returns {void}
+ */
 function fetchUpsStatus() {
     // Пробуем upsc -j (JSON, NUT 2.8+)
     cockpit.spawn(["sudo", "-n", "upsc", "-j", _upsName + "@localhost"],
@@ -117,6 +155,11 @@ function fetchUpsStatus() {
     });
 }
 
+/**
+ * Parse upsc text output into key-value object.
+ * @param {string} text - Raw upsc output (key: value per line)
+ * @returns {Object}
+ */
 function parseUpscText(text) {
     var obj = {};
     (text || "").split("\n").forEach(function(line) {
@@ -128,6 +171,11 @@ function parseUpscText(text) {
     return obj;
 }
 
+/**
+ * Parse ups.status flags into display properties.
+ * @param {string} statusStr - UPS status string (e.g. 'OL', 'OB LB')
+ * @returns {Object}
+ */
 function parseUpsFlags(statusStr) {
     var flags = (statusStr || "").split(" ");
     if (flags.indexOf("LB") >= 0 || flags.indexOf("OB LB") >= 0) {
@@ -151,6 +199,11 @@ function parseUpsFlags(statusStr) {
     return { cls: "ups-banner-off", icon: "🔋", label: statusStr || "Нет данных", sub: "Статус неизвестен" };
 }
 
+/**
+ * Render full UPS status: banner, stat cards, and variables table.
+ * @param {Object} data - UPS variable key-value map from upsc
+ * @returns {void}
+ */
 function renderUpsStatus(data) {
     // Баннер
     var status = data["ups.status"] || "";
@@ -184,6 +237,11 @@ function renderUpsStatus(data) {
     renderVarsTable(data);
 }
 
+/**
+ * Render empty/error state when UPS data is unavailable.
+ * @param {string} msg - Error or status message to display
+ * @returns {void}
+ */
 function renderUpsNoData(msg) {
     var banner = document.getElementById("ups-banner");
     banner.className = "ups-status-banner ups-banner-off";
@@ -221,6 +279,11 @@ var VAR_LABELS = {
     "ups.temperature":         ["Температура", "°C"],
 };
 
+/**
+ * Render the detailed UPS variables table.
+ * @param {Object} data - UPS variable key-value map
+ * @returns {void}
+ */
 function renderVarsTable(data) {
     var rows = "";
     var keys = Object.keys(data).sort();
@@ -237,6 +300,11 @@ function renderVarsTable(data) {
 
 // ── Сканирование USB ──────────────────────────────────────────────────────────
 
+/**
+ * Scan for USB UPS devices using nut-scanner.
+ * @param {string|null} targetInput - Input element ID to populate with detected driver
+ * @returns {void}
+ */
 function scanUsbUps(targetInput) {
     var result = document.getElementById("scan-result");
     if (result) result.textContent = "Сканирование…";
@@ -265,6 +333,10 @@ function scanUsbUps(targetInput) {
 
 // ── Загрузка и сохранение конфигурации ───────────────────────────────────────
 
+/**
+ * Load NUT configuration files and populate the config form.
+ * @returns {void}
+ */
 function loadConfig() {
     cockpit.file(NUT_CONF).read()
     .done(function(content) {
@@ -321,6 +393,10 @@ function loadConfig() {
     });
 }
 
+/**
+ * Save all NUT configuration files and restart NUT service.
+ * @returns {void}
+ */
 function saveConfig() {
     var enabled = document.getElementById("ups-enabled").checked;
     var netServer = document.getElementById("net-server-enabled").checked;
@@ -413,6 +489,10 @@ function saveConfig() {
     });
 }
 
+/**
+ * Save battery protection thresholds to ups.conf override directives.
+ * @returns {void}
+ */
 function saveProtection() {
     cockpit.file(UPS_CONF).read()
     .done(function(content) {
@@ -441,6 +521,10 @@ function saveProtection() {
     });
 }
 
+/**
+ * Restart NUT service (tries nut.target, falls back to nut-server).
+ * @returns {void}
+ */
 function restartNut() {
     cockpit.spawn(["sudo", "-n", "systemctl", "restart", "nut.target"],
         { err: "message" })
@@ -464,6 +548,10 @@ function restartNut() {
 
 // ── Журнал событий ────────────────────────────────────────────────────────────
 
+/**
+ * Load UPS event history from journalctl/syslog.
+ * @returns {void}
+ */
 function loadEvents() {
     // Читаем из journalctl — логи upsmon
     cockpit.spawn(
@@ -496,6 +584,11 @@ var EVENT_KEYWORDS = {
     "COMMOK":   { cls: "ev-online",   label: "COMMOK",   desc: "Связь с ИБП восстановлена" },
 };
 
+/**
+ * Render UPS events table from raw log output.
+ * @param {string} rawLog - Raw log lines from journalctl/syslog
+ * @returns {void}
+ */
 function renderEvents(rawLog) {
     var lines = rawLog.split("\n").filter(Boolean).reverse();
     var rows = "";
@@ -522,6 +615,10 @@ function renderEvents(rawLog) {
 
 // ── Тип подключения ───────────────────────────────────────────────────────────
 
+/**
+ * Toggle connection type fields visibility (USB/SNMP/NetClient).
+ * @returns {void}
+ */
 function updateConnType() {
     var t = document.getElementById("ups-conn-type").value;
     document.getElementById("conn-usb").classList.toggle("hidden", t !== "usb");
@@ -531,6 +628,10 @@ function updateConnType() {
 
 // ── Сетевой сервер ────────────────────────────────────────────────────────────
 
+/**
+ * Toggle network server info panel and display server address.
+ * @returns {void}
+ */
 function updateNetServer() {
     var en = document.getElementById("net-server-enabled").checked;
     document.getElementById("net-server-info").classList.toggle("hidden", !en);
@@ -547,12 +648,20 @@ function updateNetServer() {
 
 // ── Полинг ────────────────────────────────────────────────────────────────────
 
+/**
+ * Start periodic UPS status polling every 15 seconds.
+ * @returns {void}
+ */
 function startPolling() {
     loadUpsStatus();
     if (_statusTimer) clearInterval(_statusTimer);
     _statusTimer = setInterval(loadUpsStatus, 15000);  // was 5s — UPS status changes slowly, 15s is sufficient
 }
 
+/**
+ * Load all UPS data: config, status, and events.
+ * @returns {void}
+ */
 function loadAll() {
     loadConfig();
     loadUpsStatus();
@@ -561,6 +670,10 @@ function loadAll() {
 
 // ── Runtime display ───────────────────────────────────────────────────────────
 
+/**
+ * Update the runtime threshold display (convert seconds to minutes).
+ * @returns {void}
+ */
 function updateRuntimeDisplay() {
     var secs = parseInt(document.getElementById("shutdown-runtime").value) || 0;
     document.getElementById("runtime-min").textContent = Math.round(secs / 60);

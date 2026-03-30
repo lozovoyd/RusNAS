@@ -17,11 +17,27 @@ var pendingAction = null;   // function to call after PIN confirmed
 
 // ── Modal helpers ─────────────────────────────────────────────────────────────
 
+/**
+ * Show a modal dialog by removing the 'hidden' class.
+ * @param {string} id - DOM element ID of the modal
+ * @returns {void}
+ */
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
+/**
+ * Hide a modal dialog by adding the 'hidden' class.
+ * @param {string} id - DOM element ID of the modal
+ * @returns {void}
+ */
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
 
 // ── Socket communication ──────────────────────────────────────────────────────
 
+/**
+ * Send a JSON command to the Guard daemon via Unix socket.
+ * @param {Object} req - Request object to send
+ * @param {Function} callback - Callback(response) on completion
+ * @returns {void}
+ */
 function socketSend(req, callback) {
     var ch = cockpit.channel({
         payload: "stream",
@@ -51,6 +67,13 @@ function socketSend(req, callback) {
     ch.send(JSON.stringify(req) + "\n");
 }
 
+/**
+ * Send a Guard command with optional extra parameters.
+ * @param {string} cmd - Command name
+ * @param {Object} extra - Additional parameters to merge
+ * @param {Function} callback - Callback(response) on completion
+ * @returns {void}
+ */
 function guardCmd(cmd, extra, callback) {
     var req = Object.assign({ cmd: cmd }, extra || {});
     if (guardToken) req.token = guardToken;
@@ -65,6 +88,13 @@ function guardCmd(cmd, extra, callback) {
 
 // ── PIN flow ──────────────────────────────────────────────────────────────────
 
+/**
+ * Show PIN modal for authenticated Guard operations.
+ * @param {string} title - Modal title
+ * @param {string} desc - Operation description
+ * @param {Function} action - Function to execute after PIN verification
+ * @returns {void}
+ */
 function requirePin(title, desc, action) {
     pendingAction = action;
     document.getElementById("pin-modal-title").textContent = title || "🔐 PIN Guard";
@@ -75,6 +105,10 @@ function requirePin(title, desc, action) {
     setTimeout(function() { document.getElementById("pin-input").focus(); }, 100);
 }
 
+/**
+ * Submit the entered PIN for Guard authentication.
+ * @returns {void}
+ */
 function submitPin() {
     var pin = document.getElementById("pin-input").value;
     if (!pin) return;
@@ -104,6 +138,10 @@ function submitPin() {
 
 var _pinCheckPending = false;
 
+/**
+ * Check if Guard PIN is set up, show setup modal if not.
+ * @returns {void}
+ */
 function checkPinSetup() {
     if (_pinCheckPending) return;
     _pinCheckPending = true;
@@ -130,6 +168,10 @@ function checkPinSetup() {
 
 var _statusPending = false;
 
+/**
+ * Refresh Guard daemon status and update all status indicators.
+ * @returns {void}
+ */
 function refreshStatus() {
     if (_statusPending) return;   // previous request still in flight — skip
     _statusPending = true;
@@ -175,6 +217,11 @@ function refreshStatus() {
     });
 }
 
+/**
+ * Update the main Guard status badge (active/stopped/alert).
+ * @param {Object} s - Guard status object
+ * @returns {void}
+ */
 function updateStatusBadge(s) {
     var badge = document.getElementById("daemon-status-badge");
     if (!s) {
@@ -203,6 +250,11 @@ function updateStatusBadge(s) {
     });
 }
 
+/**
+ * Update Guard dashboard statistics cards.
+ * @param {Object} s - Guard status object with stats
+ * @returns {void}
+ */
 function updateDashboard(s) {
     document.getElementById("stat-events-today").textContent  = s.events_today   || 0;
     document.getElementById("stat-iops").textContent          = s.current_iops   || 0;
@@ -229,6 +281,11 @@ var eventsPage   = 0;
 var eventsFilters = {};
 var _eventsLoadPending = false;
 
+/**
+ * Load Guard events with pagination and filters.
+ * @param {boolean} resetPage - Reset to first page if true
+ * @returns {void}
+ */
 function loadEvents(resetPage) {
     if (_eventsLoadPending) return;
     if (resetPage) eventsPage = 0;
@@ -250,6 +307,11 @@ function loadEvents(resetPage) {
     });
 }
 
+/**
+ * Render the Guard events table with pagination controls.
+ * @param {Object} data - Events response {events, total}
+ * @returns {void}
+ */
 function renderEvents(data) {
     // data may be {events, total} (new) or plain array (legacy status poll)
     var events = Array.isArray(data) ? data : (data.events || []);
@@ -315,6 +377,11 @@ function renderEvents(data) {
     }).join("");
 }
 
+/**
+ * Acknowledge a Guard event by ID.
+ * @param {string} eventId - Event ID to acknowledge
+ * @returns {void}
+ */
 function ackEvent(eventId) {
     requirePin("✓ Подтвердить событие", "Введите PIN для подтверждения события.", function() {
         guardCmd("acknowledge", { event_id: eventId }, function(err, resp) {
@@ -324,6 +391,10 @@ function ackEvent(eventId) {
     });
 }
 
+/**
+ * Export filtered Guard events to CSV file download.
+ * @returns {void}
+ */
 function exportEventsCsv() {
     // Request all matching events (no pagination)
     var req = {
@@ -364,6 +435,10 @@ function exportEventsCsv() {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+/**
+ * Load Guard configuration and populate settings form.
+ * @returns {void}
+ */
 function loadConfig() {
     guardCmd("get_config", {}, function(err, resp) {
         if (err || !resp || !resp.ok) return;
@@ -401,6 +476,11 @@ function loadConfig() {
     });
 }
 
+/**
+ * Render the monitored paths list with edit/remove controls.
+ * @param {Array<Object>} paths - Array of monitored path config objects
+ * @returns {void}
+ */
 function renderPaths(paths) {
     var body = document.getElementById("paths-body");
     if (!paths.length) {
@@ -409,6 +489,11 @@ function renderPaths(paths) {
     }
 
     body.innerHTML = paths.map(function(p, idx) {
+        /**
+         * Chk.
+         * @param {string} key
+         * @returns {void}
+         */
         function chk(key) {
             return "<input type='checkbox' " + (p[key] !== false ? "checked" : "") +
                    " onchange='updatePathFlag(" + idx + ",\"" + key + "\",this.checked)'>";
@@ -425,6 +510,13 @@ function renderPaths(paths) {
     }).join("");
 }
 
+/**
+ * Toggle a boolean flag on a monitored path.
+ * @param {number} idx - Path index in config array
+ * @param {string} key - Flag key name
+ * @param {boolean} val - New flag value
+ * @returns {void}
+ */
 function updatePathFlag(idx, key, val) {
     requirePin("Изменить настройки", "Введите PIN для изменения настроек мониторинга.", function() {
         guardCmd("get_config", {}, function(err, resp) {
@@ -438,6 +530,11 @@ function updatePathFlag(idx, key, val) {
     });
 }
 
+/**
+ * Remove a monitored path from Guard configuration.
+ * @param {number} idx - Path index to remove
+ * @returns {void}
+ */
 function removePath(idx) {
     requirePin("Удалить путь", "Введите PIN для удаления пути мониторинга.", function() {
         guardCmd("get_config", {}, function(err, resp) {
@@ -451,6 +548,12 @@ function removePath(idx) {
 
 // ── Alert banner ──────────────────────────────────────────────────────────────
 
+/**
+ * Display a temporary alert banner.
+ * @param {string} level - Alert level (success|warning|danger)
+ * @param {string} msg - Alert message text
+ * @returns {void}
+ */
 function showAlert(level, msg) {
     var icon = level === "danger" ? "🔴" : level === "warning" ? "🟡" : "🔵";
     var el   = document.getElementById("guard-alert-banner");
@@ -460,12 +563,21 @@ function showAlert(level, msg) {
 
 // ── Toggle remote fields ──────────────────────────────────────────────────────
 
+/**
+ * Show/hide remote notification fields in settings.
+ * @param {boolean} show - Whether to show remote fields
+ * @returns {void}
+ */
 function toggleRemoteFields(show) {
     document.getElementById("snap-remote-fields").classList.toggle("hidden", !show);
 }
 
 // ── Path discovery for add-path modal ────────────────────────────────────────
 
+/**
+ * Discover available mount points and SMB shares for monitoring.
+ * @returns {void}
+ */
 function discoverAvailablePaths() {
     var listEl = document.getElementById("available-paths-list");
 
@@ -480,6 +592,10 @@ function discoverAvailablePaths() {
         var mounts = null, shares = null;
         var done = 0;
 
+        /**
+         * Try Render.
+         * @returns {void}
+         */
         function tryRender() {
             done++;
             if (done < 2) return;
@@ -512,6 +628,13 @@ function discoverAvailablePaths() {
     });
 }
 
+/**
+ * Render discoverable path options for adding to Guard.
+ * @param {Array<string>} mounts - Available mount points
+ * @param {Array<string>} smbPaths - Available SMB share paths
+ * @param {Array<string>} configured - Already configured paths
+ * @returns {void}
+ */
 function renderPathChoices(mounts, smbPaths, configured) {
     var listEl = document.getElementById("available-paths-list");
 

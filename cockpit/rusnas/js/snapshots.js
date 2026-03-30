@@ -28,6 +28,10 @@
     });
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
+    /**
+     * Initialize tab switching for Snapshots/Schedule/Replication/Events.
+     * @returns {void}
+     */
     function setupTabs() {
         document.querySelectorAll(".advisor-tab-btn").forEach(function (btn) {
             btn.addEventListener("click", function () {
@@ -49,13 +53,27 @@
     }
 
     // ── Modals ────────────────────────────────────────────────────────────────
+    /**
+     * Show a modal dialog by removing the 'hidden' class.
+     * @param {string} id - DOM element ID of the modal
+     * @returns {void}
+     */
     function showModal(id) {
         document.getElementById(id).classList.remove("hidden");
     }
+    /**
+     * Hide a modal dialog by adding the 'hidden' class.
+     * @param {string} id - DOM element ID of the modal
+     * @returns {void}
+     */
     function closeModal(id) {
         document.getElementById(id).classList.add("hidden");
     }
 
+    /**
+     * Wire up modal close buttons and overlay click-to-dismiss.
+     * @returns {void}
+     */
     function setupModals() {
         document.querySelectorAll("[data-close]").forEach(function (btn) {
             btn.addEventListener("click", function () {
@@ -70,6 +88,12 @@
     }
 
     // ── Alert ─────────────────────────────────────────────────────────────────
+    /**
+     * Display a temporary alert banner with auto-hide.
+     * @param {string} type - Alert type (success|warning|danger)
+     * @param {string} msg - Alert message text
+     * @returns {void}
+     */
     function showAlert(type, msg) {
         var el = document.getElementById("snap-alert");
         el.className = "alert alert-" + type;
@@ -79,6 +103,10 @@
         el._timer = setTimeout(function () { el.classList.add("hidden"); }, 6000);
     }
 
+    /**
+     * Hide the currently displayed alert banner.
+     * @returns {void}
+     */
     function hideAlert() {
         var el = document.getElementById("snap-alert");
         clearTimeout(el._timer);
@@ -86,6 +114,11 @@
     }
 
     // ── runCmd ────────────────────────────────────────────────────────────────
+    /**
+     * Execute a rusnas-snap CLI command and return stdout.
+     * @param {Array<string>} args - CLI arguments for rusnas-snap
+     * @returns {Promise<string>}
+     */
     function runCmd(args) {
         return new Promise(function (resolve, reject) {
             var proc = cockpit.spawn(["sudo", "-n"].concat(args), { err: "message" });
@@ -97,6 +130,11 @@
         });
     }
 
+    /**
+     * Check if a Btrfs subvolume path is currently offline/unmounted.
+     * @param {string} path - Subvolume path to check
+     * @returns {boolean}
+     */
     function isSubvolOffline(path) {
         for (var i = 0; i < subvolGroups.length; i++) {
             if (subvolGroups[i].offline && subvolGroups[i].subvols.indexOf(path) !== -1) return true;
@@ -107,6 +145,10 @@
     // ── Subvol loading ────────────────────────────────────────────────────────
 
     // Returns [{mountPoint: str, subvols: [str], offline: bool}] grouped by Btrfs mount point
+    /**
+     * Discover all Btrfs subvolumes across mounted filesystems.
+     * @returns {Promise<Array<Object>>}
+     */
     function findBtrfsSubvols() {
         return new Promise(function (resolve) {
             cockpit.spawn(
@@ -141,11 +183,20 @@
     }
 
     // Infer a "virtual mount point" from an absolute path (/mnt/foo/... → /mnt/foo)
+    /**
+     * Infer the mount point from a full subvolume path.
+     * @param {string} path - Full subvolume path
+     * @returns {string}
+     */
     function inferMountPoint(path) {
         var parts = path.split("/").filter(Boolean);
         return "/" + parts.slice(0, 2).join("/");
     }
 
+    /**
+     * Load subvolume list from schedules and live filesystem discovery.
+     * @returns {void}
+     */
     function loadSubvols() {
         var schedPromise = runCmd(["rusnas-snap", "schedule", "list"])
             .then(function (out) {
@@ -216,6 +267,10 @@
         });
     }
 
+    /**
+     * Load storage statistics for all known subvolumes.
+     * @returns {void}
+     */
     function loadStorageInfo() {
         var totalSubvolsEl = document.getElementById("total-subvols-all");
         if (totalSubvolsEl) totalSubvolsEl.textContent = subvolList.length;
@@ -239,6 +294,12 @@
     // ── Sidebar tree ──────────────────────────────────────────────────────────
 
     // Build a path tree from a flat list of absolute paths under mountPoint
+    /**
+     * Build a tree structure from flat subvolume paths.
+     * @param {string} mountPoint - Root mount point
+     * @param {Array<string>} paths - Array of subvolume paths
+     * @returns {Object}
+     */
     function buildPathTree(mountPoint, paths) {
         var root = { name: "", fullPath: null, children: [] };
         paths.forEach(function (path) {
@@ -263,6 +324,11 @@
         return root;
     }
 
+    /**
+     * Render the subvolume tree sidebar with usage stats.
+     * @param {Object} statsMap - Map of path to storage stats
+     * @returns {void}
+     */
     function renderSidebar(statsMap) {
         var list = document.getElementById("snap-sidebar-list");
         if (!list) return;
@@ -314,6 +380,13 @@
         });
     }
 
+    /**
+     * Recursively render tree node HTML for sidebar.
+     * @param {Object} node - Tree node object
+     * @param {Object} statsMap - Storage stats map
+     * @param {number} depth - Current nesting depth
+     * @returns {string}
+     */
     function renderTreeNodeHtml(node, statsMap, depth) {
         var isReal      = !!node.fullPath;
         var hasChildren = node.children.length > 0;
@@ -356,6 +429,11 @@
     }
 
     // Compute local snapshot storage dir for a subvolume path
+    /**
+     * Get the snapshot directory path for a subvolume.
+     * @param {string} subvolPath - Subvolume path
+     * @returns {string}
+     */
     function getSnapDir(subvolPath) {
         for (var i = 0; i < subvolGroups.length; i++) {
             var g = subvolGroups[i];
@@ -367,6 +445,10 @@
         return null;
     }
 
+    /**
+     * Update the page header with currently selected subvolume name.
+     * @returns {void}
+     */
     function updateCurrentTitle() {
         if (!currentSubvol) return;
         var name    = currentSubvol.split("/").filter(Boolean).pop();
@@ -379,6 +461,11 @@
         if (snapDirEl) snapDirEl.textContent = snapDir ? "📦 снапшоты: " + snapDir : "";
     }
 
+    /**
+     * Populate all subvolume select dropdowns with available paths.
+     * @param {Array<string>} paths - Available subvolume paths
+     * @returns {void}
+     */
     function populateSelects(paths) {
         ["modal-create-subvol", "modal-sched-subvol", "modal-repl-subvol"].forEach(function (id) {
             var el = document.getElementById(id);
@@ -399,6 +486,11 @@
         });
     }
 
+    /**
+     * Format a subvolume path into a short display name.
+     * @param {string} path - Full subvolume path
+     * @returns {string}
+     */
     function fmtSubvol(path) {
         var name = path.split("/").filter(Boolean).pop();
         if (path.indexOf("/iscsi") !== -1) return "💾 iSCSI: " + name;
@@ -406,6 +498,10 @@
     }
 
     // ── Snapshots tab ─────────────────────────────────────────────────────────
+    /**
+     * Load snapshots list for the currently selected subvolume.
+     * @returns {void}
+     */
     function loadSnapshots() {
         if (!currentSubvol) return;
         if (isSubvolOffline(currentSubvol)) {
@@ -431,6 +527,11 @@
             .catch(function (err) { showAlert("danger", "Ошибка: " + err); });
     }
 
+    /**
+     * Render the snapshot count summary bar.
+     * @param {Object} data - Snapshot data with type counts
+     * @returns {void}
+     */
     function renderSummary(data) {
         document.getElementById("sum-count").textContent = data.total_count || 0;
         document.getElementById("sum-size").textContent  = data.total_size_human || "—";
@@ -438,6 +539,11 @@
         document.getElementById("sum-last").textContent = last ? fmtAge(last.created_at) : "—";
     }
 
+    /**
+     * Render the snapshots table with action buttons.
+     * @param {Array<Object>} snaps - Array of snapshot objects
+     * @returns {void}
+     */
     function renderTable(snaps) {
         var tbody = document.getElementById("snap-tbody");
         if (!snaps.length) {
@@ -486,12 +592,22 @@
     }
 
     // ── Snapshot actions ──────────────────────────────────────────────────────
+    /**
+     * Show deletion confirmation dialog for a snapshot.
+     * @param {string} id - Snapshot ID
+     * @param {string} name - Snapshot name
+     * @returns {void}
+     */
     function doDeleteConfirm(id, name) {
         pendingDelete = { id: id, snap_name: name };
         document.getElementById("delete-snap-name").textContent = name;
         showModal("modal-delete");
     }
 
+    /**
+     * Execute the confirmed snapshot deletion.
+     * @returns {void}
+     */
     function doDeleteExec() {
         if (!pendingDelete) return;
         closeModal("modal-delete");
@@ -501,6 +617,12 @@
         pendingDelete = null;
     }
 
+    /**
+     * Show restore confirmation dialog for a snapshot.
+     * @param {string} id - Snapshot ID
+     * @param {string} name - Snapshot name
+     * @returns {void}
+     */
     function doRestoreConfirm(id, name) {
         pendingRestore = { id: id, snap_name: name };
         document.getElementById("restore-snap-name").textContent  = name;
@@ -508,6 +630,10 @@
         showModal("modal-restore");
     }
 
+    /**
+     * Execute the confirmed snapshot restore.
+     * @returns {void}
+     */
     function doRestore() {
         if (!pendingRestore) return;
         closeModal("modal-restore");
@@ -521,6 +647,12 @@
         pendingRestore = null;
     }
 
+    /**
+     * Open modal to edit a snapshot label.
+     * @param {string} id - Snapshot ID
+     * @param {string} current - Current label text
+     * @returns {void}
+     */
     function doLabelModal(id, current) {
         pendingLabel = { id: id };
         document.getElementById("modal-label-input").value = current || "";
@@ -528,6 +660,10 @@
         setTimeout(function () { document.getElementById("modal-label-input").focus(); }, 50);
     }
 
+    /**
+     * Save the edited snapshot label.
+     * @returns {void}
+     */
     function doLabelSave() {
         if (!pendingLabel) return;
         var label = document.getElementById("modal-label-input").value.trim();
@@ -538,6 +674,12 @@
         pendingLabel = null;
     }
 
+    /**
+     * Toggle lock/unlock state on a snapshot.
+     * @param {string} id - Snapshot ID
+     * @param {boolean} isLocked - Current lock state
+     * @returns {void}
+     */
     function doLock(id, isLocked) {
         var cmd = isLocked ? "unlock" : "lock";
         runCmd(["rusnas-snap", cmd, id])
@@ -545,6 +687,10 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Create a new manual snapshot for the selected subvolume.
+     * @returns {void}
+     */
     function doCreate() {
         var subvol = document.getElementById("modal-create-subvol").value;
         var label  = document.getElementById("modal-create-label").value.trim();
@@ -562,6 +708,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Mount and browse a snapshot's contents in a modal.
+     * @param {string} id - Snapshot ID
+     * @returns {void}
+     */
     function doBrowse(id) {
         showAlert("info", "Монтирование снапшота...");
         runCmd(["rusnas-snap", "browse", id])
@@ -583,6 +734,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка монтирования: " + e); });
     }
 
+    /**
+     * Copy text to clipboard with user feedback.
+     * @param {string} text - Text to copy
+     * @returns {void}
+     */
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text).catch(function () {
             // fallback
@@ -595,6 +751,10 @@
         });
     }
 
+    /**
+     * Unmount a previously mounted snapshot browse session.
+     * @returns {void}
+     */
     function doBrowseUmount() {
         if (!browseSnapId) return;
         runCmd(["rusnas-snap", "browse-umount", browseSnapId])
@@ -607,6 +767,10 @@
     }
 
     // ── Schedule tab ──────────────────────────────────────────────────────────
+    /**
+     * Load snapshot schedule configurations from CLI.
+     * @returns {Promise<Object>}
+     */
     function loadSchedulesData() {
         return runCmd(["rusnas-snap", "schedule", "list"])
             .then(function (out) {
@@ -616,6 +780,10 @@
             .catch(function () { schedulesData = []; });
     }
 
+    /**
+     * Render the snapshot schedules table.
+     * @returns {void}
+     */
     function renderSchedules() {
         var el = document.getElementById("schedule-content");
         loadSchedulesData().then(function () {
@@ -688,6 +856,11 @@
         });
     }
 
+    /**
+     * Open modal to create/edit a snapshot schedule.
+     * @param {string} subvolPath - Subvolume path for the schedule
+     * @returns {void}
+     */
     function openScheduleModal(subvolPath) {
         document.getElementById("modal-schedule-title").textContent =
             subvolPath ? "Изменить расписание" : "Добавить расписание";
@@ -712,6 +885,10 @@
         showModal("modal-schedule");
     }
 
+    /**
+     * Save snapshot schedule configuration.
+     * @returns {void}
+     */
     function saveSchedule() {
         var subvol = document.getElementById("modal-sched-subvol").value;
         var cron   = document.getElementById("modal-sched-cron").value.trim();
@@ -735,6 +912,12 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Enable or disable a snapshot schedule.
+     * @param {string} subvolPath - Subvolume path
+     * @param {boolean} isEnabled - New enabled state
+     * @returns {void}
+     */
     function toggleSchedule(subvolPath, isEnabled) {
         var existing = schedulesData.filter(function (s) { return s.subvol_path === subvolPath; })[0];
         if (!existing) return;
@@ -753,6 +936,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Delete a snapshot schedule for a subvolume.
+     * @param {string} subvolPath - Subvolume path
+     * @returns {void}
+     */
     function deleteSchedule(subvolPath) {
         if (!confirm("Удалить расписание для «" + subvolPath + "»?\n\nСнапшоты созданные по расписанию останутся нетронутыми.")) return;
         runCmd(["rusnas-snap", "schedule", "delete", subvolPath])
@@ -764,6 +952,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Manually run snapshot retention policy for a subvolume.
+     * @param {string} subvolPath - Subvolume path
+     * @returns {void}
+     */
     function runRetentionNow(subvolPath) {
         showAlert("info", "Применение retention...");
         runCmd(["rusnas-snap", "retention", subvolPath])
@@ -777,6 +970,10 @@
     }
 
     // ── Events tab ────────────────────────────────────────────────────────────
+    /**
+     * Load snapshot system events log.
+     * @returns {void}
+     */
     function loadEvents() {
         var cmd = ["rusnas-snap", "events", "--limit", "50"];
         if (currentSubvol) cmd = cmd.concat(["--subvol", currentSubvol]);
@@ -806,6 +1003,10 @@
     }
 
     // ── Button wiring ─────────────────────────────────────────────────────────
+    /**
+     * Wire up all page action buttons to their handlers.
+     * @returns {void}
+     */
     function setupButtons() {
         document.getElementById("btn-create-snap").addEventListener("click", function () {
             var sel = document.getElementById("modal-create-subvol");
@@ -866,6 +1067,10 @@
 
     // ── Replication tab ───────────────────────────────────────────────────────
 
+    /**
+     * Load replication task configurations from CLI.
+     * @returns {Promise<Object>}
+     */
     function loadReplicationsData() {
         return runCmd(["rusnas-snap", "replication", "list"])
             .then(function (out) {
@@ -876,6 +1081,10 @@
             .catch(function () { replicationsData = []; return []; });
     }
 
+    /**
+     * Render the replication tasks table.
+     * @returns {void}
+     */
     function renderReplications() {
         var el = document.getElementById("replication-content");
         if (!el) return;
@@ -955,6 +1164,11 @@
         });
     }
 
+    /**
+     * Open modal to create/edit a replication task.
+     * @param {string} subvolPath - Subvolume path for replication
+     * @returns {void}
+     */
     function openReplicationModal(subvolPath) {
         editingReplSubvol = subvolPath || null;
         document.getElementById("modal-repl-title").textContent =
@@ -986,6 +1200,10 @@
         showModal("modal-replication");
     }
 
+    /**
+     * Save replication task configuration.
+     * @returns {void}
+     */
     function saveReplication() {
         var subvol = document.getElementById("modal-repl-subvol").value;
         var host   = document.getElementById("modal-repl-host").value.trim();
@@ -1010,6 +1228,10 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Test SSH connection from the replication modal settings.
+     * @returns {void}
+     */
     function testSshFromModal() {
         var subvol = document.getElementById("modal-repl-subvol").value;
         // If we have an existing task already saved, test it
@@ -1032,6 +1254,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка проверки: " + e); });
     }
 
+    /**
+     * Delete a replication task for a subvolume.
+     * @param {string} subvolPath - Subvolume path
+     * @returns {void}
+     */
     function deleteReplication(subvolPath) {
         if (!confirm("Удалить задачу репликации для «" + subvolPath + "»?\n\nСнапшоты на удалённом сервере останутся нетронутыми.")) return;
         runCmd(["rusnas-snap", "replication", "delete", subvolPath])
@@ -1042,6 +1269,12 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Enable or disable a replication task.
+     * @param {string} subvolPath - Subvolume path
+     * @param {boolean} isEnabled - New enabled state
+     * @returns {void}
+     */
     function toggleReplication(subvolPath, isEnabled) {
         var existing = replicationsData.filter(function (t) { return t.subvol_path === subvolPath; })[0];
         if (!existing) return;
@@ -1058,6 +1291,11 @@
             .catch(function (e) { showAlert("danger", "Ошибка: " + e); });
     }
 
+    /**
+     * Manually trigger a replication run for a subvolume.
+     * @param {string} subvolPath - Subvolume path
+     * @returns {void}
+     */
     function runReplicationNow(subvolPath) {
         showAlert("info", "⏳ Репликация запущена... Это может занять несколько минут.");
         // Disable the run button visually by rerendering after a delay
@@ -1077,6 +1315,11 @@
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+    /**
+     * Safely parse JSON string, returning null on failure.
+     * @param {string} str - JSON string to parse
+     * @returns {Object|null}
+     */
     function safeJson(str) {
         try {
             return JSON.parse(str);
@@ -1089,6 +1332,11 @@
         }
     }
 
+    /**
+     * Format ISO date string to localized short date.
+     * @param {string} isoStr - ISO 8601 date string
+     * @returns {string}
+     */
     function fmtDate(isoStr) {
         if (!isoStr) return "—";
         try {
@@ -1100,6 +1348,11 @@
         } catch (e) { return isoStr; }
     }
 
+    /**
+     * Format ISO date string as relative time ago.
+     * @param {string} isoStr - ISO 8601 date string
+     * @returns {string}
+     */
     function fmtAge(isoStr) {
         if (!isoStr) return "—";
         try {
@@ -1111,6 +1364,11 @@
         } catch (e) { return isoStr; }
     }
 
+    /**
+     * Convert cron expression to human-readable Russian text.
+     * @param {string} expr - Cron expression string
+     * @returns {string}
+     */
     function cronHuman(expr) {
         var map = {
             "0 * * * *": "каждый час",
@@ -1121,6 +1379,11 @@
         return map[expr] || expr;
     }
 
+    /**
+     * Escape HTML special characters to prevent XSS.
+     * @param {string} s - Raw string to escape
+     * @returns {string}
+     */
     function escHtml(s) {
         return String(s || "")
             .replace(/&/g, "&amp;")

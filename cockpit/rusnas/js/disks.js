@@ -1,5 +1,10 @@
 // ─── Disks & RAID ─────────────────────────────────────────────────────────────
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} s - Raw string to escape
+ * @returns {string}
+ */
 function _escHtml(s) {
     return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
@@ -19,11 +24,26 @@ var SPINDOWN_CGI      = "/usr/lib/rusnas/cgi/spindown_ctl.py";
 var _SPINDOWN_POLL_NORMAL = 15000;  // 15s normal polling
 var _SPINDOWN_POLL_FAST   = 3000;   // 3s polling during flushing/waking
 
+/**
+ * Show a modal dialog.
+ * @param {string} id - Modal element ID
+ * @returns {void}
+ */
 function showModal(id)  { document.getElementById(id).classList.remove("hidden"); }
+/**
+ * Hide a modal dialog.
+ * @param {string} id - Modal element ID
+ * @returns {void}
+ */
 function closeModal(id) { document.getElementById(id).classList.add("hidden"); }
 
 // ─── Alert banner ─────────────────────────────────────────────────────────────
 
+/**
+ * Update the alert banner based on RAID array health status.
+ * @param {Array<Object>} arrays - Array of parsed RAID array objects
+ * @returns {void}
+ */
 function updateAlertBanner(arrays) {
     var banner = document.getElementById("raid-alert-banner");
     var alerts = [];
@@ -66,6 +86,11 @@ function updateAlertBanner(arrays) {
 
 // ─── Parse /proc/mdstat ───────────────────────────────────────────────────────
 
+/**
+ * Parse /proc/mdstat into structured RAID array objects.
+ * @param {string} text - Raw /proc/mdstat content
+ * @returns {Array<Object>}
+ */
 function parseMdstat(text) {
     var arrays = [];
     var lines  = text.split("\n");
@@ -121,6 +146,12 @@ function parseMdstat(text) {
 
 // ─── Render RAID arrays ───────────────────────────────────────────────────────
 
+/**
+ * Render RAID array cards with status, disks, and action buttons.
+ * @param {Array<Object>} arrays - Parsed RAID array objects
+ * @param {Object} mountMap - Map of device to mount info
+ * @returns {void}
+ */
 function renderArrays(arrays, mountMap) {
     mountMap = mountMap || {};
     var container = document.getElementById("arrays-container");
@@ -249,6 +280,11 @@ function renderArrays(arrays, mountMap) {
 
 }
 
+/**
+ * Get informational hint text for a RAID level.
+ * @param {Object} arr - RAID array object
+ * @returns {string}
+ */
 function getRaidHint(arr) {
     var n       = arr.total;
     var missing = n - arr.active;
@@ -301,6 +337,12 @@ function getRaidHint(arr) {
 
 // ─── Render physical disks ────────────────────────────────────────────────────
 
+/**
+ * Render physical disk cards with S.M.A.R.T. info.
+ * @param {string} lsblkOut - Raw lsblk JSON output
+ * @param {Array<Object>} arrays - RAID arrays for member identification
+ * @returns {void}
+ */
 function renderDisks(lsblkOut, arrays) {
     var tbody = document.getElementById("disks-body");
     var lines = lsblkOut.trim().split("\n").filter(Boolean);
@@ -361,6 +403,11 @@ function renderDisks(lsblkOut, arrays) {
     });
 }
 
+/**
+ * Load S.M.A.R.T. info for a specific disk.
+ * @param {string} disk - Disk device name (e.g. 'sda')
+ * @returns {void}
+ */
 function loadDiskInfo(disk) {
     cockpit.spawn(["sudo", "-n", "smartctl", "-i", "-H", "/dev/" + disk],
         {err: "message"})
@@ -397,6 +444,10 @@ function loadDiskInfo(disk) {
 
 // ─── Rescan SCSI bus for new disks ───────────────────────────────────────────
 
+/**
+ * Trigger SCSI bus rescan to detect new/removed disks.
+ * @returns {void}
+ */
 function rescanDisks() {
     var btn = document.getElementById("btn-rescan-disks");
     btn.disabled = true;
@@ -420,6 +471,11 @@ function rescanDisks() {
 
 // ─── Backup Mode functions ─────────────────────────────────────────────────────
 
+/**
+ * Load spindown state for all RAID arrays from CGI.
+ * @param {Function} callback - Optional callback after load
+ * @returns {void}
+ */
 function loadSpindownState(callback) {
     return new Promise(function(res, rej) {
         cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "get_state"],
@@ -437,6 +493,11 @@ function loadSpindownState(callback) {
     }).catch(function() { spindownState = {}; if (callback) callback(); });
 }
 
+/**
+ * Format ISO timestamp as relative time ago string.
+ * @param {string} isoString - ISO 8601 timestamp
+ * @returns {string}
+ */
 function timeAgo(isoString) {
     if (!isoString) return "—";
     var diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
@@ -445,11 +506,20 @@ function timeAgo(isoString) {
     return Math.floor(diff/3600) + " ч назад";
 }
 
+/**
+ * Start periodic spindown state polling.
+ * @returns {void}
+ */
 function startSpindownPoll() {
     if (spindownPollTimer) return;
     _doSpindownPoll(_SPINDOWN_POLL_NORMAL);
 }
 
+/**
+ * Execute one spindown poll cycle.
+ * @param {number} interval - Poll interval in ms
+ * @returns {void}
+ */
 function _doSpindownPoll(interval) {
     if (spindownPollTimer) clearInterval(spindownPollTimer);
     spindownPollTimer = setInterval(function() {
@@ -469,10 +539,18 @@ function _doSpindownPoll(interval) {
     }, interval);
 }
 
+/**
+ * Stop spindown state polling.
+ * @returns {void}
+ */
 function stopSpindownPoll() {
     if (spindownPollTimer) { clearInterval(spindownPollTimer); spindownPollTimer = null; }
 }
 
+/**
+ * Update spindown status badges on all RAID cards.
+ * @returns {void}
+ */
 function updateSpindownBadges() {
     Object.keys(spindownState).forEach(function(name) {
         var s = spindownState[name];
@@ -482,6 +560,11 @@ function updateSpindownBadges() {
     });
 }
 
+/**
+ * Generate HTML for a spindown status badge.
+ * @param {Object} sd - Spindown state object for an array
+ * @returns {string}
+ */
 function _spindownBadgeHtml(sd) {
     if (!sd || !sd.backup_mode) return "";
     var state = sd.state || "unknown";
@@ -499,6 +582,12 @@ function _spindownBadgeHtml(sd) {
     }
 }
 
+/**
+ * Check if array is sleeping and warn user before destructive ops.
+ * @param {string} arrayName - RAID array name (e.g. 'md127')
+ * @param {string} actionLabel - Name of the attempted action
+ * @returns {boolean}
+ */
 function _warnIfSleeping(arrayName, actionLabel) {
     var s = spindownState[arrayName];
     if (s && s.backup_mode && s.state === "standby") {
@@ -510,6 +599,11 @@ function _warnIfSleeping(arrayName, actionLabel) {
     return true;
 }
 
+/**
+ * Open the backup mode (HDD spindown) configuration panel.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function openBackupModePanel(arrayName) {
     var panelId = "bm-panel-" + arrayName;
     var panel = document.getElementById(panelId);
@@ -535,6 +629,11 @@ function openBackupModePanel(arrayName) {
     }
 }
 
+/**
+ * Refresh backup mode status display for an array.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function _refreshBackupModeStatus(arrayName) {
     var statusEl = document.getElementById("bm-status-" + arrayName);
     if (!statusEl) return;
@@ -565,6 +664,11 @@ function _refreshBackupModeStatus(arrayName) {
         "</div></div>";
 }
 
+/**
+ * Apply backup mode settings (enable/disable spindown) for an array.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function applyBackupMode(arrayName) {
     var toggle = document.getElementById("bm-toggle-" + arrayName);
     var timeoutEl = document.getElementById("bm-timeout-" + arrayName);
@@ -605,6 +709,11 @@ function applyBackupMode(arrayName) {
     }).catch(function(e) { alert("Ошибка: " + e); });
 }
 
+/**
+ * Wake up a sleeping RAID array.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function wakeupArray(arrayName) {
     new Promise(function(res, rej) {
         cockpit.spawn(["sudo", "-n", "python3", SPINDOWN_CGI, "wakeup_now", "--array", arrayName],
@@ -616,6 +725,11 @@ function wakeupArray(arrayName) {
     }).catch(function(e) { alert("Ошибка: " + e); });
 }
 
+/**
+ * Immediately spin down a RAID array.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function spindownArray(arrayName) {
     if (!confirm("Усыпить массив " + arrayName + " прямо сейчас?")) return;
     new Promise(function(res, rej) {
@@ -634,6 +748,11 @@ function spindownArray(arrayName) {
 
 // ─── Load all ─────────────────────────────────────────────────────────────────
 
+/**
+ * Parse findmnt output into device-to-mount mapping.
+ * @param {string} out - Raw findmnt output
+ * @returns {Object}
+ */
 function parseMountInfo(out) {
     var map = {};
     out.trim().split("\n").forEach(function(line) {
@@ -649,6 +768,10 @@ function parseMountInfo(out) {
     return map;
 }
 
+/**
+ * Load all disk and RAID data and render the page.
+ * @returns {void}
+ */
 function loadDisksAndArrays() {
     cockpit.spawn(["bash", "-c", "cat /proc/mdstat"])
         .done(function(mdstat) {
@@ -698,6 +821,11 @@ function loadDisksAndArrays() {
 
 // ─── Actions: run array ───────────────────────────────────────────────────────
 
+/**
+ * Assemble and start a stopped RAID array.
+ * @param {string} name - RAID array name
+ * @returns {void}
+ */
 function runArray(name) {
     if (!confirm("Запустить массив " + name + "?")) return;
     cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})
@@ -707,6 +835,12 @@ function runArray(name) {
 
 // ─── Actions: add disk ────────────────────────────────────────────────────────
 
+/**
+ * Open the add disk modal for array expansion or disk replacement.
+ * @param {string} arrayName - RAID array name
+ * @param {string} mode - Operation mode: 'expand', 'replace', or 'add'
+ * @returns {void}
+ */
 function openAddDisk(arrayName, mode) {
     mode = mode || "replace";
     var actionLabel = (mode === "expand") ? "Расширить" : "Заменить диск";
@@ -754,6 +888,11 @@ function openAddDisk(arrayName, mode) {
     });
 }
 
+/**
+ * Load S.M.A.R.T. info for candidate disks in add-disk modal.
+ * @param {Array<string>} disks - List of disk device names
+ * @returns {void}
+ */
 function loadAddDiskInfo(disks) {
     var info = document.getElementById("add-disk-info");
     if (!info || disks.length === 0) return;
@@ -784,6 +923,11 @@ function loadAddDiskInfo(disks) {
     });
 }
 
+/**
+ * Render S.M.A.R.T. info results in the add-disk modal.
+ * @param {Array<Object>} results - Array of disk info results
+ * @returns {void}
+ */
 function renderAddDiskInfo(results) {
     var info = document.getElementById("add-disk-info");
     if (!info) return;
@@ -798,6 +942,12 @@ function renderAddDiskInfo(results) {
 
 // ─── Actions: safe eject ─────────────────────────────────────────────────────
 
+/**
+ * Open the eject disk confirmation modal.
+ * @param {string} disk - Disk device name to eject
+ * @param {string} arrayName - Parent RAID array name
+ * @returns {void}
+ */
 function openEjectDisk(disk, arrayName) {
     document.getElementById("eject-disk-name").textContent   = "/dev/" + disk;
     document.getElementById("eject-array-name").textContent  = arrayName;
@@ -821,6 +971,10 @@ function openEjectDisk(disk, arrayName) {
     showModal("eject-disk-modal");
 }
 
+/**
+ * Execute the confirmed disk ejection from RAID array.
+ * @returns {void}
+ */
 function confirmEjectDisk() {
     var disk      = document.getElementById("eject-disk-value").value;
     var arrayName = document.getElementById("eject-array-value").value;
@@ -888,12 +1042,22 @@ var RAID_TYPES = [
     }
 ];
 
+/**
+ * Generate a star rating HTML string.
+ * @param {number} n - Number of filled stars
+ * @param {number} max - Maximum stars
+ * @returns {string}
+ */
 function stars(n, max) {
     var s = "";
     for (var i = 0; i < max; i++) s += i < n ? "★" : "☆";
     return "<span style='color:var(--warning);letter-spacing:1px;'>" + s + "</span>";
 }
 
+/**
+ * Open the RAID advisor modal with recommendations.
+ * @returns {void}
+ */
 function openRaidAdvisor() {
     var content = document.getElementById("raid-advisor-content");
     content.innerHTML = "<p class='text-muted' style='padding:16px 0;'>Загрузка данных о дисках...</p>";
@@ -911,6 +1075,11 @@ function openRaidAdvisor() {
         .fail(function() { renderAdvisor([]); });
 }
 
+/**
+ * Render RAID advisor content for a given disk count.
+ * @param {number} dataDisks - Number of available data disks
+ * @returns {void}
+ */
 function renderAdvisor(dataDisks) {
     var n       = dataDisks.length;
     var content = document.getElementById("raid-advisor-content");
@@ -927,6 +1096,11 @@ function renderAdvisor(dataDisks) {
     document.getElementById("tab-btn-builder").addEventListener("click", function() { switchAdvisorTab("builder"); });
 }
 
+/**
+ * Switch between advisor sub-tabs (compare/builder).
+ * @param {string} name - Tab name to activate
+ * @returns {void}
+ */
 function switchAdvisorTab(name) {
     ["compare", "builder"].forEach(function(t) {
         document.getElementById("advisor-tab-" + t).classList.toggle("hidden", t !== name);
@@ -936,6 +1110,11 @@ function switchAdvisorTab(name) {
 
 // ── Tab 1: comparison table ───────────────────────────────────────────────────
 
+/**
+ * Build the RAID level comparison table.
+ * @param {number} n - Number of disks to compare
+ * @returns {string}
+ */
 function buildCompareTab(n) {
     var rows = RAID_TYPES.map(function(r) {
         var ok     = n >= r.minDisks && (!r.evenOnly || n % 2 === 0);
@@ -979,6 +1158,11 @@ function buildCompareTab(n) {
 
 // ── Tab 2: builder — actual disk configurations ───────────────────────────────
 
+/**
+ * Build the RAID configuration builder/calculator.
+ * @param {number} dataDisks - Number of available disks
+ * @returns {string}
+ */
 function buildBuilderTab(dataDisks) {
     var n = dataDisks.length;
     if (n === 0) return "<p class='text-muted' style='padding:16px 0;'>Нет данных о физических дисках.</p>";
@@ -1087,6 +1271,10 @@ function buildBuilderTab(dataDisks) {
 
 var RAID_MIN_DISKS = { "0": 2, "1": 2, "5": 3, "6": 4, "10": 4 };
 
+/**
+ * Open the RAID array creation wizard modal.
+ * @returns {void}
+ */
 function openCreateArrayModal() {
     // Reset to step 1
     document.getElementById("create-step1").classList.remove("hidden");
@@ -1115,6 +1303,10 @@ function openCreateArrayModal() {
     showModal("modal-create-array");
 }
 
+/**
+ * Validate the RAID creation form inputs.
+ * @returns {boolean}
+ */
 function validateCreateForm() {
     var level = document.getElementById("create-raid-level").value;
     var minDisks = RAID_MIN_DISKS[level] || 2;
@@ -1137,12 +1329,21 @@ function validateCreateForm() {
     nextBtn.disabled = !valid || checked === 0;
 }
 
+/**
+ * Append a message to the RAID creation progress log.
+ * @param {string} msg - Log message to append
+ * @returns {void}
+ */
 function appendCreateLog(msg) {
     var log = document.getElementById("create-log");
     log.textContent += msg + "\n";
     log.scrollTop = log.scrollHeight;
 }
 
+/**
+ * Start the RAID array creation process.
+ * @returns {void}
+ */
 function startCreateArray() {
     var level = document.getElementById("create-raid-level").value;
     var mountPoint = document.getElementById("create-mountpoint").value.trim() || "/mnt/data";
@@ -1159,6 +1360,11 @@ function startCreateArray() {
     var logEl = document.getElementById("create-log");
     logEl.textContent = "";
 
+    /**
+     * Log.
+     * @param {string} msg
+     * @returns {void}
+     */
     function log(msg) { appendCreateLog(msg); }
 
     // Find free md device name
@@ -1239,9 +1445,19 @@ function startCreateArray() {
 
 var _deleteArrayDeps = null; // { mp, smb:[{name,path}], nfs:[path], schedules:[subvolPath] }
 
+/**
+ * Scan for SMB/NFS shares depending on a mount point.
+ * @param {string} mp - Mount point to scan
+ * @param {Function} callback - Callback with dependency info
+ * @returns {void}
+ */
 function scanArrayDeps(mp, callback) {
     var deps = { mp: mp, smb: [], nfs: [], schedules: [] };
     var pending = 3;
+    /**
+     * Done.
+     * @returns {void}
+     */
     function done() { if (--pending === 0) callback(deps); }
 
     // SMB: find shares whose path is under the mount point
@@ -1303,6 +1519,12 @@ function scanArrayDeps(mp, callback) {
         .fail(function() { done(); });
 }
 
+/**
+ * Open the RAID array deletion confirmation modal.
+ * @param {string} arrayName - Array name to delete
+ * @param {string} disksStr - Comma-separated member disk list
+ * @returns {void}
+ */
 function openDeleteArrayModal(arrayName, disksStr) {
     document.getElementById("delete-array-name").value = arrayName;
     document.getElementById("delete-array-label").textContent = arrayName;
@@ -1355,12 +1577,21 @@ function openDeleteArrayModal(arrayName, disksStr) {
         .fail(function() { depsList.innerHTML = ""; });
 }
 
+/**
+ * Execute the confirmed RAID array deletion.
+ * @returns {void}
+ */
 function doDeleteArray() {
     var arrayName = document.getElementById("delete-array-name").value;
     var log = document.getElementById("delete-array-log");
     log.classList.remove("hidden");
     document.getElementById("delete-array-footer").classList.add("hidden");
 
+    /**
+     * Append.
+     * @param {string} msg
+     * @returns {void}
+     */
     function append(msg) { log.textContent += msg + "\n"; log.scrollTop = log.scrollHeight; }
 
     var deps = _deleteArrayDeps; // may be null if not mounted
@@ -1504,6 +1735,11 @@ function doDeleteArray() {
 
 // ─── Mount / Umount array ─────────────────────────────────────────────────────
 
+/**
+ * Open the mount filesystem modal for a RAID array.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function openMountModal(arrayName) {
     document.getElementById("mount-array-name").value = arrayName;
     document.getElementById("mount-array-label").value = "/dev/" + arrayName;
@@ -1531,6 +1767,10 @@ function openMountModal(arrayName) {
     showModal("modal-mount-array");
 }
 
+/**
+ * Execute filesystem mount for a RAID array.
+ * @returns {void}
+ */
 function doMountArray() {
     var arrayName  = document.getElementById("mount-array-name").value;
     var mountPoint = document.getElementById("mount-array-point").value.trim();
@@ -1562,6 +1802,12 @@ function doMountArray() {
     });
 }
 
+/**
+ * Unmount a RAID array filesystem.
+ * @param {string} arrayName - RAID array name
+ * @param {string} mountPoint - Current mount point
+ * @returns {void}
+ */
 function doUmountArray(arrayName, mountPoint) {
     if (!_warnIfSleeping(arrayName, "Размонтировать")) return;
     if (!confirm("Размонтировать /dev/" + arrayName + " (" + mountPoint + ")?")) return;
@@ -1574,6 +1820,11 @@ function doUmountArray(arrayName, mountPoint) {
 
 // ─── Btrfs subvolumes ─────────────────────────────────────────────────────────
 
+/**
+ * Open the Btrfs subvolumes management modal.
+ * @param {string} mountPoint - Btrfs mount point
+ * @returns {void}
+ */
 function openSubvolumesModal(mountPoint) {
     document.getElementById("subvol-mount-point").value = mountPoint;
     document.getElementById("subvol-new-name").value = "";
@@ -1581,6 +1832,11 @@ function openSubvolumesModal(mountPoint) {
     refreshSubvolumeList(mountPoint);
 }
 
+/**
+ * Refresh the subvolume list in the modal.
+ * @param {string} mountPoint - Btrfs mount point
+ * @returns {void}
+ */
 function refreshSubvolumeList(mountPoint) {
     var container = document.getElementById("subvol-list-container");
     container.innerHTML = "<p class='text-muted'>Загрузка...</p>";
@@ -1627,6 +1883,10 @@ function refreshSubvolumeList(mountPoint) {
     });
 }
 
+/**
+ * Create a new Btrfs subvolume.
+ * @returns {void}
+ */
 function createSubvolume() {
     var mountPoint = document.getElementById("subvol-mount-point").value;
     var name = document.getElementById("subvol-new-name").value.trim();
@@ -1650,6 +1910,12 @@ function createSubvolume() {
     });
 }
 
+/**
+ * Delete a Btrfs subvolume.
+ * @param {string} mountPoint - Parent mount point
+ * @param {string} name - Subvolume name
+ * @returns {void}
+ */
 function deleteSubvolume(mountPoint, name) {
     if (!confirm("Удалить субтом " + name + "? Все данные в нём будут уничтожены.")) return;
     cockpit.spawn(
@@ -1667,6 +1933,10 @@ function deleteSubvolume(mountPoint, name) {
 var SSD_TIERS_JSON = "/etc/rusnas/ssd-tiers.json";
 
 // Returns Promise<string[]> of SSD candidate device paths
+/**
+ * Get list of unused SSD devices for cache tier creation.
+ * @returns {Promise<Array<Object>>}
+ */
 function getSsdCandidates() {
     return new Promise(function(resolve) {
         cockpit.spawn(["bash", "-c",
@@ -1706,6 +1976,12 @@ function getSsdCandidates() {
 }
 
 // Returns Promise<{hit_rate, cache_pct, mode}> for a given VG/LV
+/**
+ * Get dm-cache status for a specific VG/LV pair.
+ * @param {string} vgName - LVM volume group name
+ * @param {string} lvName - LVM logical volume name
+ * @returns {Promise<Object>}
+ */
 function getSsdTierStatus(vgName, lvName) {
     return new Promise(function(resolve) {
         cockpit.spawn(["bash", "-c",
@@ -1735,6 +2011,11 @@ function getSsdTierStatus(vgName, lvName) {
     });
 }
 
+/**
+ * Render the SSD cache tiers panel.
+ * @param {Array<Object>} tiers - Array of SSD tier config objects
+ * @returns {void}
+ */
 function renderSsdTiers(tiers) {
     var tbody = document.getElementById("ssd-tiers-body");
     if (!tiers || tiers.length === 0) {
@@ -1773,6 +2054,10 @@ function renderSsdTiers(tiers) {
     }).join("");
 }
 
+/**
+ * Load SSD cache tier configurations and render.
+ * @returns {void}
+ */
 function loadSsdTiers() {
     cockpit.file(SSD_TIERS_JSON).read()
     .done(function(content) {
@@ -1804,6 +2089,10 @@ function loadSsdTiers() {
     });
 }
 
+/**
+ * Open the SSD cache tier creation modal.
+ * @returns {void}
+ */
 function openAddSsdTierModal() {
     // Check lvm2 is installed
     cockpit.spawn(["bash", "-c", "which lvconvert && which pvs 2>/dev/null; echo $?"], { err: "message" })
@@ -1868,6 +2157,12 @@ function openAddSsdTierModal() {
     });
 }
 
+/**
+ * Append a message to the SSD tier creation log.
+ * @param {string} logId - Log element ID
+ * @param {string} msg - Log message
+ * @returns {void}
+ */
 function appendSsdLog(logId, msg) {
     var el = document.getElementById(logId);
     el.classList.remove("hidden");
@@ -1875,6 +2170,10 @@ function appendSsdLog(logId, msg) {
     el.scrollTop = el.scrollHeight;
 }
 
+/**
+ * Execute SSD cache tier creation process.
+ * @returns {void}
+ */
 function doCreateSsdTier() {
     var backingDev = document.getElementById("ssd-backing-dev").value;
     var cacheDev   = document.getElementById("ssd-cache-dev").value;
@@ -1975,6 +2274,14 @@ function doCreateSsdTier() {
     });
 }
 
+/**
+ * Handle SSD tier creation failure with cleanup.
+ * @param {string} logId - Log element ID
+ * @param {HTMLElement} btn - Submit button element
+ * @param {string} vgName - VG name for cleanup
+ * @param {string} errMsg - Error message to display
+ * @returns {void}
+ */
 function ssdCreateFail(logId, btn, vgName, errMsg) {
     appendSsdLog(logId, "✗ " + errMsg);
     appendSsdLog(logId, "Выполняется откат...");
@@ -1988,6 +2295,12 @@ function ssdCreateFail(logId, btn, vgName, errMsg) {
     }
 }
 
+/**
+ * Save SSD tier configuration to JSON file.
+ * @param {Object} newTier - Tier config object to save
+ * @param {Function} cb - Callback on success
+ * @returns {void}
+ */
 function saveSsdTier(newTier, cb) {
     cockpit.file(SSD_TIERS_JSON).read()
     .done(function(content) {
@@ -2009,6 +2322,12 @@ function saveSsdTier(newTier, cb) {
     });
 }
 
+/**
+ * Remove an SSD tier entry from the config JSON.
+ * @param {string} vgName - Volume group name to remove
+ * @param {Function} cb - Callback on success
+ * @returns {void}
+ */
 function removeSsdTierFromJson(vgName, cb) {
     cockpit.file(SSD_TIERS_JSON).read()
     .done(function(content) {
@@ -2024,6 +2343,13 @@ function removeSsdTierFromJson(vgName, cb) {
     .fail(function() { cb(); });
 }
 
+/**
+ * Open modal to change SSD cache mode (writeback/writethrough).
+ * @param {string} vgName - Volume group name
+ * @param {string} lvName - Logical volume name
+ * @param {string} currentMode - Current cache mode
+ * @returns {void}
+ */
 function openChangeModeModal(vgName, lvName, currentMode) {
     document.getElementById("change-mode-vg").value = vgName;
     document.getElementById("change-mode-lv").value = lvName;
@@ -2041,6 +2367,10 @@ function openChangeModeModal(vgName, lvName, currentMode) {
     showModal("modal-change-mode");
 }
 
+/**
+ * Execute cache mode change for an SSD tier.
+ * @returns {void}
+ */
 function doChangeCacheMode() {
     var vgName  = document.getElementById("change-mode-vg").value;
     var lvName  = document.getElementById("change-mode-lv").value;
@@ -2084,6 +2414,13 @@ function doChangeCacheMode() {
     });
 }
 
+/**
+ * Open confirmation modal for SSD tier removal.
+ * @param {string} vgName - Volume group name
+ * @param {string} lvName - Logical volume name
+ * @param {string} backingDev - Backing device path
+ * @returns {void}
+ */
 function openRemoveTierModal(vgName, lvName, backingDev) {
     document.getElementById("remove-tier-vg").value = vgName;
     document.getElementById("remove-tier-lv").value = lvName;
@@ -2096,6 +2433,10 @@ function openRemoveTierModal(vgName, lvName, backingDev) {
     showModal("modal-remove-ssd-tier");
 }
 
+/**
+ * Execute SSD cache tier removal with data flush.
+ * @returns {void}
+ */
 function doRemoveSsdTier() {
     var vgName = document.getElementById("remove-tier-vg").value;
     var lvName = document.getElementById("remove-tier-lv").value;
@@ -2180,6 +2521,11 @@ function doRemoveSsdTier() {
 var _smartModalDisk    = "";
 var _smartTestPollTimer = null;
 
+/**
+ * Open the S.M.A.R.T. details modal for a disk.
+ * @param {string} disk - Disk device name
+ * @returns {void}
+ */
 function openSmartModal(disk) {
     stopSmartTestPoll();
     _smartModalDisk = disk;
@@ -2208,6 +2554,11 @@ function openSmartModal(disk) {
     });
 }
 
+/**
+ * Render S.M.A.R.T. attributes table in the modal.
+ * @param {string} out - Raw smartctl output
+ * @returns {void}
+ */
 function renderSmartModal(out) {
     // ── Health ──────────────────────────────────────────────────────────────
     var healthM = out.match(/SMART overall-health self-assessment test result:\s*(\S+)/i);
@@ -2292,6 +2643,11 @@ function renderSmartModal(out) {
     }
 }
 
+/**
+ * Render S.M.A.R.T. test history in the modal.
+ * @param {string} out - Raw smartctl self-test log
+ * @returns {void}
+ */
 function renderTestHistory(out) {
     var rows = "";
     // Формат строки: # 1  Short offline       Completed without error       00%       100         -
@@ -2325,6 +2681,10 @@ function renderTestHistory(out) {
         "</tr></thead><tbody>" + rows + "</tbody></table>";
 }
 
+/**
+ * Start polling for S.M.A.R.T. test completion.
+ * @returns {void}
+ */
 function startSmartTestPoll() {
     if (_smartTestPollTimer) return;
     _smartTestPollTimer = setInterval(function() {
@@ -2348,6 +2708,10 @@ function startSmartTestPoll() {
     }, 5000);
 }
 
+/**
+ * Stop S.M.A.R.T. test completion polling.
+ * @returns {void}
+ */
 function stopSmartTestPoll() {
     if (_smartTestPollTimer) {
         clearInterval(_smartTestPollTimer);
@@ -2361,6 +2725,11 @@ function stopSmartTestPoll() {
 
 // ─── SMART Schedule (smartd) ──────────────────────────────────────────────────
 
+/**
+ * Load S.M.A.R.T. test schedule for a disk.
+ * @param {string} disk - Disk device name
+ * @returns {void}
+ */
 function loadSmartSchedule(disk) {
     cockpit.file("/etc/smartd.conf", {superuser: "require"}).read()
     .then(function(content) {
@@ -2398,6 +2767,10 @@ function loadSmartSchedule(disk) {
     });
 }
 
+/**
+ * Save S.M.A.R.T. test schedule configuration.
+ * @returns {void}
+ */
 function saveSmartSchedule() {
     var disk       = _smartModalDisk;
     var shortEn    = document.getElementById("smart-sched-short-en").checked;
@@ -2579,6 +2952,10 @@ document.addEventListener("DOMContentLoaded", function() {
     ssdTierTimer = setInterval(loadSsdTiers, 60000);  // was 10s — SSD tier config only changes on user action
 });
 
+/**
+ * Execute confirmed disk addition to RAID array.
+ * @returns {void}
+ */
 function confirmAddDisk() {
     var arrayName = document.getElementById("add-disk-array").value;
     var disk      = document.getElementById("add-disk-select").value;
@@ -2668,6 +3045,13 @@ var RAID_UPGRADES = {
     }
 };
 
+/**
+ * Open RAID level upgrade modal (e.g. RAID5 to RAID6).
+ * @param {string} arrayName - RAID array name
+ * @param {string} currentLevel - Current RAID level
+ * @param {number} currentDevices - Current device count
+ * @returns {void}
+ */
 function openUpgradeRaidModal(arrayName, currentLevel, currentDevices) {
     var upgrade = RAID_UPGRADES[currentLevel];
     if (!upgrade) { alert("Апгрейд с уровня " + currentLevel + " не поддерживается"); return; }
@@ -2716,6 +3100,11 @@ function openUpgradeRaidModal(arrayName, currentLevel, currentDevices) {
     showModal("modal-upgrade-raid");
 }
 
+/**
+ * Load disk info for RAID upgrade candidate selection.
+ * @param {Array<string>} disks - Available disk names
+ * @returns {void}
+ */
 function loadUpgradeDiskInfo(disks) {
     var info = document.getElementById("upgrade-raid-disk-info");
     info.textContent = "Загрузка информации...";
@@ -2743,6 +3132,11 @@ function loadUpgradeDiskInfo(disks) {
     });
 }
 
+/**
+ * Render disk info in the RAID upgrade modal.
+ * @param {Array<Object>} results - Disk info results
+ * @returns {void}
+ */
 function renderUpgradeDiskInfo(results) {
     var info = document.getElementById("upgrade-raid-disk-info");
     if (!info) return;
@@ -2754,6 +3148,10 @@ function renderUpgradeDiskInfo(results) {
     }).join("");
 }
 
+/**
+ * Execute confirmed RAID level upgrade.
+ * @returns {void}
+ */
 function confirmUpgradeRaid() {
     var arrayName   = document.getElementById("upgrade-raid-array").value;
     var targetLevel = document.getElementById("upgrade-raid-target-level").value;
@@ -2802,6 +3200,11 @@ function confirmUpgradeRaid() {
     });
 }
 
+/**
+ * Poll for RAID reshape completion and auto-resize filesystem.
+ * @param {string} arrayName - RAID array name
+ * @returns {void}
+ */
 function checkReshapeComplete(arrayName) {
     cockpit.spawn(["bash", "-c", "cat /proc/mdstat | grep -A2 " + arrayName])
         .done(function(out) {
