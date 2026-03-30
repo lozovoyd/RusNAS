@@ -1,0 +1,4009 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Программный комплекс управления сетевым хранилищем данных — документация разработчика и API">
+      
+      
+      
+      
+        <link rel="prev" href="../mcp-ai/">
+      
+      
+        <link rel="next" href="../../guides/getting-started/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Performance Tuner - RusNAS Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rusnas-performance-tuner-" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="RusNAS Documentation" class="md-header__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RusNAS Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Performance Tuner
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="RusNAS Documentation" class="md-nav__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RusNAS Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Архитектура
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор системы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/tech-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Технологический стек
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Развёртывание
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Спецификации модулей
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Спецификации модулей
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard (Антишифровальщик)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Снапшоты и репликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../raid-manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAID Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Хранилище
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Анализатор пространства
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ssd-tier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSD-кеширование
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Дедупликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ИБП / NUT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сеть и сертификаты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filebrowser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileBrowser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI-ассистент
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Цель
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Стек системы (на что ориентируемся)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Уровни оптимизации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Уровни оптимизации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-vm-dirty-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 1: Ядро — vm.* (память и dirty pages)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-block-device-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 2: Block Device — I/O планировщик
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-block-device-read-ahead-queue-depth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 3: Block Device — Read-Ahead и Queue Depth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-mdadm-raid-stripe_cache_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 4: mdadm RAID — stripe_cache_size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-btrfs-mount-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 5: Btrfs — mount options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-sysctl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 6: Сеть — sysctl
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 6: Сеть — sysctl">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10gbe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Профиль 10GbE:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1gbe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Профиль 1GbE (экономичный):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-nic-hardware-ethtool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 7: NIC Hardware — ethtool
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 7: NIC Hardware — ethtool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ring-buffers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ring buffers:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interrupt-coalescing-latencythroughput" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interrupt coalescing (баланс latency/throughput):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offload (обычно уже включено, проверить):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jumbo-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jumbo Frames (только если вся сеть поддерживает):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-samba-smbconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 8: Samba — smb.conf оптимизация
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-nfs-nfsd-threads-export-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 9: NFS — nfsd threads + export options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 9: NFS — nfsd threads + export options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nfsd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Количество потоков nfsd:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Опции экспорта:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sunrpc-slot-table-rpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sunrpc slot table (параллелизм RPC):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-cpu-governor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 10: CPU Governor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-irq-balancing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 11: IRQ Balancing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-tuned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 12: TuneD профиль
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Чек-лист авто-оптимизатора (приоритет по влиянию)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cockpit-performance-tuner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Архитектура Cockpit-страницы Performance Tuner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Архитектура Cockpit-страницы Performance Tuner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Расположение
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Структура UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Файлы для создания/изменения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Верификация
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Источники
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smart-self-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как работают SMART self-tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Целевой UX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Файлы для изменения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Парсинг истории тестов → таблица
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Прогресс-полинг после запуска теста
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-diskshtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Кнопки в disks.html
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-domcontentloaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Обработчики в DOMContentLoaded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-smartd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Автоматическое расписание тестов (smartd)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Автоматическое расписание тестов (smartd)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#smart-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что добавить в SMART-модалку — раздел "Автотесты"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backend-etcsmartdconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend: /etc/smartd.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Судоерс
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-diskshtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI в disks.html — секция расписания
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Верификация
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Руководство разработчика
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Руководство разработчика
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Быстрый старт
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cockpit-patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Паттерны Cockpit-плагина
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ui-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI дизайн-система
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/known-bugs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Известные баги
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/webservices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Веб-сервисы (nginx/Apache)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/eye/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    eye.js (Утилиты)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app.js (Хранилище)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dashboard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/disks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    disks.js (RAID)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    guard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snapshots.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    performance.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    storage-analyzer.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dedup.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ups.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    users.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ai.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    containers.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    license.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/container-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/spind/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spindown Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/network-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Analyzer API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Цель
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Стек системы (на что ориентируемся)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Уровни оптимизации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Уровни оптимизации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-vm-dirty-pages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 1: Ядро — vm.* (память и dirty pages)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-block-device-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 2: Block Device — I/O планировщик
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-block-device-read-ahead-queue-depth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 3: Block Device — Read-Ahead и Queue Depth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-mdadm-raid-stripe_cache_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 4: mdadm RAID — stripe_cache_size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-btrfs-mount-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 5: Btrfs — mount options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-sysctl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 6: Сеть — sysctl
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 6: Сеть — sysctl">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#10gbe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Профиль 10GbE:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#1gbe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Профиль 1GbE (экономичный):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-nic-hardware-ethtool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 7: NIC Hardware — ethtool
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 7: NIC Hardware — ethtool">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ring-buffers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ring buffers:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interrupt-coalescing-latencythroughput" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interrupt coalescing (баланс latency/throughput):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#offload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offload (обычно уже включено, проверить):
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jumbo-frames" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jumbo Frames (только если вся сеть поддерживает):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-samba-smbconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 8: Samba — smb.conf оптимизация
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-nfs-nfsd-threads-export-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 9: NFS — nfsd threads + export options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="УРОВЕНЬ 9: NFS — nfsd threads + export options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nfsd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Количество потоков nfsd:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Опции экспорта:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sunrpc-slot-table-rpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sunrpc slot table (параллелизм RPC):
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-cpu-governor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 10: CPU Governor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11-irq-balancing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 11: IRQ Balancing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-tuned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        УРОВЕНЬ 12: TuneD профиль
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Чек-лист авто-оптимизатора (приоритет по влиянию)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cockpit-performance-tuner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Архитектура Cockpit-страницы Performance Tuner
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Архитектура Cockpit-страницы Performance Tuner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Расположение
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Структура UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backend" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Файлы для создания/изменения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Верификация
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Источники
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smart-self-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как работают SMART self-tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Целевой UX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Файлы для изменения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Парсинг истории тестов → таблица
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Прогресс-полинг после запуска теста
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-diskshtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Кнопки в disks.html
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-domcontentloaded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Обработчики в DOMContentLoaded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-smartd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Автоматическое расписание тестов (smartd)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Автоматическое расписание тестов (smartd)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#smart-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что добавить в SMART-модалку — раздел "Автотесты"
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backend-etcsmartdconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend: /etc/smartd.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Судоерс
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-diskshtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UI в disks.html — секция расписания
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Верификация
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rusnas-performance-tuner-">ТЗ: rusNAS Performance Tuner — Авто-оптимизатор производительности<a class="headerlink" href="#rusnas-performance-tuner-" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Сохранить как <code>rusnas-performance-tuning-spec.md</code> в корне проекта после реализации.</p>
+</blockquote>
+<hr />
+<h2 id="_1">Цель<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Реализовать в Cockpit-плагине rusNAS страницу/инструмент <strong>Performance Tuner</strong> — авто-оптимизатор дисковой подсистемы и сети. Инструмент анализирует текущую конфигурацию системы, выводит список применимых оптимизаций с объяснением, позволяет применить их в один клик (или всё сразу), и сохраняет изменения персистентно (через udev, sysctl.d, systemd, конфиги сервисов).</p>
+<p><strong>Охват:</strong> ALL уровни — ядро, драйверы, планировщики I/O, файловая система, RAID, сеть (sysctl + ethtool), Samba, NFS, демоны.</p>
+<p><strong>Принцип:</strong> не ломать то, что работает. Каждый параметр — с объяснением, текущим значением и рекомендованным. Возможен откат.</p>
+<hr />
+<h2 id="_2">Стек системы (на что ориентируемся)<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Компонент</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OS</td>
+<td>Debian 13 Trixie, ядро 6.12+</td>
+</tr>
+<tr>
+<td>RAID</td>
+<td>mdadm (RAID 0/1/5/6/10)</td>
+</tr>
+<tr>
+<td>FS</td>
+<td>Btrfs</td>
+</tr>
+<tr>
+<td>SMB</td>
+<td>Samba</td>
+</tr>
+<tr>
+<td>NFS</td>
+<td>knfsd</td>
+</tr>
+<tr>
+<td>Сеть</td>
+<td>1GbE / 10GbE</td>
+</tr>
+<tr>
+<td>Кеш</td>
+<td>dm-cache / LVM (SSD tier, опционально)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">Уровни оптимизации<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="1-vm-dirty-pages">УРОВЕНЬ 1: Ядро — vm.* (память и dirty pages)<a class="headerlink" href="#1-vm-dirty-pages" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/sysctl.d/99-rusnas-perf.conf</code>
+<strong>Применение:</strong> <code>sysctl -p /etc/sysctl.d/99-rusnas-perf.conf</code></p>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th>Дефолт</th>
+<th>NAS-значение</th>
+<th>Влияние</th>
+<th>Пояснение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vm.dirty_ratio</code></td>
+<td>20</td>
+<td><strong>35</strong></td>
+<td>HIGH</td>
+<td>Макс. % RAM под грязные страницы до принудительного сброса</td>
+</tr>
+<tr>
+<td><code>vm.dirty_background_ratio</code></td>
+<td>10</td>
+<td><strong>10</strong></td>
+<td>HIGH</td>
+<td>% RAM для фонового сброса (не менять — баланс)</td>
+</tr>
+<tr>
+<td><code>vm.dirty_writeback_centisecs</code></td>
+<td>500</td>
+<td><strong>150</strong></td>
+<td>MED</td>
+<td>Интервал проверки flush (каждые 1.5 сек вместо 5)</td>
+</tr>
+<tr>
+<td><code>vm.vfs_cache_pressure</code></td>
+<td>100</td>
+<td><strong>50</strong></td>
+<td>MED</td>
+<td>Меньше вытесняет inode/dentry кеш → быстрее поиск файлов</td>
+</tr>
+<tr>
+<td><code>vm.swappiness</code></td>
+<td>60</td>
+<td><strong>10</strong></td>
+<td>HIGH</td>
+<td>RAM дороже swap для NAS; 10 = почти никогда не свапим</td>
+</tr>
+<tr>
+<td><code>vm.zone_reclaim_mode</code></td>
+<td>0</td>
+<td><strong>0</strong></td>
+<td>LOW</td>
+<td>NUMA: не менять (VM без NUMA)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Transparent Hugepages:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># /etc/rc.local или systemd oneshot</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">echo</span><span class="w"> </span>madvise<span class="w"> </span>&gt;<span class="w"> </span>/sys/kernel/mm/transparent_hugepage/enabled
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">echo</span><span class="w"> </span>never<span class="w">    </span>&gt;<span class="w"> </span>/sys/kernel/mm/transparent_hugepage/defrag
+</code></pre></div></p>
+<hr />
+<h3 id="2-block-device-io">УРОВЕНЬ 2: Block Device — I/O планировщик<a class="headerlink" href="#2-block-device-io" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/udev/rules.d/70-rusnas-io-scheduler.rules</code>
+<strong>Применение:</strong> <code>udevadm control --reload &amp;&amp; udevadm trigger</code></p>
+<table>
+<thead>
+<tr>
+<th>Тип устройства</th>
+<th>Планировщик</th>
+<th>Почему</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDD (вращающийся диск)</td>
+<td><code>mq-deadline</code></td>
+<td>Сортирует запросы для минимизации перемещений головки</td>
+</tr>
+<tr>
+<td>SSD (кеш-диск)</td>
+<td><code>none</code></td>
+<td>Нет механики → не нужна сортировка, убираем overhead</td>
+</tr>
+<tr>
+<td>NVMe</td>
+<td><code>none</code></td>
+<td>По умолчанию, оптимально</td>
+</tr>
+<tr>
+<td>RAID-устройство (md*)</td>
+<td><code>mq-deadline</code></td>
+<td>Упорядочивает запросы к массиву</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># /etc/udev/rules.d/70-rusnas-io-scheduler.rules
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;sd[a-z]&quot;, ATTR{queue/rotational}==&quot;1&quot;, ATTR{queue/scheduler}=&quot;mq-deadline&quot;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;sd[a-z]&quot;, ATTR{queue/rotational}==&quot;0&quot;, ATTR{queue/scheduler}=&quot;none&quot;
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;nvme*&quot;, ATTR{queue/scheduler}=&quot;none&quot;
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;md*&quot;,   ATTR{queue/scheduler}=&quot;mq-deadline&quot;
+</code></pre></div>
+<hr />
+<h3 id="3-block-device-read-ahead-queue-depth">УРОВЕНЬ 3: Block Device — Read-Ahead и Queue Depth<a class="headerlink" href="#3-block-device-read-ahead-queue-depth" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/udev/rules.d/71-rusnas-readahead.rules</code></p>
+<table>
+<thead>
+<tr>
+<th>Устройство</th>
+<th>read_ahead_kb</th>
+<th>nr_requests</th>
+<th>Почему</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HDD</td>
+<td><strong>8192</strong> (8 МБ)</td>
+<td><strong>256</strong></td>
+<td>Последовательное чтение — большой prefetch даёт +10-15%</td>
+</tr>
+<tr>
+<td>SSD</td>
+<td><strong>512</strong> (512 КБ)</td>
+<td><strong>256</strong></td>
+<td>SSD быстрый сам по себе, большой RA не нужен</td>
+</tr>
+<tr>
+<td>md RAID-массив</td>
+<td><strong>8192</strong></td>
+<td><strong>256</strong></td>
+<td>Увеличивает stripe-reads</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a># /etc/udev/rules.d/71-rusnas-readahead.rules
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;sd[a-z]&quot;, ATTR{queue/rotational}==&quot;1&quot;, ATTR{queue/read_ahead_kb}=&quot;8192&quot;, ATTR{queue/nr_requests}=&quot;256&quot;
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;sd[a-z]&quot;, ATTR{queue/rotational}==&quot;0&quot;, ATTR{queue/read_ahead_kb}=&quot;512&quot;,  ATTR{queue/nr_requests}=&quot;256&quot;
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>ACTION==&quot;add|change&quot;, KERNEL==&quot;md*&quot;,     ATTR{queue/read_ahead_kb}=&quot;8192&quot;
+</code></pre></div>
+<hr />
+<h3 id="4-mdadm-raid-stripe_cache_size">УРОВЕНЬ 4: mdadm RAID — stripe_cache_size<a class="headerlink" href="#4-mdadm-raid-stripe_cache_size" title="Permanent link">&para;</a></h3>
+<p><strong>Location:</strong> <code>/sys/block/mdX/md/stripe_cache_size</code>
+<strong>Persist:</strong> через rc-local service или udev trigger</p>
+<table>
+<thead>
+<tr>
+<th>Дисков в RAID5/6</th>
+<th>stripe_cache_size</th>
+<th>RAM</th>
+<th>Прирост</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td><strong>2048</strong></td>
+<td>~24 МБ</td>
+<td>+15-20% последовательной записи</td>
+</tr>
+<tr>
+<td>4-5</td>
+<td><strong>4096</strong></td>
+<td>~64 МБ</td>
+<td>+20-25%</td>
+</tr>
+<tr>
+<td>6+</td>
+<td><strong>8192</strong></td>
+<td>~160 МБ</td>
+<td>+25-30% (тест!)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Параметры скорости ребилда:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>/etc/sysctl.d/99-rusnas-perf.conf:
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>dev.raid.speed_limit_min = 1000
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>dev.raid.speed_limit_max = 500000
+</code></pre></div></p>
+<p><strong>Bitmap для ускорения ресинка после сбоя питания:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mdadm<span class="w"> </span>--grow<span class="w"> </span>/dev/md0<span class="w"> </span>--bitmap<span class="o">=</span>internal<span class="w"> </span>--bitmap-chunk<span class="o">=</span>32k
+</code></pre></div></p>
+<hr />
+<h3 id="5-btrfs-mount-options">УРОВЕНЬ 5: Btrfs — mount options<a class="headerlink" href="#5-btrfs-mount-options" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/fstab</code>
+<strong>Влияние:</strong> от +5% до +20% на latency и throughput</p>
+<p><strong>Оптимальная строка fstab:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/dev/md0  /mnt/data  btrfs  defaults,noatime,space_cache=v2,compress=zstd:1,discard=async  0  2
+</code></pre></div></p>
+<table>
+<thead>
+<tr>
+<th>Опция</th>
+<th>Влияние</th>
+<th>Условие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>noatime</code></td>
+<td><strong>+20% снижение write-latency</strong> (CoW для atime очень дорог)</td>
+<td>Всегда</td>
+</tr>
+<tr>
+<td><code>space_cache=v2</code></td>
+<td>+5% поиск свободного места</td>
+<td>Всегда</td>
+</tr>
+<tr>
+<td><code>compress=zstd:1</code></td>
+<td>+5-10% эффективная ёмкость</td>
+<td>Для текстов/данных</td>
+</tr>
+<tr>
+<td><code>compress=lzo</code></td>
+<td>Быстрее zstd, хуже ratio</td>
+<td>Для высокой IOPS нагрузки</td>
+</tr>
+<tr>
+<td><code>discard=async</code></td>
+<td>Батч-TRIM для SSD-кеша</td>
+<td>Только если SSD-tier</td>
+</tr>
+<tr>
+<td><code>autodefrag</code></td>
+<td>Снижает фрагментацию</td>
+<td>Только для малых random-write файлов</td>
+</tr>
+</tbody>
+</table>
+<p><strong>НЕ использовать:</strong>
+- <code>nodatasum</code> — отключает checksums, bit rot не поймаем
+- <code>compress=zstd:3+</code> — CPU overhead превышает пользу
+- <code>flushoncommit</code> — огромные latency spikes</p>
+<hr />
+<h3 id="6-sysctl">УРОВЕНЬ 6: Сеть — sysctl<a class="headerlink" href="#6-sysctl" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/sysctl.d/99-rusnas-net.conf</code></p>
+<h4 id="10gbe">Профиль 10GbE:<a class="headerlink" href="#10gbe" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a># Буферы ядра
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>net.core.rmem_max          = 134217728    # 128 МБ RX max
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>net.core.wmem_max          = 134217728    # 128 МБ TX max
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>net.core.rmem_default      = 33554432     # 32 МБ default
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>net.core.wmem_default      = 33554432     # 32 МБ default
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a># TCP авто-тюнинг буферов
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>net.ipv4.tcp_rmem          = 4096 87380 134217728
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>net.ipv4.tcp_wmem          = 4096 65536  134217728
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a># Очереди соединений
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>net.core.somaxconn         = 65535
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>net.core.netdev_max_backlog = 65536
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>net.ipv4.tcp_max_syn_backlog = 65536
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a># TCP congestion control
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>net.ipv4.tcp_congestion_control = bbr   # Лучше CUBIC для LAN
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>net.core.default_qdisc          = fq    # Fair Queue (нужен для BBR)
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a># TIME-WAIT оптимизация
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>net.ipv4.tcp_tw_reuse  = 1
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>net.ipv4.tcp_fin_timeout = 10
+</code></pre></div>
+<h4 id="1gbe">Профиль 1GbE (экономичный):<a class="headerlink" href="#1gbe" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>net.core.rmem_max       = 33554432
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>net.core.wmem_max       = 33554432
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>net.ipv4.tcp_rmem       = 4096 87380 33554432
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>net.ipv4.tcp_wmem       = 4096 65536 33554432
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>net.core.somaxconn      = 32768
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>net.core.netdev_max_backlog = 32768
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>net.ipv4.tcp_congestion_control = bbr
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>net.core.default_qdisc  = fq
+</code></pre></div>
+<hr />
+<h3 id="7-nic-hardware-ethtool">УРОВЕНЬ 7: NIC Hardware — ethtool<a class="headerlink" href="#7-nic-hardware-ethtool" title="Permanent link">&para;</a></h3>
+<p><strong>Persist:</strong> <code>/etc/systemd/system/rusnas-nic-tune.service</code></p>
+<h4 id="ring-buffers">Ring buffers:<a class="headerlink" href="#ring-buffers" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ethtool<span class="w"> </span>-G<span class="w"> </span>eth0<span class="w"> </span>rx<span class="w"> </span><span class="m">4096</span><span class="w"> </span>tx<span class="w"> </span><span class="m">4096</span><span class="w">   </span><span class="c1"># 10GbE</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>ethtool<span class="w"> </span>-G<span class="w"> </span>eth0<span class="w"> </span>rx<span class="w"> </span><span class="m">2048</span><span class="w"> </span>tx<span class="w"> </span><span class="m">2048</span><span class="w">   </span><span class="c1"># 1GbE</span>
+</code></pre></div>
+<h4 id="interrupt-coalescing-latencythroughput">Interrupt coalescing (баланс latency/throughput):<a class="headerlink" href="#interrupt-coalescing-latencythroughput" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ethtool<span class="w"> </span>-C<span class="w"> </span>eth0<span class="w"> </span>adaptive-rx<span class="w"> </span>on<span class="w"> </span>adaptive-tx<span class="w"> </span>on<span class="w"> </span>rx-usecs<span class="w"> </span><span class="m">100</span><span class="w"> </span>tx-usecs<span class="w"> </span><span class="m">100</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># Для 10GbE high-throughput: rx-usecs 200</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># Для low-latency: rx-usecs 50</span>
+</code></pre></div>
+<h4 id="offload">Offload (обычно уже включено, проверить):<a class="headerlink" href="#offload" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ethtool<span class="w"> </span>-K<span class="w"> </span>eth0<span class="w"> </span>tso<span class="w"> </span>on<span class="w"> </span>gso<span class="w"> </span>on<span class="w"> </span>gro<span class="w"> </span>on<span class="w"> </span>tx<span class="w"> </span>on<span class="w"> </span>rx<span class="w"> </span>on
+</code></pre></div>
+<h4 id="jumbo-frames">Jumbo Frames (только если вся сеть поддерживает):<a class="headerlink" href="#jumbo-frames" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ip<span class="w"> </span>link<span class="w"> </span><span class="nb">set</span><span class="w"> </span>eth0<span class="w"> </span>mtu<span class="w"> </span><span class="m">9000</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># fstab/netplan: mtu: 9000</span>
+</code></pre></div>
+<p><strong>Проверить поддержку:</strong> <code>ping -M do -s 8972 &lt;remote-ip&gt;</code></p>
+<hr />
+<h3 id="8-samba-smbconf">УРОВЕНЬ 8: Samba — smb.conf оптимизация<a class="headerlink" href="#8-samba-smbconf" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/samba/smb.conf [global]</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">[global]</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="na">server max protocol</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">SMB3_11</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="c1"># Zero-copy reads</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="na">use sendfile</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">yes</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="c1"># Async I/O (16+ КБ запросы — async)</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="na">aio read size</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">16384</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="na">aio write size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">16384</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">    </span><span class="c1"># Кэш записи на шару</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="w">    </span><span class="na">write cache size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">4194304</span><span class="w">    </span><span class="c1"># 4 МБ</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="c1"># Клиентское кэширование файлов (oplocks)</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="w">    </span><span class="na">oplocks</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s">yes</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="w">    </span><span class="na">level2 oplocks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">yes</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="w">    </span><span class="na">kernel oplocks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">yes</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="w">    </span><span class="c1"># SMB3 Multichannel (если несколько NIC)</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="w">    </span><span class="c1"># smb3 max credits = 8192</span>
+</code></pre></div>
+<p><strong>ВАЖНО:</strong> Не добавлять <code>socket options = SO_RCVBUF/SO_SNDBUF</code> — ядро 4.4+ тюнит TCP само. Явные значения могут снизить производительность.</p>
+<hr />
+<h3 id="9-nfs-nfsd-threads-export-options">УРОВЕНЬ 9: NFS — nfsd threads + export options<a class="headerlink" href="#9-nfs-nfsd-threads-export-options" title="Permanent link">&para;</a></h3>
+<p><strong>Файл:</strong> <code>/etc/default/nfs-kernel-server</code> и <code>/etc/exports</code></p>
+<h4 id="nfsd">Количество потоков nfsd:<a class="headerlink" href="#nfsd" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># /etc/default/nfs-kernel-server</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nv">RPCNFSDCOUNT</span><span class="o">=</span><span class="m">32</span><span class="w">    </span><span class="c1"># 1-2 потока на ядро CPU</span>
+</code></pre></div>
+<p>Мониторинг: <code>cat /proc/net/rpc/nfsd</code> — строка <code>th</code>, последние 2 числа &gt; 0.8 → увеличить.</p>
+<h4 id="_4">Опции экспорта:<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>/mnt/data/share<span class="w">  </span>*<span class="o">(</span>rw,sync,no_subtree_check,crossmnt,fsid<span class="o">=</span><span class="m">0</span><span class="o">)</span>
+</code></pre></div>
+<h4 id="sunrpc-slot-table-rpc">sunrpc slot table (параллелизм RPC):<a class="headerlink" href="#sunrpc-slot-table-rpc" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># /etc/modprobe.d/rusnas-sunrpc.conf</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>options<span class="w"> </span>sunrpc<span class="w"> </span><span class="nv">tcp_slot_table_entries</span><span class="o">=</span><span class="m">128</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>options<span class="w"> </span>sunrpc<span class="w"> </span><span class="nv">udp_slot_table_entries</span><span class="o">=</span><span class="m">128</span>
+</code></pre></div>
+<p>Применить: <code>rmmod sunrpc &amp;&amp; modprobe sunrpc</code> (или reboot).</p>
+<hr />
+<h3 id="10-cpu-governor">УРОВЕНЬ 10: CPU Governor<a class="headerlink" href="#10-cpu-governor" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Все ядра в режим производительности</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span>performance<span class="w"> </span>&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">done</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Persist: /etc/default/cpufrequtils</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="nv">GOVERNOR</span><span class="o">=</span><span class="s2">&quot;performance&quot;</span>
+</code></pre></div>
+<hr />
+<h3 id="11-irq-balancing">УРОВЕНЬ 11: IRQ Balancing<a class="headerlink" href="#11-irq-balancing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>apt<span class="w"> </span>install<span class="w"> </span>irqbalance
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>irqbalance
+</code></pre></div>
+<p>Для advanced-конфигураций: ручная привязка IRQ NIC к CPU-ядрам через <code>/proc/irq/N/smp_affinity</code>.</p>
+<hr />
+<h3 id="12-tuned">УРОВЕНЬ 12: TuneD профиль<a class="headerlink" href="#12-tuned" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>apt<span class="w"> </span>install<span class="w"> </span>tuned
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>tuned-adm<span class="w"> </span>profile<span class="w"> </span>throughput-performance<span class="w">   </span><span class="c1"># NAS общего назначения</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># или:</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>tuned-adm<span class="w"> </span>profile<span class="w"> </span>network-throughput<span class="w">       </span><span class="c1"># 10GbE heavy</span>
+</code></pre></div>
+<p><strong>Кастомный профиль rusNAS</strong> (<code>/etc/tuned/rusnas/tuned.conf</code>):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">[main]</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="na">include</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">throughput-performance</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="k">[sysctl]</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="na">vm.dirty_ratio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">35</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="na">vm.swappiness</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">10</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="na">net.ipv4.tcp_congestion_control</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">bbr</span>
+</code></pre></div></p>
+<hr />
+<h2 id="-">Чек-лист авто-оптимизатора (приоритет по влиянию)<a class="headerlink" href="#-" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Уровень</th>
+<th>Параметр</th>
+<th>Влияние</th>
+<th>Сложность реализации</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Сеть (sysctl)</td>
+<td>tcp_rmem/wmem, rmem_max</td>
+<td><strong>+20%</strong> throughput (10GbE)</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>2</td>
+<td>RAID</td>
+<td>stripe_cache_size</td>
+<td><strong>+20%</strong> RAID5/6 записи</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Память</td>
+<td>dirty_ratio=35, swappiness=10</td>
+<td><strong>+15%</strong> стабильность записи</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>4</td>
+<td>I/O планировщик</td>
+<td>mq-deadline (HDD), none (SSD)</td>
+<td><strong>+5-8%</strong> IOPS</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Btrfs</td>
+<td>noatime + compress=zstd:1</td>
+<td><strong>+5-20%</strong> latency</td>
+<td>Требует remount</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Samba</td>
+<td>sendfile, aio, oplocks</td>
+<td><strong>+10%</strong> SMB throughput</td>
+<td>Средняя</td>
+</tr>
+<tr>
+<td>7</td>
+<td>NFS</td>
+<td>32 threads + rsize=1M</td>
+<td><strong>+15%</strong> NFS throughput</td>
+<td>Средняя</td>
+</tr>
+<tr>
+<td>8</td>
+<td>NIC</td>
+<td>Ring buffers, offload</td>
+<td>Предотвращает дропы</td>
+<td>Средняя</td>
+</tr>
+<tr>
+<td>9</td>
+<td>CPU</td>
+<td>performance governor</td>
+<td>Стабильность под нагрузкой</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>10</td>
+<td>IRQ</td>
+<td>irqbalance</td>
+<td><strong>+2-5%</strong> многопоточная нагрузка</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>11</td>
+<td>TuneD</td>
+<td>throughput-performance</td>
+<td>Комплексный baseline</td>
+<td>Простая</td>
+</tr>
+<tr>
+<td>12</td>
+<td>sunrpc</td>
+<td>tcp_slot_table=128</td>
+<td>Параллелизм NFS</td>
+<td>Требует reboot</td>
+</tr>
+<tr>
+<td>13</td>
+<td>RAID bitmap</td>
+<td>internal bitmap</td>
+<td>Быстрый ресинк после сбоя</td>
+<td>Средняя</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Jumbo frames</td>
+<td>MTU 9000</td>
+<td>Только для 10GbE</td>
+<td>Рискованная</td>
+</tr>
+<tr>
+<td>15</td>
+<td>BBR</td>
+<td>tcp_congestion_control=bbr</td>
+<td><strong>+5-10%</strong> LAN throughput</td>
+<td>Простая</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="cockpit-performance-tuner">Архитектура Cockpit-страницы Performance Tuner<a class="headerlink" href="#cockpit-performance-tuner" title="Permanent link">&para;</a></h2>
+<h3 id="_5">Расположение<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h3>
+<p>Новая страница в плагине: <code>performance.html</code> + <code>js/performance.js</code>
+Добавить в <code>manifest.json</code>.</p>
+<h3 id="ui">Структура UI<a class="headerlink" href="#ui" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>Performance Tuner
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>├── [Профиль системы] — детект аппаратуры, авто-выбор параметров
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>│   ├── Обнаружено дисков: 4× HDD + 1× SSD
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>│   ├── RAID: md0 RAID5 (3 диска)
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>│   ├── Сеть: eth0 1GbE
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>│   └── ОЗУ: 16 ГБ
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>│
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>├── [Параметры оптимизации] — таблица с чекбоксами
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>│   ├── Категория: Память
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>│   │   ├── ☑ vm.swappiness: 60 → 10  [Применить] [?]
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>│   │   └── ☑ vm.dirty_ratio: 20 → 35 [Применить] [?]
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>│   ├── Категория: I/O планировщик
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>│   │   └── ☑ /dev/sda: cfq → mq-deadline [Применить] [?]
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>│   ├── Категория: RAID
+<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>│   │   └── ☑ stripe_cache: 256 → 2048  [Применить] [?]
+<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a>│   ├── Категория: Сеть
+<a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a>│   │   ├── ☑ tcp_rmem: default → 128MB [Применить] [?]
+<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a>│   │   └── ☑ BBR: cubic → bbr          [Применить] [?]
+<a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a>│   └── ...
+<a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a>│
+<a id="__codelineno-20-21" name="__codelineno-20-21" href="#__codelineno-20-21"></a>├── [Кнопки]
+<a id="__codelineno-20-22" name="__codelineno-20-22" href="#__codelineno-20-22"></a>│   ├── [✓ Применить выбранные]
+<a id="__codelineno-20-23" name="__codelineno-20-23" href="#__codelineno-20-23"></a>│   ├── [↺ Откатить всё]
+<a id="__codelineno-20-24" name="__codelineno-20-24" href="#__codelineno-20-24"></a>│   └── [📋 Экспорт конфига]
+<a id="__codelineno-20-25" name="__codelineno-20-25" href="#__codelineno-20-25"></a>│
+<a id="__codelineno-20-26" name="__codelineno-20-26" href="#__codelineno-20-26"></a>└── [Статус] — Applied/Pending/Error per item
+</code></pre></div>
+<h3 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h3>
+<p><strong>Операции:</strong>
+- Читать текущие значения: <code>sysctl -n &lt;param&gt;</code>, <code>cat /sys/block/sdX/queue/scheduler</code>, <code>blockdev --getra</code>, <code>ethtool -g eth0</code>
+- Применять: <code>sysctl -w</code>, write to <code>/etc/sysctl.d/99-rusnas-perf.conf</code>, write udev rules
+- Перезагружать: <code>udevadm trigger</code>, <code>sysctl --system</code>, <code>systemctl restart samba/nfs-kernel-server</code>
+- Персистентность: sysctl.d + udev rules + systemd service для ethtool</p>
+<p><strong>Судоерс</strong> <code>/etc/sudoers.d/rusnas-performance</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>rusnas ALL=(ALL) NOPASSWD: /usr/sbin/sysctl
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>rusnas ALL=(ALL) NOPASSWD: /sbin/blockdev
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>rusnas ALL=(ALL) NOPASSWD: /sbin/ethtool
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/sysctl.d/99-rusnas-perf.conf
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/udev/rules.d/70-rusnas-io-scheduler.rules
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/udev/rules.d/71-rusnas-readahead.rules
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/tee /etc/udev/rules.d/90-rusnas-nic.rules
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>rusnas ALL=(ALL) NOPASSWD: /usr/sbin/udevadm control --reload
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>rusnas ALL=(ALL) NOPASSWD: /usr/sbin/udevadm trigger
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/tuned-adm
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart tuned
+</code></pre></div></p>
+<hr />
+<h2 id="_6">Файлы для создания/изменения<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cockpit/rusnas/performance.html</code></td>
+<td>Новая страница</td>
+</tr>
+<tr>
+<td><code>cockpit/rusnas/js/performance.js</code></td>
+<td>Логика чтения/записи параметров</td>
+</tr>
+<tr>
+<td><code>cockpit/rusnas/manifest.json</code></td>
+<td>Добавить раздел performance</td>
+</tr>
+<tr>
+<td><code>rusnas-performance-tuning-spec.md</code></td>
+<td>Копия этого ТЗ в корне проекта</td>
+</tr>
+<tr>
+<td><code>install-performance.sh</code></td>
+<td>Деплой судоерс + tuned на VM</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_7">Верификация<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<ol>
+<li><code>./deploy.sh</code> + открыть <code>/rusnas/performance</code></li>
+<li>Страница определяет текущие значения (не показывает дефолты, а реальные)</li>
+<li>Нажать "Применить" у одного параметра → <code>sysctl -n &lt;param&gt;</code> показывает новое значение</li>
+<li>Перезагрузить VM → параметр остался (persistence через sysctl.d)</li>
+<li>"Откатить" → значение вернулось к дефолту</li>
+<li>Benchmark до/после: <code>fio --rw=write --bs=1M --size=1G --numjobs=4 --filename=/mnt/data/test</code></li>
+</ol>
+<hr />
+<h2 id="_8">Источники<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Red Hat / RHEL 9/10 Performance Tuning Guides</li>
+<li>Samba Wiki: Performance Tuning</li>
+<li>Btrfs Documentation: Mount Options, Compression</li>
+<li>fasterdata.es.net: Linux 10GbE Host Tuning</li>
+<li>Linux RAID Wiki: Performance</li>
+<li>mdadm stripe_cache_size benchmarks (Baptiste Wicht)</li>
+<li>Microsoft Azure NetApp: sunrpc tcp_slot_table_entries</li>
+</ul>
+<h2 id="smart-self-tests">Как работают SMART self-tests<a class="headerlink" href="#smart-self-tests" title="Permanent link">&para;</a></h2>
+<p><code>smartctl -t short /dev/sda</code> — немедленно возвращается, тест идёт <strong>асинхронно</strong> прямо на диске:
+- <strong>Краткий (short):</strong> ~2 мин
+- <strong>Расширенный (extended):</strong> ~60 мин</p>
+<p>Прогресс виден через <code>smartctl -a</code>: строка <code>Self test in progress ... XX% of test remaining</code>.
+Результаты хранятся в логе диска и видны в секции <code>SMART Self-test log</code> того же вывода.</p>
+<hr />
+<h2 id="ux">Целевой UX<a class="headerlink" href="#ux" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>[ История тестов ]
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>┌────┬──────────────┬────────────────────────┬───────────┬──────────┐
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>│  # │ Тип          │ Результат              │ Осталось  │ Часы     │
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>├────┼──────────────┼────────────────────────┼───────────┼──────────┤
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>│  1 │ Short        │ ✓ Completed            │ 00%       │ 1        │
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>│  2 │ Extended     │ ✗ Failed (LBA: 12345)  │ 00%       │ 50       │
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>└────┴──────────────┴────────────────────────┴───────────┴──────────┘
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>[ Кнопки ]   ▶ Краткий (~2 мин)   ▶ Расширенный (~60 мин)   Закрыть
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>
+<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>-- во время теста --
+<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>[ ⏳ Краткий тест: осталось 61% ... ]  (кнопка disabled, обновляется каждые 5с)
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>-- по завершении --
+<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>[ автоматически обновляет Modal данными ]
+</code></pre></div>
+<hr />
+<h2 id="_9">Файлы для изменения<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Изменение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cockpit/rusnas/js/disks.js</code></td>
+<td><code>renderSmartModal()</code>, polling, <code>renderTestHistory()</code>, fix bug</td>
+</tr>
+<tr>
+<td><code>cockpit/rusnas/disks.html</code></td>
+<td>Добавить кнопку "▶ Расширенный тест"</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. Парсинг истории тестов → таблица<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>В <code>renderSmartModal()</code> заменить секцию "Self-test log" с raw-text на вызов <code>renderTestHistory(out)</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">renderTestHistory</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">    </span><span class="c1">// Строки вида:</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">    </span><span class="c1">// # 1  Short offline  Completed without error  00%  100  -</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">re</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sr">/#\s*(\d+)\s+([\w ]+?)\s{2,}([\w ()]+?)\s{2,}(\d+%)\s+(\d+)\s+(\S+)/g</span><span class="p">;</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">m</span><span class="p">;</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="nx">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">re</span><span class="p">.</span><span class="nx">exec</span><span class="p">(</span><span class="nx">out</span><span class="p">))</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">num</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">1</span><span class="p">];</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">type</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">2</span><span class="p">].</span><span class="nx">trim</span><span class="p">();</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">3</span><span class="p">].</span><span class="nx">trim</span><span class="p">();</span>
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">rem</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">4</span><span class="p">];</span>
+<a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">hours</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">5</span><span class="p">];</span>
+<a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">lba</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">6</span><span class="p">]</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">&quot;-&quot;</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">&quot;—&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nx">m</span><span class="p">[</span><span class="mf">6</span><span class="p">];</span>
+<a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">ok</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="nx">status</span><span class="p">.</span><span class="nx">toLowerCase</span><span class="p">().</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;completed without error&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="o">-</span><span class="mf">1</span><span class="p">;</span>
+<a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">ico</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">&quot;✓&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;✗&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">color</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">&quot;#4caf50&quot;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;#f44336&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a><span class="w">        </span><span class="nx">rows</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s2">&quot;&lt;tr style=&#39;border-bottom:1px solid var(--color-border)&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px;font-family:monospace&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">num</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_escHtml</span><span class="p">(</span><span class="nx">type</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px;color:&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">color</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">ico</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot; &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_escHtml</span><span class="p">(</span><span class="nx">status</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px;text-align:center&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px;text-align:right;font-family:monospace&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">hours</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a><span class="w">            </span><span class="s2">&quot;&lt;td style=&#39;padding:4px 8px;font-family:monospace&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_escHtml</span><span class="p">(</span><span class="nx">lba</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/td&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-24" name="__codelineno-23-24" href="#__codelineno-23-24"></a><span class="w">            </span><span class="s2">&quot;&lt;/tr&gt;&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-25" name="__codelineno-23-25" href="#__codelineno-23-25"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-23-26" name="__codelineno-23-26" href="#__codelineno-23-26"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">rows</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s2">&quot;&lt;span style=&#39;color:var(--color-muted);font-size:12px&#39;&gt;Тесты не запускались&lt;/span&gt;&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-27" name="__codelineno-23-27" href="#__codelineno-23-27"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s2">&quot;&lt;table style=&#39;width:100%;border-collapse:collapse;font-size:12px&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-28" name="__codelineno-23-28" href="#__codelineno-23-28"></a><span class="w">        </span><span class="s2">&quot;&lt;thead&gt;&lt;tr style=&#39;background:var(--bg-th);color:var(--color-muted);font-size:10px;text-transform:uppercase&#39;&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-29" name="__codelineno-23-29" href="#__codelineno-23-29"></a><span class="w">        </span><span class="s2">&quot;&lt;th style=&#39;padding:4px 8px&#39;&gt;#&lt;/th&gt;&lt;th style=&#39;padding:4px 8px&#39;&gt;Тип&lt;/th&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-30" name="__codelineno-23-30" href="#__codelineno-23-30"></a><span class="w">        </span><span class="s2">&quot;&lt;th style=&#39;padding:4px 8px&#39;&gt;Результат&lt;/th&gt;&lt;th style=&#39;padding:4px 8px;text-align:center&#39;&gt;Остаток&lt;/th&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-31" name="__codelineno-23-31" href="#__codelineno-23-31"></a><span class="w">        </span><span class="s2">&quot;&lt;th style=&#39;padding:4px 8px;text-align:right&#39;&gt;Часы&lt;/th&gt;&lt;th style=&#39;padding:4px 8px&#39;&gt;LBA ошибки&lt;/th&gt;&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-23-32" name="__codelineno-23-32" href="#__codelineno-23-32"></a><span class="w">        </span><span class="s2">&quot;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">rows</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;&lt;/tbody&gt;&lt;/table&gt;&quot;</span><span class="p">;</span>
+<a id="__codelineno-23-33" name="__codelineno-23-33" href="#__codelineno-23-33"></a><span class="p">}</span>
+</code></pre></div>
+<p>В <code>renderSmartModal()</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1">// Было:</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;smart-modal-tests&quot;</span><span class="p">).</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">testText</span><span class="p">;</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c1">// Стало:</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;smart-modal-tests&quot;</span><span class="p">).</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">renderTestHistory</span><span class="p">(</span><span class="nx">out</span><span class="p">);</span>
+</code></pre></div></p>
+<p>Элемент в HTML изменить с <code>&lt;div ... white-space:pre-wrap&gt;</code> → убрать <code>white-space:pre-wrap</code> (или просто style без него).</p>
+<hr />
+<h2 id="2-">2. Прогресс-полинг после запуска теста<a class="headerlink" href="#2-" title="Permanent link">&para;</a></h2>
+<p>Глобальная переменная <code>_smartTestPollTimer</code>. После <code>smartctl -t short/extended</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_smartTestPollTimer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="kd">function</span><span class="w"> </span><span class="nx">startSmartTestPoll</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">_smartTestPollTimer</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">    </span><span class="nx">_smartTestPollTimer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">setInterval</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">        </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;smartctl&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-a&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/dev/&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_smartModalDisk</span><span class="p">],</span><span class="w"> </span><span class="p">{</span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="p">})</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">        </span><span class="p">.</span><span class="nx">done</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="w">            </span><span class="kd">var</span><span class="w"> </span><span class="nx">running</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">out</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;Self test in progress&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="o">-</span><span class="mf">1</span><span class="w"> </span><span class="o">||</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="w">                          </span><span class="nx">out</span><span class="p">.</span><span class="nx">indexOf</span><span class="p">(</span><span class="s2">&quot;self-test in progress&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="o">-</span><span class="mf">1</span><span class="p">;</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">running</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">pctM</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">out</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/(\d+)% of test remaining/</span><span class="p">);</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">pct</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nx">pctM</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">pctM</span><span class="p">[</span><span class="mf">1</span><span class="p">]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;?&quot;</span><span class="p">;</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">shortBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-short&quot;</span><span class="p">);</span>
+<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a><span class="w">                </span><span class="kd">var</span><span class="w"> </span><span class="nx">longBtn</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-long&quot;</span><span class="p">);</span>
+<a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">shortBtn</span><span class="p">)</span><span class="w"> </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;⏳ Осталось &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pct</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;%&quot;</span><span class="p">;</span>
+<a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a><span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">longBtn</span><span class="p">)</span><span class="w">  </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;⏳ Осталось &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">pct</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;%&quot;</span><span class="p">;</span>
+<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a><span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a><span class="w">                </span><span class="c1">// Тест завершён</span>
+<a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a><span class="w">                </span><span class="nx">stopSmartTestPoll</span><span class="p">();</span>
+<a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a><span class="w">                </span><span class="nx">renderSmartModal</span><span class="p">(</span><span class="nx">out</span><span class="p">);</span><span class="w">  </span><span class="c1">// обновить данные</span>
+<a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-25-22" name="__codelineno-25-22" href="#__codelineno-25-22"></a><span class="w">        </span><span class="p">})</span>
+<a id="__codelineno-25-23" name="__codelineno-25-23" href="#__codelineno-25-23"></a><span class="w">        </span><span class="p">.</span><span class="nx">fail</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">stopSmartTestPoll</span><span class="p">();</span><span class="w"> </span><span class="p">});</span>
+<a id="__codelineno-25-24" name="__codelineno-25-24" href="#__codelineno-25-24"></a><span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="mf">5000</span><span class="p">);</span>
+<a id="__codelineno-25-25" name="__codelineno-25-25" href="#__codelineno-25-25"></a><span class="p">}</span>
+<a id="__codelineno-25-26" name="__codelineno-25-26" href="#__codelineno-25-26"></a>
+<a id="__codelineno-25-27" name="__codelineno-25-27" href="#__codelineno-25-27"></a><span class="kd">function</span><span class="w"> </span><span class="nx">stopSmartTestPoll</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-28" name="__codelineno-25-28" href="#__codelineno-25-28"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">_smartTestPollTimer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-25-29" name="__codelineno-25-29" href="#__codelineno-25-29"></a><span class="w">        </span><span class="nx">clearInterval</span><span class="p">(</span><span class="nx">_smartTestPollTimer</span><span class="p">);</span>
+<a id="__codelineno-25-30" name="__codelineno-25-30" href="#__codelineno-25-30"></a><span class="w">        </span><span class="nx">_smartTestPollTimer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<a id="__codelineno-25-31" name="__codelineno-25-31" href="#__codelineno-25-31"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-25-32" name="__codelineno-25-32" href="#__codelineno-25-32"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">shortBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-short&quot;</span><span class="p">);</span>
+<a id="__codelineno-25-33" name="__codelineno-25-33" href="#__codelineno-25-33"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">longBtn</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-long&quot;</span><span class="p">);</span>
+<a id="__codelineno-25-34" name="__codelineno-25-34" href="#__codelineno-25-34"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">shortBtn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;▶ Краткий (~2 мин)&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-25-35" name="__codelineno-25-35" href="#__codelineno-25-35"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">longBtn</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w"> </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;▶ Расширенный (~60 мин)&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-25-36" name="__codelineno-25-36" href="#__codelineno-25-36"></a><span class="p">}</span>
+</code></pre></div>
+<p>Также вызвать <code>stopSmartTestPoll()</code> в начале <code>openSmartModal()</code> — при открытии другого диска полинг предыдущего останавливается.</p>
+<hr />
+<h2 id="3-diskshtml">3. Кнопки в disks.html<a class="headerlink" href="#3-diskshtml" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-footer&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn btn-secondary&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btn-smart-run-short&quot;</span><span class="p">&gt;</span>▶ Краткий (~2 мин)<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn btn-secondary&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btn-smart-run-long&quot;</span><span class="p">&gt;</span>▶ Расширенный (~60 мин)<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn btn-default&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btn-smart-close&quot;</span><span class="p">&gt;</span>Закрыть<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>Убрать <code>white-space:pre-wrap</code> из <code>#smart-modal-tests</code> (теперь это таблица).</p>
+<hr />
+<h2 id="4-domcontentloaded">4. Обработчики в DOMContentLoaded<a class="headerlink" href="#4-domcontentloaded" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1">// Расширенный тест</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-long&quot;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span><span class="w"> </span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">_smartModalDisk</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">shortBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-short&quot;</span><span class="p">);</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">longBtn</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-long&quot;</span><span class="p">);</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">    </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a><span class="w">    </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="w">    </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Запускается…&quot;</span><span class="p">;</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;smartctl&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-t&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;long&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/dev/&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_smartModalDisk</span><span class="p">],</span><span class="w"> </span><span class="p">{</span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="p">})</span>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="w">    </span><span class="p">.</span><span class="nx">always</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">startSmartTestPoll</span><span class="p">();</span><span class="w"> </span><span class="p">});</span>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="p">});</span>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a>
+<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="c1">// Краткий тест — FIX: был disabled = true в .always, теперь через stopSmartTestPoll</span>
+<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-short&quot;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;click&quot;</span><span class="p">,</span><span class="w"> </span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-27-15" name="__codelineno-27-15" href="#__codelineno-27-15"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">_smartModalDisk</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-27-16" name="__codelineno-27-16" href="#__codelineno-27-16"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">shortBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-short&quot;</span><span class="p">);</span>
+<a id="__codelineno-27-17" name="__codelineno-27-17" href="#__codelineno-27-17"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">longBtn</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;btn-smart-run-long&quot;</span><span class="p">);</span>
+<a id="__codelineno-27-18" name="__codelineno-27-18" href="#__codelineno-27-18"></a><span class="w">    </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<a id="__codelineno-27-19" name="__codelineno-27-19" href="#__codelineno-27-19"></a><span class="w">    </span><span class="nx">longBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<a id="__codelineno-27-20" name="__codelineno-27-20" href="#__codelineno-27-20"></a><span class="w">    </span><span class="nx">shortBtn</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Запускается…&quot;</span><span class="p">;</span>
+<a id="__codelineno-27-21" name="__codelineno-27-21" href="#__codelineno-27-21"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;smartctl&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-t&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;short&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/dev/&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">_smartModalDisk</span><span class="p">],</span><span class="w"> </span><span class="p">{</span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="p">})</span>
+<a id="__codelineno-27-22" name="__codelineno-27-22" href="#__codelineno-27-22"></a><span class="w">    </span><span class="p">.</span><span class="nx">always</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">startSmartTestPoll</span><span class="p">();</span><span class="w"> </span><span class="p">});</span>
+<a id="__codelineno-27-23" name="__codelineno-27-23" href="#__codelineno-27-23"></a><span class="p">});</span>
+</code></pre></div>
+<p><strong>Примечание:</strong> <code>smartctl -t</code> возвращается немедленно (тест начат). <code>.always()</code> запускает поллинг, кнопки остаются disabled пока поллинг не поймает завершение теста.</p>
+<hr />
+<hr />
+<h2 id="5-smartd">5. Автоматическое расписание тестов (smartd)<a class="headerlink" href="#5-smartd" title="Permanent link">&para;</a></h2>
+<p><strong>Стандарт индустрии:</strong> Synology, QNAP, TrueNAS все делают автоматические тесты. TrueNAS использует <code>smartd</code> — стандартный Linux-инструмент для этого.</p>
+<p><strong>Подход:</strong> управлять <code>/etc/smartd.conf</code> из Cockpit UI. <code>smartd</code> уже установлен в Debian 13 (пакет <code>smartmontools</code>).</p>
+<h3 id="smart-">Что добавить в SMART-модалку — раздел "Автотесты"<a class="headerlink" href="#smart-" title="Permanent link">&para;</a></h3>
+<p>После секции "История тестов", перед кнопками:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>[ Расписание автотестов ]
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>[x] Краткий тест — каждое [воскресенье ▼] в [02:00 ▼]
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>[x] Расширенный тест — каждое [1 число ▼] в [03:00 ▼]
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a>[Сохранить расписание]
+</code></pre></div>
+<h3 id="backend-etcsmartdconf">Backend: /etc/smartd.conf<a class="headerlink" href="#backend-etcsmartdconf" title="Permanent link">&para;</a></h3>
+<p><code>smartd</code> конфиг-строка для диска <code>/dev/sda</code> с двумя тестами:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>/dev/sda -a -s S/../../7/02 -s L/../../1/03
+</code></pre></div>
+- <code>S</code> = Short, <code>L</code> = Long
+- Формат: <code>T/MM/DD/DOW/HH</code> (DOW: 1=пн...7=вс, <code>..</code> = каждый)
+- Если тест не нужен — строка без <code>-s</code> для этого типа</p>
+<p><strong>Функция <code>saveSmartSchedule(disk, shortDow, shortHour, longDay, longHour)</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">saveSmartSchedule</span><span class="p">(</span><span class="nx">disk</span><span class="p">,</span><span class="w"> </span><span class="nx">shortEnabled</span><span class="p">,</span><span class="w"> </span><span class="nx">shortDow</span><span class="p">,</span><span class="w"> </span><span class="nx">shortHour</span><span class="p">,</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">                                  </span><span class="nx">longEnabled</span><span class="p">,</span><span class="w">  </span><span class="nx">longDay</span><span class="p">,</span><span class="w">  </span><span class="nx">longHour</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">    </span><span class="c1">// Читаем /etc/smartd.conf</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="w">    </span><span class="c1">// Удаляем строку для /dev/{disk}</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">    </span><span class="c1">// Строим новую строку:</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="w">    </span><span class="c1">//   /dev/{disk} -a -s S/../../{dow}/{hh} -s L/../{dd}/../{hh}</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="w">    </span><span class="c1">// Дописываем</span>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="w">    </span><span class="c1">// systemctl restart smartd</span>
+<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="p">}</span>
+</code></pre></div>
+<p>Чтение/запись через <code>cockpit.file("/etc/smartd.conf", {superuser:"require"}).read()</code> + <code>.replace()</code>.</p>
+<h3 id="_10">Судоерс<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<p>Добавить в <code>/etc/sudoers.d/rusnas-smart</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart smartd
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl enable smartd
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl start smartd
+</code></pre></div></p>
+<h3 id="ui-diskshtml">UI в disks.html — секция расписания<a class="headerlink" href="#ui-diskshtml" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-modal-schedule&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-bottom:16px&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;...заголовок...&quot;</span><span class="p">&gt;</span>Расписание автотестов<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:flex;flex-direction:column;gap:10px;padding:12px;background:var(--bg-th);border-radius:6px&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>    <span class="cm">&lt;!-- Краткий тест --&gt;</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a>    <span class="p">&lt;</span><span class="nt">label</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:flex;align-items:center;gap:8px&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>      <span class="p">&lt;</span><span class="nt">input</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;checkbox&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-short-en&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a>      <span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>Краткий тест — каждый<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a>      <span class="p">&lt;</span><span class="nt">select</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-short-dow&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a>      <span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>в<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a>      <span class="p">&lt;</span><span class="nt">select</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-short-hour&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a>    <span class="p">&lt;/</span><span class="nt">label</span><span class="p">&gt;</span>
+<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a>    <span class="cm">&lt;!-- Расширенный тест --&gt;</span>
+<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a>    <span class="p">&lt;</span><span class="nt">label</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:flex;align-items:center;gap:8px&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a>      <span class="p">&lt;</span><span class="nt">input</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;checkbox&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-long-en&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-32-15" name="__codelineno-32-15" href="#__codelineno-32-15"></a>      <span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>Расширенный тест — каждое<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<a id="__codelineno-32-16" name="__codelineno-32-16" href="#__codelineno-32-16"></a>      <span class="p">&lt;</span><span class="nt">select</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-long-day&quot;</span><span class="p">&gt;</span>1..28<span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<a id="__codelineno-32-17" name="__codelineno-32-17" href="#__codelineno-32-17"></a>      <span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>число месяца в<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<a id="__codelineno-32-18" name="__codelineno-32-18" href="#__codelineno-32-18"></a>      <span class="p">&lt;</span><span class="nt">select</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;smart-sched-long-hour&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<a id="__codelineno-32-19" name="__codelineno-32-19" href="#__codelineno-32-19"></a>    <span class="p">&lt;/</span><span class="nt">label</span><span class="p">&gt;</span>
+<a id="__codelineno-32-20" name="__codelineno-32-20" href="#__codelineno-32-20"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn btn-primary&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btn-smart-save-schedule&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;align-self:flex-start&quot;</span><span class="p">&gt;</span>Сохранить<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-32-21" name="__codelineno-32-21" href="#__codelineno-32-21"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-32-22" name="__codelineno-32-22" href="#__codelineno-32-22"></a><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>При открытии модалки: читаем <code>/etc/smartd.conf</code> → парсим строку для текущего диска → заполняем чекбоксы/select.</p>
+<hr />
+<h2 id="_11">Верификация<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h2>
+<ol>
+<li><code>./deploy.sh</code></li>
+<li>Открыть Диски и RAID → кликнуть на строку диска</li>
+<li><strong>История тестов</strong> — таблица (не raw text)</li>
+<li><strong>Запуск вручную:</strong> "▶ Краткий (~2 мин)":</li>
+<li>Обе кнопки disabled, текст меняется на "⏳ Осталось X%"</li>
+<li>Через ~2 мин данные обновляются автоматически, кнопки разблокируются</li>
+<li><strong>Расписание:</strong> включить краткий тест, сохранить → проверить <code>/etc/smartd.conf</code> на VM</li>
+<li><code>sudo systemctl status smartd</code> — сервис работает</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/lozovoyd/RusNAS" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2692 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Программный комплекс управления сетевым хранилищем данных — документация разработчика и API">
+      
+      
+      
+      
+        <link rel="prev" href="../ui-design/">
+      
+      
+        <link rel="next" href="../webservices/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Известные баги - RusNAS Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="RusNAS Documentation" class="md-header__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RusNAS Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Известные баги
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="RusNAS Documentation" class="md-nav__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RusNAS Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Архитектура
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор системы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/tech-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Технологический стек
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Развёртывание
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Спецификации модулей
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Спецификации модулей
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard (Антишифровальщик)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Снапшоты и репликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/raid-manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAID Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Хранилище
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Анализатор пространства
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/ssd-tier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSD-кеширование
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Дедупликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ИБП / NUT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сеть и сертификаты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/filebrowser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileBrowser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/mcp-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI-ассистент
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../specs/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Руководство разработчика
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Руководство разработчика
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Быстрый старт
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cockpit-patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Паттерны Cockpit-плагина
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ui-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI дизайн-система
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Известные баги
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Известные баги
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rusnas-readonly-samba-ftp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Захожу под пользователем rusnas , вижу свою домашнюю папку - но не могу в нее записать - такое чувство что она readonly (по samba, и ftp пробовал)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webservices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Веб-сервисы (nginx/Apache)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/eye/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    eye.js (Утилиты)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app.js (Хранилище)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dashboard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/disks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    disks.js (RAID)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    guard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snapshots.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    performance.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    storage-analyzer.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dedup.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ups.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    users.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ai.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    containers.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    license.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/container-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/spind/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spindown Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/network-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Analyzer API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rusnas-readonly-samba-ftp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Захожу под пользователем rusnas , вижу свою домашнюю папку - но не могу в нее записать - такое чувство что она readonly (по samba, и ftp пробовал)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="_1">Списиок багов к исправлению<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h1>
+<h2 id="rusnas-readonly-samba-ftp">Захожу под пользователем rusnas , вижу свою домашнюю папку - но не могу в нее записать - такое чувство что она readonly (по samba, и ftp пробовал)<a class="headerlink" href="#rusnas-readonly-samba-ftp" title="Permanent link">&para;</a></h2>
+<h2 id="_2"><a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h1 id="rusnas-ui">Отчёт по тестированию rusNAS UI<a class="headerlink" href="#rusnas-ui" title="Permanent link">&para;</a></h1>
+<p>Дата: 2026-03-15 | Тестировал: Claude (tech-lead review)</p>
+<hr />
+<h2 id="_3">✅ ИСПРАВЛЕННЫЕ БАГИ (эта сессия)<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="bug-01">BUG-01 — Снапшоты: вкладка «Расписание» не обновлялась при смене субволюма<a class="headerlink" href="#bug-01" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/snapshots
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> Вкладка Расписание показывала данные предыдущего субволюма после переключения.
+<strong>Root cause:</strong> <code>renderSchedules()</code> перебирал <code>schedulesData</code> вместо отфильтрованного по <code>currentSubvol</code> списка.
+<strong>Исправление:</strong> Добавлена фильтрация <code>schedulesData.filter(s =&gt; s.subvol_path === currentSubvol)</code>.</p>
+<hr />
+<h3 id="bug-02-smb">BUG-02 — Хранилище: кнопка «Изменить» SMB шары не открывала модал<a class="headerlink" href="#bug-02-smb" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> Клик на «Изменить» в таблице SMB шар не открывал модал редактирования.
+<strong>Root cause:</strong> <code>openEditShare()</code> использовал нестабильный Python inline-скрипт без <code>.fail()</code> обработчика; при любой ошибке spawn функция молча падала и модал не показывался.
+<strong>Исправление:</strong> Переписан <code>openEditShare()</code> — теперь использует <code>grep -A20</code> bash-команду, вспомогательную функцию <code>_showEditModal()</code>, и <code>.fail()</code> с fallback-значениями.</p>
+<hr />
+<h3 id="bug-03-guard-sudo-rusnas-guard-reset-pin">BUG-03 — Guard: <code>sudo rusnas-guard --reset-pin</code> — команда не найдена<a class="headerlink" href="#bug-03-guard-sudo-rusnas-guard-reset-pin" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/guard (диалог ввода PIN)
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> Диалог ввода PIN показывал подсказку <code>sudo rusnas-guard --reset-pin</code>, но команда не работала на сервере.
+<strong>Root cause (1):</strong> Симлинк <code>/usr/local/sbin/rusnas-guard</code> не существовал на VM.
+<strong>Root cause (2):</strong> <code>install-guard.sh</code> содержал ошибку — <code>chmod 644 *.py</code> выполнялся ПОСЛЕ <code>chmod 755 guard.py</code>, сбрасывая бит исполнения. Также <code>/etc/rusnas-guard/</code> имел права 700 вместо 755.
+<strong>Root cause (3):</strong> На VM был задеплоен старый <code>guard.py</code> без обработчика <code>--reset-pin</code>. Новый код был только локально.
+<strong>Исправление:</strong> Создан симлинк вручную, исправлен порядок chmod в <code>install-guard.sh</code>, задеплоен обновлённый <code>guard.py</code> с логикой <code>--reset-pin</code>.</p>
+<hr />
+<h3 id="bug-04-nfs-etcexports">BUG-04 — Хранилище: NFS раздел показывал «Ошибка:» при пустом /etc/exports<a class="headerlink" href="#bug-04-nfs-etcexports" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> Секция NFS показывала красную ошибку вместо «Нет NFS экспортов» когда <code>/etc/exports</code> пустой.
+<strong>Root cause:</strong> <code>grep</code> завершается с exit code 1 когда нет совпадений → <code>cockpit.spawn().fail()</code> срабатывал вместо <code>.done()</code>.
+<strong>Исправление:</strong> Добавлен <code>|| true</code> в конец bash-команды + <code>{superuser: "require", err: "message"}</code> в spawn options.</p>
+<hr />
+<h3 id="bug-05-smb-hardcoded">BUG-05 — Хранилище: SMB таблица показывала неверные пути шар (hardcoded)<a class="headerlink" href="#bug-05-smb-hardcoded" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> Колонка «Путь» в таблице SMB шар всегда показывала <code>/mnt/data/shares/&lt;name&gt;</code> — захардкоженный путь, не совпадающий с реальным путём из smb.conf. Например, шара <code>documents</code> имела путь <code>/mnt/data/documents</code> в конфиге, но таблица показывала <code>/mnt/data/shares/documents</code>.
+<strong>Root cause:</strong> <code>loadShares()</code> строил таблицу только по именам шар, подставляя дефолтный путь.
+<strong>Исправление:</strong> <code>loadShares()</code> теперь парсит <code>testparm -s</code> через python3, получая реальные пути для каждой шары.</p>
+<hr />
+<h2 id="_4">🐛 НОВЫЕ БАГИ (найдены при тестировании)<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<h3 id="bug-06">BUG-06 — Снапшоты: «Закрыть доступ» случайно открывает модал «Метка»<a class="headerlink" href="#bug-06" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/snapshots → кнопка «Просмотр» → модал «Снапшот смонтирован»
+<strong>Серьёзность:</strong> Средняя (UX нарушение, не ломает данные)
+<strong>Описание:</strong> После нажатия «Закрыть доступ» (размонтирует SMB шару снапшота и закрывает модал) происходит непреднамеренное нажатие на кнопку «Метка» в строке таблицы позади модала — открывается модал «Изменить метку».
+<strong>Root cause:</strong> Кнопка «Закрыть доступ» находится над оверлеем, но после закрытия модала click event «проваливается» сквозь overlay и попадает на кнопку в таблице. Оверлей исчезает до окончания обработки события.
+<strong>Как исправить:</strong> В обработчике <code>browse-umount-btn</code> добавить <code>event.stopPropagation()</code>. Или: закрывать модал через <code>setTimeout(..., 50)</code> после unmount, давая оверлею время перехватить click.</p>
+<hr />
+<h2 id="ux">⚠️ UX ПРОБЛЕМЫ И ЗАМЕЧАНИЯ<a class="headerlink" href="#ux" title="Permanent link">&para;</a></h2>
+<h3 id="guard-rusnasguard">Guard (/rusnas/guard)<a class="headerlink" href="#guard-rusnasguard" title="Permanent link">&para;</a></h3>
+<p><strong>G-01: Кнопка «Выключить защиту» активна когда мониторинг уже выключен</strong>
+Красная кнопка «Выключить защиту» всегда видна, даже когда мониторинг неактивен. Это пугает неподготовленных пользователей. Кнопка должна быть disabled или скрыта когда <code>daemon_running = false</code>.
+<em>Риск для пользователя:</em> нажмёт «Выключить» когда уже выключено → непонятное поведение.</p>
+<p><strong>G-02: Колонка «IP ИСТОЧНИКА» показывает «unknown» для всех событий</strong>
+Файловые события от honeypot не имеют IP — это нормально, но колонка «IP ИСТОЧНИКА» создаёт ложное ощущение что данные потеряны. Лучше переименовать в «Субъект» или не показывать «unknown», а заменять на «—».
+<em>Риск для пользователя:</em> непонимание что «unknown» нормально, или наоборот — игнорирование реальных IP при атаке.</p>
+<p><strong>G-03: Колонка «Действие» показывает технические метки вида <code>logged + msg_ySysOmvdec</code></strong>
+Идентификаторы лог-сообщений (<code>msg_*</code>) попадают в UI. Пользователь видит непонятный технический мусор. Нужно показывать только «Зарегистрировано» / «Заблокировано» / «Снапшот создан».
+<em>Как исправить:</em> в <code>events.jsonl</code> хранить <code>action</code> как человекочитаемое значение, или фильтровать в JS при рендеринге.</p>
+<p><strong>G-04: Кнопка «Снять все блокировки» отображается когда заблокированных IP = 0</strong>
+Красная кнопка в заголовке журнала событий всегда видна. Если нет заблокированных IP — кнопка должна быть скрыта или disabled. Пугает пользователей.</p>
+<p><strong>G-05: «Базовый уровень: Обучение» — нет контекста</strong>
+Пользователь не знает что это значит, сколько длится «обучение» и что делать. Нужно добавить тултип или подсказку: «Guard изучает нормальную активность файловой системы в течение 24 часов».</p>
+<p><strong>G-06: Много событий «Приманка» без объяснения — норма или атака?</strong>
+При первом открытии в журнале показываются десятки событий типа «Приманка» с датой вчерашнего дня. Непонятно — это нормальная работа или признак атаки? Нужен текст-пояснение: «Приманки — это защитные файлы Guard. Доступ к ним — сигнал тревоги. Если вы не выполняли резервное копирование — это подозрительная активность.»</p>
+<p><strong>G-07: При POST-ATTACK состоянии при включении защиты появляются два подряд диалога PIN</strong>
+Если на сервере остался флаг <code>/etc/rusnas-guard/post_attack</code>, пользователь при нажатии «Включить защиту» получает сначала диалог «Включить защиту» → вводит PIN → сразу появляется новый диалог «Восстановить режим» → снова PIN. Это неинтуитивно.
+<em>Как улучшить:</em> Предупреждать на странице баннером о post-attack состоянии ДО нажатия кнопки, чтобы пользователь понимал что произойдёт.</p>
+<hr />
+<h3 id="rusnassnapshots">Снапшоты (/rusnas/snapshots)<a class="headerlink" href="#rusnassnapshots" title="Permanent link">&para;</a></h3>
+<p><strong>S-01: Глобальный счётчик «30 снапшотов» не совпадает с суммой в сайдбаре (4)</strong>
+<code>storage-info</code> подсчитывает ВСЕ Btrfs subvols на системе включая тестовый пул <code>/mnt/btrfspool/</code>, а сайдбар показывает только управляемые субволюмы. Пользователь видит «30 снапшотов» но в списке только 4.
+<em>Как исправить:</em> <code>storage-info</code> должен считать только субволюмы из БД расписаний + текущей области видимости. Или добавить пояснение «включая снапшоты вне управления».</p>
+<p><strong>S-02: Размер «0 Б» для снапшотов — вводит в заблуждение</strong>
+Когда Btrfs qgroups отключены (типично для нового тома), <code>get_snap_size()</code> возвращает 0. Пользователь думает снапшоты пустые или что-то пошло не так. Нужно показывать «—» или «н/д» вместо «0 Б».</p>
+<p><strong>S-03: Модал «Восстановить» не предупреждает об остановке сервисов</strong>
+При нажатии «Восстановить» появляется предупреждение «Текущее состояние будет заменено снапшотом». Но нет важного предупреждения: «Убедитесь что SMB/NFS шары на эту папку недоступны во время восстановления. Активные подключения могут привести к повреждению данных».
+<em>Риск:</em> Пользователь восстановит снапшот пока другие пользователи работают с файлами.</p>
+<p><strong>S-04: Модал «Расписание» — нет пояснения что значат параметры Retention</strong>
+Поля «Hourly (24 ч)», «Daily (14 д)» и т.д. непонятны без опыта работы с retention policy. Нужна краткая подсказка: «Оставлять 24 последних часовых снапшота, 14 ежедневных и т.д. Снапшоты удаляются автоматически по расписанию».</p>
+<hr />
+<h3 id="rusnas">Хранилище (/rusnas)<a class="headerlink" href="#rusnas" title="Permanent link">&para;</a></h3>
+<p><strong>H-01: Нет индикации статуса NFS сервиса</strong>
+В разделе NFS отображаются экспорты, но нет информации запущен ли <code>nfs-server</code>. Если сервис упал — пользователь не поймёт почему шары недоступны.
+<em>Как улучшить:</em> Добавить бейдж статуса: <code>systemctl is-active nfs-server</code> → «Сервис: активен / остановлен».</p>
+<p><strong>H-02: Нет индикации статуса Samba сервиса</strong>
+Аналогично NFS — нет статуса <code>smbd</code>. Шары показаны как «Активна» по статусу в smb.conf, но не по реальному состоянию сервиса.</p>
+<p><strong>H-03: SMB — кнопка «Удалить» без подтверждения выглядит как немедленное действие</strong>
+В таблице SMB шар кнопка «Удалить» стоит рядом с «Изменить» без визуальной индикации что потребуется подтверждение. Пользователь может нажать случайно. (В коде есть <code>confirm()</code> — ок, но выглядит пугающе.)
+<em>Рекомендация:</em> Добавить дополнительный отступ или <code>data-confirm</code> стиль к кнопке.</p>
+<hr />
+<h2 id="_5">📋 ИТОГ ТЕСТИРОВАНИЯ<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Компонент</th>
+<th>Протестировано</th>
+<th>Работает</th>
+<th>Баги</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SMB шары — список</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-05 (исправлен)</td>
+</tr>
+<tr>
+<td>SMB шары — добавить</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>SMB шары — изменить</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-02 (исправлен)</td>
+</tr>
+<tr>
+<td>SMB шары — удалить</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>NFS — список</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-04 (исправлен)</td>
+</tr>
+<tr>
+<td>NFS — добавить/удалить</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>iSCSI</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Guard — запуск/остановка</td>
+<td>✅</td>
+<td>✅</td>
+<td>G-01, G-07</td>
+</tr>
+<tr>
+<td>Guard — PIN setup/reset</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-03 (исправлен)</td>
+</tr>
+<tr>
+<td>Guard — режимы</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Guard — журнал событий</td>
+<td>✅</td>
+<td>✅ (с замеч.)</td>
+<td>G-02, G-03, G-04</td>
+</tr>
+<tr>
+<td>Guard — конфиг расширений</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Снапшоты — список/переключение</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-01 (исправлен)</td>
+</tr>
+<tr>
+<td>Снапшоты — просмотр (SMB browse)</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-06 (исправлен)</td>
+</tr>
+<tr>
+<td>Снапшоты — метка</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Снапшоты — восстановить</td>
+<td>⬜ диалог ок</td>
+<td>—</td>
+<td>S-03</td>
+</tr>
+<tr>
+<td>Снапшоты — удалить</td>
+<td>⬜ не тест.</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Снапшоты — расписание</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-02-snap (исправлен), S-04</td>
+</tr>
+<tr>
+<td>Снапшоты — журнал событий</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-03-snap (исправлен)</td>
+</tr>
+<tr>
+<td>Снапшоты — репликация UI</td>
+<td>✅</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Снапшоты — глобальный счётчик</td>
+<td>✅</td>
+<td>❌</td>
+<td>S-01</td>
+</tr>
+<tr>
+<td>Dashboard — навигация</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-01-dash (исправлен)</td>
+</tr>
+<tr>
+<td>Dashboard — SMART диски</td>
+<td>✅</td>
+<td>❌</td>
+<td>BUG-12 (❓ для всех дисков)</td>
+</tr>
+<tr>
+<td>WebDAV — путь к директории</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-06-storage (исправлен)</td>
+</tr>
+<tr>
+<td>Дедупликация — запуск/статус</td>
+<td>✅</td>
+<td>✅</td>
+<td>BUG-07..BUG-11 (исправлены)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2026-03-16">Сессия 2026-03-16 (третья волна — системное тестирование всех разделов)<a class="headerlink" href="#2026-03-16" title="Permanent link">&para;</a></h2>
+<h3 id="bug-13-dashboard-typeerror-dashboardjs735">BUG-13 — Dashboard: TypeError в dashboard.js:735 при каждой загрузке<a class="headerlink" href="#bug-13-dashboard-typeerror-dashboardjs735" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ✅ Исправлено (dashboard.js)
+<strong>Описание:</strong> <code>document.getElementById("card-snaps")</code> возвращал null — элемент с таким ID не существует в dashboard.html. Строки addEventListener для card navigation были избыточны (карточки уже имеют <code>onclick="cockpit.jump(...)"</code> в HTML).
+<strong>Root cause:</strong> в предыдущей сессии был добавлен блок <code>addEventListener</code> для навигации по карточкам, но <code>card-snaps</code> не существует в HTML.
+<strong>Fix:</strong> удалён весь блок card navigation addEventListener (строки 731-735 в dashboard.js). Навигация через <code>onclick="cockpit.jump()"</code> в HTML работала корректно.</p>
+<h3 id="bug-06-storage-webdav">BUG-06-storage — Хранилище: WebDAV поле «Путь к директории» показывало <code>&gt;</code><a class="headerlink" href="#bug-06-storage-webdav" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ✅ Исправлено (app.js:705)
+<strong>Root cause:</strong> regex <code>/&lt;Directory\s+(\S+)/m</code> захватывал <code>&gt;</code> из тега <code>&lt;Directory /path&gt;</code>.
+<strong>Fix:</strong> заменён на <code>/&lt;Directory\s+([^&gt;]+?)&gt;/m</code>.</p>
+<hr />
+<h2 id="2026-03-16_1">Итог системного тестирования 2026-03-16<a class="headerlink" href="#2026-03-16_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Раздел</th>
+<th>Статус</th>
+<th>Баги найдены</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dashboard 🏠</td>
+<td>✅ OK</td>
+<td>BUG-13 (исправлен)</td>
+</tr>
+<tr>
+<td>Хранилище (Storage)</td>
+<td>✅ OK</td>
+<td>BUG-06-storage (исправлен)</td>
+</tr>
+<tr>
+<td>Диски и RAID</td>
+<td>✅ OK</td>
+<td>— (SMART "нет данных" — ожидаемо для VM)</td>
+</tr>
+<tr>
+<td>Пользователи</td>
+<td>✅ OK</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Guard 🛡️</td>
+<td>✅ OK</td>
+<td>— (UX замечания G-01..G-07 в bugs.md)</td>
+</tr>
+<tr>
+<td>Снапшоты 📸</td>
+<td>✅ OK</td>
+<td>BUG-02/03/04/05 (исправлены в предыдущей сессии)</td>
+</tr>
+<tr>
+<td>Дедупликация</td>
+<td>✅ OK</td>
+<td>BUG-07..BUG-11 (исправлены)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2026-03-17-storage-analyzer">Сессия 2026-03-17 — Storage Analyzer тестирование<a class="headerlink" href="#2026-03-17-storage-analyzer" title="Permanent link">&para;</a></h2>
+<h3 id="qa-storage-analyzer-v10">QA: Storage Analyzer v1.0<a class="headerlink" href="#qa-storage-analyzer-v10" title="Permanent link">&para;</a></h3>
+<h4 id="python">Бэкенд (Python)<a class="headerlink" href="#python" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Тест</th>
+<th>Статус</th>
+<th>Примечание</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>storage-collector.py --init-db</code></td>
+<td>✅ OK</td>
+<td>DB инициализирована</td>
+</tr>
+<tr>
+<td><code>storage-collector.py</code> (полный сбор)</td>
+<td>✅ OK</td>
+<td>1 том, 1 шара, scan_duration=0</td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py overview</code></td>
+<td>✅ OK</td>
+<td>JSON корректный, volumes/top_consumers</td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py shares 30</code></td>
+<td>✅ OK</td>
+<td>Шара documents найдена</td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py files /mnt/data size all 0</code></td>
+<td>✅ OK</td>
+<td></td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py users</code></td>
+<td>✅ OK</td>
+<td>rusnas + dvl92 найдены</td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py filetypes</code></td>
+<td>✅ OK</td>
+<td>backup/other/photo/docs</td>
+</tr>
+<tr>
+<td><code>storage-analyzer-api.py scan-status</code></td>
+<td>✅ OK</td>
+<td>idle, db_exists=true</td>
+</tr>
+<tr>
+<td><code>sudo -n python3 ...</code> без пароля</td>
+<td>✅ OK</td>
+<td>sudoers настроен корректно</td>
+</tr>
+<tr>
+<td>systemd timer</td>
+<td>✅ OK</td>
+<td>rusnas-storage-collector.timer активен</td>
+</tr>
+</tbody>
+</table>
+<h4 id="js">Фронтенд (JS): найденные баги и замечания<a class="headerlink" href="#js" title="Permanent link">&para;</a></h4>
+<h3 id="sa-bug-01-forecast-data-1">SA-BUG-01 — Forecast data: 1 точка — нет прогноза<a class="headerlink" href="#sa-bug-01-forecast-data-1" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ⚠️ Ожидаемо (design decision)
+<strong>Описание:</strong> После первого сканирования прогноза нет — только 1 точка истории. Прогноз появится после ≥2 сканирований.
+<strong>Action:</strong> Добавлено объяснение в UI в карточке forecast (показывает "нет данных").</p>
+<h3 id="sa-bug-02-deprecationwarning-storage-collectorpy120">SA-BUG-02 — DeprecationWarning в storage-collector.py:120<a class="headerlink" href="#sa-bug-02-deprecationwarning-storage-collectorpy120" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ⚠️ Minor warning, не влияет на работу
+<strong>Описание:</strong> <code>re.split(r'\s*=\s*', line, 1)</code> передаёт maxsplit как positional argument (deprecated in Python 3.x).
+<strong>Fix:</strong> Заменить на <code>re.split(r'\s*=\s*', line, maxsplit=1)</code> в следующей сессии.</p>
+<h3 id="sa-bug-03-volumes-filter-mnt-volume-data">SA-BUG-03 — Volumes filter <code>/mnt /volume /data</code> — не найдены тома на нестандартных путях<a class="headerlink" href="#sa-bug-03-volumes-filter-mnt-volume-data" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ℹ️ Design limitation
+<strong>Описание:</strong> API overview фильтрует df output по <code>/mnt</code>, <code>/volume</code>, <code>/data</code>. Тома на других путях не показываются.
+<strong>Action:</strong> Приемлемо для rusNAS (стандарт: /mnt/*).</p>
+<h3 id="sa-bug-04-scan-progress-bar">SA-BUG-04 — Scan progress bar не анимирован реалистично<a class="headerlink" href="#sa-bug-04-scan-progress-bar" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ⚠️ Minor UX
+<strong>Описание:</strong> Progress bar растёт случайно до 90%, потом мгновенно исчезает после <code>scan-now</code> завершения.
+<strong>Action:</strong> Нормально для MVP. Улучшить в Фазе 2 с real-time status polling.</p>
+<h3 id="sa-bug-05-css-class-sa-scan-progress-fill-vs-sa-scan-progress-bar">SA-BUG-05 — CSS class <code>.sa-scan-progress-fill</code> vs <code>.sa-scan-progress-bar</code><a class="headerlink" href="#sa-bug-05-css-class-sa-scan-progress-fill-vs-sa-scan-progress-bar" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ✅ Исправлено (в CSS добавлен <code>.sa-scan-progress-bar</code>)
+<strong>Описание:</strong> В HTML/JS использован класс <code>.sa-scan-progress-bar</code>, в CSS был определён <code>.sa-scan-progress-fill</code>.
+<strong>Fix:</strong> Добавлен <code>.sa-scan-progress-bar</code> в дополнительный блок CSS.</p>
+<h3 id="sa-bug-06-modal-window-cockpit-bootstrap-modalfade-jquery">SA-BUG-06 — Modal window использует Cockpit Bootstrap <code>.modal.fade</code> без jQuery<a class="headerlink" href="#sa-bug-06-modal-window-cockpit-bootstrap-modalfade-jquery" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ✅ Решено через CSS
+<strong>Описание:</strong> Cockpit не включает jQuery/Bootstrap JS. Модал управляется через CSS классов <code>.in</code> и <code>display:flex</code>.
+<strong>Fix:</strong> <code>#settingsModal { display:none; } #settingsModal.in { display:flex; }</code> — работает без jQuery.</p>
+<h3 id="sa-bug-07-squarify-naninfinity">SA-BUG-07 — squarify может выдавать NaN/Infinity при нулевых значениях<a class="headerlink" href="#sa-bug-07-squarify-naninfinity" title="Permanent link">&para;</a></h3>
+<p><strong>Статус:</strong> ✅ Защита есть
+<strong>Описание:</strong> <code>guessColor()</code> не классифицирует файлы с нулевым размером (фильтр <code>e.bytes &gt; 0</code> перед squarify).</p>
+<h3 id="sa-note-01-2-2">SA-NOTE-01 — Прогнозы покажутся только через 2+ часа (после 2 тиков таймера)<a class="headerlink" href="#sa-note-01-2-2" title="Permanent link">&para;</a></h3>
+<p><strong>Ожидаемо</strong> — системный дизайн. Линейная регрессия требует ≥2 точек.</p>
+<h3 id="sa-note-02-users-uid-1000-60000-home">SA-NOTE-02 — Вкладка Users показывает только системных пользователей (UID 1000-60000 с home)<a class="headerlink" href="#sa-note-02-users-uid-1000-60000-home" title="Permanent link">&para;</a></h3>
+<p><strong>Ожидаемо</strong> — фильтрация в storage-collector.py. Samba-пользователи без Unix home не показываются.</p>
+<h3 id="sa-note-03-dashboardhtml-storage-card-rusnasdisks-rusnasstorage-analyzer">SA-NOTE-03 — dashboard.html: Storage card переключена с <code>/rusnas/disks</code> на <code>/rusnas/storage-analyzer</code><a class="headerlink" href="#sa-note-03-dashboardhtml-storage-card-rusnasdisks-rusnasstorage-analyzer" title="Permanent link">&para;</a></h3>
+<p><strong>Реализовано</strong> — кнопка RAID на дашборде ведёт на /rusnas/disks (неизменна).</p>
+<hr />
+<h2 id="2026-03-23-raid-upgrade-array-deletion-cleanup-stale-resources">Сессия 2026-03-23 — RAID Upgrade, Array Deletion Cleanup, Stale Resources<a class="headerlink" href="#2026-03-23-raid-upgrade-array-deletion-cleanup-stale-resources" title="Permanent link">&para;</a></h2>
+<h3 id="bug-14-guard-sudo-rusnas-guard-reset-pin">BUG-14 — Guard: <code>sudo rusnas-guard --reset-pin</code> — команда не найдена (повтор)<a class="headerlink" href="#bug-14-guard-sudo-rusnas-guard-reset-pin" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/guard (диалог PIN)
+<strong>Статус:</strong> ✅ Исправлено на VM
+<strong>Описание:</strong> После обновления <code>guard.py</code> через <code>scp</code> без <code>install-guard.sh</code> бит исполнения терялся. Команда <code>sudo rusnas-guard --reset-pin</code> возвращала "команда не найдена".
+<strong>Root cause:</strong> <code>scp</code> копирует файл с правами 644 (без <code>+x</code>). <code>install-guard.sh</code> правильно делает <code>chmod 755 guard.py</code>, но запускался не при каждом деплое.
+<strong>Fix:</strong> <code>chmod +x /usr/lib/rusnas-guard/guard.py</code> вручную на VM. <code>install-guard.sh</code> уже содержит верный <code>chmod 755</code> — нужно запускать его при каждом обновлении guard.py.</p>
+<hr />
+<h3 id="bug-15">BUG-15 — Хранилище: шары с несуществующим путём показываются как активные<a class="headerlink" href="#bug-15" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas (вкладка Шары)
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> После удаления RAID-массива (или ручного удаления директории) SMB/NFS шары продолжали отображаться в таблице как обычные активные шары. Кнопка "📂 Файлы" вела в FileBrowser на несуществующий путь.
+<strong>Root cause:</strong> <code>loadAllShares()</code> читал smb.conf и /etc/exports без проверки существования физического пути.
+<strong>Fix:</strong> После merge SMB+NFS шар — одна bash-команда проверяет все пути (<code>[ -d path ]</code>) за один spawn. Шары с <code>pathExists=false</code> отображаются с opacity 0.6, путь красным, бейдж <code>⚠ путь не найден</code>, кнопка "📂 Файлы" скрыта. Кнопка "Удалить" остаётся активной.
+<strong>Файлы:</strong> <code>app.js</code> — <code>loadAllShares()</code>, <code>renderSharesTable()</code></p>
+<hr />
+<h3 id="bug-16-raid-smb-nfs">BUG-16 — Диски: удаление RAID-массива не удаляет связанные SMB шары, NFS экспорты, расписания снапшотов<a class="headerlink" href="#bug-16-raid-smb-nfs" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/disks
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> После удаления массива в конфигах оставались "мёртвые" записи SMB шар, NFS экспортов и расписаний снапшотов — пользователь должен был вручную удалять их из нескольких разделов.
+<strong>Root cause:</strong> <code>doDeleteArray()</code> только останавливал массив и очищал суперблоки, не трогая зависимые конфиги.
+<strong>Fix:</strong>
+- <code>scanArrayDeps(mp, callback)</code> — новая функция, параллельно сканирует smb.conf (python3 через tmpfile), /etc/exports (grep), расписания снапшотов (rusnas-snap schedule list) по точке монтирования
+- <code>openDeleteArrayModal()</code> — вызывает scanArrayDeps, показывает секцию "🔗 Будут удалены связанные ресурсы" с иконками 📂/🔗/🕐 до подтверждения
+- <code>doDeleteArray()</code> — перед umount/stop: удаляет SMB секции (sed + systemctl reload smbd), NFS строки (sed + exportfs -ra), расписания (rusnas-snap schedule delete)
+<strong>Файлы:</strong> <code>disks.js</code> — <code>scanArrayDeps()</code>, <code>openDeleteArrayModal()</code>, <code>doDeleteArray()</code>; <code>disks.html</code> — <code>#delete-array-deps</code> секция</p>
+<hr />
+<h3 id="bug-17-offline-">BUG-17 — Снапшоты: offline-субволюм вызывает ошибку при попытке загрузить снапшоты<a class="headerlink" href="#bug-17-offline-" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/snapshots
+<strong>Статус:</strong> ✅ Исправлено
+<strong>Описание:</strong> При клике на offline-субволюм (из удалённого/отмонтированного массива) <code>rusnas-snap list &lt;path&gt;</code> падал с ошибкой — UI показывал красный алерт "Ошибка:" без полезного контекста. Кнопка "Создать снапшот" оставалась активной.
+<strong>Root cause:</strong> Нет проверки является ли currentSubvol offline перед вызовом rusnas-snap.
+<strong>Fix:</strong>
+- <code>isSubvolOffline(path)</code> — хелпер, проверяет <code>subvolGroups[]</code>
+- <code>loadSnapshots()</code> — ранний return с жёлтым предупреждением и инструкцией удалить расписание если subvol offline; кнопка "Создать снапшот" disabled
+- <code>renderSchedules()</code> — для offline-субволюмов: бейдж <code>⚠ путь недоступен</code>, кнопки Изменить/Включить/Запустить сейчас disabled, кнопка Удалить активна
+<strong>Файлы:</strong> <code>snapshots.js</code> — <code>isSubvolOffline()</code>, <code>loadSnapshots()</code>, <code>renderSchedules()</code></p>
+<hr />
+<h3 id="feat-01-raid-1-raid-5">FEAT-01 — Диски: добавлен апгрейд RAID 1 → RAID 5<a class="headerlink" href="#feat-01-raid-1-raid-5" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/disks
+<strong>Статус:</strong> ✅ Реализовано
+<strong>Описание:</strong> Кнопка "⬆ Апгрейд" показывалась только для RAID 5 (→ RAID 6). RAID 1 → RAID 5 не был реализован.
+<strong>Fix:</strong> Добавлена запись <code>"raid1"</code> в <code>RAID_UPGRADES</code> map. Кнопка теперь динамически отображает <code>"⬆ Апгрейд → RAID 5"</code> / <code>"⬆ Апгрейд → RAID 6"</code> по содержимому map. Условие показа обобщено: <code>RAID_UPGRADES[arr.level]</code> вместо <code>arr.level === "raid5"</code>.
+<strong>Описание апгрейда:</strong> 3 диска RAID 5 дают 2× ёмкость одного диска вместо 1× при RAID 1.
+<strong>Файлы:</strong> <code>disks.js</code> — <code>RAID_UPGRADES</code>, upgradeBtn render</p>
+<hr />
+<h3 id="bug-18-dashboard-4-bash-spawn-2-tickfast">BUG-18 — Dashboard: 4 отдельных bash spawn каждые 2 секунды в tickFast()<a class="headerlink" href="#bug-18-dashboard-4-bash-spawn-2-tickfast" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>tickFast()</code> вызывал <code>loadCpu()</code>, <code>loadRam()</code>, <code>loadNet()</code>, <code>loadDiskIO()</code> — каждая функция делала отдельный <code>cockpit.spawn(["bash", "-c", ...])</code>. Итого 4 процесса каждые 2 секунды = 2 proc/сек нагрузки только от мониторинга.
+<strong>Root cause:</strong> Изначально функции писались независимо, не было понимания что они будут вызываться вместе.
+<strong>Fix:</strong> Добавлена <code>loadFastMetrics()</code> — одна bash-команда читает <code>/proc/stat</code>, <code>/proc/meminfo</code>, <code>/proc/net/dev</code>, <code>/proc/diskstats</code> за один раз, разделяет вывод по <code>===M===</code>. Результат парсится функциями <code>_parseCpuOut</code>, <code>_parseRamOut</code>, <code>_parseNetOut</code>, <code>_parseDiskOut</code>. tickFast теперь делает 1 spawn вместо 4 — сокращение CPU-нагрузки на 75%.
+<strong>Файлы:</strong> <code>dashboard.js</code> — <code>loadFastMetrics()</code>, <code>_parseCpuOut/Ram/Net/Disk()</code>, <code>tickFast()</code></p>
+<hr />
+<h3 id="bug-19-performance-tuner-sysctl-w-sudo-n-nopasswd">BUG-19 — Performance Tuner: sysctl -w через sudo -n не работает (нет NOPASSWD)<a class="headerlink" href="#bug-19-performance-tuner-sysctl-w-sudo-n-nopasswd" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/performance
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>applyFn</code> для всех sysctl-параметров вызывал <code>spawnP(["sysctl", "-w", param+"="+val])</code>, что раскрывается в <code>sudo -n sysctl -w ...</code>. На VM <code>sysctl</code> не прописан в sudoers NOPASSWD → ошибка "требуется пароль". Нажатие "Применить" всегда завершалось ошибкой.
+<strong>Root cause:</strong> Неверный механизм применения: sysctl требует root, но sudoers не охватывал его.
+<strong>Fix:</strong> Заменено на <code>writeSysFile(sysctlPath(param), val)</code> — функция <code>sysctlPath("vm.swappiness")</code> возвращает <code>/proc/sys/vm/swappiness</code>. Запись через <code>cockpit.file(path, {superuser:"require"}).replace()</code> работает через Cockpit bridge без sudoers. <code>readFn</code> переведён с <code>sysctl -n</code> на <code>cat /proc/sys/...</code> (надёжнее, не зависит от PATH).
+<strong>Файлы:</strong> <code>performance.js</code> — <code>sysctlPath()</code>, <code>makeSysctlItem()</code>, net items (rmem_max, wmem_max, tcp_rmem, tcp_wmem, bbr)</p>
+<hr />
+<h3 id="bug-20-dashboard-eschtml-nullundefined-critical">BUG-20 — Dashboard: escHtml() падает на null/undefined (CRITICAL)<a class="headerlink" href="#bug-20-dashboard-eschtml-nullundefined-critical" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>function escHtml(s) { return s.replace(...) }</code> — вызывает TypeError если <code>s</code> равно null или undefined. Вызывается в <code>loadEvents()</code> при рендеринге строк журнала.
+<strong>Root cause:</strong> Отсутствие defensive null guard.
+<strong>Fix:</strong> <code>function escHtml(s) { return String(s || "").replace(...) }</code> — безопасен для любого типа входных данных.
+<strong>Файлы:</strong> <code>dashboard.js:escHtml()</code></p>
+<hr />
+<h3 id="bug-21-dashboard-opencpumodal-race-condition">BUG-21 — Dashboard: openCpuModal() race condition при быстром открытии/закрытии<a class="headerlink" href="#bug-21-dashboard-opencpumodal-race-condition" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> При быстром повторном открытии модала CPU (<code>openCpuModal()</code>) старый <code>_cmInterval</code> не был сброшен перед установкой нового. Два интервала работали одновременно → двойная нагрузка spawn.
+<strong>Root cause:</strong> Отсутствовала проверка <code>if (_cmInterval)</code> в начале <code>openCpuModal</code>.
+<strong>Fix:</strong> Добавлено <code>if (_cmInterval) { clearInterval(_cmInterval); _cmInterval = null; }</code> в начало <code>openCpuModal</code>.
+<strong>Файлы:</strong> <code>dashboard.js:openCpuModal()</code></p>
+<hr />
+<h3 id="bug-22-dashboard-vnstat-re-fetch">BUG-22 — Dashboard: vnstat re-fetch на каждое открытие модала сети<a class="headerlink" href="#bug-22-dashboard-vnstat-re-fetch" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>openNetModal()</code> вызывал <code>loadVnstat()</code> при каждом открытии, что запускало <code>cockpit.spawn(["vnstat","--json"])</code>. vnstat читает сетевую статистику с диска — лишняя нагрузка при частом открытии модала.
+<strong>Root cause:</strong> Нет кеширования ответа vnstat.
+<strong>Fix:</strong> Добавлен кеш <code>_vnstatLastFetch</code> + <code>VNSTAT_CACHE_MS=60000</code>. При повторном открытии в течение 60 сек — <code>renderVnstat()</code> вызывается с уже полученными данными, без spawn.
+<strong>Файлы:</strong> <code>dashboard.js:loadVnstat()</code>, переменные <code>_vnstatLastFetch</code>, <code>VNSTAT_CACHE_MS</code></p>
+<hr />
+<h3 id="bug-23-snapshots-setinterval-id">BUG-23 — Snapshots: setInterval утечка (ID не сохранён)<a class="headerlink" href="#bug-23-snapshots-setinterval-id" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/snapshots
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>setInterval(function() { loadSnapshots(); }, 30000)</code> в DOMContentLoaded не сохранял ID интервала — невозможно вызвать <code>clearInterval()</code> при необходимости остановить.
+<strong>Root cause:</strong> Пропущено сохранение в переменную.
+<strong>Fix:</strong> <code>_snapRefreshTimer = setInterval(...)</code> — ID сохранён в переменной <code>_snapRefreshTimer</code>.
+<strong>Файлы:</strong> <code>snapshots.js</code></p>
+<hr />
+<h3 id="bug-24-filebrowser-crash-loop-varlibrusnas-750-execute-other">BUG-24 — FileBrowser: crash loop из-за прав /var/lib/rusnas (750 → нет execute для other)<a class="headerlink" href="#bug-24-filebrowser-crash-loop-varlibrusnas-750-execute-other" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas (FileBrowser)
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> Сервис <code>rusnas-filebrowser</code> уходил в crash loop (11162 перезапусков) с ошибкой доступа к БД. Пользователь <code>rusnas-fb</code> не мог войти в директорию <code>/var/lib/rusnas/filebrowser/</code> так как родительский <code>/var/lib/rusnas</code> имел права <code>750</code> (нет execute для "other").
+<strong>Root cause:</strong> <code>chmod 755</code> применялся только к поддиректориям (<code>$FB_DATA_DIR</code>), но не к родительской <code>/var/lib/rusnas</code>. После обновлений прав директории права родителя могли сброситься.
+<strong>Fix:</strong> Добавлено <code>chmod o+x /var/lib/rusnas</code> в <code>install-filebrowser.sh</code>. Временный фикс на VM: <code>chmod o+x /var/lib/rusnas</code>.
+<strong>Файлы:</strong> <code>install-filebrowser.sh</code></p>
+<hr />
+<h3 id="bug-25-dashboard-loadraid-worststatus-inactive-degraded">BUG-25 — Dashboard: loadRaid() — worstStatus не приоритизирует "inactive" над "degraded"<a class="headerlink" href="#bug-25-dashboard-loadraid-worststatus-inactive-degraded" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> При наличии двух массивов (один inactive, второй degraded) <code>worstStatus</code> перезаписывался "degraded" если второй массив обрабатывался позже. Карточка RAID показывала жёлтый (warn) вместо красного (crit). "inactive" — данные недоступны, это критичнее degraded.
+<strong>Root cause:</strong> <code>if (a.status === "degraded" || a.status === "inactive") worstStatus = a.status</code> — нет приоритизации.
+<strong>Fix:</strong> Явная проверка приоритета: inactive &gt; degraded &gt; resyncing &gt; active.
+<strong>Файлы:</strong> <code>dashboard.js:loadRaid()</code></p>
+<hr />
+<h3 id="bug-26-dashboard-loadraid-loadsnapshots-promiseall-catch">BUG-26 — Dashboard: loadRaid() и loadSnapshots() — Promise.all без .catch()<a class="headerlink" href="#bug-26-dashboard-loadraid-loadsnapshots-promiseall-catch" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>Promise.all([mdstatP, mountP]).then(...)</code> в <code>loadRaid()</code> и <code>Promise.all([schedP, infoP]).then(...)</code> в <code>loadSnapshots()</code> — нет <code>.catch()</code>. Если внутри <code>.then()</code> возникает исключение — Uncaught Promise rejection, карточки зависают без UI-фидбека.
+<strong>Fix:</strong> Добавлено <code>.catch()</code> с рендерингом сообщения об ошибке в обеих функциях.
+<strong>Файлы:</strong> <code>dashboard.js:loadRaid()</code>, <code>dashboard.js:loadSnapshots()</code></p>
+<hr />
+<h3 id="bug-27-dashboard-loaddiskhealth-race-condition-resultspush">BUG-27 — Dashboard: loadDiskHealth() — race condition при results.push()<a class="headerlink" href="#bug-27-dashboard-loaddiskhealth-race-condition-resultspush" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/dashboard
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>loadDiskHealth()</code> запускает параллельные <code>cockpit.spawn(smartctl)</code> для каждого диска и накапливает результаты через <code>results.push()</code>. Если callbacks приходят не по порядку — <code>results[]</code> имеет элементы не на своих позициях. Итоговый список дисков может содержать меньше элементов.
+<strong>Root cause:</strong> <code>results.push()</code> в concurrent callbacks — не детерминированный порядок.
+<strong>Fix:</strong> Заменить на <code>results[idx] = ...</code> (индексированный массив). Каждый диск имеет фиксированный индекс из <code>devs.forEach(function(dev, idx)</code>.
+<strong>Файлы:</strong> <code>dashboard.js:loadDiskHealth()</code></p>
+<hr />
+<h3 id="bug-28-performance-tuner-actel-null-crash">BUG-28 — Performance Tuner: actEl null crash при быстром клике "Применить"<a class="headerlink" href="#bug-28-performance-tuner-actel-null-crash" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/performance
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>applySingleItem(id)</code> делает <code>actEl.innerHTML = ...</code> без проверки <code>null</code>. Если таблица оптимизаций ещё не отрисована (или id некорректный) — <code>actEl = null</code> → TypeError.
+<strong>Root cause:</strong> Отсутствие null-guard.
+<strong>Fix:</strong> Добавлено <code>if (!actEl) return;</code> перед первым использованием <code>actEl</code>.
+<strong>Файлы:</strong> <code>performance.js:applySingleItem()</code></p>
+<hr />
+<h3 id="bug-29-snapshots-renderschedules-race-condition-settimeout300ms-promisethen">BUG-29 — Snapshots: renderSchedules() — race condition setTimeout(300ms) вместо Promise.then()<a class="headerlink" href="#bug-29-snapshots-renderschedules-race-condition-settimeout300ms-promisethen" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/snapshots
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>renderSchedules()</code> вызывал <code>loadSchedulesData()</code> (async), а затем <code>setTimeout(fn, 300)</code> надеясь что данные придут за 300 мс. На медленной VM или под нагрузкой — <code>schedulesData</code> ещё пуст и показывалось "Расписания не настроены" даже при настроенных расписаниях.
+<strong>Root cause:</strong> Временная гонка.
+<strong>Fix:</strong> <code>loadSchedulesData()</code> теперь возвращает Promise (добавлен <code>return</code>). <code>renderSchedules()</code> использует <code>.then()</code> вместо <code>setTimeout</code>.
+<strong>Файлы:</strong> <code>snapshots.js:loadSchedulesData()</code>, <code>snapshots.js:renderSchedules()</code></p>
+<hr />
+<h3 id="bug-30-disks-runarray-bash-c-sudo-mdadm-knownbug-pattern">BUG-30 — Disks: runArray() использует bash -c "sudo mdadm" — KnownBug pattern<a class="headerlink" href="#bug-30-disks-runarray-bash-c-sudo-mdadm-knownbug-pattern" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/disks
+<strong>Статус:</strong> ✅ Исправлено (2026-03-25)
+<strong>Описание:</strong> <code>runArray()</code> использовал <code>cockpit.spawn(["bash", "-c", "sudo mdadm --run /dev/"+name], {superuser:"require"})</code>. Согласно Known Bugs — <code>bash -c "sudo cmd"</code> не работает корректно: bash запускается без прав, inner sudo требует tty/пароль.
+<strong>Fix:</strong> Заменено на <code>cockpit.spawn(["sudo", "-n", "mdadm", "--run", "/dev/" + name], {err: "message"})</code>.
+<strong>Файлы:</strong> <code>disks.js:runArray()</code></p>
+<hr />
+<h3 id="bug-31-storage-analyzer-eschtml-not-defined-in-storage-analyzerjs-scope">BUG-31 — Storage Analyzer: escHtml not defined in storage-analyzer.js scope<a class="headerlink" href="#bug-31-storage-analyzer-eschtml-not-defined-in-storage-analyzerjs-scope" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/storage-analyzer
+<strong>Статус:</strong> ✅ Исправлено (2026-03-28)
+<strong>Описание:</strong> <code>renderOverviewTreemap()</code> в <code>storage-analyzer.js</code> вызывал <code>escHtml()</code>, определённый в <code>eye.js</code>. Несмотря на то что <code>eye.js</code> загружается на той же странице, в Cockpit iframe контексте функции из других <code>&lt;script&gt;</code> тегов не всегда доступны в глобальном скоупе. Результат: <code>ReferenceError: escHtml is not defined</code> при попытке отрендерить SVG-треемап — вместо треемапа бесконечный спиннер "Загрузка...".
+<strong>Root cause:</strong> Cockpit sandbox scope isolation между script тегами; <code>eye.js</code> загружается после <code>storage-analyzer.js</code>.
+<strong>Fix:</strong> Добавлена локальная копия <code>function escHtml(s)</code> непосредственно в <code>storage-analyzer.js</code> (после <code>safeJson</code>).
+<strong>Файлы:</strong> <code>cockpit/rusnas/js/storage-analyzer.js</code></p>
+<hr />
+<h3 id="bug-32-container-manager-get_catalog">BUG-32 — Container Manager: get_catalog не мерджит данные из индивидуальных манифестов<a class="headerlink" href="#bug-32-container-manager-get_catalog" title="Permanent link">&para;</a></h3>
+<p><strong>Страница:</strong> /rusnas/containers
+<strong>Статус:</strong> ✅ Исправлено (2026-03-28)
+<strong>Описание:</strong> <code>cmd_get_catalog()</code> в <code>container_api.py</code> читал только <code>catalog/index.json</code> с полями <code>id</code>, <code>category</code>, <code>featured</code>. Индивидуальные манифесты <code>catalog/&lt;appid&gt;/rusnas-app.json</code> (name, description, install_params, default_port и т.д.) <strong>не читались</strong>.
+<strong>Симптомы:</strong>
+1. Каталог отображал app ID вместо имён ("nextcloud" вместо "Nextcloud")
+2. Модал установки не имел полей формы (нет password/port) — <code>install_params</code> пустой
+3. Кнопка "Установить" открывала пустой modal без форм
+<strong>Root cause:</strong> <code>cmd_get_catalog()</code> не читал манифесты из папок приложений.
+<strong>Fix:</strong> <code>cmd_get_catalog()</code> теперь мерджит <code>{**manifest, **index_entry}</code> для каждого приложения.
+<strong>Файлы:</strong> <code>cockpit/rusnas/cgi/container_api.py:cmd_get_catalog()</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/lozovoyd/RusNAS" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

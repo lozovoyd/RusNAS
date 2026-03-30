@@ -1,0 +1,3511 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Программный комплекс управления сетевым хранилищем данных — документация разработчика и API">
+      
+      
+      
+      
+        <link rel="prev" href="../dedup/">
+      
+      
+        <link rel="next" href="../network/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>ИБП / NUT - RusNAS Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#_1" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="RusNAS Documentation" class="md-header__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RusNAS Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              ИБП / NUT
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="RusNAS Documentation" class="md-nav__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RusNAS Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Архитектура
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор системы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/tech-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Технологический стек
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Развёртывание
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Спецификации модулей
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Спецификации модулей
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard (Антишифровальщик)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Снапшоты и репликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../raid-manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAID Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Хранилище
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Анализатор пространства
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ssd-tier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSD-кеширование
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Дедупликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ИБП / NUT
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ИБП / NUT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Статус реализации
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Цель и концепция
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Технический стек
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Технический стек">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nut-network-ups-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NUT (Network UPS Tools)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debian-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Пакеты Debian 13
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Конфигурационные файлы
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Режимы работы NUT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Режимы работы NUT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standalone-usb-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        standalone (USB UPS, только этот хост)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#netserver-nas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        netserver (этот хост + другие NAS/серверы в сети)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#netclient-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        netclient (UPS подключён к другому хосту)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Архитектура страницы UPS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Архитектура страницы UPS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Структура файлов
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Разделы страницы
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.2 Разделы страницы">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 1 — Статус ИБП (верхний)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 2 — Конфигурация UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-shutdown-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 3 — Параметры защиты (Shutdown thresholds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ups-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 4 — Сетевой UPS-сервер
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 5 — Журнал событий UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-upsjs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ups.js — ключевые паттерны
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ups.js — ключевые паттерны">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Опрос статуса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upsstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ups.status флаги
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cockpitfile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Сохранение конфига через cockpit.file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Перезапуск NUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usb-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Автообнаружение USB UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Конфигурационные шаблоны
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Конфигурационные шаблоны">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsdusers-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsd.users (создаётся при install)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsmonconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsmon.conf (шаблон)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsdconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsd.conf (шаблон)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-rusnas-ups-notifysh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Скрипт уведомлений (rusnas-ups-notify.sh)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-install-upssh-vm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. install-ups.sh — деплой на VM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-sudoers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Sudoers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-manifestjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. manifest.json
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Важные факты реализации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Важные факты реализации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upsc-j-json-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        upsc -j (JSON mode)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Когда UPS не подключён
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#superuser-iframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        superuser в iframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cockpitfile-nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cockpit.file для записи конфигов NUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nut_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Если NUT не установлен
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-synology-dsm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Паритет с Synology DSM
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сеть и сертификаты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filebrowser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileBrowser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI-ассистент
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Руководство разработчика
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Руководство разработчика
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Быстрый старт
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cockpit-patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Паттерны Cockpit-плагина
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ui-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI дизайн-система
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/known-bugs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Известные баги
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/webservices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Веб-сервисы (nginx/Apache)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/eye/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    eye.js (Утилиты)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app.js (Хранилище)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dashboard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/disks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    disks.js (RAID)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    guard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snapshots.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    performance.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    storage-analyzer.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dedup.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ups.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    users.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ai.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    containers.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    license.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/container-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/spind/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spindown Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/network-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Analyzer API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Статус реализации
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Цель и концепция
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Технический стек
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Технический стек">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nut-network-ups-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NUT (Network UPS Tools)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debian-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Пакеты Debian 13
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Конфигурационные файлы
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Режимы работы NUT
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Режимы работы NUT">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standalone-usb-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        standalone (USB UPS, только этот хост)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#netserver-nas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        netserver (этот хост + другие NAS/серверы в сети)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#netclient-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        netclient (UPS подключён к другому хосту)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Архитектура страницы UPS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Архитектура страницы UPS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Структура файлов
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Разделы страницы
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.2 Разделы страницы">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 1 — Статус ИБП (верхний)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 2 — Конфигурация UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-shutdown-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 3 — Параметры защиты (Shutdown thresholds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ups-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 4 — Сетевой UPS-сервер
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Блок 5 — Журнал событий UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-upsjs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. ups.js — ключевые паттерны
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. ups.js — ключевые паттерны">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Опрос статуса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upsstatus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ups.status флаги
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cockpitfile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Сохранение конфига через cockpit.file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Перезапуск NUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usb-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Автообнаружение USB UPS
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Конфигурационные шаблоны
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Конфигурационные шаблоны">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsdusers-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsd.users (создаётся при install)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsmonconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsmon.conf (шаблон)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnutupsdconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nut/upsd.conf (шаблон)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-rusnas-ups-notifysh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Скрипт уведомлений (rusnas-ups-notify.sh)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-install-upssh-vm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. install-ups.sh — деплой на VM
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-sudoers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Sudoers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-manifestjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. manifest.json
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Важные факты реализации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Важные факты реализации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upsc-j-json-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        upsc -j (JSON mode)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Когда UPS не подключён
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#superuser-iframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        superuser в iframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cockpitfile-nut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cockpit.file для записи конфигов NUT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nut_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Если NUT не установлен
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-synology-dsm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Паритет с Synology DSM
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>ИБП / NUT</h1>
+
+<p>xt# rusNAS — Cockpit Plugin: Страница «ИБП / UPS»</p>
+<p><strong>Файл задачи для Claude Code</strong>
+Статус: <strong>✅ РЕАЛИЗОВАН</strong> (ветка <code>main</code>, задеплоен 2026-03-16)
+Версия: v1.0
+Зависимости: <code>nut</code> (nut-server + nut-client + nut-scanner, Debian 13 Trixie)</p>
+<hr />
+<h2 id="_1">Статус реализации<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Компонент</th>
+<th>Статус</th>
+<th>Файл</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cockpit UI</td>
+<td>✅</td>
+<td><code>cockpit/rusnas/ups.html</code></td>
+</tr>
+<tr>
+<td>JavaScript логика</td>
+<td>✅</td>
+<td><code>cockpit/rusnas/js/ups.js</code></td>
+</tr>
+<tr>
+<td>Уведомления (email/Telegram hook)</td>
+<td>✅</td>
+<td><code>rusnas-ups/rusnas-ups-notify.sh</code></td>
+</tr>
+<tr>
+<td>Deploy скрипт</td>
+<td>✅</td>
+<td><code>install-ups.sh</code></td>
+</tr>
+<tr>
+<td>Запись в manifest.json (order 8)</td>
+<td>✅</td>
+<td><code>cockpit/rusnas/manifest.json</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1">1. Цель и концепция<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<p>Управление источниками бесперебойного питания (ИБП/UPS) на уровне Synology DSM — полный контроль из Cockpit без SSH.</p>
+<p><strong>Целевые пользователи:</strong> SMB-администраторы с APC, Eaton, CyberPower, Powercom или любым SNMP/USB UPS.</p>
+<p><strong>Аналог Synology DSM:</strong> DSM &gt; Control Panel &gt; Hardware &amp; Power &gt; UPS
+- Статус питания и заряда батареи в реальном времени
+- Настройка порога времени на батарее и процента заряда для безопасного выключения
+- Режим сетевого UPS-сервера (несколько NAS-устройств от одного ИБП)
+- Уведомления при переходе на батарею / низком заряде</p>
+<hr />
+<h2 id="2">2. Технический стек<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="nut-network-ups-tools">NUT (Network UPS Tools)<a class="headerlink" href="#nut-network-ups-tools" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Компонент</th>
+<th>Роль</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nut-driver</code> / <code>upsdrvctl</code></td>
+<td>Драйвер — опрашивает UPS по USB/SNMP/сети</td>
+</tr>
+<tr>
+<td><code>upsd</code></td>
+<td>Демон данных — порт 3493, принимает запросы</td>
+</tr>
+<tr>
+<td><code>upsmon</code></td>
+<td>Монитор — отслеживает события, запускает shutdown</td>
+</tr>
+<tr>
+<td><code>upsc</code></td>
+<td>CLI-клиент — разовый опрос переменных</td>
+</tr>
+<tr>
+<td><code>nut-scanner</code></td>
+<td>Сканер — обнаружение подключённых UPS</td>
+</tr>
+</tbody>
+</table>
+<h3 id="debian-13">Пакеты Debian 13<a class="headerlink" href="#debian-13" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>apt<span class="w"> </span>install<span class="w"> </span>nut
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># Включает: nut-server, nut-client, nut-scanner, upsc, upscmd</span>
+</code></pre></div>
+<h3 id="_2">Конфигурационные файлы<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/nut/nut.conf</code></td>
+<td>Режим работы: <code>none</code> / <code>standalone</code> / <code>netserver</code> / <code>netclient</code></td>
+</tr>
+<tr>
+<td><code>/etc/nut/ups.conf</code></td>
+<td>Описание UPS-устройств: драйвер, порт, параметры</td>
+</tr>
+<tr>
+<td><code>/etc/nut/upsd.conf</code></td>
+<td>Адреса прослушивания upsd</td>
+</tr>
+<tr>
+<td><code>/etc/nut/upsd.users</code></td>
+<td>Пользователи для аутентификации upsd</td>
+</tr>
+<tr>
+<td><code>/etc/nut/upsmon.conf</code></td>
+<td>Логика мониторинга и shutdown</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-nut">3. Режимы работы NUT<a class="headerlink" href="#3-nut" title="Permanent link">&para;</a></h2>
+<h3 id="standalone-usb-ups">standalone (USB UPS, только этот хост)<a class="headerlink" href="#standalone-usb-ups" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># /etc/nut/nut.conf</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="na">MODE</span><span class="o">=</span><span class="s">standalone</span>
+</code></pre></div>
+<h3 id="netserver-nas">netserver (этот хост + другие NAS/серверы в сети)<a class="headerlink" href="#netserver-nas" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="na">MODE</span><span class="o">=</span><span class="s">netserver</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># upsd.conf: LISTEN 0.0.0.0 3493</span>
+</code></pre></div>
+<h3 id="netclient-ups">netclient (UPS подключён к другому хосту)<a class="headerlink" href="#netclient-ups" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="na">MODE</span><span class="o">=</span><span class="s">netclient</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># upsmon.conf: MONITOR ups@192.168.1.10 1 monuser pass secondary</span>
+</code></pre></div>
+<hr />
+<h2 id="4-ups">4. Архитектура страницы UPS<a class="headerlink" href="#4-ups" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 Структура файлов<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cockpit/rusnas/
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── ups.html              ← новая страница
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>└── js/
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    └── ups.js            ← логика UI
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>rusnas-ups/
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>└── rusnas-ups-notify.sh  ← скрипт уведомлений (NOTIFYCMD)
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>install-ups.sh            ← деплой на VM
+</code></pre></div>
+<h3 id="42">4.2 Разделы страницы<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<h4 id="1_1">Блок 1 — Статус ИБП (верхний)<a class="headerlink" href="#1_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Большой статус-бейдж: <code>🟢 Питание от сети</code> / <code>🟡 Работает от батареи</code> / <code>🔴 Критический заряд</code> / <code>⚫ ИБП не настроен</code></li>
+<li>Карточки метрик:</li>
+<li>Заряд батареи (%) + прогресс-бар</li>
+<li>Запас хода (мин) — <code>battery.runtime / 60</code></li>
+<li>Нагрузка (%) — <code>ups.load</code></li>
+<li>Входное напряжение (В) — <code>input.voltage</code></li>
+<li>Модель — <code>device.model</code> + <code>device.mfr</code></li>
+<li>Обновление каждые <strong>5 секунд</strong> через <code>upsc -j</code></li>
+</ul>
+<h4 id="2-ups">Блок 2 — Конфигурация UPS<a class="headerlink" href="#2-ups" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Toggle: <strong>ИБП включён / выключен</strong> (записывает <code>nut.conf MODE=standalone|none</code>)</li>
+<li>Поле: <strong>Имя UPS</strong> (идентификатор в NUT, по умолчанию <code>myups</code>)</li>
+<li>Поле: <strong>Описание</strong> (свободный текст, <code>desc</code> в ups.conf)</li>
+<li>Dropdown: <strong>Тип подключения</strong>: USB (<code>usbhid-ups</code>) / SNMP (<code>snmp-ups</code>) / Сеть (netclient)</li>
+<li>USB: кнопка <strong>Определить автоматически</strong> → <code>nut-scanner -U</code></li>
+<li>SNMP: поля host + community</li>
+<li>Сеть: поля хост:порт + пользователь + пароль</li>
+<li>Кнопка <strong>Сохранить конфигурацию</strong> + <strong>Перезапустить NUT</strong></li>
+</ul>
+<h4 id="3-shutdown-thresholds">Блок 3 — Параметры защиты (Shutdown thresholds)<a class="headerlink" href="#3-shutdown-thresholds" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Toggle: <strong>Безопасное выключение</strong> при потере питания</li>
+<li>Slider/input: <strong>Заряд батареи (%)</strong> — выключить при ≤ X% (по умолчанию 20%)</li>
+<li>Slider/input: <strong>Запас хода (мин)</strong> — выключить при ≤ X мин (по умолчанию 5 мин)</li>
+<li>Toggle: <strong>Задержка shutdown</strong> — ждать N секунд после перехода на батарею</li>
+<li>Кнопка <strong>Сохранить</strong></li>
+</ul>
+<h4 id="4-ups-">Блок 4 — Сетевой UPS-сервер<a class="headerlink" href="#4-ups-" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Toggle: <strong>Предоставить UPS другим устройствам в сети</strong> (переключает MODE=netserver)</li>
+<li>Отображение: IP-адрес и порт (3493) для настройки других устройств</li>
+<li>Таблица клиентов (из <code>upsd -c reload &amp;&amp; upsc -l</code>)</li>
+</ul>
+<h4 id="5-ups">Блок 5 — Журнал событий UPS<a class="headerlink" href="#5-ups" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Последние 20 событий из <code>/var/log/nut/upsmon.log</code> или syslog</li>
+<li>Фильтр по типу: ONBATT / ONLINE / LOWBATT / COMMLOST / SHUTDOWN</li>
+</ul>
+<hr />
+<h2 id="5-upsjs">5. ups.js — ключевые паттерны<a class="headerlink" href="#5-upsjs" title="Permanent link">&para;</a></h2>
+<h3 id="_3">Опрос статуса<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kd">const</span><span class="w"> </span><span class="nx">UPS_NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;myups&quot;</span><span class="p">;</span><span class="w">  </span><span class="c1">// читается из конфига</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kd">function</span><span class="w"> </span><span class="nx">loadUpsStatus</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;upsc&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-j&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">UPS_NAME</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;@localhost&quot;</span><span class="p">],</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="w"> </span><span class="p">})</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">.</span><span class="nx">done</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">safeJson</span><span class="p">(</span><span class="nx">out</span><span class="p">);</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">        </span><span class="nx">renderUpsStatus</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="p">})</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="p">.</span><span class="nx">fail</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">        </span><span class="c1">// UPS не настроен или драйвер не запущен</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">        </span><span class="nx">showNoUpsState</span><span class="p">();</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="p">});</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="p">}</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="nx">setInterval</span><span class="p">(</span><span class="nx">loadUpsStatus</span><span class="p">,</span><span class="w"> </span><span class="mf">5000</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>Формат <code>upsc -j</code></strong> (NUT 2.8+, доступен на Debian 13):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;battery.charge&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;100&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&quot;battery.runtime&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2520&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="nt">&quot;ups.load&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;12&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="nt">&quot;ups.status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;OL&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="nt">&quot;input.voltage&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;230.0&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="nt">&quot;device.model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Back-UPS 700&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="nt">&quot;device.mfr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;APC&quot;</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="upsstatus">ups.status флаги<a class="headerlink" href="#upsstatus" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Флаг</th>
+<th>Значение</th>
+<th>Цвет UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OL</code></td>
+<td>On Line — питание от сети</td>
+<td>🟢 зелёный</td>
+</tr>
+<tr>
+<td><code>OB</code></td>
+<td>On Battery — батарея</td>
+<td>🟡 жёлтый</td>
+</tr>
+<tr>
+<td><code>OB LB</code></td>
+<td>Low Battery — критично</td>
+<td>🔴 красный</td>
+</tr>
+<tr>
+<td><code>CHRG</code></td>
+<td>Зарядка</td>
+<td>🔵 синий</td>
+</tr>
+<tr>
+<td><code>RB</code></td>
+<td>Replace Battery</td>
+<td>🟠 оранжевый</td>
+</tr>
+<tr>
+<td><code>COMMLOST</code></td>
+<td>Нет связи с UPS</td>
+<td>⚫ серый</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">parseUpsStatus</span><span class="p">(</span><span class="nx">statusStr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">flags</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">statusStr</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">);</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">flags</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;LB&quot;</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;danger&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Критический заряд&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">flags</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;OB&quot;</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;warning&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Работает от батареи&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">flags</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;CHRG&quot;</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;info&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Зарядка&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">flags</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;RB&quot;</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;warning&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Замените батарею&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">flags</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;OL&quot;</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Питание от сети&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cls</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Нет данных&quot;</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="cockpitfile">Сохранение конфига через cockpit.file<a class="headerlink" href="#cockpitfile" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">saveNutConfig</span><span class="p">(</span><span class="nx">mode</span><span class="p">,</span><span class="w"> </span><span class="nx">upsName</span><span class="p">,</span><span class="w"> </span><span class="nx">driver</span><span class="p">,</span><span class="w"> </span><span class="nx">desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">nutConf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;MODE=&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;\n&quot;</span><span class="p">;</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">upsConf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;[&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">upsName</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;]\n&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">                  </span><span class="s2">&quot;  driver = &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">driver</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;\n&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">                  </span><span class="s2">&quot;  port = auto\n&quot;</span><span class="w"> </span><span class="o">+</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">                  </span><span class="s2">&quot;  desc = \&quot;&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">desc</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s2">&quot;\&quot;\n&quot;</span><span class="p">;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">    </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">        </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">file</span><span class="p">(</span><span class="s2">&quot;/etc/nut/nut.conf&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">superuser</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;require&quot;</span><span class="w"> </span><span class="p">}).</span><span class="nx">replace</span><span class="p">(</span><span class="nx">nutConf</span><span class="p">),</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">        </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">file</span><span class="p">(</span><span class="s2">&quot;/etc/nut/ups.conf&quot;</span><span class="p">,</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">superuser</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;require&quot;</span><span class="w"> </span><span class="p">}).</span><span class="nx">replace</span><span class="p">(</span><span class="nx">upsConf</span><span class="p">)</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="p">]).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">        </span><span class="nx">restartNut</span><span class="p">();</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="w">    </span><span class="p">});</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="nut">Перезапуск NUT<a class="headerlink" href="#nut" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">restartNut</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;systemctl&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;restart&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;nut.target&quot;</span><span class="p">],</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="w"> </span><span class="p">})</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="p">.</span><span class="nx">done</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="nx">showAlert</span><span class="p">(</span><span class="s2">&quot;success&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;NUT перезапущен&quot;</span><span class="p">);</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="nx">setTimeout</span><span class="p">(</span><span class="nx">loadUpsStatus</span><span class="p">,</span><span class="w"> </span><span class="mf">2000</span><span class="p">);</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p">});</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="usb-ups">Автообнаружение USB UPS<a class="headerlink" href="#usb-ups" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">scanUsbUps</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="nx">setScanState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s2">&quot;sudo&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;nut-scanner&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-U&quot;</span><span class="p">],</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;message&quot;</span><span class="w"> </span><span class="p">})</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="w">    </span><span class="p">.</span><span class="nx">done</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">out</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">        </span><span class="c1">// Парсим вывод nut-scanner формата ups.conf</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">        </span><span class="kd">var</span><span class="w"> </span><span class="nx">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">out</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="sr">/driver\s*=\s*(\S+)/</span><span class="p">);</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">match</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">            </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;ups-driver&quot;</span><span class="p">).</span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">match</span><span class="p">[</span><span class="mf">1</span><span class="p">];</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">            </span><span class="nx">showAlert</span><span class="p">(</span><span class="s2">&quot;success&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;UPS обнаружен: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">match</span><span class="p">[</span><span class="mf">1</span><span class="p">]);</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">    </span><span class="p">})</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span><span class="p">.</span><span class="nx">always</span><span class="p">(</span><span class="kd">function</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">setScanState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span><span class="w"> </span><span class="p">});</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="6">6. Конфигурационные шаблоны<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="etcnutupsdusers-install">/etc/nut/upsd.users (создаётся при install)<a class="headerlink" href="#etcnutupsdusers-install" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">[upsmon]</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="na">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">rusnas_nut_2026</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="na">upsmon primary</span>
+</code></pre></div>
+<h3 id="etcnutupsmonconf">/etc/nut/upsmon.conf (шаблон)<a class="headerlink" href="#etcnutupsmonconf" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>MONITOR myups@localhost 1 upsmon rusnas_nut_2026 primary
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>SHUTDOWNCMD &quot;/sbin/shutdown -h +0 &#39;UPS critical — shutting down&#39;&quot;
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>POWERDOWNFLAG /etc/killpower
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>MINSUPPLIES 1
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>RBWARNTIME 43200
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>NOTIFYCMD /usr/local/bin/rusnas-ups-notify
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>NOTIFYFLAG ONLINE  SYSLOG+EXEC
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>NOTIFYFLAG ONBATT  SYSLOG+EXEC
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>NOTIFYFLAG LOWBATT SYSLOG+EXEC+WALL
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>NOTIFYFLAG COMMLOST SYSLOG
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>NOTIFYFLAG SHUTDOWN SYSLOG+EXEC+WALL
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>NOTIFYFLAG REPLBATT SYSLOG+EXEC
+</code></pre></div>
+<h3 id="etcnutupsdconf">/etc/nut/upsd.conf (шаблон)<a class="headerlink" href="#etcnutupsdconf" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>LISTEN 127.0.0.1 3493
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>MAXAGE 15
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>STATEPATH /run/nut
+</code></pre></div>
+<hr />
+<h2 id="7-rusnas-ups-notifysh">7. Скрипт уведомлений (rusnas-ups-notify.sh)<a class="headerlink" href="#7-rusnas-ups-notifysh" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="c1"># NOTIFYCMD hook — вызывается upsmon при событиях UPS</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># Переменная $NOTIFYTYPE: ONLINE, ONBATT, LOWBATT, COMMLOST, SHUTDOWN, REPLBATT</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="c1"># Переменная $UPSNAME: имя UPS</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="nv">MSG</span><span class="o">=</span><span class="s2">&quot;[rusNAS UPS] </span><span class="nv">$NOTIFYTYPE</span><span class="s2">: </span><span class="nv">$UPSNAME</span><span class="s2">&quot;</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="c1"># Telegram</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span>/etc/rusnas/telegram.conf<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">    </span><span class="nb">source</span><span class="w"> </span>/etc/rusnas/telegram.conf
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">    </span>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;https://api.telegram.org/bot</span><span class="si">${</span><span class="nv">TG_TOKEN</span><span class="si">}</span><span class="s2">/sendMessage&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">        </span>-d<span class="w"> </span><span class="nv">chat_id</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$TG_CHAT_ID</span><span class="s2">&quot;</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">text</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$MSG</span><span class="s2">&quot;</span><span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="k">fi</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="c1"># Email (через sendmail/msmtp если настроен)</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="k">if</span><span class="w"> </span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>sendmail<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;Subject: </span><span class="nv">$MSG</span><span class="s2">\n\n</span><span class="nv">$MSG</span><span class="s2">\n\nUPS Status: </span><span class="k">$(</span>upsc<span class="w"> </span><span class="nv">$UPSNAME</span>@localhost<span class="w"> </span>ups.status<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>sendmail<span class="w"> </span>-t<span class="w"> </span>rusnas@localhost<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a><span class="k">fi</span>
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a>
+<a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>logger<span class="w"> </span>-t<span class="w"> </span>rusnas-ups<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MSG</span><span class="s2">&quot;</span>
+<a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="nb">exit</span><span class="w"> </span><span class="m">0</span>
+</code></pre></div>
+<hr />
+<h2 id="8-install-upssh-vm">8. install-ups.sh — деплой на VM<a class="headerlink" href="#8-install-upssh-vm" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">set</span><span class="w"> </span>-e
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="nv">VM</span><span class="o">=</span><span class="s2">&quot;rusnas@10.10.10.72&quot;</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="nv">PASS</span><span class="o">=</span><span class="s2">&quot;kl4389qd&quot;</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Устанавливаем NUT на VM ===&quot;</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>sshpass<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PASS</span><span class="s2">&quot;</span><span class="w"> </span>ssh<span class="w"> </span>-o<span class="w"> </span><span class="nv">StrictHostKeyChecking</span><span class="o">=</span>no<span class="w"> </span><span class="nv">$VM</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="s2">&quot;sudo apt-get install -y nut &gt;/dev/null 2&gt;&amp;1 &amp;&amp; echo &#39;NUT установлен&#39;&quot;</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Копируем скрипт уведомлений ===&quot;</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>sshpass<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PASS</span><span class="s2">&quot;</span><span class="w"> </span>scp<span class="w"> </span>-o<span class="w"> </span><span class="nv">StrictHostKeyChecking</span><span class="o">=</span>no<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">    </span>rusnas-ups/rusnas-ups-notify.sh<span class="w"> </span><span class="nv">$VM</span>:/tmp/
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>sshpass<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PASS</span><span class="s2">&quot;</span><span class="w"> </span>ssh<span class="w"> </span>-o<span class="w"> </span><span class="nv">StrictHostKeyChecking</span><span class="o">=</span>no<span class="w"> </span><span class="nv">$VM</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">    </span><span class="s2">&quot;sudo cp /tmp/rusnas-ups-notify.sh /usr/local/bin/rusnas-ups-notify &amp;&amp; \</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="s2">     sudo chmod +x /usr/local/bin/rusnas-ups-notify&quot;</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Настраиваем sudoers ===&quot;</span>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>sshpass<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PASS</span><span class="s2">&quot;</span><span class="w"> </span>ssh<span class="w"> </span>-o<span class="w"> </span><span class="nv">StrictHostKeyChecking</span><span class="o">=</span>no<span class="w"> </span><span class="nv">$VM</span><span class="w"> </span><span class="s2">&quot;sudo tee /etc/sudoers.d/rusnas-nut &gt; /dev/null &lt;&lt;&#39;EOF&#39;</span>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /usr/bin/upsc</span>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /usr/bin/nut-scanner</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /bin/systemctl start nut.target</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /bin/systemctl stop nut.target</span>
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart nut.target</span>
+<a id="__codelineno-15-25" name="__codelineno-15-25" href="#__codelineno-15-25"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /bin/systemctl status nut.target</span>
+<a id="__codelineno-15-26" name="__codelineno-15-26" href="#__codelineno-15-26"></a><span class="s2">rusnas ALL=(ALL) NOPASSWD: /usr/sbin/upsdrvctl</span>
+<a id="__codelineno-15-27" name="__codelineno-15-27" href="#__codelineno-15-27"></a><span class="s2">EOF</span>
+<a id="__codelineno-15-28" name="__codelineno-15-28" href="#__codelineno-15-28"></a><span class="s2">&quot;</span>
+<a id="__codelineno-15-29" name="__codelineno-15-29" href="#__codelineno-15-29"></a>
+<a id="__codelineno-15-30" name="__codelineno-15-30" href="#__codelineno-15-30"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Деплоим Cockpit plugin ===&quot;</span>
+<a id="__codelineno-15-31" name="__codelineno-15-31" href="#__codelineno-15-31"></a>./deploy.sh
+<a id="__codelineno-15-32" name="__codelineno-15-32" href="#__codelineno-15-32"></a>
+<a id="__codelineno-15-33" name="__codelineno-15-33" href="#__codelineno-15-33"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Готово! ===&quot;</span>
+<a id="__codelineno-15-34" name="__codelineno-15-34" href="#__codelineno-15-34"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Откройте Cockpit → ИБП для настройки UPS&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="9-sudoers">9. Sudoers<a class="headerlink" href="#9-sudoers" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a># /etc/sudoers.d/rusnas-nut
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/upsc
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/nut-scanner
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl start nut.target
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl stop nut.target
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl restart nut.target
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>rusnas ALL=(ALL) NOPASSWD: /bin/systemctl status nut.target
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>rusnas ALL=(ALL) NOPASSWD: /usr/sbin/upsdrvctl
+</code></pre></div>
+<hr />
+<h2 id="10-manifestjson">10. manifest.json<a class="headerlink" href="#10-manifestjson" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">&quot;ups&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ИБП 🔋&quot;</span><span class="p">,</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">&quot;order&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="11">11. Важные факты реализации<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<h3 id="upsc-j-json-mode">upsc -j (JSON mode)<a class="headerlink" href="#upsc-j-json-mode" title="Permanent link">&para;</a></h3>
+<p>Доступен в NUT 2.8+. Debian 13 Trixie поставляет NUT 2.8.x — JSON поддерживается.
+Fallback: парсить <code>upsc myups@localhost</code> построчно (<code>VAR: value</code>).</p>
+<h3 id="ups">Когда UPS не подключён<a class="headerlink" href="#ups" title="Permanent link">&para;</a></h3>
+<p><code>upsc</code> завершается с ошибкой <code>Error: Driver not connected</code>. UI показывает state "ИБП не настроен" с инструкцией.</p>
+<h3 id="superuser-iframe">superuser в iframe<a class="headerlink" href="#superuser-iframe" title="Permanent link">&para;</a></h3>
+<p>НЕ использовать <code>superuser: "require"</code> в cockpit.spawn — вызывает polkit timeout в iframe-контексте.
+Использовать <code>["sudo", "-n", "upsc", ...]</code> — покрывается sudoers.</p>
+<h3 id="cockpitfile-nut">cockpit.file для записи конфигов NUT<a class="headerlink" href="#cockpitfile-nut" title="Permanent link">&para;</a></h3>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nx">cockpit</span><span class="p">.</span><span class="nx">file</span><span class="p">(</span><span class="s2">&quot;/etc/nut/nut.conf&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">superuser</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;require&quot;</span><span class="w"> </span><span class="p">}).</span><span class="nx">replace</span><span class="p">(</span><span class="nx">content</span><span class="p">)</span>
+</code></pre></div>
+Это корректно работает даже в iframe (cockpit.file использует отдельный канал, не polkit popup).</p>
+<h3 id="nut_1">Если NUT не установлен<a class="headerlink" href="#nut_1" title="Permanent link">&para;</a></h3>
+<p>При первом открытии страницы — проверяем <code>which upsc</code>. Если нет — показываем banner с кнопкой "Установить NUT" (<code>apt-get install nut</code>).</p>
+<hr />
+<h2 id="12-synology-dsm">12. Паритет с Synology DSM<a class="headerlink" href="#12-synology-dsm" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Функция DSM</th>
+<th>rusNAS реализация</th>
+<th>Статус</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Статус ИБП (заряд, нагрузка, напряжение)</td>
+<td><code>upsc -j</code> → карточки</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Режим USB</td>
+<td><code>usbhid-ups driver</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Режим SNMP</td>
+<td><code>snmp-ups driver</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Сетевой клиент</td>
+<td><code>MODE=netclient</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Сетевой сервер</td>
+<td><code>MODE=netserver</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Порог заряда для shutdown</td>
+<td><code>override.battery.charge.low</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Порог времени для shutdown</td>
+<td><code>override.battery.runtime.low</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Уведомления при переходе на батарею</td>
+<td><code>NOTIFYCMD rusnas-ups-notify.sh</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Уведомление "Замените батарею"</td>
+<td><code>REPLBATT</code> flag → notify</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Авто-сканирование USB UPS</td>
+<td><code>nut-scanner -U</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Журнал событий UPS</td>
+<td>syslog + journal парсинг</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Safe shutdown при отключении питания</td>
+<td><code>upsmon + SHUTDOWNCMD</code></td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/lozovoyd/RusNAS" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,4023 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Программный комплекс управления сетевым хранилищем данных — документация разработчика и API">
+      
+      
+      
+      
+        <link rel="prev" href="../ups/">
+      
+      
+        <link rel="next" href="../filebrowser/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Сеть и сертификаты - RusNAS Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rusnas-network" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="RusNAS Documentation" class="md-header__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RusNAS Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Сеть и сертификаты
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="deep-orange" data-md-color-accent="orange"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="RusNAS Documentation" class="md-nav__button md-logo" aria-label="RusNAS Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    RusNAS Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/lozovoyd/RusNAS" title="Перейти к репозиторию" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    lozovoyd/RusNAS
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Архитектура
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Архитектура
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор системы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/tech-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Технологический стек
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Развёртывание
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Спецификации модулей
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Спецификации модулей
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard (Антишифровальщик)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Снапшоты и репликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../raid-manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RAID Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Хранилище
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Анализатор пространства
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ssd-tier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSD-кеширование
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Дедупликация
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ИБП / NUT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сеть и сертификаты
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Сеть и сертификаты
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Контекст и назначение
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Контекст и назначение">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Проблема
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Решение
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Целевая аудитория
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synology-dsm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что лучше Synology DSM
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Архитектура
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Архитектура">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-url" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Структура URL / навигация
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Технический стек
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Судоерс
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Конфигурационные файлы
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Экраны и компоненты
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Экраны и компоненты">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Header страницы
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Вкладка 1: Интерфейсы
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 Вкладка 1: Интерфейсы">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Карточка интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Модал редактирования интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vlan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VLAN
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bonding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bonding (агрегация каналов)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-2-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Вкладка 2: DNS и хосты
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.3 Вкладка 2: DNS и хосты">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Секция DNS-серверов
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Кнопка «Проверить DNS»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etchosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Секция «Локальные хосты» (/etc/hosts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Вкладка 3: Маршруты
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Вкладка 4: Диагностика
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.5 Вкладка 4: Диагностика">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toolbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Инструменты (toolbar — выбор инструмента)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-backend-api-network-apipy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Backend API (network-api.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Backend API (network-api.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Команды
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Формат ответа
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnetworkinterfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Парсинг /etc/network/interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Запись изменений
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-frontend-networkjs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Frontend (network.js)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Frontend (network.js)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ключевые функции
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Глобальный стейт
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Утилиты
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-html-networkhtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. HTML (network.html)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. HTML (network.html)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Структура
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-css-networkcss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. CSS (network.css)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-install-networksh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Установочный скрипт (install-network.sh)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Порядок реализации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Порядок реализации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-manifestjson-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 1 — manifest.json + HTML скелет
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-backend-network-apipy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 2 — Backend network-api.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-read-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 3 — Вкладка «Интерфейсы» (read-only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 4 — Редактирование интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 5 — Вкладка «DNS и хосты»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 6 — Вкладка «Маршруты»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 7 — Вкладка «Диагностика»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-vlan-bonding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 8 — VLAN / Bonding (если время позволяет)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 9 — Полное тестирование + деплой
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Безопасность
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Известные ограничения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Интеграция с Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Обновление CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filebrowser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FileBrowser
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI-ассистент
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Руководство разработчика
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Руководство разработчика
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Быстрый старт
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/cockpit-patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Паттерны Cockpit-плагина
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ui-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    UI дизайн-система
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/known-bugs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Известные баги
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/webservices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Веб-сервисы (nginx/Apache)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_1" id="__nav_5_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JavaScript
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    JavaScript
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/eye/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    eye.js (Утилиты)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app.js (Хранилище)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dashboard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/disks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    disks.js (RAID)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    guard.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/snapshots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snapshots.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    performance.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    storage-analyzer.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/dedup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dedup.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ups.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/users/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    users.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ai.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    containers.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/js/license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    license.js
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Python
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/guard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guard Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/container-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/spind/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spindown Daemon
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/network-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/storage-analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Analyzer API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Контекст и назначение
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Контекст и назначение">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Проблема
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Решение
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Целевая аудитория
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synology-dsm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что лучше Synology DSM
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Архитектура
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Архитектура">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-url" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Структура URL / навигация
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Технический стек
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Судоерс
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Конфигурационные файлы
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Экраны и компоненты
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Экраны и компоненты">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Header страницы
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Вкладка 1: Интерфейсы
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 Вкладка 1: Интерфейсы">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Карточка интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Модал редактирования интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vlan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VLAN
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bonding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bonding (агрегация каналов)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-2-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Вкладка 2: DNS и хосты
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.3 Вкладка 2: DNS и хосты">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dns-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Секция DNS-серверов
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Кнопка «Проверить DNS»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etchosts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Секция «Локальные хосты» (/etc/hosts)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Вкладка 3: Маршруты
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 Вкладка 4: Диагностика
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.5 Вкладка 4: Диагностика">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#toolbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Инструменты (toolbar — выбор инструмента)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-backend-api-network-apipy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Backend API (network-api.py)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Backend API (network-api.py)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Команды
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Формат ответа
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnetworkinterfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Парсинг /etc/network/interfaces
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Запись изменений
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-frontend-networkjs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Frontend (network.js)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Frontend (network.js)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ключевые функции
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Глобальный стейт
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Утилиты
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-html-networkhtml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. HTML (network.html)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. HTML (network.html)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Структура
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-css-networkcss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. CSS (network.css)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-install-networksh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Установочный скрипт (install-network.sh)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Порядок реализации
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Порядок реализации">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-manifestjson-html" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 1 — manifest.json + HTML скелет
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-backend-network-apipy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 2 — Backend network-api.py
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-read-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 3 — Вкладка «Интерфейсы» (read-only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 4 — Редактирование интерфейса
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 5 — Вкладка «DNS и хосты»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 6 — Вкладка «Маршруты»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 7 — Вкладка «Диагностика»
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-vlan-bonding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 8 — VLAN / Bonding (если время позволяет)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Шаг 9 — Полное тестирование + деплой
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Безопасность
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Известные ограничения
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Интеграция с Dashboard
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-claudemd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Обновление CLAUDE.md
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rusnas-network">ТЗ: rusNAS Network — Управление сетью<a class="headerlink" href="#rusnas-network" title="Permanent link">&para;</a></h1>
+<p><strong>Версия:</strong> 1.0
+<strong>Статус:</strong> Готово к реализации
+<strong>Кодовое название:</strong> <code>network</code>
+<strong>Место в навигации:</strong> Cockpit sidebar → «🌐 Сеть»</p>
+<hr />
+<h2 id="1">1. Контекст и назначение<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="_1">Проблема<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h3>
+<p>На Debian 13 Trixie основной сетевой интерфейс (ens3/eth0) управляется <strong>ifupdown</strong> (<code>/etc/network/interfaces</code>). NetworkManager при этом отмечает интерфейс как <strong>unmanaged</strong> — штатная страница Cockpit <code>/network</code> отображает его только в режиме чтения и не позволяет вносить изменения.</p>
+<p>Результат: администратор не может сменить IP, DNS, шлюз, добавить статический маршрут или диагностировать сеть — без SSH в консоль.</p>
+<h3 id="_2">Решение<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h3>
+<p>Создать кастомную страницу <code>network.html</code> в Cockpit-плагине rusNAS, которая управляет сетью <strong>напрямую через конфигурационные файлы ifupdown</strong> (<code>/etc/network/interfaces</code>, <code>/etc/resolv.conf</code>, <code>/etc/hosts</code>, <code>ip route</code>). Страница не зависит от NetworkManager.</p>
+<h3 id="_3">Целевая аудитория<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h3>
+<p>SMB-администратор: управляет 1–3 интерфейсами, хочет сменить IP или добавить маршрут без знания синтаксиса ifupdown и без SSH. Нет DevOps-экспертизы — нужен GUI уровня Synology DSM.</p>
+<h3 id="synology-dsm">Что лучше Synology DSM<a class="headerlink" href="#synology-dsm" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Функция</th>
+<th>Synology DSM</th>
+<th>rusNAS Network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Статические маршруты</td>
+<td>❌ только SSH</td>
+<td>✅ GUI полный</td>
+</tr>
+<tr>
+<td>Traceroute</td>
+<td>❌ только ping</td>
+<td>✅ traceroute + MTR</td>
+</tr>
+<tr>
+<td>DNS lookup</td>
+<td>❌ нет</td>
+<td>✅ dig / nslookup</td>
+</tr>
+<tr>
+<td>Проверка порта</td>
+<td>❌ нет</td>
+<td>✅ nc / telnet check</td>
+</tr>
+<tr>
+<td>Применение без перезагрузки</td>
+<td>⚠️ иногда нужен reboot</td>
+<td>✅ всегда live (ifup/down + ip)</td>
+</tr>
+<tr>
+<td>IPv6</td>
+<td>⚠️ минимально</td>
+<td>✅ полный dual-stack</td>
+</tr>
+<tr>
+<td>Wake-on-LAN</td>
+<td>❌ нет</td>
+<td>✅ отправка WoL пакета</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2">2. Архитектура<a class="headerlink" href="#2" title="Permanent link">&para;</a></h2>
+<h3 id="21-url">2.1 Структура URL / навигация<a class="headerlink" href="#21-url" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Cockpit-плагин rusNAS
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── dashboard.html         (главная)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── network.html           ← НОВЫЙ ФАЙЛ
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── Вкладка: Интерфейсы
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── Вкладка: DNS и хосты
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── Вкладка: Маршруты
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   └── Вкладка: Диагностика
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── ...
+</code></pre></div>
+<p><strong>manifest.json</strong> — добавить пункт меню:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;network&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Сеть&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">&quot;order&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">35</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">&quot;docs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="22">2.2 Технический стек<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Фронтенд:</strong> Vanilla JS + Cockpit API (без фреймворков, как весь плагин)</li>
+<li><strong>Чтение конфигов:</strong> <code>cockpit.file()</code> + <code>cockpit.spawn(["ip", ...])</code> + <code>cockpit.spawn(["cat", "/etc/network/interfaces"])</code></li>
+<li><strong>Запись конфигов:</strong> <code>cockpit.file(path, {superuser:"require"}).replace(content)</code></li>
+<li><strong>Применение настроек:</strong> <code>cockpit.spawn(["sudo", "ifdown", iface])</code> → <code>cockpit.spawn(["sudo", "ifup", iface])</code></li>
+<li><strong>Диагностика:</strong> <code>cockpit.spawn(["sudo", "ping", ...])</code> / <code>traceroute</code> / <code>dig</code> — с live stdout streaming</li>
+<li><strong>Live мониторинг:</strong> polling каждые 3 сек через <code>cockpit.spawn(["ip", "-j", "addr"])</code> + <code>ip -j route</code></li>
+<li><strong>Бэкенд-скрипт:</strong> <code>/usr/share/cockpit/rusnas/scripts/network-api.py</code> — чтение/запись interfaces, resolv.conf, hosts, маршруты</li>
+</ul>
+<h3 id="23">2.3 Судоерс<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>/etc/sudoers.d/rusnas-network:
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>rusnas ALL=(ALL) NOPASSWD: /usr/sbin/ifup, /usr/sbin/ifdown
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>rusnas ALL=(ALL) NOPASSWD: /sbin/ip
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/share/cockpit/rusnas/scripts/network-api.py *
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/traceroute, /usr/bin/mtr-packet, /usr/bin/dig, /usr/bin/ncat
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>rusnas ALL=(ALL) NOPASSWD: /usr/bin/etherwake, /usr/sbin/arp-scan
+</code></pre></div>
+<h3 id="24">2.4 Конфигурационные файлы<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/network/interfaces</code></td>
+<td>IP, шлюз, VLAN, bonding</td>
+</tr>
+<tr>
+<td><code>/etc/resolv.conf</code></td>
+<td>DNS серверы, search domain</td>
+</tr>
+<tr>
+<td><code>/etc/hosts</code></td>
+<td>Локальные DNS-записи</td>
+</tr>
+<tr>
+<td><code>/proc/net/dev</code></td>
+<td>Статистика трафика (live)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3">3. Экраны и компоненты<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-header">3.1 Header страницы<a class="headerlink" href="#31-header" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>┌──────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>│  🌐 Сеть                                       [Применить изменения]│
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>│  Интерфейсы: ens3 ● UP  lo ● UP                                   │
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>└──────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<ul>
+<li>Глобальная кнопка «Применить изменения» — активна только если есть несохранённые правки</li>
+<li>Статус-строка с индикаторами всех интерфейсов (зелёный/красный)</li>
+<li>Предупреждение при наличии unsaved changes: «⚠ Есть несохранённые изменения»</li>
+</ul>
+<hr />
+<h3 id="32-1">3.2 Вкладка 1: Интерфейсы<a class="headerlink" href="#32-1" title="Permanent link">&para;</a></h3>
+<h4 id="_4">Карточка интерфейса<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>┌─────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>│  ens3                                             ● Подключён    │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>│  ──────────────────────────────────────────────────────────────  │
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>│  IPv4:   192.168.1.100 / 24       [Изменить]                     │
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>│  Шлюз:   192.168.1.1                                             │
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>│  IPv6:   fe80::...                                               │
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>│  MAC:    52:54:00:ab:cd:ef                                       │
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>│  MTU:    1500                                                    │
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>│  Скорость: 1 Гбит/с                                              │
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>│                                                                  │
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>│  ▼ Трафик (последние 60 сек)                                     │
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>│  ↓ 2.3 МБ/с  [▁▂▃▅▄▆██▆▅▄]   ↑ 0.8 МБ/с  [▁▁▁▂▁▁▂▃▂▁]         │
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>│                                                                  │
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>│  [Откл. интерфейс]  [Переподключить]                             │
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<h4 id="_5">Модал редактирования интерфейса<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h4>
+<p>Поля:
+- <strong>Режим:</strong> DHCP / Статический (radio)
+- <strong>IP-адрес</strong> (только при статическом)
+- <strong>Маска подсети</strong> (CIDR или /24 формат)
+- <strong>Шлюз по умолчанию</strong>
+- <strong>MTU</strong> (по умолчанию 1500)
+- <strong>Режим IPv6:</strong> Выкл / Auto (SLAAC) / DHCPv6 / Статический
+- <strong>IPv6-адрес</strong> + <strong>Длина префикса</strong> (если статический)</p>
+<p><strong>Предупреждение при смене IP:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>⚠ Изменение IP-адреса прервёт текущее подключение к Cockpit.
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Сессия автоматически восстановится через новый адрес.
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>[Всё равно применить]  [Отмена]
+</code></pre></div></p>
+<p>После применения — страница показывает счётчик «Переподключение через 5...4...3...» и делает <code>window.location.replace()</code> на новый IP.</p>
+<h4 id="vlan">VLAN<a class="headerlink" href="#vlan" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Кнопка «+ Добавить VLAN» под списком интерфейсов</li>
+<li>Поля: Родительский интерфейс, VLAN ID (1–4094), IP/Маска (или DHCP)</li>
+<li>Запись в <code>/etc/network/interfaces</code> как <code>ens3.100 inet static ...</code></li>
+<li>Удалить VLAN: кнопка в карточке + <code>ifdown</code> + удаление из interfaces</li>
+</ul>
+<h4 id="bonding">Bonding (агрегация каналов)<a class="headerlink" href="#bonding" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Кнопка «+ Создать Bond» (если ≥2 физических интерфейса)</li>
+<li>Поля: Имя (bond0), Режим (LACP/Active-backup/Round-robin), Ведомые интерфейсы (checkbox)</li>
+<li>Требует <code>ifenslave</code> — при отсутствии показывает инструкцию</li>
+</ul>
+<hr />
+<h3 id="33-2-dns">3.3 Вкладка 2: DNS и хосты<a class="headerlink" href="#33-2-dns" title="Permanent link">&para;</a></h3>
+<h4 id="dns-">Секция DNS-серверов<a class="headerlink" href="#dns-" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>┌─────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>│  DNS серверы                                    [Изменить]       │
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│  Основной:     8.8.8.8                                           │
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│  Вторичный:    8.8.4.4                                           │
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│  Домен поиска: office.local                                      │
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>└─────────────────────────────────────────────────────────────────┘
+</code></pre></div>
+<ul>
+<li>Читается из <code>/etc/resolv.conf</code></li>
+<li><strong>⚠ Внимание:</strong> если <code>/etc/resolv.conf</code> — симлинк на <code>systemd-resolved</code> или <code>resolvconf</code> — показывать предупреждение «Управляется resolvconf — изменения могут быть перезаписаны» + кнопка «Отключить resolvconf»</li>
+</ul>
+<h4 id="dns">Кнопка «Проверить DNS»<a class="headerlink" href="#dns" title="Permanent link">&para;</a></h4>
+<p>Inline-тест прямо в секции:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>[Проверить DNS]
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>→ google.com → 142.250.185.78 (23 мс) ✅
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>→ 8.8.8.8 → доступен (12 мс) ✅
+</code></pre></div></p>
+<h4 id="etchosts">Секция «Локальные хосты» (/etc/hosts)<a class="headerlink" href="#etchosts" title="Permanent link">&para;</a></h4>
+<p>Таблица записей из <code>/etc/hosts</code> (без системных 127.0.0.1):</p>
+<table>
+<thead>
+<tr>
+<th>IP</th>
+<th>Имя хоста</th>
+<th>Псевдонимы</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>192.168.1.50</td>
+<td>nas-backup</td>
+<td>nas-bak</td>
+<td>✏ 🗑</td>
+</tr>
+<tr>
+<td>10.0.0.1</td>
+<td>router</td>
+<td>gw</td>
+<td>✏ 🗑</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Кнопка «+ Добавить запись»</li>
+<li>Inline-редактирование (клик по строке)</li>
+<li>Изменения пишутся через <code>cockpit.file("/etc/hosts", {superuser:"require"}).replace()</code></li>
+</ul>
+<hr />
+<h3 id="34-3">3.4 Вкладка 3: Маршруты<a class="headerlink" href="#34-3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>┌─────────────────────────────────────────────────────────────────┐
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>│  Статические маршруты                         [+ Добавить]       │
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>├──────────────┬───────────────┬────────────┬──────────────────────┤
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>│  Сеть        │  Шлюз         │  Интерф.   │                      │
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>├──────────────┼───────────────┼────────────┼──────────────────────┤
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>│  0.0.0.0/0   │  192.168.1.1  │  ens3      │ (шлюз по умолчанию) │
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>│  10.0.0.0/8  │  192.168.1.254│  ens3      │  ✏ 🗑               │
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>│  172.16.0.0/12│ 192.168.1.253│  ens3      │  ✏ 🗑               │
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>└──────────────┴───────────────┴────────────┴──────────────────────┘
+</code></pre></div>
+<ul>
+<li>Данные из <code>ip -j route</code> + <code>/etc/network/interfaces</code> (post-up ip route add)</li>
+<li>Маршрут по умолчанию (0.0.0.0/0) — показывается но не удаляется отдельно (он часть настроек интерфейса)</li>
+<li><strong>Постоянные маршруты</strong> — пишутся в <code>/etc/network/interfaces</code> как <code>post-up ip route add ...</code></li>
+<li><strong>Временные маршруты</strong> (runtime) — только через <code>ip route add</code> без сохранения</li>
+</ul>
+<p>Модал добавления маршрута:
+- Сеть назначения (CIDR): <code>10.0.0.0/8</code>
+- Шлюз: <code>192.168.1.254</code>
+- Интерфейс: select из доступных
+- Метрика: число (необязательно)
+- ☑ Сохранить постоянно (в <code>/etc/network/interfaces</code>)</p>
+<hr />
+<h3 id="35-4">3.5 Вкладка 4: Диагностика<a class="headerlink" href="#35-4" title="Permanent link">&para;</a></h3>
+<h4 id="toolbar">Инструменты (toolbar — выбор инструмента)<a class="headerlink" href="#toolbar" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>[Ping]  [Traceroute]  [DNS lookup]  [Порт]  [WoL]
+</code></pre></div>
+<p><strong>Ping:</strong>
+- Хост/IP, количество пакетов (4/10/непрерывно), размер пакета
+- Live вывод в textarea с цветом: успех зелёный, потеря красная
+- Итог: Отправлено / Получено / Потеряно (%) / Avg RTT</p>
+<p><strong>Traceroute:</strong>
+- Хост/IP
+- Вывод hop-by-hop в таблицу: <code># | IP | Hostname | RTT</code>
+- Timeout per hop: 2 сек</p>
+<p><strong>DNS lookup:</strong>
+- Хост для прямого lookup / IP для обратного
+- Тип записи: A / AAAA / MX / NS / TXT / ANY
+- DNS-сервер: авто (из /etc/resolv.conf) или кастомный
+- Результат в таблице</p>
+<p><strong>Проверка порта:</strong>
+- Хост:порт
+- Протокол: TCP / UDP
+- Timeout: 3 сек
+- Результат: ✅ Открыт / ❌ Закрыт / ⏳ Timeout</p>
+<p><strong>Wake-on-LAN:</strong>
+- MAC-адрес (с историей последних 5)
+- Интерфейс отправки
+- Кнопка «Отправить магический пакет»
+- Подтверждение: «Пакет отправлен»
+- Требует: <code>etherwake</code> или <code>wol</code></p>
+<hr />
+<h2 id="4-backend-api-network-apipy">4. Backend API (<code>network-api.py</code>)<a class="headerlink" href="#4-backend-api-network-apipy" title="Permanent link">&para;</a></h2>
+<p>Скрипт <code>/usr/share/cockpit/rusnas/scripts/network-api.py</code>, вызывается через:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nx">cockpit</span><span class="p">.</span><span class="nx">spawn</span><span class="p">([</span><span class="s1">&#39;sudo&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;-n&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;python3&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">SCRIPT</span><span class="p">,</span><span class="w"> </span><span class="nx">mode</span><span class="p">,</span><span class="w"> </span><span class="p">...],</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">err</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;message&#39;</span><span class="w"> </span><span class="p">})</span>
+</code></pre></div></p>
+<h3 id="_6">Команды<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Команда</th>
+<th>Описание</th>
+<th>Аргументы</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get-interfaces</code></td>
+<td>JSON всех интерфейсов (ip -j addr + ip -j route)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>get-dns</code></td>
+<td>Содержимое /etc/resolv.conf parsed</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>get-hosts</code></td>
+<td>Записи /etc/hosts (без системных)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>get-routes</code></td>
+<td>Статические маршруты из ip route</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>set-interface</code></td>
+<td>Перезаписать секцию в /etc/network/interfaces</td>
+<td>iface json_config</td>
+</tr>
+<tr>
+<td><code>set-dns</code></td>
+<td>Перезаписать /etc/resolv.conf</td>
+<td>nameservers search_domain</td>
+</tr>
+<tr>
+<td><code>set-hosts</code></td>
+<td>Перезаписать /etc/hosts</td>
+<td>json_array</td>
+</tr>
+<tr>
+<td><code>add-route</code></td>
+<td>Добавить маршрут (temporary + optional persist)</td>
+<td>network gw iface metric persist</td>
+</tr>
+<tr>
+<td><code>del-route</code></td>
+<td>Удалить маршрут</td>
+<td>network gw</td>
+</tr>
+<tr>
+<td><code>ifup</code></td>
+<td>sudo ifdown $iface &amp;&amp; sudo ifup $iface</td>
+<td>iface</td>
+</tr>
+<tr>
+<td><code>ifdown</code></td>
+<td>sudo ifdown $iface</td>
+<td>iface</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_7">Формат ответа<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
+<p>Все команды выводят JSON в stdout:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span><span class="w"> </span><span class="nt">&quot;ok&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="err">...</span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1">// или</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="p">{</span><span class="w"> </span><span class="nt">&quot;ok&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;описание ошибки&quot;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="etcnetworkinterfaces">Парсинг <code>/etc/network/interfaces</code><a class="headerlink" href="#etcnetworkinterfaces" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">parse_interfaces</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s2">&quot;/etc/network/interfaces&quot;</span><span class="p">):</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="sd">    Returns list of interface blocks:</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="sd">    [</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="sd">      {</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="sd">        &quot;name&quot;: &quot;lo&quot;,</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="sd">        &quot;mode&quot;: &quot;loopback&quot;,</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="sd">        &quot;stanzas&quot;: [&quot;auto lo&quot;, &quot;iface lo inet loopback&quot;]</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="sd">      },</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="sd">      {</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="sd">        &quot;name&quot;: &quot;ens3&quot;,</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="sd">        &quot;auto&quot;: True,</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="sd">        &quot;mode&quot;: &quot;static&quot;,   # or &quot;dhcp&quot;</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="sd">        &quot;address&quot;: &quot;192.168.1.100&quot;,</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="sd">        &quot;netmask&quot;: &quot;255.255.255.0&quot;,</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="sd">        &quot;gateway&quot;: &quot;192.168.1.1&quot;,</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="sd">        &quot;dns_nameservers&quot;: [&quot;8.8.8.8&quot;],</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a><span class="sd">        &quot;post_up&quot;: [&quot;ip route add 10.0.0.0/8 via 192.168.1.254&quot;]</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="sd">      }</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="sd">    ]</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="sd">    &quot;&quot;&quot;</span>
+</code></pre></div>
+<h3 id="_8">Запись изменений<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">write_interface_block</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="sd">    1. Читает текущий /etc/network/interfaces</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="sd">    2. Заменяет блок `iface &lt;name&gt; inet ...` и `auto &lt;name&gt;`</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="sd">    3. Атомарная запись через tempfile + os.rename</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="sd">    4. Вызывает: subprocess.run([&quot;ifdown&quot;, name], ...) + [&quot;ifup&quot;, name], ...)</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="sd">    5. Возвращает {&quot;ok&quot;: True} или {&quot;ok&quot;: False, &quot;error&quot;: ...}</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="sd">    &quot;&quot;&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="5-frontend-networkjs">5. Frontend (<code>network.js</code>)<a class="headerlink" href="#5-frontend-networkjs" title="Permanent link">&para;</a></h2>
+<h3 id="_9">Ключевые функции<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1">// Загрузка данных</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="kd">function</span><span class="w"> </span><span class="nx">loadInterfaces</span><span class="p">()</span><span class="w">          </span><span class="c1">// ip -j addr + ip -j route → renderInterfaceCards()</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="kd">function</span><span class="w"> </span><span class="nx">loadDns</span><span class="p">()</span><span class="w">                 </span><span class="c1">// get-dns → renderDnsSection()</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="kd">function</span><span class="w"> </span><span class="nx">loadHosts</span><span class="p">()</span><span class="w">               </span><span class="c1">// get-hosts → renderHostsTable()</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="kd">function</span><span class="w"> </span><span class="nx">loadRoutes</span><span class="p">()</span><span class="w">              </span><span class="c1">// get-routes → renderRoutesTable()</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="c1">// Редактирование интерфейса</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="kd">function</span><span class="w"> </span><span class="nx">openIfaceModal</span><span class="p">(</span><span class="nx">ifaceName</span><span class="p">)</span><span class="w"> </span><span class="c1">// Заполнить форму + show modal</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="kd">function</span><span class="w"> </span><span class="nx">saveIfaceModal</span><span class="p">()</span><span class="w">          </span><span class="c1">// Валидация → set-interface → ifup → reload</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="c1">// DNS</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="kd">function</span><span class="w"> </span><span class="nx">saveDns</span><span class="p">()</span><span class="w">                 </span><span class="c1">// Валидация → set-dns → reload</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="c1">// Хосты</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="kd">function</span><span class="w"> </span><span class="nx">saveHost</span><span class="p">(</span><span class="nx">ip</span><span class="p">,</span><span class="w"> </span><span class="nx">hostname</span><span class="p">,</span><span class="w"> </span><span class="nx">aliases</span><span class="p">)</span><span class="w"> </span><span class="c1">// set-hosts (full rewrite)</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="kd">function</span><span class="w"> </span><span class="nx">deleteHost</span><span class="p">(</span><span class="nx">ip</span><span class="p">)</span>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>
+<a id="__codelineno-14-18" name="__codelineno-14-18" href="#__codelineno-14-18"></a><span class="c1">// Маршруты</span>
+<a id="__codelineno-14-19" name="__codelineno-14-19" href="#__codelineno-14-19"></a><span class="kd">function</span><span class="w"> </span><span class="nx">addRoute</span><span class="p">(</span><span class="nx">network</span><span class="p">,</span><span class="w"> </span><span class="nx">gw</span><span class="p">,</span><span class="w"> </span><span class="nx">iface</span><span class="p">,</span><span class="w"> </span><span class="nx">metric</span><span class="p">,</span><span class="w"> </span><span class="nx">persist</span><span class="p">)</span><span class="w"> </span><span class="c1">// add-route</span>
+<a id="__codelineno-14-20" name="__codelineno-14-20" href="#__codelineno-14-20"></a><span class="kd">function</span><span class="w"> </span><span class="nx">deleteRoute</span><span class="p">(</span><span class="nx">network</span><span class="p">,</span><span class="w"> </span><span class="nx">gw</span><span class="p">)</span><span class="w">                      </span><span class="c1">// del-route</span>
+<a id="__codelineno-14-21" name="__codelineno-14-21" href="#__codelineno-14-21"></a>
+<a id="__codelineno-14-22" name="__codelineno-14-22" href="#__codelineno-14-22"></a><span class="c1">// Диагностика — с live output</span>
+<a id="__codelineno-14-23" name="__codelineno-14-23" href="#__codelineno-14-23"></a><span class="kd">function</span><span class="w"> </span><span class="nx">runPing</span><span class="p">(</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">count</span><span class="p">,</span><span class="w"> </span><span class="nx">size</span><span class="p">)</span><span class="w">        </span><span class="c1">// cockpit.spawn + stream stdout</span>
+<a id="__codelineno-14-24" name="__codelineno-14-24" href="#__codelineno-14-24"></a><span class="kd">function</span><span class="w"> </span><span class="nx">runTraceroute</span><span class="p">(</span><span class="nx">host</span><span class="p">)</span><span class="w">               </span><span class="c1">// cockpit.spawn + stream stdout → parse hops</span>
+<a id="__codelineno-14-25" name="__codelineno-14-25" href="#__codelineno-14-25"></a><span class="kd">function</span><span class="w"> </span><span class="nx">runDnsLookup</span><span class="p">(</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">type</span><span class="p">,</span><span class="w"> </span><span class="nx">server</span><span class="p">)</span><span class="w">  </span><span class="c1">// cockpit.spawn dig</span>
+<a id="__codelineno-14-26" name="__codelineno-14-26" href="#__codelineno-14-26"></a><span class="kd">function</span><span class="w"> </span><span class="nx">runPortCheck</span><span class="p">(</span><span class="nx">host</span><span class="p">,</span><span class="w"> </span><span class="nx">port</span><span class="p">,</span><span class="w"> </span><span class="nx">proto</span><span class="p">)</span><span class="w">   </span><span class="c1">// cockpit.spawn nc/timeout</span>
+<a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="kd">function</span><span class="w"> </span><span class="nx">sendWol</span><span class="p">(</span><span class="nx">mac</span><span class="p">,</span><span class="w"> </span><span class="nx">iface</span><span class="p">)</span><span class="w">               </span><span class="c1">// cockpit.spawn etherwake</span>
+<a id="__codelineno-14-28" name="__codelineno-14-28" href="#__codelineno-14-28"></a>
+<a id="__codelineno-14-29" name="__codelineno-14-29" href="#__codelineno-14-29"></a><span class="c1">// Live трафик</span>
+<a id="__codelineno-14-30" name="__codelineno-14-30" href="#__codelineno-14-30"></a><span class="kd">function</span><span class="w"> </span><span class="nx">startTrafficPoll</span><span class="p">()</span><span class="w">               </span><span class="c1">// setInterval 1s → /proc/net/dev delta → sparklines</span>
+<a id="__codelineno-14-31" name="__codelineno-14-31" href="#__codelineno-14-31"></a><span class="kd">function</span><span class="w"> </span><span class="nx">stopTrafficPoll</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="_10">Глобальный стейт<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_netInterfaces</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w">         </span><span class="c1">// Array of interface objects</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_netRoutes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w">             </span><span class="c1">// Array of route objects</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_netHosts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w">              </span><span class="c1">// Array of host entries</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_trafficPrev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{};</span><span class="w">           </span><span class="c1">// prev bytes for delta calc: {iface: {rx, tx}}</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_diagRunning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">        </span><span class="c1">// true when a diag command is running</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="kd">var</span><span class="w"> </span><span class="nx">_unsavedChanges</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span><span class="w">     </span><span class="c1">// true if any pending changes</span>
+</code></pre></div>
+<h3 id="_11">Утилиты<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kd">function</span><span class="w"> </span><span class="nx">netApi</span><span class="p">(</span><span class="nx">args</span><span class="p">)</span><span class="w">            </span><span class="c1">// cockpit.spawn([&#39;sudo&#39;,&#39;-n&#39;,&#39;python3&#39;,SCRIPT, ...args])</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">                                 </span><span class="c1">// → Promise&lt;{ok, data, error}&gt;</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="kd">function</span><span class="w"> </span><span class="nx">validateCidr</span><span class="p">(</span><span class="nx">str</span><span class="p">)</span><span class="w">       </span><span class="c1">// returns {valid, ip, prefix} or {valid: false}</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="kd">function</span><span class="w"> </span><span class="nx">validateIp</span><span class="p">(</span><span class="nx">str</span><span class="p">)</span><span class="w">         </span><span class="c1">// basic IPv4/IPv6 check</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="kd">function</span><span class="w"> </span><span class="nx">formatSpeed</span><span class="p">(</span><span class="nx">bps</span><span class="p">)</span><span class="w">        </span><span class="c1">// &quot;1.23 МБ/с&quot; / &quot;456 КБ/с&quot; / &quot;89 Б/с&quot;</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="kd">function</span><span class="w"> </span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">bytes</span><span class="p">)</span><span class="w">      </span><span class="c1">// &quot;1.23 ГБ&quot; / &quot;456 МБ&quot; / &quot;123 КБ&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="6-html-networkhtml">6. HTML (<code>network.html</code>)<a class="headerlink" href="#6-html-networkhtml" title="Permanent link">&para;</a></h2>
+<h3 id="_12">Структура<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="cp">&lt;!DOCTYPE html&gt;</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;ru&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>  <span class="cm">&lt;!-- theme, cockpit.css, style.css, network.css --&gt;</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>  <span class="cm">&lt;!-- Page Header --&gt;</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-header&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="p">&lt;</span><span class="nt">h2</span><span class="p">&gt;</span>🌐 Сеть<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ifaceStatusBar&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btnApply&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn btn-primary&quot;</span> <span class="na">disabled</span><span class="p">&gt;</span>Применить изменения<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>  <span class="cm">&lt;!-- Tabs --&gt;</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>  <span class="p">&lt;</span><span class="nt">ul</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;nav nav-tabs&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;netTabs&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>    <span class="p">&lt;</span><span class="nt">li</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;active&quot;</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">data-tab</span><span class="o">=</span><span class="s">&quot;interfaces&quot;</span><span class="p">&gt;</span>Интерфейсы<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>    <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">data-tab</span><span class="o">=</span><span class="s">&quot;dns&quot;</span><span class="p">&gt;</span>DNS и хосты<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>    <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">data-tab</span><span class="o">=</span><span class="s">&quot;routes&quot;</span><span class="p">&gt;</span>Маршруты<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>    <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">data-tab</span><span class="o">=</span><span class="s">&quot;diag&quot;</span><span class="p">&gt;</span>Диагностика<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a>  <span class="p">&lt;/</span><span class="nt">ul</span><span class="p">&gt;</span>
+<a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a>
+<a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a>  <span class="cm">&lt;!-- Tab: Interfaces --&gt;</span>
+<a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;tab-interfaces&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-tab-content&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ifaceCards&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btnAddVlan&quot;</span><span class="p">&gt;</span>+ VLAN<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btnAddBond&quot;</span><span class="p">&gt;</span>+ Bond<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a>
+<a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a>  <span class="cm">&lt;!-- Tab: DNS &amp; Hosts --&gt;</span>
+<a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;tab-dns&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-tab-content&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-31" name="__codelineno-17-31" href="#__codelineno-17-31"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;dnsSection&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-32" name="__codelineno-17-32" href="#__codelineno-17-32"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;hostsSection&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-33" name="__codelineno-17-33" href="#__codelineno-17-33"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-34" name="__codelineno-17-34" href="#__codelineno-17-34"></a>
+<a id="__codelineno-17-35" name="__codelineno-17-35" href="#__codelineno-17-35"></a>  <span class="cm">&lt;!-- Tab: Routes --&gt;</span>
+<a id="__codelineno-17-36" name="__codelineno-17-36" href="#__codelineno-17-36"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;tab-routes&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-tab-content&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-37" name="__codelineno-17-37" href="#__codelineno-17-37"></a>    <span class="p">&lt;</span><span class="nt">table</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;routesTable&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">table</span><span class="p">&gt;</span>
+<a id="__codelineno-17-38" name="__codelineno-17-38" href="#__codelineno-17-38"></a>    <span class="p">&lt;</span><span class="nt">button</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;btnAddRoute&quot;</span><span class="p">&gt;</span>+ Добавить<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<a id="__codelineno-17-39" name="__codelineno-17-39" href="#__codelineno-17-39"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-40" name="__codelineno-17-40" href="#__codelineno-17-40"></a>
+<a id="__codelineno-17-41" name="__codelineno-17-41" href="#__codelineno-17-41"></a>  <span class="cm">&lt;!-- Tab: Diagnostics --&gt;</span>
+<a id="__codelineno-17-42" name="__codelineno-17-42" href="#__codelineno-17-42"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;tab-diag&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-tab-content&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-43" name="__codelineno-17-43" href="#__codelineno-17-43"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;diag-toolbar&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-44" name="__codelineno-17-44" href="#__codelineno-17-44"></a>      <span class="cm">&lt;!-- tool selector buttons --&gt;</span>
+<a id="__codelineno-17-45" name="__codelineno-17-45" href="#__codelineno-17-45"></a>    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-46" name="__codelineno-17-46" href="#__codelineno-17-46"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;diagForm&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-47" name="__codelineno-17-47" href="#__codelineno-17-47"></a>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;diagOutput&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;net-diag-output&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-48" name="__codelineno-17-48" href="#__codelineno-17-48"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-49" name="__codelineno-17-49" href="#__codelineno-17-49"></a>
+<a id="__codelineno-17-50" name="__codelineno-17-50" href="#__codelineno-17-50"></a>  <span class="cm">&lt;!-- Modals --&gt;</span>
+<a id="__codelineno-17-51" name="__codelineno-17-51" href="#__codelineno-17-51"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-overlay&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ifaceModal&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-52" name="__codelineno-17-52" href="#__codelineno-17-52"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-overlay&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;routeModal&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-53" name="__codelineno-17-53" href="#__codelineno-17-53"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-overlay&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;vlanModal&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-54" name="__codelineno-17-54" href="#__codelineno-17-54"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-overlay&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;hostModal&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>...<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-55" name="__codelineno-17-55" href="#__codelineno-17-55"></a>  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;modal-overlay&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ipChangeWarnModal&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;display:none&quot;</span><span class="p">&gt;</span>
+<a id="__codelineno-17-56" name="__codelineno-17-56" href="#__codelineno-17-56"></a>    <span class="cm">&lt;!-- reconnect countdown --&gt;</span>
+<a id="__codelineno-17-57" name="__codelineno-17-57" href="#__codelineno-17-57"></a>  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<a id="__codelineno-17-58" name="__codelineno-17-58" href="#__codelineno-17-58"></a>
+<a id="__codelineno-17-59" name="__codelineno-17-59" href="#__codelineno-17-59"></a>  <span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;js/network.js&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<a id="__codelineno-17-60" name="__codelineno-17-60" href="#__codelineno-17-60"></a><span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<a id="__codelineno-17-61" name="__codelineno-17-61" href="#__codelineno-17-61"></a><span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</code></pre></div>
+<hr />
+<h2 id="7-css-networkcss">7. CSS (<code>network.css</code>)<a class="headerlink" href="#7-css-networkcss" title="Permanent link">&para;</a></h2>
+<p>Новый файл <code>cockpit/rusnas/css/network.css</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c">/* Interface cards */</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="p">.</span><span class="nc">net-iface-card</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="p">.</span><span class="nc">net-iface-status-up</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--color-success</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="p">.</span><span class="nc">net-iface-status-down</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--color-danger</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c">/* Traffic sparklines */</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="p">.</span><span class="nc">net-sparkline</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">inline-block</span><span class="p">;</span><span class="w"> </span><span class="k">width</span><span class="p">:</span><span class="w"> </span><span class="mi">80</span><span class="kt">px</span><span class="p">;</span><span class="w"> </span><span class="k">height</span><span class="p">:</span><span class="w"> </span><span class="mi">24</span><span class="kt">px</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c">/* Diagnostics output terminal */</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="p">.</span><span class="nc">net-diag-output</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">  </span><span class="k">font-family</span><span class="p">:</span><span class="w"> </span><span class="kc">monospace</span><span class="p">;</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--bg-th</span><span class="p">);</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="w">  </span><span class="k">min-height</span><span class="p">:</span><span class="w"> </span><span class="mi">200</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="w">  </span><span class="k">max-height</span><span class="p">:</span><span class="w"> </span><span class="mi">400</span><span class="kt">px</span><span class="p">;</span>
+<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="w">  </span><span class="k">overflow-y</span><span class="p">:</span><span class="w"> </span><span class="kc">auto</span><span class="p">;</span>
+<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a><span class="w">  </span><span class="k">white-space</span><span class="p">:</span><span class="w"> </span><span class="kc">pre-wrap</span><span class="p">;</span>
+<a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a><span class="p">}</span>
+<a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="p">.</span><span class="nc">net-diag-ok</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#4caf50</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a><span class="p">.</span><span class="nc">net-diag-err</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#f44336</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a><span class="p">.</span><span class="nc">net-diag-hop</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--color-muted</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a>
+<a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a><span class="c">/* Toolbar — diag tool selector */</span>
+<a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a><span class="p">.</span><span class="nc">net-tool-btn</span><span class="p">.</span><span class="nc">active</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--color-accent</span><span class="p">);</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="mh">#fff</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="8-install-networksh">8. Установочный скрипт (<code>install-network.sh</code>)<a class="headerlink" href="#8-install-networksh" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="ch">#!/usr/bin/env bash</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="c1"># install-network.sh — Deploy rusNAS Network module to VM</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="nv">VM</span><span class="o">=</span><span class="s2">&quot;rusnas@10.10.10.72&quot;</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nv">PASS</span><span class="o">=</span><span class="s2">&quot;kl4389qd&quot;</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="nv">SSH</span><span class="o">=</span><span class="s2">&quot;sshpass -p &#39;</span><span class="nv">$PASS</span><span class="s2">&#39; ssh -o StrictHostKeyChecking=no ...&quot;</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="c1"># 1. Copy frontend files</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>scp<span class="w"> </span>cockpit/rusnas/network.html<span class="w">        </span><span class="nv">$VM</span>:/tmp/rusnas-net/
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>scp<span class="w"> </span>cockpit/rusnas/js/network.js<span class="w">       </span><span class="nv">$VM</span>:/tmp/rusnas-net/
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>scp<span class="w"> </span>cockpit/rusnas/css/network.css<span class="w">     </span><span class="nv">$VM</span>:/tmp/rusnas-net/
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>scp<span class="w"> </span>cockpit/rusnas/scripts/network-api.py<span class="w"> </span><span class="nv">$VM</span>:/tmp/rusnas-net/
+<a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a>
+<a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="c1"># 2. Install files</span>
+<a id="__codelineno-19-15" name="__codelineno-19-15" href="#__codelineno-19-15"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo cp /tmp/rusnas-net/network.html    /usr/share/cockpit/rusnas/&quot;</span>
+<a id="__codelineno-19-16" name="__codelineno-19-16" href="#__codelineno-19-16"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo cp /tmp/rusnas-net/network.js      /usr/share/cockpit/rusnas/js/&quot;</span>
+<a id="__codelineno-19-17" name="__codelineno-19-17" href="#__codelineno-19-17"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo cp /tmp/rusnas-net/network.css     /usr/share/cockpit/rusnas/css/&quot;</span>
+<a id="__codelineno-19-18" name="__codelineno-19-18" href="#__codelineno-19-18"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo cp /tmp/rusnas-net/network-api.py  /usr/share/cockpit/rusnas/scripts/&quot;</span>
+<a id="__codelineno-19-19" name="__codelineno-19-19" href="#__codelineno-19-19"></a>
+<a id="__codelineno-19-20" name="__codelineno-19-20" href="#__codelineno-19-20"></a><span class="c1"># 3. Sudoers</span>
+<a id="__codelineno-19-21" name="__codelineno-19-21" href="#__codelineno-19-21"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;echo &#39;rusnas ALL=(ALL) NOPASSWD: /usr/sbin/ifup, /usr/sbin/ifdown&#39; | sudo tee /etc/sudoers.d/rusnas-network&quot;</span>
+<a id="__codelineno-19-22" name="__codelineno-19-22" href="#__codelineno-19-22"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;echo &#39;rusnas ALL=(ALL) NOPASSWD: /sbin/ip&#39; &gt;&gt; /etc/sudoers.d/rusnas-network&quot;</span>
+<a id="__codelineno-19-23" name="__codelineno-19-23" href="#__codelineno-19-23"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;echo &#39;rusnas ALL=(ALL) NOPASSWD: /usr/bin/python3 /usr/share/cockpit/rusnas/scripts/network-api.py *&#39; &gt;&gt; /etc/sudoers.d/rusnas-network&quot;</span>
+<a id="__codelineno-19-24" name="__codelineno-19-24" href="#__codelineno-19-24"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;echo &#39;rusnas ALL=(ALL) NOPASSWD: /usr/bin/traceroute, /usr/bin/dig, /usr/bin/ncat, /usr/bin/etherwake&#39; &gt;&gt; /etc/sudoers.d/rusnas-network&quot;</span>
+<a id="__codelineno-19-25" name="__codelineno-19-25" href="#__codelineno-19-25"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo chmod 440 /etc/sudoers.d/rusnas-network&quot;</span>
+<a id="__codelineno-19-26" name="__codelineno-19-26" href="#__codelineno-19-26"></a>
+<a id="__codelineno-19-27" name="__codelineno-19-27" href="#__codelineno-19-27"></a><span class="c1"># 4. Packages</span>
+<a id="__codelineno-19-28" name="__codelineno-19-28" href="#__codelineno-19-28"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo apt-get install -y traceroute dnsutils netcat-openbsd etherwake&quot;</span>
+<a id="__codelineno-19-29" name="__codelineno-19-29" href="#__codelineno-19-29"></a>
+<a id="__codelineno-19-30" name="__codelineno-19-30" href="#__codelineno-19-30"></a><span class="c1"># 5. Permissions</span>
+<a id="__codelineno-19-31" name="__codelineno-19-31" href="#__codelineno-19-31"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo chmod 644 /usr/share/cockpit/rusnas/network.html&quot;</span>
+<a id="__codelineno-19-32" name="__codelineno-19-32" href="#__codelineno-19-32"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo chmod 644 /usr/share/cockpit/rusnas/js/network.js&quot;</span>
+<a id="__codelineno-19-33" name="__codelineno-19-33" href="#__codelineno-19-33"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo chmod 644 /usr/share/cockpit/rusnas/css/network.css&quot;</span>
+<a id="__codelineno-19-34" name="__codelineno-19-34" href="#__codelineno-19-34"></a><span class="nv">$SSH</span><span class="w"> </span><span class="s2">&quot;sudo chmod 755 /usr/share/cockpit/rusnas/scripts/network-api.py&quot;</span>
+<a id="__codelineno-19-35" name="__codelineno-19-35" href="#__codelineno-19-35"></a>
+<a id="__codelineno-19-36" name="__codelineno-19-36" href="#__codelineno-19-36"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅  Network module deployed: https://10.10.10.72:9090/cockpit/@localhost/rusnas/network.html&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="9">9. Порядок реализации<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<h3 id="1-manifestjson-html">Шаг 1 — manifest.json + HTML скелет<a class="headerlink" href="#1-manifestjson-html" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Добавить <code>"network"</code> в manifest.json</li>
+<li>Создать <code>network.html</code> с 4 вкладками (пустые div)</li>
+<li>Проверить: вкладка появилась в sidebar</li>
+</ul>
+<h3 id="2-backend-network-apipy">Шаг 2 — Backend <code>network-api.py</code><a class="headerlink" href="#2-backend-network-apipy" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>get-interfaces</code>: <code>ip -j addr</code> + <code>ip -j route</code> → JSON</li>
+<li><code>get-dns</code>: <code>/etc/resolv.conf</code> → parsed JSON</li>
+<li><code>get-hosts</code>: <code>/etc/hosts</code> → JSON (без системных)</li>
+<li><code>get-routes</code>: <code>ip -j route</code> → JSON</li>
+<li>Тест на VM: <code>python3 network-api.py get-interfaces</code></li>
+</ul>
+<h3 id="3-read-only">Шаг 3 — Вкладка «Интерфейсы» (read-only)<a class="headerlink" href="#3-read-only" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>loadInterfaces()</code> → карточки с IP, MAC, MTU</li>
+<li>Live трафик sparklines (polling /proc/net/dev)</li>
+<li>Статус-бар в хедере</li>
+</ul>
+<h3 id="4">Шаг 4 — Редактирование интерфейса<a class="headerlink" href="#4" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>set-interface</code> + <code>ifup</code> + <code>ifdown</code> в backend</li>
+<li>Модал + валидация IP/CIDR</li>
+<li>Предупреждение при смене IP + reconnect countdown</li>
+</ul>
+<h3 id="5-dns">Шаг 5 — Вкладка «DNS и хосты»<a class="headerlink" href="#5-dns" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>loadDns()</code> + <code>saveDns()</code></li>
+<li><code>loadHosts()</code> + CRUD хостов</li>
+</ul>
+<h3 id="6">Шаг 6 — Вкладка «Маршруты»<a class="headerlink" href="#6" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>loadRoutes()</code> + <code>addRoute()</code> + <code>deleteRoute()</code></li>
+<li>Постоянные маршруты через post-up в interfaces</li>
+</ul>
+<h3 id="7">Шаг 7 — Вкладка «Диагностика»<a class="headerlink" href="#7" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Ping с live output</li>
+<li>Traceroute с hop-таблицей</li>
+<li>DNS lookup</li>
+<li>Проверка порта</li>
+<li>Wake-on-LAN</li>
+</ul>
+<h3 id="8-vlan-bonding">Шаг 8 — VLAN / Bonding (если время позволяет)<a class="headerlink" href="#8-vlan-bonding" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Отдельные модалы</li>
+<li>Запись в /etc/network/interfaces</li>
+</ul>
+<h3 id="9_1">Шаг 9 — Полное тестирование + деплой<a class="headerlink" href="#9_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Проверить смену IP (reconnect)</li>
+<li>Проверить добавление/удаление маршрутов</li>
+<li>Проверить все диагностические инструменты</li>
+<li><code>./deploy.sh</code> + <code>./install-network.sh</code></li>
+</ul>
+<hr />
+<h2 id="10">10. Безопасность<a class="headerlink" href="#10" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Пишем только в known файлы</strong>: <code>/etc/network/interfaces</code>, <code>/etc/resolv.conf</code>, <code>/etc/hosts</code></li>
+<li><strong>Атомарная запись</strong>: tempfile + <code>os.rename()</code> — никогда прямо в конечный файл</li>
+<li><strong>Валидация IP</strong>: перед записью, отклонять невалидные адреса</li>
+<li><strong>Не exec shell</strong> в network-api.py — только <code>subprocess.run(["cmd", "arg"], ...)</code> без <code>shell=True</code></li>
+<li><strong>Диагностика</strong>: команды с hardcoded path (<code>/usr/bin/ping</code>), не принимать имя команды от пользователя</li>
+</ul>
+<hr />
+<h2 id="11">11. Известные ограничения<a class="headerlink" href="#11" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Ограничение</th>
+<th>Причина</th>
+<th>Workaround</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Нет поддержки multiple IPs на интерфейсе (IP aliases <code>ens3:1</code>)</td>
+<td>Редко нужно в SMB</td>
+<td>Добавить в v2</td>
+</tr>
+<tr>
+<td>Bonding требует <code>ifenslave</code></td>
+<td>Пакет не всегда установлен</td>
+<td>Проверять + показывать инструкцию установки</td>
+</tr>
+<tr>
+<td><code>resolv.conf</code> может управляться resolvconf/systemd-resolved</td>
+<td>На Debian 13 часто symlink</td>
+<td>Детектировать + предупреждать</td>
+</tr>
+<tr>
+<td>WoL работает только в локальной сети</td>
+<td>Физическое ограничение L2</td>
+<td>Сообщать в UI</td>
+</tr>
+<tr>
+<td>Смена IP рвёт Cockpit-сессию</td>
+<td>Архитектурное ограничение</td>
+<td>Reconnect countdown + auto-redirect</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-dashboard">12. Интеграция с Dashboard<a class="headerlink" href="#12-dashboard" title="Permanent link">&para;</a></h2>
+<p>После реализации — добавить в <code>dashboard.html</code>:</p>
+<p><strong>Сетевая карточка</strong> (уже есть <code>#card-net</code>) — добавить кнопку «⚙ Настройки сети» → <code>network.html</code>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1">// В dashboard.js, network modal или click handler:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;btnNetSettings&#39;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;click&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="nx">cockpit</span><span class="p">.</span><span class="nx">jump</span><span class="p">(</span><span class="s1">&#39;/cockpit/@localhost/rusnas/network.html&#39;</span><span class="p">);</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="p">});</span>
+</code></pre></div></p>
+<hr />
+<h2 id="13-claudemd">13. Обновление CLAUDE.md<a class="headerlink" href="#13-claudemd" title="Permanent link">&para;</a></h2>
+<p>После реализации добавить в CLAUDE.md секцию <code>## rusNAS Network</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="gu">## rusNAS Network</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>Управление сетью напрямую через ifupdown (не NetworkManager).
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="gs">**Deploy:**</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>./install-network.sh
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="gs">**Ключевые факты:**</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="k">-</span><span class="w"> </span>Читает/пишет /etc/network/interfaces атомарно (tempfile + rename)
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="k">-</span><span class="w"> </span>ifup/ifdown через sudoers (не через NM)
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="k">-</span><span class="w"> </span>Reconnect countdown при смене IP: 5 сек + window.location.replace()
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="k">-</span><span class="w"> </span>Диагностика: ping/traceroute/dig/ncat — live stdout через cockpit.spawn stream
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a><span class="k">-</span><span class="w"> </span>resolv.conf: детектирует symlink → предупреждение если управляется resolvconf
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/lozovoyd/RusNAS" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.expand", "navigation.indexes", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
