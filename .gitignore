@@ -15,3 +15,16 @@ node_modules/
 # Local settings
 .claude/settings.local.json
 .worktrees/
+
+# Auto-generated documentation
+docs-site/
+docs/src/api/js/
+docs/src/specs/
+docs/src/guides/known-bugs.md
+docs/src/guides/webservices.md
+docs/src/guides/ui-design.md
+
+# Certification docs (generated)
+certification-docs/node_modules/
+certification-docs/package.json
+certification-docs/package-lock.json

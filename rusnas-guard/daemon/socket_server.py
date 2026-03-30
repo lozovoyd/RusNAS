@@ -1,7 +1,10 @@
-"""
-socket_server.py — Unix socket server for rusnas-guard.
+"""Unix domain socket server for rusnas-guard.
 
-Protocol: one JSON object per message, terminated by newline.
+Provides the control API consumed by the Cockpit UI (guard.js). The protocol
+is newline-delimited JSON: one request object per line, one response object
+per line. Commands are either unauthenticated (``status``, ``get_events``,
+``get_config``, ``has_pin``) or require PIN/token authentication. Session
+tokens are issued on successful PIN verification and expire after 30 minutes.
 """
 
 import hashlib
@@ -24,6 +27,16 @@ TOKEN_TTL  = 1800  # 30 minutes
 
 
 class SocketServer:
+    """Unix domain socket server for Guard daemon control.
+
+    Listens on ``/run/rusnas-guard/control.sock`` with world-accessible
+    permissions (0o666) so Cockpit bridge can connect without superuser.
+    Handles authentication via bcrypt-hashed PIN and session tokens.
+
+    Args:
+        daemon_ref: Reference to the GuardDaemon instance for command dispatch.
+    """
+
     def __init__(self, daemon_ref):
         self._daemon  = daemon_ref
         self._tokens: dict[str, float] = {}  # token -> expiry timestamp
@@ -32,6 +45,7 @@ class SocketServer:
         self._thread  = None
 
     def start(self):
+        """Bind the socket and start the accept loop and watchdog threads."""
         self._bind_socket()
         self._thread = threading.Thread(target=self._accept_loop, daemon=True)
         self._thread.start()
@@ -40,6 +54,7 @@ class SocketServer:
         logger.info("Socket server listening on %s", SOCK_PATH)
 
     def _bind_socket(self):
+        """Create and bind the Unix domain socket with 0o666 permissions."""
         os.makedirs(os.path.dirname(SOCK_PATH), exist_ok=True)
         if os.path.exists(SOCK_PATH):
             os.unlink(SOCK_PATH)
@@ -68,6 +83,7 @@ class SocketServer:
                     logger.error("Failed to recreate socket: %s", e)
 
     def stop(self):
+        """Close the socket server and clean up the socket file."""
         if self._server:
             try:
                 self._server.close()
@@ -79,6 +95,7 @@ class SocketServer:
     # ── Accept loop ───────────────────────────────────────────────────────────
 
     def _accept_loop(self):
+        """Accept incoming connections and spawn handler threads."""
         while True:
             try:
                 conn, _ = self._server.accept()
@@ -91,6 +108,11 @@ class SocketServer:
                 break
 
     def _handle_conn(self, conn: socket.socket):
+        """Handle a single client connection: read JSON request, dispatch, respond.
+
+        Args:
+            conn: Connected Unix socket.
+        """
         try:
             buf = b""
             while True:
@@ -114,6 +136,14 @@ class SocketServer:
     # ── Dispatch ──────────────────────────────────────────────────────────────
 
     def _dispatch(self, req: dict) -> dict:
+        """Route a request to the appropriate handler.
+
+        Args:
+            req: Parsed JSON request with at least a ``cmd`` key.
+
+        Returns:
+            Response dict with ``ok`` (bool) and ``data`` or ``error``.
+        """
         cmd = req.get("cmd")
 
         # Unauthenticated commands
@@ -222,6 +252,15 @@ class SocketServer:
     # ── Auth ──────────────────────────────────────────────────────────────────
 
     def _auth(self, pin: str, token: str) -> bool:
+        """Authenticate a request via session token or PIN.
+
+        Args:
+            pin: Raw PIN string from the request (may be empty).
+            token: Session token from a previous authentication (may be empty).
+
+        Returns:
+            True if authentication succeeds via either method.
+        """
         # Token auth (session) — only valid if PIN file still exists
         if token and os.path.exists(PIN_PATH):
             with self._lock:
@@ -241,6 +280,13 @@ class SocketServer:
         return False
 
     def _issue_token(self) -> str:
+        """Generate a new session token with TOKEN_TTL expiry.
+
+        Cleans up expired tokens before issuing a new one.
+
+        Returns:
+            Hex-encoded 32-byte session token string.
+        """
         token = secrets.token_hex(32)
         with self._lock:
             # Clean expired
@@ -250,6 +296,14 @@ class SocketServer:
         return token
 
     def _set_pin(self, pin: str) -> dict:
+        """Hash and save a new Guard PIN.
+
+        Args:
+            pin: Raw PIN string (minimum 6 characters).
+
+        Returns:
+            Success response dict.
+        """
         os.makedirs(os.path.dirname(PIN_PATH), exist_ok=True)
         hashed = bcrypt.hashpw(pin.encode(), bcrypt.gensalt())
         with open(PIN_PATH, "wb") as fh:
@@ -259,6 +313,14 @@ class SocketServer:
         return {"ok": True, "data": {}}
 
     def _gen_ssh_key(self) -> str:
+        """Generate an Ed25519 SSH key pair for snapshot replication.
+
+        Creates the key at ``/etc/rusnas-guard/replication_key`` if it
+        does not already exist.
+
+        Returns:
+            Public key string, or empty string on failure.
+        """
         key_path = "/etc/rusnas-guard/replication_key"
         if not os.path.exists(key_path):
             subprocess.run(

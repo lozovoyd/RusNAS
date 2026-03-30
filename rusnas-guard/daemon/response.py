@@ -1,5 +1,11 @@
-"""
-response.py — Blocking, snapshots, and notifications for rusnas-guard.
+"""Incident response actions for rusnas-guard.
+
+Implements the response pipeline triggered by detection events: event logging
+to a JSONL file, IP blocking via nftables, SMB connection termination, Btrfs
+snapshot creation, remote replication via ``btrfs send | ssh``, and
+notification dispatch. Response severity escalates with the operating mode:
+monitor (log + notify), active (snapshot + block + notify), or super_safe
+(snapshot all volumes + shutdown).
 """
 
 import logging
@@ -19,7 +25,19 @@ STATE_FILE  = "/run/rusnas-guard/state.json"
 # ── Event logging ─────────────────────────────────────────────────────────────
 
 def log_event(event: dict, state: dict):
-    """Append event to JSONL log and update state."""
+    """Append a detection event to the JSONL log and update daemon state.
+
+    Assigns a unique ID and UTC timestamp to the event, writes it as a
+    single JSON line to the events log file, and increments the daily
+    event counter in the shared state.
+
+    Args:
+        event: Detection event dict (method, path, files, etc.).
+        state: Shared mutable daemon state dict.
+
+    Returns:
+        The assigned event ID string.
+    """
     event.setdefault("id", f"ev_{int(time.time()*1000)}_{os.getpid()}")
     event.setdefault("time", datetime.datetime.utcnow().isoformat() + "Z")
     event["status"] = "new"
@@ -40,7 +58,19 @@ def log_event(event: dict, state: dict):
 
 def load_events(limit=50, offset=0, method=None, date_from=None,
                 date_to=None, status=None) -> dict:
-    """Return filtered events with total count. Newest first."""
+    """Load and filter events from the JSONL log.
+
+    Args:
+        limit: Maximum number of events to return per page.
+        offset: Number of events to skip (for pagination).
+        method: Filter by detection method (e.g., "honeypot", "entropy").
+        date_from: ISO date string (YYYY-MM-DD) for start of range filter.
+        date_to: ISO date string (YYYY-MM-DD) for end of range filter.
+        status: Filter by event status ("new" or "acknowledged").
+
+    Returns:
+        Dict with ``events`` (list, newest first) and ``total`` (int).
+    """
     if not os.path.exists(EVENTS_LOG):
         return {"events": [], "total": 0}
     events = []
@@ -81,7 +111,17 @@ def clear_events():
 
 
 def acknowledge_event(event_id: str) -> bool:
-    """Mark event as acknowledged in the log."""
+    """Mark a specific event as acknowledged in the JSONL log.
+
+    Reads the entire log, updates the matching event's status field,
+    and rewrites the file atomically.
+
+    Args:
+        event_id: The unique event ID to acknowledge.
+
+    Returns:
+        True if the event was found and updated, False otherwise.
+    """
     if not os.path.exists(EVENTS_LOG):
         return False
     lines = []
@@ -112,6 +152,11 @@ def acknowledge_event(event_id: str) -> bool:
 # ── State file ────────────────────────────────────────────────────────────────
 
 def write_state(state: dict):
+    """Atomically write daemon state to the runtime state file.
+
+    Args:
+        state: Current daemon state dict to serialize as JSON.
+    """
     os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
     tmp = STATE_FILE + ".tmp"
     with open(tmp, "w") as fh:
@@ -126,6 +171,14 @@ _blocked_lock = threading.Lock()
 
 
 def block_ip(ip: str):
+    """Block an IP address via nftables.
+
+    Adds a drop rule for the given source IP in the inet filter input
+    chain. Skips if the IP is already blocked or is "unknown".
+
+    Args:
+        ip: IPv4 address string to block.
+    """
     if not ip or ip == "unknown":
         return
     with _blocked_lock:
@@ -157,6 +210,11 @@ def clear_all_blocks():
 
 
 def get_blocked_ips() -> list:
+    """Return a list of all currently blocked IP addresses.
+
+    Returns:
+        List of IP address strings.
+    """
     with _blocked_lock:
         return list(_blocked_ips)
 
@@ -164,6 +222,15 @@ def get_blocked_ips() -> list:
 # ── SMB connection drop ───────────────────────────────────────────────────────
 
 def drop_smb_connections(share: str, ip: str):
+    """Force-close active SMB connections to a share.
+
+    Uses ``smbcontrol smbd close-share`` to disconnect all clients
+    from the specified share.
+
+    Args:
+        share: SMB share name to close connections for.
+        ip: Source IP (used for logging only).
+    """
     try:
         subprocess.run(
             ["smbcontrol", "smbd", "close-share", share],
@@ -177,7 +244,17 @@ def drop_smb_connections(share: str, ip: str):
 # ── Btrfs snapshots ───────────────────────────────────────────────────────────
 
 def create_snapshot(volume_path: str) -> str:
-    """Create a Btrfs snapshot. Returns snapshot path or empty string on failure."""
+    """Create a read-only Btrfs snapshot of the given volume.
+
+    The snapshot is placed under ``<volume_path>/.snapshots/`` with a
+    timestamp-based name prefixed with ``rusnas-guard-``.
+
+    Args:
+        volume_path: Mount point of the Btrfs volume to snapshot.
+
+    Returns:
+        Absolute path to the created snapshot, or empty string on failure.
+    """
     ts   = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     snap = f"{volume_path}/.snapshots/rusnas-guard-{ts}"
     os.makedirs(os.path.dirname(snap), exist_ok=True)
@@ -194,7 +271,15 @@ def create_snapshot(volume_path: str) -> str:
 
 
 def replicate_snapshot(snap_path: str, remote: dict):
-    """Async btrfs send | ssh to remote NAS."""
+    """Asynchronously replicate a snapshot to a remote NAS via SSH.
+
+    Pipes ``btrfs send`` into ``ssh btrfs receive`` in a background
+    thread. Requires pre-configured SSH keys.
+
+    Args:
+        snap_path: Local snapshot path to send.
+        remote: Dict with keys ``host``, ``user``, ``path``, ``ssh_key``.
+    """
     host    = remote.get("host", "")
     user    = remote.get("user", "rusnas")
     path    = remote.get("path", "/mnt/backup")
@@ -225,8 +310,15 @@ def replicate_snapshot(snap_path: str, remote: dict):
 # ── Notifications ─────────────────────────────────────────────────────────────
 
 def send_notification(subject: str, body: str):
-    """Delegate to rusnas notification system (email + Telegram).
-    Calls the existing notify helper if available."""
+    """Send a notification via the rusNAS notification system.
+
+    Delegates to ``/usr/lib/rusnas/notify.sh`` which handles email
+    and Telegram delivery. Fails silently if the script is not installed.
+
+    Args:
+        subject: Notification subject line.
+        body: Notification body text.
+    """
     script = "/usr/lib/rusnas/notify.sh"
     if os.path.exists(script):
         try:
@@ -244,9 +336,22 @@ def send_notification(subject: str, body: str):
 # ── Mode responses ────────────────────────────────────────────────────────────
 
 def handle_detection(event: dict, mode: str, config: dict, state: dict):
-    """
-    Execute response according to current mode.
-    event dict keys: method, path, source_ip, files, entropy, iops_rate
+    """Execute the appropriate response actions for a detection event.
+
+    Response severity escalates with the operating mode:
+    - **monitor**: Log the event and send a notification.
+    - **active**: Snapshot the affected volume, block the source IP,
+      drop SMB connections, optionally replicate, and notify.
+    - **super_safe**: Snapshot ALL monitored volumes, replicate, notify,
+      write a post-attack flag, stop network services, and power off
+      the system after a 30-second delay.
+
+    Args:
+        event: Detection event dict with keys: method, path, source_ip,
+            files, and optionally entropy, iops_rate.
+        mode: Current operating mode ("monitor", "active", "super_safe").
+        config: Full guard config dict.
+        state: Shared mutable daemon state dict.
     """
     event_id = log_event(event, state)
 

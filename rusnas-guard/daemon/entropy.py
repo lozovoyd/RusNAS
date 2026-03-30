@@ -1,7 +1,10 @@
-"""
-entropy.py — Shannon entropy computation for rusnas-guard.
+"""Shannon entropy computation for rusnas-guard.
 
-Samples up to 16 random 4KB blocks from a file and returns bits/byte.
+Provides file-level entropy analysis to detect potential ransomware encryption.
+Samples up to 16 random 4KB blocks from a file and computes Shannon entropy
+in bits per byte. Files with entropy above a configurable threshold (default 7.2)
+are flagged as potentially encrypted. Already-compressed or media files are
+skipped to avoid false positives.
 """
 
 import math
@@ -21,14 +24,33 @@ SKIP_EXTENSIONS = {
 
 
 def should_skip(path: str) -> bool:
+    """Check if a file should be skipped for entropy analysis.
+
+    Args:
+        path: Absolute or relative file path.
+
+    Returns:
+        True if the file extension indicates a compressed or media format
+        that naturally has high entropy.
+    """
     _, ext = os.path.splitext(path)
     return ext.lower() in SKIP_EXTENSIONS
 
 
 def compute(path: str):
-    """
-    Return Shannon entropy in bits/byte, or None if file should be skipped
-    or cannot be read.
+    """Compute Shannon entropy of a file by sampling random blocks.
+
+    Reads up to NUM_BLOCKS random 4KB blocks from the file (or the
+    entire file if it is small enough) and computes Shannon entropy
+    in bits per byte.
+
+    Args:
+        path: Absolute path to the file to analyze.
+
+    Returns:
+        Entropy value rounded to 4 decimal places (0.0 to 8.0),
+        or None if the file should be skipped, is too small,
+        or cannot be read.
     """
     if should_skip(path):
         return None

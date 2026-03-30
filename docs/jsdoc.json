@@ -1,0 +1,11 @@
+{
+  "source": {
+    "include": ["cockpit/rusnas/js"],
+    "includePattern": ".+\\.js$"
+  },
+  "opts": {
+    "encoding": "utf8"
+  },
+  "plugins": [],
+  "sourceType": "script"
+}

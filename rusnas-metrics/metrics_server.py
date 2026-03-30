@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""
-rusNAS Metrics Server
-Port 9100, two endpoints:
-  /metrics       — Prometheus text format
-  /metrics.json  — JSON format
+"""rusNAS Metrics Server.
+
+HTTP server on port 9100 that exposes system metrics in two formats:
+
+- ``/metrics`` -- Prometheus text exposition format (v0.0.4)
+- ``/metrics.json`` -- JSON format for the Cockpit dashboard
+
+Collects CPU, memory, network, disk I/O, S.M.A.R.T., RAID, volume,
+service status, Guard state, HDD spindown state, and container metrics.
+Delta-based rates (CPU%, network bytes/sec, disk IOPS) require two
+consecutive reads with a time gap.
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import subprocess, json, time, re, os, datetime
@@ -22,6 +28,14 @@ _prev_disk_ios_time = None
 
 
 def read_file(path):
+    """Read entire file contents as a string.
+
+    Args:
+        path: Absolute file path to read.
+
+    Returns:
+        File contents as string, or empty string on any error.
+    """
     try:
         with open(path) as f:
             return f.read()
@@ -30,6 +44,15 @@ def read_file(path):
 
 
 def run_cmd(args, timeout=5):
+    """Run a command and return its stdout.
+
+    Args:
+        args: Command and arguments as a list.
+        timeout: Maximum execution time in seconds.
+
+    Returns:
+        Stdout string, or empty string on any error.
+    """
     try:
         r = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
         return r.stdout
@@ -38,6 +61,16 @@ def run_cmd(args, timeout=5):
 
 
 def collect_cpu():
+    """Collect CPU usage, load average, and temperature.
+
+    Computes CPU usage percent as a delta from the previous call using
+    ``/proc/stat``. Reads load averages from ``/proc/loadavg`` and
+    temperature from ``/sys/class/thermal/``.
+
+    Returns:
+        Dict with keys: usage_percent, load_avg (list of 3 floats),
+        temp_celsius (float or None).
+    """
     global _prev_cpu, _prev_cpu_time
     raw = read_file("/proc/stat")
     line = next((l for l in raw.splitlines() if l.startswith("cpu ")), "")
@@ -79,6 +112,12 @@ def collect_cpu():
 
 
 def collect_memory():
+    """Collect memory and swap usage from /proc/meminfo.
+
+    Returns:
+        Dict with keys: total_bytes, used_bytes, available_bytes,
+        swap_total_bytes, swap_used_bytes.
+    """
     raw = read_file("/proc/meminfo")
     info = {}
     for line in raw.splitlines():
@@ -102,6 +141,16 @@ def collect_memory():
 
 
 def collect_network():
+    """Collect per-interface network throughput and link status.
+
+    Computes RX/TX bytes per second as deltas from the previous call
+    using ``/proc/net/dev``. Also reads link speed and carrier status
+    from sysfs.
+
+    Returns:
+        Dict mapping interface name to dict with keys: rx_bytes_per_sec,
+        tx_bytes_per_sec, speed_mbps (int or None), link (bool).
+    """
     global _prev_net, _prev_net_time
     raw = read_file("/proc/net/dev")
     now = time.time()
@@ -150,6 +199,16 @@ def collect_network():
 
 
 def collect_disk_io():
+    """Collect per-disk I/O throughput and IOPS from /proc/diskstats.
+
+    Only includes physical disks (sd*, nvme*, hd*, vd*), not partitions.
+    Computes read/write bytes per second and IOPS as deltas from the
+    previous call.
+
+    Returns:
+        Dict mapping device name to dict with keys: read_bytes_per_sec,
+        write_bytes_per_sec, read_iops, write_iops.
+    """
     global _prev_disk, _prev_disk_time, _prev_disk_ios, _prev_disk_ios_time
     raw = read_file("/proc/diskstats")
     now = time.time()
@@ -202,6 +261,15 @@ def collect_disk_io():
 
 
 def collect_smart():
+    """Collect S.M.A.R.T. health, model, and serial for all physical disks.
+
+    Uses ``smartctl -H`` for health status and ``smartctl -i`` for device
+    identification.
+
+    Returns:
+        Dict mapping device name to dict with keys: smart_health
+        ("PASSED", "FAILED", or "UNKNOWN"), model, serial.
+    """
     result = {}
     # Find physical disks
     raw = run_cmd(["lsblk", "-dno", "NAME,TYPE"])
@@ -229,6 +297,13 @@ def collect_smart():
 
 
 def collect_raid():
+    """Parse /proc/mdstat to collect RAID array status.
+
+    Returns:
+        Dict mapping array name (e.g., "md127") to dict with keys:
+        level, status ("active", "degraded", "inactive", "resyncing"),
+        devices_active, devices_total, sync_percent (float or None).
+    """
     raw = read_file("/proc/mdstat")
     result = {}
     lines = raw.splitlines()
@@ -287,6 +362,15 @@ def collect_raid():
 
 
 def collect_volumes():
+    """Collect mounted volume usage from ``df``.
+
+    Only includes volumes mounted under ``/mnt`` with recognized
+    filesystem types (btrfs, ext4, xfs, zfs).
+
+    Returns:
+        Dict mapping mount point to dict with keys: fstype,
+        total_bytes, used_bytes, free_bytes.
+    """
     raw = run_cmd(["df", "-k", "--output=source,target,fstype,size,used,avail"])
     result = {}
     for line in raw.splitlines()[1:]:
@@ -311,6 +395,12 @@ def collect_volumes():
 
 
 def collect_services():
+    """Check active status of key NAS services via systemctl.
+
+    Returns:
+        Dict mapping service name to status string
+        ("active", "inactive", "failed", or "unknown").
+    """
     svcs = ["smbd", "nfs-server", "vsftpd", "tgt"]
     result = {}
     for svc in svcs:
@@ -320,6 +410,12 @@ def collect_services():
 
 
 def collect_guard():
+    """Read Guard daemon state from the runtime state file.
+
+    Returns:
+        Dict with Guard state fields and ``installed`` flag.
+        Returns ``{"installed": False}`` if the state file is missing.
+    """
     state_path = "/run/rusnas-guard/state.json"
     if not os.path.exists(state_path):
         return {"installed": False}
@@ -333,6 +429,14 @@ def collect_guard():
 
 
 def _iso_to_ts(iso_str):
+    """Convert an ISO 8601 datetime string to a Unix timestamp.
+
+    Args:
+        iso_str: ISO format datetime string.
+
+    Returns:
+        Unix timestamp as float, or 0.0 on parse failure.
+    """
     try:
         dt = datetime.datetime.fromisoformat(iso_str)
         return dt.timestamp()
@@ -341,8 +445,16 @@ def _iso_to_ts(iso_str):
 
 
 def collect_spindown():
-    """Read /run/rusnas/spindown_state.json and emit 5 Prometheus metrics.
-    Returns Prometheus text string, or "" on any error."""
+    """Read HDD spindown state and format as Prometheus metrics.
+
+    Reads ``/run/rusnas/spindown_state.json`` and emits 5 per-array
+    Prometheus gauge metrics: state, wakeup count, idle timeout,
+    backup mode enabled, and seconds since last spindown.
+
+    Returns:
+        Prometheus text exposition string, or empty string if the
+        state file is missing or unreadable.
+    """
     state_path = "/run/rusnas/spindown_state.json"
     try:
         with open(state_path) as f:
@@ -396,7 +508,14 @@ def collect_spindown():
 
 
 def _parse_mem_str(mem_str):
-    """Parse podman stats MemUsage like '245MiB / 7.73GiB' to usage bytes."""
+    """Parse a podman stats MemUsage string to bytes.
+
+    Args:
+        mem_str: Memory usage string like "245MiB / 7.73GiB".
+
+    Returns:
+        Used memory in bytes (int), or 0 on parse failure.
+    """
     try:
         used = mem_str.split("/")[0].strip()
         multipliers = {"B": 1, "KiB": 1024, "MiB": 1024**2, "GiB": 1024**3,
@@ -410,7 +529,16 @@ def _parse_mem_str(mem_str):
 
 
 def collect_containers():
-    """Container metrics via podman stats + installed.json"""
+    """Collect container count and per-container CPU/memory metrics.
+
+    Reads container status from ``installed.json`` and live resource
+    usage from ``podman stats --no-stream``. Only includes containers
+    with names prefixed ``rusnas-``.
+
+    Returns:
+        Prometheus text exposition string with container_count,
+        container_cpu_percent, and container_memory_bytes metrics.
+    """
     lines = []
     lines.append("# HELP rusnas_container_count Total container count by status")
     lines.append("# TYPE rusnas_container_count gauge")
@@ -469,6 +597,15 @@ def collect_containers():
 
 
 def collect_metrics():
+    """Collect all system metrics into a single JSON-serializable dict.
+
+    Aggregates CPU, memory, network, disk I/O, S.M.A.R.T., RAID,
+    volume, service, and Guard metrics.
+
+    Returns:
+        Dict with keys: timestamp, hostname, cpu, memory, network,
+        disks, raid, volumes, services, guard.
+    """
     hostname = read_file("/proc/sys/kernel/hostname").strip()
     io = collect_disk_io()
     smart = collect_smart()
@@ -497,6 +634,14 @@ def collect_metrics():
 
 
 def format_prometheus(data):
+    """Format collected metrics as Prometheus text exposition.
+
+    Args:
+        data: Metrics dict from ``collect_metrics()``.
+
+    Returns:
+        Prometheus-format string with HELP/TYPE/gauge lines.
+    """
     lines = []
 
     def g(help_str, name, val, labels=""):
@@ -600,6 +745,14 @@ def format_prometheus(data):
 
 
 class MetricsHandler(BaseHTTPRequestHandler):
+    """HTTP request handler for the metrics server.
+
+    Routes:
+        ``/metrics`` -- Prometheus text format (includes spindown + containers).
+        ``/metrics.json`` -- JSON format.
+        ``/`` -- Plain text index page.
+    """
+
     def do_GET(self):
         if self.path in ("/metrics", "/metrics/"):
             data = collect_metrics()
@@ -628,7 +781,8 @@ class MetricsHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def log_message(self, format, *args):
-        pass  # suppress default access log
+        """Suppress default HTTP access log output."""
+        pass
 
 
 if __name__ == "__main__":

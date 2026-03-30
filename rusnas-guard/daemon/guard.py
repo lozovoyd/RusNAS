@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""
-guard.py — Main daemon entry point for rusnas-guard.
+"""Main daemon entry point for rusnas-guard.
 
-Usage: /usr/bin/python3 /usr/lib/rusnas-guard/guard.py
+Orchestrates the Guard anti-ransomware daemon lifecycle: loads configuration,
+manages the Detector thread (start/stop on demand), refreshes honeypot bait
+files, and exposes a Unix socket API for the Cockpit UI.
+
+Usage:
+    /usr/bin/python3 /usr/lib/rusnas-guard/guard.py
+    /usr/bin/python3 /usr/lib/rusnas-guard/guard.py --reset-pin
 """
 
 import json
@@ -66,6 +71,14 @@ DEFAULT_CONFIG = {
 
 
 class GuardDaemon:
+    """Main Guard anti-ransomware daemon.
+
+    Manages the full lifecycle: configuration loading, detector thread
+    start/stop, honeypot bait refresh, SMB hide-files toggle, and
+    state persistence. The daemon process runs continuously; the detector
+    thread is started/stopped on demand via the socket API.
+    """
+
     def __init__(self):
         self._config     = self._load_config()
         self._state      = self._init_state()
@@ -77,6 +90,13 @@ class GuardDaemon:
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def run(self):
+        """Start the daemon main loop.
+
+        Initializes the socket server, checks for post-attack flags,
+        auto-discovers Btrfs paths if none are configured, optionally
+        auto-starts the detector, then enters the main loop which
+        updates state and refreshes baits every 30 seconds.
+        """
         logger.info("rusnas-guard starting")
         self._socket_srv.start()
 
@@ -122,6 +142,11 @@ class GuardDaemon:
             logger.info("rusnas-guard stopped")
 
     def start_guard(self):
+        """Activate the detection engine.
+
+        Creates and starts a Detector thread with the current configuration.
+        Ensures bait files exist before watching begins. No-op if already running.
+        """
         if self._running:
             return
         self._running = True
@@ -140,6 +165,7 @@ class GuardDaemon:
         write_state(self._state)
 
     def stop_guard(self):
+        """Deactivate the detection engine and stop the Detector thread."""
         self._running = False
         if self._detector:
             self._detector.stop()
@@ -149,6 +175,11 @@ class GuardDaemon:
         logger.info("Guard deactivated")
 
     def set_mode(self, mode: str):
+        """Change the operating mode and persist to config and state.
+
+        Args:
+            mode: One of ``monitor``, ``active``, or ``super_safe``.
+        """
         self._config["mode"] = mode
         self._save_config()
         self._state["mode"] = mode
@@ -156,6 +187,11 @@ class GuardDaemon:
         logger.info("Mode changed to %s", mode)
 
     def restore_mode_after_attack(self):
+        """Restore the operating mode saved before a post-attack downgrade.
+
+        Clears the post_attack_warning flag and reverts to the mode that
+        was active before the daemon was forced into monitor-only mode.
+        """
         if self._prev_mode:
             self._config["mode"] = self._prev_mode
             self._prev_mode      = None
@@ -164,6 +200,15 @@ class GuardDaemon:
         write_state(self._state)
 
     def update_config(self, partial: dict):
+        """Merge partial configuration update and apply side effects.
+
+        Args:
+            partial: Dictionary of config keys to update. May include
+                nested ``detection`` settings, ``monitored_paths``, etc.
+
+        Side effects include toggling SMB bait hiding, reloading the
+        detector config, and refreshing bait files.
+        """
         old_hide = self._config.get("detection", {}).get("hide_smb_baits", False)
         self._config.update(partial)
         self._save_config()
@@ -203,6 +248,13 @@ class GuardDaemon:
             logger.error("Failed to modify smb.conf: %s", e)
 
     def get_status(self) -> dict:
+        """Return current daemon status for the socket API.
+
+        Returns:
+            Dictionary with keys: daemon_running, mode, current_iops,
+            events_today, last_snapshot, last_event, baseline_status,
+            monitored_count, blocked_ips, post_attack_warning.
+        """
         return {
             "daemon_running":       self._running,
             "mode":                 self._config.get("mode", "monitor"),
@@ -224,10 +276,20 @@ class GuardDaemon:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _on_detection(self, event: dict):
+        """Callback invoked by the Detector when a threat is detected.
+
+        Args:
+            event: Detection event dict with keys like method, path, files.
+        """
         mode = self._config.get("mode", "monitor")
         handle_detection(event, mode, self._config, self._state)
 
     def _refresh_baits(self):
+        """Ensure bait files exist in all monitored directories.
+
+        Walks each monitored path up to depth 3 and calls ``ensure_baits()``
+        for each directory. Saves config if the bait registry changed.
+        """
         registry = self._config.setdefault("bait_registry", {})
         changed  = False
         for pconf in self._config.get("monitored_paths", []):
@@ -260,6 +322,11 @@ class GuardDaemon:
             self._save_config()
 
     def _discover_paths(self):
+        """Auto-discover mounted Btrfs volumes and add them to monitored_paths.
+
+        Uses ``findmnt`` to locate Btrfs mount points. Called on first start
+        when no monitored paths are configured.
+        """
         try:
             import subprocess
             out = subprocess.check_output(
@@ -278,6 +345,7 @@ class GuardDaemon:
             logger.warning("Path discovery failed: %s", e)
 
     def _update_state(self):
+        """Sync in-memory state with config values and write to state file."""
         self._state["mode"] = self._config.get("mode", "monitor")
         self._state["monitored_count"] = len(self._config.get("monitored_paths", []))
         self._state["daemon_running"] = self._running
@@ -285,6 +353,11 @@ class GuardDaemon:
         write_state(self._state)
 
     def _get_blocked_ips(self) -> list:
+        """Return list of currently blocked IP addresses.
+
+        Returns:
+            List of IP address strings blocked via nftables.
+        """
         try:
             from response import get_blocked_ips
             return get_blocked_ips()
@@ -292,6 +365,11 @@ class GuardDaemon:
             return []
 
     def _load_config(self) -> dict:
+        """Load configuration from disk, merging with defaults.
+
+        Returns:
+            Complete config dict with all DEFAULT_CONFIG keys guaranteed.
+        """
         os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
         if os.path.exists(CONFIG_PATH):
             try:
@@ -306,12 +384,18 @@ class GuardDaemon:
         return dict(DEFAULT_CONFIG)
 
     def _save_config(self):
+        """Atomically write current config to disk via tmp+rename."""
         tmp = CONFIG_PATH + ".tmp"
         with open(tmp, "w") as fh:
             json.dump(self._config, fh, indent=2)
         os.replace(tmp, CONFIG_PATH)
 
     def _init_state(self) -> dict:
+        """Create the initial in-memory state dict.
+
+        Returns:
+            State dict with default values for all tracked fields.
+        """
         return {
             "daemon_running":  False,
             "mode":            self._config.get("mode", "monitor"),
@@ -331,6 +415,11 @@ PIN_PATH = "/etc/rusnas-guard/guard.pin"
 
 
 def cmd_reset_pin():
+    """Reset the Guard PIN by deleting the PIN hash file.
+
+    Must be run as root. After reset, the Cockpit UI will prompt
+    for a new PIN on next Guard page visit.
+    """
     if os.geteuid() != 0:
         print("Ошибка: требуются права root. Запустите: sudo rusnas-guard --reset-pin", file=sys.stderr)
         sys.exit(1)

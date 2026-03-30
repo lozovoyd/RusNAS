@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
-# rusNAS Storage Analyzer — Background Collector
-# /usr/share/cockpit/rusnas/scripts/storage-collector.py
-# Runs via systemd timer (hourly). Writes SQLite history + JSON cache.
+"""rusNAS Storage Analyzer -- Background Collector.
+
+Runs via a systemd timer (hourly) to collect disk usage snapshots.
+Scans mounted volumes, SMB shares, user home directories, and file
+type distributions. Results are stored in an SQLite database for
+historical trending and a JSON cache file for fast UI loading.
+
+Path: ``/usr/share/cockpit/rusnas/scripts/storage-collector.py``
+"""
 
 import os, sys, json, time, sqlite3, subprocess, re
 from datetime import datetime
@@ -19,6 +25,15 @@ BACKUP_EXT = {"img","bak","bkp","backup","dump","sql","vhd","vmdk","qcow2"}
 CODE_EXT   = {"py","js","ts","go","rs","java","c","cpp","h","hpp","cs","rb","php","sh"}
 
 def classify_ext(filename):
+    """Classify a filename into a file type category by its extension.
+
+    Args:
+        filename: File name (not full path).
+
+    Returns:
+        Category string: "video", "photo", "docs", "archive",
+        "backup", "code", or "other".
+    """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in VIDEO_EXT:   return "video"
     if ext in PHOTO_EXT:   return "photo"
@@ -29,6 +44,14 @@ def classify_ext(filename):
     return "other"
 
 def init_db(conn):
+    """Initialize the SQLite database schema.
+
+    Creates tables for volume, share, user, and file type snapshots
+    with appropriate indexes if they do not already exist.
+
+    Args:
+        conn: SQLite connection object.
+    """
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS volume_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,6 +91,15 @@ def init_db(conn):
     conn.commit()
 
 def run(cmd, shell=False):
+    """Execute a command and return its stdout.
+
+    Args:
+        cmd: Command as a list of strings, or a shell command string.
+        shell: If True, execute via the shell.
+
+    Returns:
+        Stripped stdout string, or empty string on error/timeout.
+    """
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=120, shell=shell)
         return r.stdout.strip()
@@ -75,7 +107,14 @@ def run(cmd, shell=False):
         return ""
 
 def get_volumes():
-    """Return list of {path, total, used, free, fs, device}"""
+    """Discover mounted data volumes from ``df``.
+
+    Filters for volumes mounted under /mnt, /volume, or /data,
+    excluding snapshot directories.
+
+    Returns:
+        List of dicts with keys: path, device, total, used, free, fs.
+    """
     out = run(["df", "-B1", "--output=source,size,used,avail,fstype,target"])
     volumes = []
     for line in out.splitlines()[1:]:
@@ -98,7 +137,13 @@ def get_volumes():
     return volumes
 
 def get_shares():
-    """Parse smb.conf and return list of {name, path}"""
+    """Parse smb.conf to extract SMB share definitions.
+
+    Skips system sections (global, homes, printers, print$).
+
+    Returns:
+        List of dicts with keys: name, path.
+    """
     if not os.path.exists(SMB_CONF):
         return []
     shares = []
@@ -125,7 +170,14 @@ def get_shares():
     return shares
 
 def du_bytes(path):
-    """Return total bytes of a directory (apparent size)"""
+    """Return total apparent size of a directory in bytes.
+
+    Args:
+        path: Directory path to measure.
+
+    Returns:
+        Size in bytes (int), or 0 if the path does not exist or on error.
+    """
     if not os.path.exists(path):
         return 0
     out = run(["du", "-sb", "--apparent-size", path])
@@ -135,7 +187,14 @@ def du_bytes(path):
         return 0
 
 def count_files(path):
-    """Count files in directory"""
+    """Count the number of regular files in a directory tree.
+
+    Args:
+        path: Root directory to count files in.
+
+    Returns:
+        File count (int), or 0 if the path does not exist or on error.
+    """
     if not os.path.exists(path):
         return 0
     out = run(f"find {path!r} -type f 2>/dev/null | wc -l", shell=True)
@@ -145,7 +204,13 @@ def count_files(path):
         return 0
 
 def get_users():
-    """Return list of {username, uid, home} from /etc/passwd for real users"""
+    """Parse /etc/passwd to find real user accounts (UID 1000-60000).
+
+    Only includes users whose home directory exists on disk.
+
+    Returns:
+        List of dicts with keys: username, uid, home.
+    """
     users = []
     try:
         with open("/etc/passwd") as f:
@@ -164,7 +229,17 @@ def get_users():
     return users
 
 def collect_file_types(volume_path):
-    """Count bytes per file type in a volume. Fast via find + stat."""
+    """Count bytes and file count per type category in a volume.
+
+    Uses ``find -printf`` to efficiently gather file sizes and names,
+    limited to 100,000 entries. Excludes ``.snapshots/`` directories.
+
+    Args:
+        volume_path: Root path of the volume to scan.
+
+    Returns:
+        Dict mapping type category to dict with keys: bytes, count.
+    """
     if not os.path.exists(volume_path):
         return {}
     counts = {}
@@ -186,7 +261,19 @@ def collect_file_types(volume_path):
     return counts
 
 def forecast_days(history_points, free_bytes):
-    """Linear regression forecast: days until disk full"""
+    """Forecast days until disk is full using linear regression.
+
+    Fits a least-squares line to historical usage data and extrapolates
+    when the remaining free space will be consumed.
+
+    Args:
+        history_points: List of (timestamp, used_bytes) tuples.
+        free_bytes: Current free space in bytes.
+
+    Returns:
+        Estimated days until full (int), or None if insufficient data
+        or usage is not growing.
+    """
     if len(history_points) < 2:
         return None
     n = len(history_points)
@@ -205,6 +292,12 @@ def forecast_days(history_points, free_bytes):
     return int(round(days))
 
 def main():
+    """Run the storage collection pipeline.
+
+    Collects volume, share, user, and file type snapshots, writes
+    them to SQLite, computes forecasts, and saves a JSON cache file.
+    Supports ``--init-db`` flag to only initialize the database schema.
+    """
     init_db_only = "--init-db" in sys.argv
     os.makedirs("/var/lib/rusnas", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)

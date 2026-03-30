@@ -7,7 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docs": "bash docs/build-docs.sh",
+    "docs:serve": "cd docs && python3 -m mkdocs serve -a 0.0.0.0:8000",
+    "docs:deploy": "cd docs && python3 -m mkdocs gh-deploy --force"
   },
   "repository": {
     "type": "git",
@@ -23,5 +26,9 @@
   "homepage": "https://github.com/lozovoyd/RusNAS#readme",
   "dependencies": {
     "playwright": "^1.58.2"
+  },
+  "devDependencies": {
+    "jsdoc": "^4.0.5",
+    "jsdoc-to-markdown": "^9.1.3"
   }
 }

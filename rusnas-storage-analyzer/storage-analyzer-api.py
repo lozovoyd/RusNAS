@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-# rusNAS Storage Analyzer — API Script
-# /usr/share/cockpit/rusnas/scripts/storage-analyzer-api.py
-# Called via cockpit.spawn(["python3", SCRIPT, MODE, ...])
-# Outputs JSON to stdout.
+"""rusNAS Storage Analyzer -- API Script.
+
+Called by the Cockpit UI via ``cockpit.spawn()`` with a command name
+as the first argument. Supports 7 commands: overview, shares, files,
+users, filetypes, scan-status, scan-now. All output is JSON to stdout.
+
+Path: ``/usr/share/cockpit/rusnas/scripts/storage-analyzer-api.py``
+"""
 
 import os, sys, json, sqlite3, time, subprocess, re, stat
 
@@ -14,6 +18,15 @@ BACKUP_EXT  = {"img","bak","bkp","backup","dump","sql","vhd","vmdk","qcow2"}
 CODE_EXT    = {"py","js","ts","go","rs","java","c","cpp","h","hpp","cs","rb","php","sh"}
 
 def classify_ext(filename):
+    """Classify a filename into a file type category by its extension.
+
+    Args:
+        filename: File name (not full path).
+
+    Returns:
+        Category string: "video", "photo", "docs", "archive",
+        "backup", "code", or "other".
+    """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in VIDEO_EXT:   return "video"
     if ext in PHOTO_EXT:   return "photo"
@@ -40,12 +53,32 @@ FILE_TYPES = {
 }
 
 def ok(data):
+    """Print a JSON success response to stdout.
+
+    Args:
+        data: Serializable data to output.
+    """
     print(json.dumps(data))
 
+
 def err(msg):
+    """Print a JSON error response to stdout.
+
+    Args:
+        msg: Error message string.
+    """
     print(json.dumps({"error": msg}))
 
 def run(cmd, shell=False):
+    """Execute a command and return its stdout.
+
+    Args:
+        cmd: Command as a list of strings, or a shell command string.
+        shell: If True, execute via the shell.
+
+    Returns:
+        Stripped stdout string, or empty string on error/timeout.
+    """
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, shell=shell)
         return r.stdout.strip()
@@ -53,6 +86,12 @@ def run(cmd, shell=False):
         return ""
 
 def get_db():
+    """Open the SQLite database with Row factory.
+
+    Returns:
+        SQLite connection object, or None if the database file is missing
+        or cannot be opened.
+    """
     if not os.path.exists(DB_PATH):
         return None
     try:
@@ -63,6 +102,11 @@ def get_db():
         return None
 
 def load_cache():
+    """Load the JSON cache written by the collector.
+
+    Returns:
+        Parsed cache dict, or empty dict if missing or corrupt.
+    """
     if not os.path.exists(CACHE_PATH):
         return {}
     try:
@@ -72,6 +116,11 @@ def load_cache():
         return {}
 
 def last_scan_ts():
+    """Read the timestamp of the last completed scan.
+
+    Returns:
+        Unix timestamp (int), or 0 if no scan has been run.
+    """
     try:
         with open(SCAN_FILE) as f:
             return int(f.read().strip())
@@ -79,6 +128,16 @@ def last_scan_ts():
         return 0
 
 def forecast_days(history_points, free_bytes):
+    """Forecast days until disk is full using linear regression.
+
+    Args:
+        history_points: List of (timestamp, used_bytes) tuples.
+        free_bytes: Current free space in bytes.
+
+    Returns:
+        Estimated days until full (int), or None if insufficient data
+        or usage is not growing.
+    """
     if len(history_points) < 2:
         return None
     n   = len(history_points)
@@ -96,6 +155,11 @@ def forecast_days(history_points, free_bytes):
     return int(round(free_bytes / k))
 
 def cmd_overview():
+    """Handle the 'overview' command.
+
+    Returns live volume data from ``df``, cached forecasts, top-consuming
+    shares, and historical usage data from the database for charting.
+    """
     cache = load_cache()
     conn  = get_db()
     ts_now = int(time.time())
@@ -152,6 +216,13 @@ def cmd_overview():
     ok(result)
 
 def cmd_shares(period="30"):
+    """Handle the 'shares' command.
+
+    Returns share usage data with history and growth rate.
+
+    Args:
+        period: Number of days of history to include (default "30").
+    """
     cache = load_cache()
     conn  = get_db()
     ts_now = int(time.time())
@@ -201,6 +272,18 @@ def cmd_shares(period="30"):
     ok(result)
 
 def cmd_files(path="/", sort="size", ftype="all", older_than="0"):
+    """Handle the 'files' command.
+
+    Lists directory contents or recursively searches for files matching
+    a type filter. Results are limited to 200 entries.
+
+    Args:
+        path: Directory path to browse.
+        sort: Sort order -- "size", "mtime", or "name".
+        ftype: File type filter -- "all" for flat listing, or a category
+            name (e.g., "video") for recursive search.
+        older_than: Only include files older than this many days ("0" = no filter).
+    """
     # Validate path
     path = os.path.realpath(path)
     if not path.startswith("/") or ".." in path:
@@ -294,6 +377,11 @@ def cmd_files(path="/", sort="size", ftype="all", older_than="0"):
     ok({"path": path, "entries": entries[:200]})
 
 def cmd_users():
+    """Handle the 'users' command.
+
+    Returns per-user disk usage from cache with 7-day history and
+    growth rate from the database.
+    """
     conn = get_db()
     cache = load_cache()
     ts_now = int(time.time())
@@ -331,6 +419,11 @@ def cmd_users():
     ok(result)
 
 def cmd_filetypes():
+    """Handle the 'filetypes' command.
+
+    Returns file type breakdown with byte/count totals and 7-day
+    change from the database.
+    """
     conn = get_db()
     cache = load_cache()
     ts_now = int(time.time())
@@ -366,6 +459,11 @@ def cmd_filetypes():
     ok(result)
 
 def cmd_scan_status():
+    """Handle the 'scan-status' command.
+
+    Returns whether a scan is currently running, the last scan timestamp,
+    and whether the database and cache files exist.
+    """
     ts = last_scan_ts()
     ts_now = int(time.time())
     age = ts_now - ts if ts else None
@@ -390,7 +488,12 @@ def cmd_scan_status():
     })
 
 def cmd_scan_now():
-    """Launch collector in background, write PID"""
+    """Handle the 'scan-now' command.
+
+    Launches the storage collector as a subprocess and waits up to
+    120 seconds for completion. Writes the PID to a file for status
+    tracking and cleans up on completion.
+    """
     try:
         proc = subprocess.Popen(
             ["python3", COLLECTOR],

@@ -1,8 +1,11 @@
-"""
-honeypot.py — Bait file management for rusnas-guard.
+"""Bait (honeypot) file management for rusnas-guard.
 
-Creates hidden bait files in each monitored directory.
-File names start with low ASCII chars to appear first in enumeration.
+Creates and maintains hidden bait files in each monitored directory to detect
+ransomware activity. Bait files use the ``!~rng_`` prefix so they sort first
+in directory listings, luring ransomware into modifying them before real data.
+Files are filled with low-entropy repeating patterns to avoid triggering the
+entropy detector. A thread-safe suppression set prevents self-detection when
+Guard creates or recreates bait files.
 """
 
 import os
@@ -37,17 +40,39 @@ BAIT_PREFIX = "!~rng_"
 
 
 def _random_suffix(n=8):
+    """Generate a random alphanumeric string for bait file names.
+
+    Args:
+        n: Length of the suffix.
+
+    Returns:
+        Random string of lowercase letters and digits.
+    """
     return "".join(random.choices(string.ascii_lowercase + string.digits, k=n))
 
 
 def _make_bait_name():
+    """Generate a random bait file name with the ``!~rng_`` prefix.
+
+    Returns:
+        Filename like ``!~rng_a3b9k2m1.docx``.
+    """
     ext = random.choice(BAIT_EXTENSIONS)
     return BAIT_PREFIX + _random_suffix() + ext
 
 
 def _fill_bait(path, size):
-    """Write random-looking but low-entropy data (not truly random — avoids
-    triggering our own entropy detector on bait files)."""
+    """Write low-entropy padding data to a bait file.
+
+    Uses a repeating 0x00/0xFF pattern to keep entropy low, preventing
+    false positives from the entropy detector. Registers the path in the
+    thread-safe suppression set before writing so inotify events from
+    Guard's own writes are ignored.
+
+    Args:
+        path: Absolute path of the bait file to write.
+        size: Target file size in bytes.
+    """
     # Mark as Guard-created BEFORE writing so inotify events are suppressed
     with _creating_lock:
         _creating_baits.add(path)
@@ -71,10 +96,19 @@ def _fill_bait(path, size):
 
 
 def ensure_baits(monitored_path: str, bait_registry: dict) -> list:
-    """
-    Ensure at least 2 bait files exist in monitored_path.
-    bait_registry: dict mapping path -> list of bait filenames (persisted in config).
-    Returns updated list of bait filenames for this path.
+    """Ensure at least 2 bait files exist in a monitored directory.
+
+    Creates new bait files if fewer than 2 exist on disk. Removes
+    registry entries for files that have been deleted (e.g., by
+    ransomware).
+
+    Args:
+        monitored_path: Directory path to place bait files in.
+        bait_registry: Mutable dict mapping directory paths to lists
+            of bait filenames. Persisted in the guard config.
+
+    Returns:
+        Updated list of bait filenames present in this directory.
     """
     existing = bait_registry.get(monitored_path, [])
 
@@ -100,14 +134,30 @@ def ensure_baits(monitored_path: str, bait_registry: dict) -> list:
 
 
 def is_bait(path: str, bait_registry: dict) -> bool:
-    """Return True if path matches a known bait file."""
+    """Check if a file path corresponds to a known bait file.
+
+    Args:
+        path: Absolute file path to check.
+        bait_registry: Dict mapping directory paths to lists of bait filenames.
+
+    Returns:
+        True if the file's basename is registered as a bait in its directory.
+    """
     dirname = os.path.dirname(path)
     basename = os.path.basename(path)
     return basename in bait_registry.get(dirname, [])
 
 
 def recreate_bait(path: str, bait_registry: dict):
-    """Recreate a bait file that was deleted/modified (after alert was fired)."""
+    """Recreate a bait file that was deleted or modified by ransomware.
+
+    Called after an alert has been fired. Re-creates the file with the
+    same name and adds it back to the registry if missing.
+
+    Args:
+        path: Absolute path of the bait file to recreate.
+        bait_registry: Mutable dict mapping directory paths to bait filename lists.
+    """
     dirname = os.path.dirname(path)
     basename = os.path.basename(path)
     full = os.path.join(dirname, basename)

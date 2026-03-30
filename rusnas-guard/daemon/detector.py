@@ -1,7 +1,12 @@
-"""
-detector.py — inotify-based file system watcher + detection logic for rusnas-guard.
+"""inotify-based filesystem watcher and detection engine for rusnas-guard.
 
-Requires: python3-inotify (apt install python3-inotify)
+Monitors configured Btrfs volumes via InotifyTrees and applies four detection
+methods in real time: honeypot trigger, known ransomware extension matching,
+Shannon entropy analysis, and IOPS anomaly detection against a learned baseline.
+Events that pass detection thresholds are forwarded to the response module.
+
+Requires:
+    python3-inotify (``apt install python3-inotify``)
 """
 
 import collections
@@ -47,6 +52,16 @@ def _dedup_watch_paths(paths: list) -> list:
 
 
 def _load_extensions(path="/etc/rusnas-guard/ransom_extensions.txt") -> set:
+    """Load known ransomware file extensions from a text file.
+
+    Args:
+        path: Path to the extensions file, one extension per line.
+            Lines starting with ``#`` are treated as comments.
+
+    Returns:
+        Set of lowercase extensions including the leading dot
+        (e.g., ``{".encrypted", ".locked"}``).
+    """
     exts = set()
     try:
         with open(path) as fh:
@@ -62,7 +77,11 @@ def _load_extensions(path="/etc/rusnas-guard/ransom_extensions.txt") -> set:
 
 
 class IOPSWindow:
-    """60-second sliding window per monitored volume."""
+    """Thread-safe sliding window counter for I/O operations per volume.
+
+    Maintains a deque of event timestamps within the last ``window`` seconds
+    and provides the current event rate.
+    """
 
     def __init__(self, window=60):
         self._window = window
@@ -70,6 +89,7 @@ class IOPSWindow:
         self._lock   = threading.Lock()
 
     def record(self):
+        """Record a single I/O event at the current time."""
         now = time.monotonic()
         with self._lock:
             self._events.append(now)
@@ -79,6 +99,11 @@ class IOPSWindow:
                 self._events.popleft()
 
     def rate_per_min(self) -> int:
+        """Return the number of events within the sliding window.
+
+        Returns:
+            Event count in the last ``window`` seconds (default 60).
+        """
         now = time.monotonic()
         with self._lock:
             cutoff = now - self._window
@@ -86,10 +111,18 @@ class IOPSWindow:
 
 
 class BaselineTracker:
+    """IOPS baseline tracker with a 7-day learning period.
+
+    During the learning phase, records per-hour-of-day I/O rates.
+    After learning, detects anomalies when the current rate exceeds
+    ``median + multiplier * stddev`` for the current hour and is above
+    ``min_rate``.
+
+    Args:
+        multiplier: Standard deviation multiplier for anomaly threshold.
+        min_rate: Minimum absolute rate to trigger an anomaly.
     """
-    Tracks per-hour-of-day median + stddev over a 7-day learning period.
-    After learning: triggers if rate > median + multiplier*stddev AND rate > min_rate.
-    """
+
     LEARNING_DAYS = 7
 
     def __init__(self, multiplier=4, min_rate=50):
@@ -101,18 +134,34 @@ class BaselineTracker:
 
     @property
     def learning_day(self) -> int:
+        """Return the current learning day number (1-based)."""
         return int((time.time() - self._start) / 86400) + 1
 
     @property
     def is_learning(self) -> bool:
+        """Return True if the tracker is still in the learning phase."""
         return self.learning_day <= self.LEARNING_DAYS
 
     def record_rate(self, rate: int):
+        """Record a rate sample for the current hour of day.
+
+        Args:
+            rate: Current I/O operations per minute.
+        """
         hour = datetime.datetime.now().hour
         with self._lock:
             self._hourly[hour].append(rate)
 
     def is_anomaly(self, rate: int) -> bool:
+        """Check if the given rate is anomalous for the current hour.
+
+        Args:
+            rate: Current I/O operations per minute.
+
+        Returns:
+            True if rate exceeds the learned threshold and minimum rate.
+            Always returns False during the learning phase.
+        """
         if self.is_learning:
             return False
         if rate < self._min_rate:
@@ -129,18 +178,30 @@ class BaselineTracker:
         return rate > threshold
 
     def status_label(self) -> str:
+        """Return a human-readable status string for the UI.
+
+        Returns:
+            Localized string like "Обучение (день 3 из 7)" or "Активен".
+        """
         if self.is_learning:
             return f"Обучение (день {self.learning_day} из {self.LEARNING_DAYS})"
         return "Активен"
 
 
 class Detector:
+    """Filesystem event detector using inotify with multiple detection methods.
+
+    Watches configured Btrfs volumes recursively and applies honeypot,
+    extension, entropy, and IOPS anomaly checks to each filesystem event.
+    Runs in a dedicated daemon thread.
+
+    Args:
+        config: Full guard config dict with detection settings and paths.
+        state: Shared mutable state dict (written to state.json by the daemon).
+        on_detection: Callback invoked with an event dict when a threat is detected.
+    """
+
     def __init__(self, config: dict, state: dict, on_detection):
-        """
-        config: full guard config dict
-        state:  shared mutable state dict (written to state.json)
-        on_detection: callable(event_dict)
-        """
         self._config       = config
         self._state        = state
         self._on_detection = on_detection
@@ -154,25 +215,34 @@ class Detector:
         self._thread = None
 
     def start(self):
+        """Start the detector thread."""
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True, name="detector")
         self._thread.start()
 
     def stop(self):
+        """Signal the detector thread to stop and wait for it to finish."""
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
 
     def reload_config(self, config: dict):
+        """Hot-reload configuration without restarting the detector thread.
+
+        Args:
+            config: Updated full guard config dict.
+        """
         self._config = config
         self._ransom_exts = _load_extensions()
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _monitored(self):
+        """Return the list of enabled monitored path config entries."""
         return [p for p in self._config.get("monitored_paths", []) if p.get("enabled", True)]
 
     def _run(self):
+        """Thread entry point with exception safety."""
         try:
             self._run_inner()
         except Exception as e:
@@ -181,6 +251,7 @@ class Detector:
             self._state["daemon_running"] = False
 
     def _run_inner(self):
+        """Core detection loop: set up InotifyTrees and process events."""
         paths = [p["path"] for p in self._monitored()]
         if not paths:
             logger.warning("No monitored paths configured — detector idle")
@@ -277,21 +348,49 @@ class Detector:
             self._state["baseline_status"] = bl.status_label()
 
     def _path_config(self, watch_path: str):
+        """Find the monitored path config entry that contains watch_path.
+
+        Args:
+            watch_path: Directory path from an inotify event.
+
+        Returns:
+            Matching path config dict, or None if no match.
+        """
         for p in self._monitored():
             if watch_path.startswith(p["path"]):
                 return p
         return None
 
     def _root_path(self, watch_path: str) -> str:
+        """Resolve a subdirectory back to its monitored root path.
+
+        Args:
+            watch_path: Directory path from an inotify event.
+
+        Returns:
+            The root monitored path, or watch_path itself if not found.
+        """
         for p in self._monitored():
             if watch_path.startswith(p["path"]):
                 return p["path"]
         return watch_path
 
     def get_iops(self) -> int:
+        """Return the aggregate I/O rate across all monitored volumes.
+
+        Returns:
+            Total events per minute summed across all IOPS windows.
+        """
         return sum(w.rate_per_min() for w in self._iops_windows.values())
 
     def _record_iops(self, watch_path: str):
+        """Record an I/O event for the volume containing watch_path.
+
+        Updates the IOPS window, shared state, and entropy rate bucket.
+
+        Args:
+            watch_path: Directory where the event occurred.
+        """
         root   = self._root_path(watch_path)
         window = self._iops_windows.get(root)
         if window:
@@ -307,10 +406,27 @@ class Detector:
             bucket.popleft()
 
     def _entropy_rate_exceeded(self, watch_path: str) -> bool:
+        """Check if entropy analysis should be skipped due to high event rate.
+
+        Args:
+            watch_path: Directory to check rate for.
+
+        Returns:
+            True if events per second exceed ENTROPY_RATE_LIMIT.
+        """
         bucket = self._entropy_rate.get(watch_path, collections.deque())
         return len(bucket) > ENTROPY_RATE_LIMIT
 
     def _fire(self, method: str, path: str, files: list, full_path: str, **kwargs):
+        """Build a detection event dict and forward to the callback.
+
+        Args:
+            method: Detection method name (honeypot, extension, entropy, iops).
+            path: Monitored root path where the event occurred.
+            files: List of filenames involved.
+            full_path: Absolute path of the triggering file.
+            **kwargs: Additional fields like ``entropy`` or ``iops_rate``.
+        """
         event = {
             "method":    method,
             "path":      path,
