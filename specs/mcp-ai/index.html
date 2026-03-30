@@ -937,7 +937,7 @@
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Стек
+        Стек технологий
       
     </span>
   </a>
@@ -956,15 +956,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#session-1-2026-03-2223" class="md-nav__link">
+  <a href="#1-2026-03-2223" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Реализовано (Session 1, 2026-03-22/23)
+        Реализовано (Сессия 1, 2026-03-22/23)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Реализовано (Session 1, 2026-03-22/23)">
+    <nav class="md-nav" aria-label="Реализовано (Сессия 1, 2026-03-22/23)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1001,10 +1001,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#vm" class="md-nav__link">
+  <a href="#sudoers-vm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Судоерс на VM
+        Sudoers на VM
       
     </span>
   </a>
@@ -1012,10 +1012,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#session-2" class="md-nav__link">
+  <a href="#2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Не реализовано (Session 2)
+        Не реализовано (Сессия 2)
       
     </span>
   </a>
@@ -2216,7 +2216,7 @@
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Стек
+        Стек технологий
       
     </span>
   </a>
@@ -2235,15 +2235,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#session-1-2026-03-2223" class="md-nav__link">
+  <a href="#1-2026-03-2223" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Реализовано (Session 1, 2026-03-22/23)
+        Реализовано (Сессия 1, 2026-03-22/23)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Реализовано (Session 1, 2026-03-22/23)">
+    <nav class="md-nav" aria-label="Реализовано (Сессия 1, 2026-03-22/23)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2280,10 +2280,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#vm" class="md-nav__link">
+  <a href="#sudoers-vm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Судоерс на VM
+        Sudoers на VM
       
     </span>
   </a>
@@ -2291,10 +2291,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#session-2" class="md-nav__link">
+  <a href="#2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Не реализовано (Session 2)
+        Не реализовано (Сессия 2)
       
     </span>
   </a>
@@ -2339,18 +2339,18 @@
 
 <h1 id="rusnas-mcp-server-ai-agent">rusNAS MCP Server + AI Agent — ТЗ<a class="headerlink" href="#rusnas-mcp-server-ai-agent" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Статус: <strong>Session 1 реализована</strong> (2026-03-22/23) — Cockpit AI чат + NAS tools + multi-provider (Yandex/Anthropic) + openEYE Agent
-Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
+<p>Статус: <strong>Сессия 1 реализована</strong> (2026-03-22/23) — Cockpit AI-чат + NAS tools + мульти-провайдер (Yandex/Anthropic) + openEYE Agent
+Сессия 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </blockquote>
 <h2 id="_1">Концепция<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
 <p>Предоставить LLM-агентам (Claude, GPT, локальные модели) структурированный доступ к управлению NAS через протокол <strong>Model Context Protocol (MCP)</strong>. Пользователь сможет управлять NAS через AI-чат в Cockpit или через внешние AI-инструменты.</p>
 <hr />
 <h2 id="_2">Компоненты<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
 <h3 id="1-rusnas-mcp-server">1. rusnas-mcp-server<a class="headerlink" href="#1-rusnas-mcp-server" title="Permanent link">&para;</a></h3>
-<p>Python-сервер, реализующий MCP protocol (JSON-RPC over stdio/HTTP).</p>
+<p>Python-сервер, реализующий протокол MCP (JSON-RPC через stdio/HTTP).</p>
 <p><strong>Инструменты (tools):</strong>
 - <code>get_status</code> — общий статус NAS (диски, RAID, CPU, RAM, сеть)
-- <code>list_shares</code> — список SMB/NFS/FTP шар
+- <code>list_shares</code> — список SMB/NFS/FTP-шар
 - <code>create_share / delete_share</code> — управление шарами
 - <code>list_snapshots(subvol)</code> — список снапшотов
 - <code>create_snapshot(subvol, label)</code> — создать снапшот
@@ -2362,7 +2362,7 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 - <code>get_events(limit)</code> — журнал событий Guard и снапшотов
 - <code>run_smart_test(device)</code> — запустить S.M.A.R.T. тест</p>
 <p><strong>Ресурсы (resources):</strong>
-- <code>rusnas://status</code> — live-статус системы
+- <code>rusnas://status</code> — статус системы в реальном времени
 - <code>rusnas://shares</code> — конфигурация шар
 - <code>rusnas://disks</code> — состояние дисков
 - <code>rusnas://snapshots/{subvol}</code> — список снапшотов субволюма</p>
@@ -2371,9 +2371,9 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 <ul>
 <li>Подключение к локальной модели (Ollama) или облачной (Anthropic Claude API)</li>
 <li>Системный промпт с контекстом NAS (статус, шары, диски)</li>
-<li>Инструменты передаются как function calling</li>
+<li>Инструменты передаются как вызов функций (function calling)</li>
 <li>История чата сохраняется в браузере (localStorage)</li>
-<li>Примеры запросов: "Создай снапшот папки documents", "Покажи состояние дисков", "Почему RAID деградировал?"</li>
+<li>Примеры запросов: «Создай снапшот папки documents», «Покажи состояние дисков», «Почему RAID деградировал?»</li>
 </ul>
 <hr />
 <h2 id="_3">Архитектура<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
@@ -2387,20 +2387,20 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </code></pre></div>
 <p>Или через HTTP (для внешних инструментов):
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Claude Desktop / Cursor / любой MCP-клиент
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>       │ HTTP MCP transport
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>       │ HTTP MCP-транспорт
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>       ▼
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>rusnas-mcp-server (HTTP mode, порт 8765, auth token)
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>rusnas-mcp-server (HTTP-режим, порт 8765, auth token)
 </code></pre></div></p>
 <hr />
 <h2 id="_4">Безопасность<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Аутентификация: Bearer token в HTTP-режиме (генерируется при установке)</li>
-<li>Опасные операции (удаление, форматирование) требуют подтверждения через отдельный <code>confirm_action(token)</code> tool</li>
+<li>Опасные операции (удаление, форматирование) требуют подтверждения через отдельный инструмент <code>confirm_action(token)</code></li>
 <li>Cockpit-режим: права идентичны текущему пользователю Cockpit (sudo через rusnas sudoers)</li>
 <li>Логирование всех AI-действий в <code>/var/log/rusnas/ai-actions.jsonl</code></li>
 </ul>
 <hr />
-<h2 id="_5">Стек<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h2 id="_5">Стек технологий<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2410,19 +2410,19 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </thead>
 <tbody>
 <tr>
-<td>MCP server</td>
+<td>MCP-сервер</td>
 <td>Python 3, <code>mcp</code> SDK (Anthropic)</td>
 </tr>
 <tr>
-<td>AI backend</td>
+<td>AI-бэкенд</td>
 <td>Anthropic Claude API / Ollama (llama3, mistral)</td>
 </tr>
 <tr>
-<td>Чат UI</td>
+<td>UI чата</td>
 <td>HTML/JS в Cockpit (без фреймворков)</td>
 </tr>
 <tr>
-<td>Transport</td>
+<td>Транспорт</td>
 <td>stdio (Cockpit) / HTTP SSE (внешний)</td>
 </tr>
 </tbody>
@@ -2430,12 +2430,12 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 <hr />
 <h2 id="_6">Приоритет и зависимости<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Зависимости:</strong> все существующие CLI-команды (<code>rusnas-snap</code>, disks.js API)</li>
+<li><strong>Зависимости:</strong> все существующие CLI-команды (<code>rusnas-snap</code>, API disks.js)</li>
 <li><strong>Приоритет:</strong> после реализации репликации снапшотов</li>
 <li><strong>Оценка:</strong> ~3-4 сессии разработки</li>
 </ul>
 <hr />
-<h2 id="session-1-2026-03-2223">Реализовано (Session 1, 2026-03-22/23)<a class="headerlink" href="#session-1-2026-03-2223" title="Permanent link">&para;</a></h2>
+<h2 id="1-2026-03-2223">Реализовано (Сессия 1, 2026-03-22/23)<a class="headerlink" href="#1-2026-03-2223" title="Permanent link">&para;</a></h2>
 <h3 id="_7">Файлы<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2451,11 +2451,11 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </tr>
 <tr>
 <td><code>cockpit/rusnas/ai.html</code></td>
-<td>✅ Реализован (multi-provider UI, openEYE toggle)</td>
+<td>✅ Реализован (мульти-провайдерный UI, переключатель openEYE)</td>
 </tr>
 <tr>
 <td><code>cockpit/rusnas/js/ai.js</code></td>
-<td>✅ Реализован (Yandex + Anthropic, tool loop, proxy)</td>
+<td>✅ Реализован (Yandex + Anthropic, цикл инструментов, proxy)</td>
 </tr>
 <tr>
 <td><code>cockpit/rusnas/css/ai.css</code></td>
@@ -2471,7 +2471,7 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </tr>
 <tr>
 <td><code>cockpit/rusnas/manifest.json</code></td>
-<td>✅ Обновлён (entry + CSP)</td>
+<td>✅ Обновлён (запись + CSP)</td>
 </tr>
 <tr>
 <td><code>install-mcp.sh</code></td>
@@ -2493,7 +2493,7 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 <tr>
 <td>YandexGPT</td>
 <td><code>ai.api.cloud.yandex.net/v1/chat/completions</code></td>
-<td>OpenAI-compatible</td>
+<td>OpenAI-совместимый</td>
 <td>✅ Да</td>
 </tr>
 <tr>
@@ -2506,21 +2506,21 @@ Session 2 (HTTP SSE / Claude Desktop) — планируется</p>
 </table>
 <h3 id="_8">Ключевые архитектурные решения<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>CORS bypass через VM proxy:</strong> все AI-вызовы идут через <code>mcp-api.py</code> на VM — Python не ограничен CORS</li>
-<li><strong>Временный файл:</strong> payload пишется в <code>/tmp/rusnas-ai-req.json</code> через <code>cockpit.file().replace()</code>, путь передаётся как argv (не stdin — Cockpit 337 bug с stdin)</li>
-<li><strong>Единый формат сообщений:</strong> OpenAI-формат внутри, <code>convertToAnthropicMessages()</code> конвертирует для Anthropic</li>
-<li><strong>openEYE:</strong> автоматический анализ страниц, активируется через localStorage, левая панель с findings</li>
+<li><strong>Обход CORS через прокси на VM:</strong> все AI-вызовы идут через <code>mcp-api.py</code> на VM — Python не ограничен CORS</li>
+<li><strong>Временный файл:</strong> payload пишется в <code>/tmp/rusnas-ai-req.json</code> через <code>cockpit.file().replace()</code>, путь передаётся как argv (не stdin — баг Cockpit 337 с stdin)</li>
+<li><strong>Единый формат сообщений:</strong> формат OpenAI внутри, <code>convertToAnthropicMessages()</code> конвертирует для Anthropic</li>
+<li><strong>openEYE:</strong> автоматический анализ страниц, активируется через localStorage, левая панель с результатами</li>
 </ul>
-<h3 id="vm">Судоерс на VM<a class="headerlink" href="#vm" title="Permanent link">&para;</a></h3>
+<h3 id="sudoers-vm">Sudoers на VM<a class="headerlink" href="#sudoers-vm" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>/etc/sudoers.d/rusnas-mcp</code> — NOPASSWD: python3 mcp-api.py</li>
 <li><code>/etc/sudoers.d/rusnas-smart</code> — NOPASSWD: /usr/sbin/smartctl</li>
 </ul>
-<h3 id="session-2">Не реализовано (Session 2)<a class="headerlink" href="#session-2" title="Permanent link">&para;</a></h3>
+<h3 id="2">Не реализовано (Сессия 2)<a class="headerlink" href="#2" title="Permanent link">&para;</a></h3>
 <ul>
-<li>HTTP SSE транспорт (порт 8765) для Claude Desktop / Cursor</li>
-<li><code>pip install mcp</code> SDK (официальный MCP protocol)</li>
-<li>Ollama поддержка</li>
+<li>HTTP SSE-транспорт (порт 8765) для Claude Desktop / Cursor</li>
+<li><code>pip install mcp</code> SDK (официальный протокол MCP)</li>
+<li>Поддержка Ollama</li>
 </ul>
 <hr />
 <h2 id="_9">Ссылки<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
