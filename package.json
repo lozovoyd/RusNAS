@@ -10,7 +10,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "docs": "bash docs/build-docs.sh",
     "docs:serve": "cd docs && python3 -m mkdocs serve -a 0.0.0.0:8000",
-    "docs:deploy": "cd docs && python3 -m mkdocs gh-deploy --force"
+    "docs:deploy": "cd docs && python3 -m mkdocs gh-deploy --force",
+    "docs:user": "bash user-docs/build-user-docs.sh",
+    "docs:user:serve": "cd user-docs && python3 -m mkdocs serve -a 0.0.0.0:8001",
+    "docs:user:deploy": "bash install-user-docs.sh",
+    "docs:all": "npm run docs && npm run docs:user"
   },
   "repository": {
     "type": "git",

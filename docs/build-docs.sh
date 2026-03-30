@@ -71,6 +71,47 @@ done
 echo "    ($JS_DOCUMENTED/$JS_COUNT files with JSDoc)"
 echo ""
 
+# ── 1b. Add Russian headers to generated JS API pages ────────
+echo "▸ [1b/5] Добавляю русские заголовки к JS API..."
+
+add_ru_header() {
+    local jsname="$1" title="$2" desc="$3"
+    local outfile="$JS_OUT/$jsname.md"
+    [ -f "$outfile" ] || return
+    if ! head -1 "$outfile" | grep -q "^# "; then
+        {
+            echo "# $title"
+            echo ""
+            echo "> **Файл:** \`cockpit/rusnas/js/$jsname.js\`"
+            echo ""
+            echo "$desc"
+            echo ""
+            echo "---"
+            echo ""
+            cat "$outfile"
+        } > "$outfile.tmp" && mv "$outfile.tmp" "$outfile"
+    fi
+}
+
+add_ru_header ai "AI Ассистент" "Модуль интеграции с LLM (Yandex GPT / Anthropic Claude). Чат-интерфейс, MCP-прокси, инструменты управления NAS, openEYE Agent."
+add_ru_header app "Хранилище (Шары)" "Управление SMB/NFS шарами, iSCSI LUN/Target, WORM, FTP/WebDAV сервисами. Единая страница с 4 вкладками."
+add_ru_header containers "Контейнеры" "Менеджер контейнерных приложений (Podman). Каталог из 10 приложений, установка, мониторинг, nginx-прокси."
+add_ru_header dashboard "Дашборд" "Главная страница мониторинга. Метрики CPU/RAM/Network/Disk, карточки RAID/Guard/UPS/SSD, ночной отчёт (Night Report)."
+add_ru_header dedup "Дедупликация" "Управление дедупликацией через duperemove + Btrfs reflinks. Запуск, расписание, статистика экономии."
+add_ru_header disks "Диски и RAID" "Полный жизненный цикл RAID-массивов (создание/удаление/монтирование), SMART-мониторинг, SSD-кеширование, Backup Mode."
+add_ru_header eye "Утилиты (eye.js)" "Вспомогательные функции: escHtml, fmtBytes, fmtDate, debounce, throttle и другие утилиты общего назначения."
+add_ru_header guard "Guard (Антишифровальщик)" "Клиент Guard-демона. Управление через Unix socket, PIN-авторизация, журнал событий, настройки детекторов."
+add_ru_header license "Лицензирование" "Страница активации и проверки лицензии. Ed25519 подпись, связь с license server."
+add_ru_header network "Сеть" "Управление сетевыми интерфейсами (ifupdown), DNS, маршрутами, диагностика (ping/traceroute/WoL), VLAN, bonding."
+add_ru_header performance "Производительность" "Авто-оптимизатор дисковой подсистемы и сети. 12 уровней: VM, I/O, RAID, Btrfs, сеть, Samba, NFS, CPU."
+add_ru_header snapshots "Снапшоты" "Управление Btrfs-снапшотами: список, создание, удаление, расписание, репликация на удалённый сервер."
+add_ru_header storage-analyzer "Анализатор пространства" "Визуализация использования дисков: treemap, donut-chart, прогноз заполнения, анализ по пользователям и типам файлов."
+add_ru_header ups "ИБП (UPS)" "Интеграция с NUT (Network UPS Tools). Мониторинг батареи, настройка авто-отключения, поддержка USB/SNMP/сетевых UPS."
+add_ru_header users "Пользователи и группы" "CRUD пользователей и групп Linux. Управление через Cockpit bridge."
+
+echo "    ✓ Русские заголовки добавлены"
+echo ""
+
 # ── 2. Symlink/copy spec files ────────────────────────────────
 echo "▸ [2/5] Copying specification files..."
 mkdir -p "$SPECS_DIR"

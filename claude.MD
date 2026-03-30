@@ -1,5 +1,6 @@
 # CLAUDE.md
 
+> 📖 **Документация: `npm run docs` — авто-генерация, `npm run docs:serve` — локальный сервер :8000**
 > См. также: [project_history.md](./project_history.md) — хронология всех сессий
 > ⚠️ **UI правила и компоненты: [ui.md](./ui.md) — ОБЯЗАТЕЛЬНО читать перед любой работой с UI/CSS/branding (Cockpit Shell, страницы плагина, дизайн-токены, Ghost Pill nav, брендинг)**
 > 🌐 **Веб-сервисы: [webservice.md](./webservice.md) — ОБЯЗАТЕЛЬНО читать перед работой с nginx/Apache/FileBrowser/WebDAV/контейнерными приложениями. nginx = единая точка входа :80/:443; Apache = внутренний :8091 только для WebDAV**
@@ -788,6 +789,59 @@ Host rusnas-vps
 - Test on the real VM, not theoretical correctness
 - When regressions appear, check whether the last refactor broke a working approach
 - Separate sessions for UI work (Cockpit plugin) vs infrastructure (Ansible)
+
+---
+
+## Documentation (auto-docs)
+
+**Движок:** MkDocs Material + jsdoc2md + mkdocstrings[python]
+**Сборка:** `npm run docs` → `docs-site/` (static HTML)
+**Локальный сервер:** `npm run docs:serve` → http://localhost:8000
+**Deploy:** GitHub Actions → GitHub Pages (автоматически при push в main)
+**Онлайн:** https://lozovoyd.github.io/RusNAS/ (после настройки GitHub Pages)
+
+### Правила для Claude Code:
+
+> ⚠️ **ОБЯЗАТЕЛЬНО при изменении JS/Python файлов:**
+> 1. При добавлении новой функции — **добавить JSDoc/@param** (JS) или **Google-style docstring** (Python)
+> 2. При изменении сигнатуры функции — **обновить JSDoc/docstring**
+> 3. При создании нового модуля — **создать страницу в docs/src/api/**
+> 4. Пометить коммит `[docs-stale]` если документация требует пересборки
+
+**JSDoc формат (JS ES5):**
+```javascript
+/**
+ * Описание функции.
+ * @param {string} param1 - Описание
+ * @param {number} [param2=10] - Необязательный параметр
+ * @returns {Object} Описание возвращаемого значения
+ */
+function myFunc(param1, param2) { ... }
+```
+
+**Python docstring формат (Google style):**
+```python
+def my_func(param1, param2=10):
+    """Описание функции.
+
+    Args:
+        param1: Описание
+        param2: Описание (default: 10)
+
+    Returns:
+        Описание возвращаемого значения
+    """
+```
+
+**Структура docs/:**
+- `docs/src/` — исходники (hand-written + авто-генерируемые)
+- `docs/src/api/js/` — авто-генерируемые из JSDoc (gitignored)
+- `docs/src/api/python/` — mkdocstrings директивы
+- `docs/src/specs/` — копии rusnas-*-task.md (gitignored)
+- `docs/src/architecture/` — обзор, стек, деплой
+- `docs/src/guides/` — паттерны, баги, quick start
+- `docs/mkdocs.yml` — конфиг MkDocs Material
+- `docs/build-docs.sh` — скрипт сборки
 
 ---
 

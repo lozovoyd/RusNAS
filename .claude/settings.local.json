@@ -28,7 +28,9 @@
       "mcp__playwright__browser_fill_form",
       "Bash(sshpass -p 'kl4389qd' ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no rusnas@10.10.10.72 \"sudo btrfs subvolume list -o /mnt/btrfspool 2>&1 | head -10\")",
       "Bash(sshpass -p 'ieDah1oo' ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no admin@10.10.10.254 '/ip address print')",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_run_code"
     ]
   }
 }

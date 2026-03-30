@@ -28,3 +28,5 @@ docs/src/guides/ui-design.md
 certification-docs/node_modules/
 certification-docs/package.json
 certification-docs/package-lock.json
+docs/site/
+user-docs/site/

@@ -1,0 +1,100 @@
+site_name: "RusNAS — Руководство пользователя"
+site_description: "Руководство администратора сетевого хранилища RusNAS"
+site_url: ""
+docs_dir: docs
+
+theme:
+  name: material
+  language: ru
+  custom_dir: overrides
+  palette:
+    - scheme: slate
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-4
+        name: Светлая тема
+    - scheme: default
+      primary: deep orange
+      accent: orange
+      toggle:
+        icon: material/brightness-7
+        name: Тёмная тема
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+    - toc.integrate
+  icon:
+    logo: material/nas
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+plugins:
+  - search:
+      lang: ru
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  generator: false
+
+nav:
+  - Главная: index.md
+  - Начало работы:
+      - Первый запуск: getting-started/first-login.md
+      - Обзор интерфейса: getting-started/interface.md
+      - Включение администрирования: getting-started/admin-access.md
+  - Хранилище:
+      - Сетевые папки (SMB/NFS): storage/shares.md
+      - iSCSI: storage/iscsi.md
+      - WORM-защита: storage/worm.md
+      - FTP и WebDAV: storage/services.md
+      - Файловый менеджер: storage/filebrowser.md
+  - Диски и RAID:
+      - Создание массива: raid/create.md
+      - Управление массивом: raid/manage.md
+      - Замена диска: raid/replace.md
+      - SSD-кеширование: raid/ssd-cache.md
+      - Резервный режим: raid/backup-mode.md
+  - Защита данных:
+      - Guard (антишифровальщик): guard/overview.md
+      - Настройка Guard: guard/settings.md
+      - Журнал событий: guard/events.md
+  - Снапшоты:
+      - Создание и восстановление: snapshots/manage.md
+      - Расписание: snapshots/schedule.md
+      - Репликация: snapshots/replication.md
+  - Дедупликация: dedup/index.md
+  - ИБП:
+      - Подключение: ups/setup.md
+      - Мониторинг и защита: ups/monitoring.md
+  - Сеть:
+      - Интерфейсы: network/interfaces.md
+      - DNS и маршруты: network/dns-routes.md
+      - Диагностика: network/diagnostics.md
+  - Анализ пространства: analyzer/index.md
+  - Оптимизация: performance/index.md
+  - AI-ассистент: ai/index.md
+  - Приложения: containers/index.md
+  - Пользователи: users/index.md
+  - Решение проблем: troubleshooting.md
