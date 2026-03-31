@@ -2543,3 +2543,77 @@ location /chat/          → без rewrite           (SPA+assets+sockjs)
 - `cockpit/rusnas/catalog/rocketchat/docker-compose.yml` — mongo:8, network_mode: host, directConnection=true
 - `cockpit/rusnas/catalog/rocketchat/rusnas-app.json` — `nginx_strip_prefix: false`, `nginx_websocket: true`
 - `CLAUDE.md` — секция Rocket.Chat nginx sub-path, новые баги в Known Bugs
+
+---
+
+## Session 2026-03-31 / 2026-04-01 — Sidebar Redesign + Dashboard Performance Charts + Perf Collector Daemon
+
+### Goal
+Полный редизайн навигации Cockpit (стиль Tatlin/YADRO), замена спарклайн-карточек дашборда на Chart.js графики с историей, backend daemon сбора метрик производительности.
+
+### 1. Sidebar Navigation Redesign
+- Убраны эмодзи-иконки из `manifest.json` labels
+- Добавлены 22 монохромных Heroicons (outline SVG) через CSS `mask-image` в `branding.css`
+- Исправлен `justify-content: space-between` → `flex-start` для корректного выравнивания текста
+- Иконки для всех системных страниц Cockpit (Обзор, Журналы, Хранилище-system, Сеть-system и др.)
+
+### 2. Collapsible Nav Groups (стиль Tatlin/YADRO)
+- Реализовано в `eye.js` (работает из iframe плагина, управляет DOM родительского shell)
+- 4 группы: Хранилище, Защита данных, Инфраструктура, Мониторинг
+- Chevron-стрелки, анимация collapse/expand
+- Состояние сохраняется в `localStorage`
+- Группа активной страницы авто-раскрывается
+- DOM-реордеринг для соответствия логическим группам
+
+### 3. Alert Badges на nav-группах
+- Реал-тайм polling каждые 30 секунд из `eye.js`
+- Проверки: RAID degraded (`/proc/mdstat`), Guard events (`events.jsonl`), UPS на батарее (`upsc`)
+- Оранжевый badge = warning, красный = danger
+- Badge исчезает когда проблем нет
+
+### 4. Dashboard Performance Charts (стиль Tatlin)
+- Заменены старые sparkline-карточки (CPU/RAM/Net/Disk I/O) на 6 графиков Chart.js 4.x
+- Графики: CPU%, RAM%, Network KB/s, Disk I/O MB/s, IOPS, Latency ms
+- Селектор периода: 5 MIN / 15 MIN / 30 MIN / 1 HOUR / 24H
+- Тултипы с точными значениями + timestamps при наведении
+- Легенда с цветными маркерами (Read=blue, Write=green)
+- Кнопка (i) на CPU/RAM/Net карточках — детальные модалы
+- Кнопка (expand) — full-screen chart modal
+
+### 5. Backend Performance Collector Daemon (perf-collector.py)
+- Новый systemd daemon (не таймер): `rusnas-perf-collector.service`
+- Собирает CPU/RAM/Net/Disk метрики каждые 10 секунд из `/proc`
+- Пишет в `/var/lib/rusnas/perf-history.json` каждые 2 минуты (atomic rename)
+- 24ч retention с автоматическим downsampling (raw 10s → 30s → 120s)
+- Ресурсы: ~3 MB RAM, <0.5% CPU, MemoryMax=32M в systemd
+- Dashboard.js ТОЛЬКО читает файл (никакого сбора данных в браузере)
+
+### 6. Critical Architecture Rule (добавлено в CLAUDE.md)
+- Cockpit = ТОЛЬКО отображение, НИКОГДА сбор/обработка данных
+- Все метрики собираются в backend (Python daemon + systemd)
+- `cockpit.file()` НЕ используется для больших данных (вызывает раздувание RAM cockpit-bridge)
+
+### 7. Прочие фиксы
+- ESC key закрывает все модалы (глобальный handler в `eye.js`)
+- Исправлено выравнивание donut chart в `storage-analyzer.css`
+- Исправлено выравнивание radio buttons в `disks.html`
+
+### Files changed
+- `cockpit/rusnas/manifest.json` — убраны эмодзи из label
+- `cockpit/rusnas/css/branding.css` — 22 SVG-иконки через mask-image, nav group styles
+- `cockpit/rusnas/js/eye.js` — collapsible nav groups, alert badges polling, ESC handler
+- `cockpit/rusnas/js/dashboard.js` — Chart.js 4.x графики, period selector, detail/expand modals
+- `cockpit/rusnas/dashboard.html` — новая разметка графиков, Chart.js CDN
+- `cockpit/rusnas/css/dashboard.css` — стили для Chart.js карточек, модалов, period selector
+- `cockpit/rusnas/css/storage-analyzer.css` — donut chart alignment fix
+- `cockpit/rusnas/disks.html` — radio button alignment fix
+- `rusnas-perf-collector/perf-collector.py` — новый daemon сбора метрик
+- `rusnas-perf-collector/rusnas-perf-collector.service` — systemd unit
+- `install-perf-collector.sh` — install script
+- `claude.MD` — архитектурное правило "Cockpit = only display"
+
+### Architecture notes
+- `perf-collector.py` пишет данные в `/var/lib/rusnas/perf-history.json` каждые 2 минуты
+- Dashboard JS читает этот файл через `cockpit.spawn(["cat", "/var/lib/rusnas/perf-history.json"])`
+- Downsampling: raw (10s, last 5min) → medium (30s, 5-60min) → coarse (120s, 1-24h)
+- Dashboard spec file exists: `rusnas-dashboard-spec.md`

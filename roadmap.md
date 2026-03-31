@@ -276,3 +276,49 @@ btrfs send -p /mnt/data/.snapshots/docs/@prev @curr | ssh user@host btrfs receiv
 **Deploy:** `./install-containers.sh`
 
 **Тесты:** 14 unit (test_container_api.py + test_container_metrics.py) + 5 Playwright UI тестов — 19/19 PASS
+
+---
+
+## ✅ Sidebar Redesign + Nav Groups (реализован 2026-03-31)
+
+Полный редизайн навигации Cockpit по стилю Tatlin/YADRO.
+
+**Sidebar icons:**
+- 22 монохромных Heroicons (outline SVG) через CSS `mask-image` в `branding.css`
+- Иконки для всех страниц плагина + системных страниц Cockpit
+- Убраны эмодзи из `manifest.json` labels
+
+**Collapsible nav groups (eye.js):**
+- 4 группы: Хранилище, Защита данных, Инфраструктура, Мониторинг
+- Chevron-стрелки, анимация collapse/expand
+- Состояние в `localStorage`, авто-раскрытие группы активной страницы
+- DOM-реордеринг элементов навигации в соответствии с логическими группами
+
+**Alert badges:**
+- Polling каждые 30 секунд из `eye.js`
+- Проверки: RAID degraded, Guard events, UPS on battery
+- Оранжевый = warning, красный = danger
+
+**Файлы:** `branding.css`, `eye.js`, `manifest.json`
+
+---
+
+## ✅ Dashboard Performance Charts + Collector Daemon (реализован 2026-03-31)
+
+Замена sparkline-карточек дашборда на Chart.js графики с историей + backend daemon.
+
+**Dashboard charts (6 графиков Chart.js 4.x):**
+- CPU%, RAM%, Network KB/s, Disk I/O MB/s, IOPS, Latency ms
+- Селектор периода: 5 MIN / 15 MIN / 30 MIN / 1 HOUR / 24H
+- Тултипы, легенда, (i) info modal, expand modal
+
+**Backend daemon (perf-collector.py):**
+- systemd daemon, собирает метрики каждые 10 секунд из `/proc`
+- Пишет `/var/lib/rusnas/perf-history.json` каждые 2 минуты (atomic rename)
+- 24ч retention, downsampling: raw 10s → 30s → 120s
+- ~3 MB RAM, <0.5% CPU, MemoryMax=32M
+
+**Архитектурное правило:** Cockpit = ТОЛЬКО отображение. Сбор метрик — всегда в backend daemon.
+
+**Файлы:** `dashboard.js`, `dashboard.html`, `dashboard.css`, `perf-collector.py`, `rusnas-perf-collector.service`
+**Deploy:** `./install-perf-collector.sh`

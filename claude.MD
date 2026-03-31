@@ -202,6 +202,10 @@ RusNAS/
 ├── install-ups.sh                # Deploy NUT (UPS) to VM
 ├── install-worm.sh               # Deploy WORM backend to VM
 ├── rusnas-metrics-install.sh     # Deploy Metrics Server to VM
+├── install-perf-collector.sh     # Deploy Performance Collector daemon to VM
+├── rusnas-perf-collector/
+│   ├── perf-collector.py         # Performance metrics collector daemon (10s interval)
+│   └── rusnas-perf-collector.service  # systemd unit
 └── CLAUDE.md
 ```
 
@@ -790,6 +794,14 @@ Host rusnas-vps
 - When regressions appear, check whether the last refactor broke a working approach
 - Separate sessions for UI work (Cockpit plugin) vs infrastructure (Ansible)
 
+> **⚠️ КРИТИЧЕСКОЕ ПРАВИЛО: Cockpit = ТОЛЬКО отображение, НИКОГДА сбор/обработка данных!**
+> - Cockpit plugin (JS в браузере) — **только визуализация** данных, полученных из backend
+> - Сбор метрик, хранение, обработка, агрегация — **всегда в backend** (Python daemon/script + systemd)
+> - `cockpit.spawn()` / `cockpit.file()` — только для ЧТЕНИЯ готовых данных, не для генерации
+> - Причина: cockpit-bridge кеширует file objects и раздувает RAM; spawn каждые 2 сек = CPU overhead; при закрытом браузере данные не собираются
+> - Паттерн: backend daemon собирает → пишет в JSON/SQLite → Cockpit JS читает и рисует
+> - Примеры: `perf-collector.py` (метрики), `storage-collector.py` (storage), `guard.py` (Guard)
+
 ---
 
 ## Documentation (auto-docs)
@@ -866,4 +878,6 @@ def my_func(param1, param2=10):
 | Cockpit License Page | ✅ реализована 2026-03-26 | license.html + js/license.js, ветка feat/bootstrap-installer-spec |
 | RAID Backup Mode (HDD Spindown) | ✅ реализован 2026-03-28 | feat/raid-backup-mode branch, tests/test_backup_mode_ui.py |
 | Container Manager | ✅ реализован 2026-03-28 | containers.html + cgi/container_api.py + catalog/ (10 apps), 19 тестов |
+| Sidebar Redesign + Nav Groups | ✅ реализован 2026-03-31 | branding.css, eye.js — Heroicons, collapsible groups, alert badges |
+| Dashboard Perf Charts + Collector | ✅ реализован 2026-03-31 | dashboard.js (Chart.js 4.x), perf-collector.py daemon |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |
