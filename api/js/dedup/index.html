@@ -16404,8 +16404,8 @@ Called every 60s. Merges raw points older than 15 min into 10s averages,
 and points older than 2h into 60s averages.</p>
 </dd>
 <dt><a href="#perfReload">perfReload()</a></dt>
-<dd><p>Reload perfHistory from backend file and update charts.
-Backend daemon writes every 2 min; we read every ~15s.</p>
+<dd><p>Reload perf data from backend JSON file.
+Backend daemon writes /var/lib/rusnas/perf-history.json every 2 min.</p>
 </dd>
 <dt><a href="#perfLoad">perfLoad(cb)</a></dt>
 <dd><p>Load perfHistory from disk on startup.</p>
@@ -19713,8 +19713,8 @@ and points older than 2h into 60s averages.</p>
 <p><strong>Kind</strong>: global function<br />
 <a name="perfReload"></a></p>
 <h2 id="perfreload">perfReload()<a class="headerlink" href="#perfreload" title="Permanent link">&para;</a></h2>
-<p>Reload perfHistory from backend file and update charts.
-Backend daemon writes every 2 min; we read every ~15s.</p>
+<p>Reload perf data from backend JSON file.
+Backend daemon writes /var/lib/rusnas/perf-history.json every 2 min.</p>
 <p><strong>Kind</strong>: global function<br />
 <a name="perfLoad"></a></p>
 <h2 id="perfloadcb">perfLoad(cb)<a class="headerlink" href="#perfloadcb" title="Permanent link">&para;</a></h2>
