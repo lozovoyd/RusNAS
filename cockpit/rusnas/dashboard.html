@@ -165,65 +165,85 @@
 </div>
 
 <!-- ── Section B: Performance Metrics ───────────────────────────────────── -->
-<div class="db-grid-3" style="margin-bottom:14px">
-
-  <!-- B1: CPU -->
-  <div class="db-card" id="card-cpu" style="cursor:pointer">
-    <div class="db-perf-header">
-      <div><span class="db-card-icon">⚡</span> <span class="db-card-title">CPU</span></div>
-      <div class="db-metric-big" id="cpu-pct">—%</div>
-    </div>
-    <svg id="spark-cpu" class="db-sparkline"></svg>
-    <div class="db-card-sub" id="cpu-detail">— ядер | Load: —</div>
-    <div class="db-card-sub" id="cpu-temp"></div>
-  </div>
-
-  <!-- B2: Memory -->
-  <div class="db-card">
-    <div class="db-perf-header">
-      <div><span class="db-card-icon">🧠</span> <span class="db-card-title">RAM</span></div>
-      <div class="db-metric-big" id="ram-pct">—%</div>
-    </div>
-    <svg id="spark-ram" class="db-sparkline"></svg>
-    <div class="db-card-sub" id="ram-detail">— / —</div>
-    <div class="db-card-sub" id="swap-detail">Swap: —</div>
-  </div>
-
-  <!-- B3: Network -->
-  <div class="db-card" id="card-net" style="cursor:pointer">
-    <div class="db-perf-header">
-      <div><span class="db-card-icon">🌐</span> <span class="db-card-title">СЕТЬ</span></div>
-      <div class="db-metric-big" id="net-iface">—</div>
-    </div>
-    <svg id="spark-net" class="db-sparkline"></svg>
-    <div class="db-spark-legend">
-      <span class="db-spark-legend-item" style="color:#22c55e">↓ <span id="net-rx-val">—</span></span>
-      <span class="db-spark-legend-item" style="color:#f97316">↑ <span id="net-tx-val">—</span></span>
-    </div>
-  </div>
-
-</div>
-
-<!-- ── Section C: Disk I/O ───────────────────────────────────────────────── -->
-<div class="db-card" style="margin-bottom:14px">
+<!-- ── Section P: Performance Charts (Tatlin-style, unified) ────────────── -->
+<div class="db-perf-section">
   <div class="db-perf-header">
-    <div><span class="db-card-icon">📊</span> <span class="db-card-title">ДИСКОВЫЙ I/O</span></div>
-    <div class="db-spark-legend">
-      <span class="db-spark-legend-item" style="color:#3b82f6">R <strong id="io-read">—</strong></span>
-      <span class="db-spark-legend-item" style="color:#f97316">W <strong id="io-write">—</strong></span>
+    <h3 class="db-perf-title">Производительность</h3>
+    <div style="display:flex;align-items:center;gap:12px">
+      <!-- Live values -->
+      <div class="db-perf-live">
+        <span>CPU: <strong id="cpu-pct">—</strong>%</span>
+        <span>RAM: <strong id="ram-pct">—</strong>%</span>
+        <span id="cpu-detail" style="display:none"></span>
+        <span id="cpu-temp" style="display:none"></span>
+        <span id="ram-detail" style="display:none"></span>
+        <span id="swap-detail" style="display:none"></span>
+        <span id="net-iface" style="display:none"></span>
+        <span id="net-rx-val" style="display:none"></span>
+        <span id="net-tx-val" style="display:none"></span>
+        <span id="io-read" style="display:none"></span>
+        <span id="io-write" style="display:none"></span>
+        <span id="iops-read" style="display:none"></span>
+        <span id="iops-write" style="display:none"></span>
+        <span id="io-per-disk" style="display:none"></span>
+      </div>
+      <div class="db-perf-period" id="perf-period-btns">
+        <button data-minutes="5">5 МИН</button>
+        <button data-minutes="15" class="active">15 МИН</button>
+        <button data-minutes="30">30 МИН</button>
+        <button data-minutes="60">1 ЧАС</button>
+        <button data-minutes="1440">24 Ч</button>
+      </div>
     </div>
   </div>
-  <svg id="spark-io" class="db-sparkline" style="height:56px"></svg>
-  <div class="db-perf-header" style="margin-top:10px;">
-    <div><span style="font-size:11px;color:var(--color-muted);text-transform:uppercase;letter-spacing:.6px;font-weight:700;">IOPS</span></div>
-    <div class="db-spark-legend">
-      <span class="db-spark-legend-item" style="color:#22c55e">R <strong id="iops-read">—</strong></span>
-      <span class="db-spark-legend-item" style="color:#a855f7">W <strong id="iops-write">—</strong></span>
+  <div class="db-perf-grid">
+    <div class="db-perf-card" data-chart="cpu">
+      <div class="db-perf-card-title">Загрузка CPU, %</div>
+      <div class="db-perf-card-btns">
+        <button class="db-chart-info-btn" data-modal="cpu" title="Монитор CPU">i</button>
+        <button class="db-chart-expand-btn" data-chart="cpu" title="Развернуть">⤢</button>
+      </div>
+      <canvas id="chart-cpu"></canvas>
+    </div>
+    <div class="db-perf-card" data-chart="ram">
+      <div class="db-perf-card-title">Использование RAM, %</div>
+      <div class="db-perf-card-btns">
+        <button class="db-chart-info-btn" data-modal="cpu" title="Монитор CPU и RAM">i</button>
+        <button class="db-chart-expand-btn" data-chart="ram" title="Развернуть">⤢</button>
+      </div>
+      <canvas id="chart-ram"></canvas>
+    </div>
+    <div class="db-perf-card" data-chart="net">
+      <div class="db-perf-card-title">Сеть, КБ/с</div>
+      <div class="db-perf-card-btns">
+        <button class="db-chart-info-btn" data-modal="net" title="Монитор сети (vnstat)">i</button>
+        <button class="db-chart-expand-btn" data-chart="net" title="Развернуть">⤢</button>
+      </div>
+      <canvas id="chart-net"></canvas>
+    </div>
+    <div class="db-perf-card" data-chart="throughput">
+      <div class="db-perf-card-title">Дисковый I/O, МБ/с</div>
+      <button class="db-chart-expand-btn" data-chart="throughput" title="Развернуть">⤢</button>
+      <canvas id="chart-throughput"></canvas>
+    </div>
+    <div class="db-perf-card" data-chart="iops">
+      <div class="db-perf-card-title">IOPS</div>
+      <button class="db-chart-expand-btn" data-chart="iops" title="Развернуть">⤢</button>
+      <canvas id="chart-iops"></canvas>
+    </div>
+    <div class="db-perf-card" data-chart="latency">
+      <div class="db-perf-card-title">Время отклика, мс</div>
+      <button class="db-chart-expand-btn" data-chart="latency" title="Развернуть">⤢</button>
+      <canvas id="chart-latency"></canvas>
     </div>
   </div>
-  <svg id="spark-iops" class="db-sparkline" style="height:48px"></svg>
-  <div class="db-card-sub" id="io-per-disk" style="margin-top:6px;font-size:11px"></div>
 </div>
+<!-- Hidden sparkline SVGs (kept for backward compat, not displayed) -->
+<svg id="spark-cpu" style="display:none"></svg>
+<svg id="spark-ram" style="display:none"></svg>
+<svg id="spark-net" style="display:none"></svg>
+<svg id="spark-io" style="display:none"></svg>
+<svg id="spark-iops" style="display:none"></svg>
 
 <!-- ── Section D+E: Events, Snapshots, Guard, UPS ────────────────────────── -->
 <div class="db-grid-4" style="margin-bottom:14px">
@@ -315,6 +335,26 @@
 
     <div style="margin-top:10px">
       <a href="/rusnas/guard" onclick="cockpit.jump('/rusnas/guard');return false;" class="btn btn-secondary btn-sm">Настройки Guard →</a>
+    </div>
+  </div>
+
+  <!-- D7: Security Self-Test -->
+  <div class="db-card" id="card-sectest">
+    <div class="db-guard-header">
+      <div class="db-card-title">🔒 БЕЗОПАСНОСТЬ</div>
+      <div id="sectest-score-badge" class="db-sectest-badge">—</div>
+    </div>
+    <div id="sectest-status" class="text-muted" style="margin-bottom:6px">Загрузка…</div>
+    <div id="sectest-summary" class="db-sectest-summary hidden">
+      <div class="db-sectest-row"><span class="db-crit">●</span> Critical: <b id="sec-cnt-crit">0</b></div>
+      <div class="db-sectest-row"><span class="db-warn">●</span> High: <b id="sec-cnt-high">0</b></div>
+      <div class="db-sectest-row"><span style="color:var(--warning)">●</span> Medium: <b id="sec-cnt-med">0</b></div>
+      <div class="db-sectest-row"><span style="color:var(--text-muted)">●</span> Low: <b id="sec-cnt-low">0</b></div>
+    </div>
+    <div id="sectest-date" class="db-card-sub" style="margin-top:6px;font-size:11px"></div>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <button class="btn btn-secondary btn-sm" id="btn-sectest-run">Проверить сейчас</button>
+      <button class="btn btn-secondary btn-sm" id="btn-sectest-report" style="display:none">Отчёт</button>
     </div>
   </div>
 
@@ -465,6 +505,31 @@
   </div>
 </div>
 
+<!-- ── Chart Expand Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="chart-expand-modal">
+  <div class="modal-box db-chart-expand-modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--color-border)">
+      <span id="chart-expand-title" style="font-size:15px;font-weight:700;letter-spacing:-0.01em"></span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="db-perf-period db-chart-expand-period" id="chart-expand-period-btns">
+          <button data-minutes="5">5 МИН</button>
+          <button data-minutes="15" class="active">15 МИН</button>
+          <button data-minutes="30">30 МИН</button>
+          <button data-minutes="60">1 ЧАС</button>
+          <button data-minutes="1440">24 Ч</button>
+        </div>
+        <button id="chart-expand-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+      </div>
+    </div>
+    <div style="position:relative;height:380px">
+      <canvas id="chart-expand-canvas"></canvas>
+    </div>
+    <div id="chart-expand-stats" class="db-chart-expand-stats"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="js/eye.js"></script>
 </body>
 </html>

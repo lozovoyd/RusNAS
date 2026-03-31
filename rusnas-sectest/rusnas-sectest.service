@@ -1,0 +1,14 @@
+[Unit]
+Description=rusNAS Security Self-Test
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/rusnas/sectest/sectest.py --json
+StandardOutput=append:/var/log/rusnas/sectest.log
+StandardError=append:/var/log/rusnas/sectest.log
+User=root
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=600

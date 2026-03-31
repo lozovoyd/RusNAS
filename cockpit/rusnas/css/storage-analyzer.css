@@ -373,23 +373,7 @@ td.sa-trend-flat { color: var(--color-muted); }
 .sa-tm-leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
 /* ── Donut chart (File Types) ─────────────────────────────────── */
-.sa-donut-wrap {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 24px;
-  align-items: start;
-  margin-bottom: 18px;
-}
-.sa-donut-svg-wrap {
-  background: var(--bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 16px;
-  text-align: center;
-  box-shadow: var(--card-shadow);
-}
-.sa-donut-center-text { font-size: 11px; fill: var(--color-muted); }
-.sa-donut-center-val  { font-size: 20px; font-weight: 700; }
+#donutSvg { width: 100%; height: auto; display: block; }
 .sa-ft-legend {
   background: var(--bg-card);
   border: 1px solid var(--color-border);

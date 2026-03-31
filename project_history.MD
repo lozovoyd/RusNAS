@@ -2617,3 +2617,56 @@ location /chat/          → без rewrite           (SPA+assets+sockjs)
 - Dashboard JS читает этот файл через `cockpit.spawn(["cat", "/var/lib/rusnas/perf-history.json"])`
 - Downsampling: raw (10s, last 5min) → medium (30s, 5-60min) → coarse (120s, 1-24h)
 - Dashboard spec file exists: `rusnas-dashboard-spec.md`
+
+---
+
+## Session 2026-03-31: Penetration Test + Security Self-Test
+
+### Что сделано
+
+1. **Ручной пентест rusNAS (OWASP Top 10)**
+   - Полный пентест VM 10.10.10.72 с использованием nmap, nuclei, ffuf, sqlmap, curl
+   - Обнаружено 9 findings: 1 critical, 2 high, 3 medium, 3 low
+   - Critical: FileBrowser admin/admin с root filesystem scope
+   - High: NFS export `*`, SMB anonymous access
+   - Отчёт: `pentest-report-2026-03-31.md`
+
+2. **Скил web-pentest создан** (для skill-creator)
+   - SKILL.md + references/owasp-top10-checks.md
+   - 4 фазы: Recon → OWASP Testing → Automated Scan → Report
+
+3. **Security Self-Test (rusnas-sectest/)**
+   - Автоматизированный пентест сборки rusNAS
+   - 9 модулей проверок (47+ checks в quick mode)
+   - Оркестратор sectest.py: --quick, --json, --category
+   - Scoring: 0-100, Grade A-F
+   - systemd timer: monthly (1-е число, 04:00)
+   - Dashboard интеграция: карточка "🔒 БЕЗОПАСНОСТЬ" + alert banner
+   - Output: JSON state + Markdown report + .log
+
+4. **Установка pentest-инструментов на Mac**
+   - nmap, nuclei v3.7.1, ffuf v2.1.0, sqlmap 1.10.3, httpx v1.9.0, seclists
+
+### Files created
+- `rusnas-sectest/sectest.py` — orchestrator (530 lines)
+- `rusnas-sectest/checks/recon.py` — port scan, service detection
+- `rusnas-sectest/checks/web_headers.py` — TLS, security headers
+- `rusnas-sectest/checks/access_control.py` — NFS, SMB, rsync, FTP, FileBrowser
+- `rusnas-sectest/checks/auth.py` — default creds, JWT, rate limiting
+- `rusnas-sectest/checks/injection.py` — SQLi, XSS, SSTI
+- `rusnas-sectest/checks/misconfig.py` — directory listing, TRACE, CORS
+- `rusnas-sectest/checks/vuln_scan.py` — nuclei templates
+- `rusnas-sectest/checks/endpoint_fuzz.py` — ffuf discovery
+- `rusnas-sectest/checks/network_services.py` — SMB signing, Samba config
+- `rusnas-sectest/wordlists/rusnas-paths.txt` — 110+ paths
+- `rusnas-sectest/rusnas-sectest.service` + `.timer`
+- `rusnas-sectest/README.md` + `rusnas-sectest-task.md`
+- `install-sectest.sh` — deploy + tool install
+- `pentest-report-2026-03-31.md` — ручной пентест отчёт
+
+### Files changed
+- `cockpit/rusnas/dashboard.html` — карточка Security
+- `cockpit/rusnas/js/dashboard.js` — sectest polling, run, report functions
+- `cockpit/rusnas/css/dashboard.css` — sectest badge/summary styles
+- `deploy.sh` — quick sectest after deploy
+- `CLAUDE.md` — sectest reference, roadmap, project structure

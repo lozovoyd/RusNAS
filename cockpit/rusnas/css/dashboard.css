@@ -585,6 +585,106 @@
   .nm-live-right { text-align: left; }
 }
 
+/* ─── Performance Charts (Tatlin-style) ─── */
+.db-perf-section { margin: 18px 0 20px; }
+.db-perf-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; padding: 0 2px;
+}
+.db-perf-title {
+  font-size: 15px; font-weight: 700; color: var(--color-text);
+  letter-spacing: -0.01em; margin: 0;
+}
+.db-perf-period {
+  display: flex; gap: 0; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden;
+}
+.db-perf-period button {
+  padding: 5px 14px; border: none; border-right: 1px solid var(--color-border);
+  background: var(--bg-card); color: var(--color-muted, #6b7280);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.db-perf-period button:last-child { border-right: none; }
+.db-perf-period button:hover { background: var(--bg-th); color: var(--color-text); }
+.db-perf-period button.active {
+  background: var(--bg-th); color: var(--color-text);
+  box-shadow: inset 0 -2px 0 var(--accent-blue, #3b82f6);
+  font-weight: 700;
+}
+.db-perf-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.db-perf-card {
+  background: var(--bg-card); border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 14px 16px 10px;
+  box-shadow: var(--card-shadow, none);
+  position: relative; height: 240px;
+}
+.db-perf-card canvas {
+  position: absolute; left: 16px; right: 16px; top: 40px; bottom: 10px;
+  width: calc(100% - 32px) !important; height: calc(100% - 50px) !important;
+}
+.db-perf-card-title {
+  font-size: 12px; font-weight: 600; color: var(--color-text);
+  margin-bottom: 10px; padding-right: 28px;
+}
+/* Chart card button group (top-right corner, always visible) */
+.db-perf-card-btns {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  display: flex; gap: 4px;
+}
+.db-chart-expand-btn, .db-chart-info-btn {
+  background: rgba(255,255,255,0.05); border: 1px solid var(--color-border);
+  color: var(--color-muted); border-radius: 4px;
+  width: 24px; height: 24px; font-size: 13px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background 0.15s, color 0.15s;
+}
+.db-chart-info-btn {
+  font-size: 12px; font-weight: 700; font-style: italic; font-family: Georgia, serif;
+}
+.db-chart-expand-btn:hover, .db-chart-info-btn:hover {
+  background: var(--color-border); color: var(--color-text);
+}
+/* Cards without .db-perf-card-btns — expand btn stays absolute */
+.db-perf-card > .db-chart-expand-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+}
+html:not(.pf-v6-theme-dark) .db-chart-expand-btn,
+html:not(.pf-v6-theme-dark) .db-chart-info-btn {
+  background: rgba(0,0,0,0.03);
+}
+
+/* Chart expand modal */
+.db-chart-expand-modal-box {
+  width: 900px; max-width: 96vw;
+}
+.db-chart-expand-modal-box canvas {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  width: 100% !important; height: 100% !important;
+}
+.db-chart-expand-stats {
+  display: flex; gap: 20px; flex-wrap: wrap; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--color-border);
+  font-size: 12px; color: var(--color-muted);
+}
+.db-chart-expand-stats .db-ces-item {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.db-chart-expand-stats .db-ces-label { font-size: 11px; }
+.db-chart-expand-stats .db-ces-val { font-size: 14px; font-weight: 700; color: var(--color-text); }
+.db-chart-expand-period { margin: 0; }
+
+.db-perf-live {
+  display: flex; gap: 14px; font-size: 12px; color: var(--color-muted);
+}
+.db-perf-live strong { color: var(--color-text); font-weight: 700; }
+@media (max-width: 900px) {
+  .db-perf-grid { grid-template-columns: 1fr; }
+  .db-perf-header { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .db-perf-live { display: none; }
+}
+
 /* ─── Night Report Widget ─── */
 
 .db-night-report {
@@ -701,4 +801,38 @@
   .nr-body { grid-template-columns: 1fr; }
   .nr-col { border-right: none; border-bottom: 1px solid var(--color-border); }
   .nr-col:last-child { border-bottom: none; }
+}
+
+/* ── Security Self-Test Card ─────────────────────────────────────────────── */
+.db-sectest-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+  color: #fff;
+  background: var(--text-muted);
+}
+.db-sectest-badge.badge-green  { background: var(--success); }
+.db-sectest-badge.badge-yellow { background: var(--warning); color: #333; }
+.db-sectest-badge.badge-red    { background: var(--danger); }
+
+.db-sectest-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.db-sectest-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.db-sectest-running {
+  animation: db-blink 1s step-end infinite;
 }

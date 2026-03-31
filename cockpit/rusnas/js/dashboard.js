@@ -6,7 +6,7 @@ var TICK_METRICS = 2000;   // metrics server: CPU, RAM, net, I/O, RAID, storage,
 var TICK_EVENTS  = 15000;  // journalctl
 var TICK_SNAPS   = 60000;  // rusnas-snap
 var TICK_UPS     = 30000;  // ups status — battery changes slowly, 30s is sufficient
-var TICK_FAST    = 2000;   // CPU/RAM/Net/IO — was 1s, 2s imperceptible and halves spawn count
+var TICK_FAST    = 5000;   // CPU/RAM/Net/IO — 5s balances responsiveness vs resource usage
 
 // ── Sparkline history ─────────────────────────────────────────────────────
 var HISTORY = 60;
@@ -19,6 +19,172 @@ var sparkIoW  = new Array(HISTORY).fill(0);
 var sparkIopsR = new Array(HISTORY).fill(0);
 var sparkIopsW = new Array(HISTORY).fill(0);
 
+// ── Performance chart history (24h, downsampled) ──────────────────────────
+// Tier 1: raw 2s  — last 15 min (450 pts)
+// Tier 2: avg 10s — 15min..2h  (630 pts)
+// Tier 3: avg 60s — 2h..24h   (1320 pts)
+// Total: ~2400 points, ~210 KB JSON, write every 60s
+var PERF_FILE = "/var/lib/rusnas/perf-history.json";
+var PERF_SAVE_SEC = 120; // save every 2 min — reduces I/O and bridge memory
+var PERF_KEYS = ["cpu","ram","netR","netT","iopsR","iopsW","thrR","thrW","latR","latW"];
+var perfH = { ts:[] }; // + one array per key
+PERF_KEYS.forEach(function(k) { perfH[k] = []; });
+var _perfCharts = {};
+var _perfMinutes = 15;
+var _perfLastSave = 0;
+var _perfDownsampleBuf = { ts:[] };
+PERF_KEYS.forEach(function(k) { _perfDownsampleBuf[k] = []; });
+var _perfLastDownsample = 0;
+
+/**
+ * Push a value into raw perfH ring buffer.
+ * @param {string} key
+ * @param {number} val
+ */
+function perfPush(key, val) {
+    perfH[key].push(val);
+}
+
+/**
+ * Downsample old data to keep file size small.
+ * Called every 60s. Merges raw points older than 15 min into 10s averages,
+ * and points older than 2h into 60s averages.
+ */
+function perfDownsample() {
+    var now = Date.now();
+    if (now - _perfLastDownsample < 55000) return;
+    _perfLastDownsample = now;
+
+    var t15 = now - 15 * 60000;  // 15 min ago
+    var t2h = now - 2 * 3600000; // 2 hours ago
+    var t24 = now - 24 * 3600000; // 24 hours ago
+
+    /* Remove anything older than 24h */
+    while (perfH.ts.length > 0 && perfH.ts[0] < t24) {
+        perfH.ts.shift();
+        PERF_KEYS.forEach(function(k) { perfH[k].shift(); });
+    }
+
+    /* Downsample 2h..24h range to 60s resolution */
+    _downsampleRange(t24, t2h, 60000);
+
+    /* Downsample 15min..2h range to 10s resolution */
+    _downsampleRange(t2h, t15, 10000);
+}
+
+function _downsampleRange(from, to, bucketMs) {
+    var i = 0;
+    while (i < perfH.ts.length && perfH.ts[i] < from) i++;
+    var newTs = [], newVals = {};
+    PERF_KEYS.forEach(function(k) { newVals[k] = []; });
+
+    while (i < perfH.ts.length && perfH.ts[i] < to) {
+        var bucketEnd = perfH.ts[i] + bucketMs;
+        var cnt = 0;
+        var sums = {};
+        PERF_KEYS.forEach(function(k) { sums[k] = 0; });
+        var midTs = 0;
+        while (i < perfH.ts.length && perfH.ts[i] < bucketEnd && perfH.ts[i] < to) {
+            midTs += perfH.ts[i];
+            PERF_KEYS.forEach(function(k) { sums[k] += (perfH[k][i] || 0); });
+            cnt++;
+            i++;
+        }
+        if (cnt > 1) {
+            newTs.push(Math.round(midTs / cnt));
+            PERF_KEYS.forEach(function(k) { newVals[k].push(Math.round(sums[k] / cnt * 100) / 100); });
+        } else if (cnt === 1) {
+            newTs.push(Math.round(midTs));
+            PERF_KEYS.forEach(function(k) { newVals[k].push(sums[k]); });
+        }
+    }
+
+    /* Collect remaining points (after "to") */
+    var tailTs = perfH.ts.slice(i);
+    var tailVals = {};
+    PERF_KEYS.forEach(function(k) { tailVals[k] = perfH[k].slice(i); });
+
+    /* Find head (before "from") */
+    var headEnd = 0;
+    while (headEnd < perfH.ts.length && perfH.ts[headEnd] < from) headEnd++;
+    var headTs = perfH.ts.slice(0, headEnd);
+    var headVals = {};
+    PERF_KEYS.forEach(function(k) { headVals[k] = perfH[k].slice(0, headEnd); });
+
+    /* Reassemble */
+    perfH.ts = headTs.concat(newTs).concat(tailTs);
+    PERF_KEYS.forEach(function(k) {
+        perfH[k] = headVals[k].concat(newVals[k]).concat(tailVals[k]);
+    });
+}
+
+/**
+ * Save perfHistory to disk. Called from updatePerfCharts(), throttled to every 60s.
+ */
+/**
+ * Reload perfHistory from backend file and update charts.
+ * Backend daemon writes every 2 min; we read every ~15s.
+ */
+function perfReload() {
+    cockpit.spawn(["cat", PERF_FILE], { err: "message" })
+        .done(function(content) {
+            if (!content || !content.trim() || content.trim() === "{}") return;
+            try {
+                var d = JSON.parse(content);
+                if (!d.ts || !d.ts.length) return;
+                /* Validate lengths */
+                var ml = d.ts.length;
+                PERF_KEYS.forEach(function(k) {
+                    if (!d[k] || d[k].length < ml) ml = d[k] ? d[k].length : 0;
+                });
+                perfH.ts = d.ts.slice(d.ts.length - ml);
+                PERF_KEYS.forEach(function(k) {
+                    perfH[k] = d[k].slice(d[k].length - ml);
+                });
+            } catch(e) {}
+            updatePerfCharts();
+        });
+}
+
+/**
+ * Load perfHistory from disk on startup.
+ * @param {Function} cb - called when done
+ */
+function perfLoad(cb) {
+    cockpit.spawn(["cat", PERF_FILE], { err: "message" })
+        .done(function(content) {
+            if (!content || !content.trim()) { cb(); return; }
+            try {
+                var data = JSON.parse(content);
+                var cutoff = Date.now() - 24 * 3600000;
+                if (data.ts && data.ts.length) {
+                    var startIdx = 0;
+                    for (var i = 0; i < data.ts.length; i++) {
+                        if (data.ts[i] >= cutoff) { startIdx = i; break; }
+                    }
+                    perfH.ts = data.ts.slice(startIdx);
+                    PERF_KEYS.forEach(function(k) {
+                        perfH[k] = (data[k] || []).slice(startIdx);
+                    });
+                    /* Validate: all arrays must be same length as ts */
+                    var minLen = perfH.ts.length;
+                    PERF_KEYS.forEach(function(k) {
+                        if (perfH[k].length < minLen) minLen = perfH[k].length;
+                    });
+                    if (minLen < perfH.ts.length) {
+                        /* Truncate all to shortest — fixes desync from old bugs */
+                        perfH.ts = perfH.ts.slice(perfH.ts.length - minLen);
+                        PERF_KEYS.forEach(function(k) {
+                            perfH[k] = perfH[k].slice(perfH[k].length - minLen);
+                        });
+                    }
+                }
+            } catch(e) { /* corrupt — start fresh */ }
+            cb();
+        })
+        .fail(function() { cb(); });
+}
+
 // ── Metrics HTTP client (reused across calls) ─────────────────────────────
 var _metricsHttp = cockpit.http({ port: 9100, address: "localhost" });
 
@@ -28,12 +194,18 @@ var TICK_SMART   = 300000;
 var TICK_GUARD   = 10000;  // was 5s — guard state.json rarely changes; 10s is plenty in normal mode
 var TICK_FB      = 60000;  // FileBrowser service status — rarely changes
 var TICK_SSD     = 60000;  // SSD cache config — only changes on user action
+var TICK_SECTEST = 60000;  // Security self-test state — rarely changes
+var SECTEST_SCRIPT = "/usr/lib/rusnas/sectest/sectest.py";
+var SECTEST_STATE  = "/var/lib/rusnas/sectest-last.json";
 var DB_SPINDOWN_CGI = "/usr/lib/rusnas/cgi/spindown_ctl.py";
 
 // ── Delta state (CPU/Net/IO) ───────────────────────────────────────────────
 var prevCpu  = null;
 var prevNet  = {};
 var prevDisk = {};
+// ── Last parsed values (used for synchronized perfH push) ─────────────────
+var _lastCpu=0, _lastRam=0, _lastNetR=0, _lastNetT=0;
+var _lastIopsR=0, _lastIopsW=0, _lastThrR=0, _lastThrW=0;
 var smartCache = {};
 
 // ── Utilities ─────────────────────────────────────────────────────────────
@@ -846,6 +1018,7 @@ function _parseCpuOut(out) {
     prevCpu = { total: total, idle: idle };
 
     pushHistory(sparkCpu, pct);
+    _lastCpu = pct;
     var cls = pct >= 95 ? "db-crit" : pct >= 80 ? "db-warn" : "db-ok";
     el("cpu-pct").textContent = pct + "%";
     el("cpu-pct").className = "db-metric-big " + cls;
@@ -897,6 +1070,7 @@ function _parseRamOut(out) {
     var swapUsed  = swapTotal - swapFree;
 
     pushHistory(sparkRam, pct);
+    _lastRam = pct;
     var cls = pctClass(pct);
     el("ram-pct").textContent = pct + "%";
     el("ram-pct").className = "db-metric-big " + cls;
@@ -946,6 +1120,8 @@ function _parseNetOut(out, now) {
 
     pushHistory(sparkNetR, rxSpeed);
     pushHistory(sparkNetT, txSpeed);
+    _lastNetR = rxSpeed;
+    _lastNetT = txSpeed;
     renderDualSparkline("spark-net", sparkNetR, "#22c55e", sparkNetT, "#f97316");
     el("net-iface").textContent = best.iface;
     el("net-rx-val").textContent = fmtSpeed(Math.max(0, rxSpeed));
@@ -974,6 +1150,9 @@ function _parseDiskOut(out, now) {
     var totalIopsR = 0, totalIopsW = 0;
     var perDisk = [];
 
+    var totalLatRms = 0, totalLatRios = 0;
+    var totalLatWms = 0, totalLatWios = 0;
+
     lines.forEach(function(l) {
         var f = l.trim().split(/\s+/);
         if (f.length < 14) return;
@@ -983,6 +1162,8 @@ function _parseDiskOut(out, now) {
         var wSect = parseInt(f[9]);
         var rIos  = parseInt(f[3]);
         var wIos  = parseInt(f[7]);
+        var rMs   = parseInt(f[6]);   // cumulative ms spent reading
+        var wMs   = parseInt(f[10]);  // cumulative ms spent writing
 
         var rSpeed = 0, wSpeed = 0, riops = 0, wiops = 0;
         if (prevDisk[dev]) {
@@ -993,8 +1174,17 @@ function _parseDiskOut(out, now) {
                 riops  = Math.max(0, (rIos - prevDisk[dev].rIos) / dt);
                 wiops  = Math.max(0, (wIos - prevDisk[dev].wIos) / dt);
             }
+            // Latency: delta ms / delta ios = avg ms per IO (only for data disks)
+            if (dev.match(/^sd/)) {
+                var dRios = rIos - prevDisk[dev].rIos;
+                var dWios = wIos - prevDisk[dev].wIos;
+                var dRms  = rMs  - prevDisk[dev].rMs;
+                var dWms  = wMs  - prevDisk[dev].wMs;
+                if (dRios > 0) { totalLatRms  += dRms;  totalLatRios += dRios; }
+                if (dWios > 0) { totalLatWms  += dWms;  totalLatWios += dWios; }
+            }
         }
-        prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, time: now };
+        prevDisk[dev] = { r: rSect, w: wSect, rIos: rIos, wIos: wIos, rMs: rMs, wMs: wMs, time: now };
 
         if (dev.match(/^sd/)) {
             totalR += rSpeed; totalW += wSpeed;
@@ -1005,10 +1195,19 @@ function _parseDiskOut(out, now) {
         }
     });
 
+    var avgLatR = totalLatRios > 0 ? totalLatRms / totalLatRios : 0;
+    var avgLatW = totalLatWios > 0 ? totalLatWms / totalLatWios : 0;
+    perfPush("latR", avgLatR);
+    perfPush("latW", avgLatW);
+
     pushHistory(sparkIoR, totalR);
     pushHistory(sparkIoW, totalW);
     pushHistory(sparkIopsR, totalIopsR);
     pushHistory(sparkIopsW, totalIopsW);
+    _lastIopsR = totalIopsR;
+    _lastIopsW = totalIopsW;
+    _lastThrR = totalR;
+    _lastThrW = totalW;
     renderDualSparkline("spark-io",   sparkIoR,   "#3b82f6", sparkIoW,   "#f97316");
     renderDualSparkline("spark-iops", sparkIopsR, "#22c55e", sparkIopsW, "#a855f7");
     el("io-read").textContent   = fmtSpeed(Math.max(0, totalR));
@@ -1657,6 +1856,9 @@ function loadFastMetrics() {
         _parseRamOut(parts[1]);
         _parseNetOut(parts[2], now);
         _parseDiskOut(parts[3], now);
+        /* Charts: reload data from backend file periodically */
+        _perfTickCount = (_perfTickCount || 0) + 1;
+        if (_perfTickCount <= 2 || _perfTickCount % 3 === 0) perfReload();
     });
 }
 
@@ -1980,13 +2182,385 @@ function loadContainersWidget() {
     });
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Performance Charts (Tatlin-style, Chart.js) ──────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Create a Chart.js line chart for a performance metric.
+ * @param {string} canvasId - Canvas element ID
+ * @param {Array<Object>} datasets - Array of {label, color} objects
+ * @param {string} yLabel - Y-axis label/unit
+ * @param {Function} [yFmt] - Optional y-axis value formatter
+ * @returns {Object|null} Chart.js instance
+ */
+function createPerfChart(canvasId, datasets, yLabel, yFmt) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas || typeof Chart === "undefined") return null;
+
+    var isDark = document.documentElement.classList.contains("pf-v6-theme-dark") ||
+                 document.documentElement.getAttribute("data-rusnas-theme") === "dark";
+    var gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+    var textColor = isDark ? "#8a9bb5" : "#64748b";
+
+    var dsets = datasets.map(function(ds) {
+        return {
+            label: ds.label,
+            data: [],
+            borderColor: ds.color,
+            backgroundColor: ds.color + "18",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHitRadius: 6,
+            pointHoverRadius: 3,
+            pointHoverBackgroundColor: ds.color,
+            fill: ds.fill || false,
+            tension: 0.2,
+            normalized: true,
+            parsing: false,
+            spanGaps: false
+        };
+    });
+
+    return new Chart(canvas, {
+        type: "line",
+        data: { datasets: dsets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            resizeDelay: 200,
+            elements: { line: { borderWidth: 1.5 } },
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                decimation: { enabled: true, algorithm: "lttb", samples: 200 },
+                legend: {
+                    display: true,
+                    position: "top",
+                    align: "start",
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: "circle",
+                        boxWidth: 6,
+                        boxHeight: 6,
+                        padding: 12,
+                        font: { size: 11, weight: "500" },
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    backgroundColor: isDark ? "#1e293b" : "#ffffff",
+                    titleColor: isDark ? "#e2e8f0" : "#0f172a",
+                    bodyColor: isDark ? "#94a3b8" : "#475569",
+                    borderColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+                    borderWidth: 1,
+                    cornerRadius: 6,
+                    padding: 10,
+                    displayColors: true,
+                    boxWidth: 8,
+                    boxHeight: 8,
+                    usePointStyle: true,
+                    callbacks: {
+                        title: function(items) {
+                            if (!items.length) return "";
+                            var d = new Date(items[0].parsed.x);
+                            var days = ["\u0412\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435","\u041f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a","\u0412\u0442\u043e\u0440\u043d\u0438\u043a","\u0421\u0440\u0435\u0434\u0430","\u0427\u0435\u0442\u0432\u0435\u0440\u0433","\u041f\u044f\u0442\u043d\u0438\u0446\u0430","\u0421\u0443\u0431\u0431\u043e\u0442\u0430"];
+                            var months = ["\u042f\u043d\u0432","\u0424\u0435\u0432","\u041c\u0430\u0440","\u0410\u043f\u0440","\u041c\u0430\u0439","\u0418\u044e\u043d","\u0418\u044e\u043b","\u0410\u0432\u0433","\u0421\u0435\u043d","\u041e\u043a\u0442","\u041d\u043e\u044f","\u0414\u0435\u043a"];
+                            return days[d.getDay()] + ", " + months[d.getMonth()] + " " + d.getDate() + ", " +
+                                   String(d.getHours()).padStart(2,"0") + ":" +
+                                   String(d.getMinutes()).padStart(2,"0") + ":" +
+                                   String(d.getSeconds()).padStart(2,"0");
+                        },
+                        label: function(ctx) {
+                            var v = ctx.parsed.y;
+                            var fmt = yFmt ? yFmt(v) : v.toLocaleString("ru-RU");
+                            return "  " + ctx.dataset.label + ": " + fmt;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: "time",
+                    time: { tooltipFormat: "HH:mm:ss", displayFormats: { second: "HH:mm", minute: "HH:mm" } },
+                    grid: { color: gridColor, drawBorder: false },
+                    ticks: { color: textColor, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 30 }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: gridColor, drawBorder: false },
+                    ticks: {
+                        color: textColor,
+                        font: { size: 10 },
+                        callback: function(v) { return yFmt ? yFmt(v) : v.toLocaleString("ru-RU"); }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Initialize all 4 performance charts.
+ * @returns {void}
+ */
+function initPerfCharts() {
+    if (typeof Chart === "undefined") return;
+
+    _perfCharts.cpu = createPerfChart("chart-cpu", [
+        { label: "CPU", color: "#3b82f6", fill: true }
+    ], "%", function(v) { return Math.round(v) + "%"; });
+
+    _perfCharts.ram = createPerfChart("chart-ram", [
+        { label: "RAM", color: "#8b5cf6", fill: true }
+    ], "%", function(v) { return Math.round(v) + "%"; });
+
+    _perfCharts.net = createPerfChart("chart-net", [
+        { label: "RX \u2193", color: "#22c55e" },
+        { label: "TX \u2191", color: "#f97316" }
+    ], "\u041a\u0411/\u0441", function(v) { return (v / 1024).toFixed(1); });
+
+    _perfCharts.throughput = createPerfChart("chart-throughput", [
+        { label: "\u0427\u0442\u0435\u043d\u0438\u0435", color: "#3b82f6" },
+        { label: "\u0417\u0430\u043f\u0438\u0441\u044c", color: "#22c55e" }
+    ], "\u041c\u0411/\u0441", function(v) { return (v / 1048576).toFixed(1); });
+
+    _perfCharts.iops = createPerfChart("chart-iops", [
+        { label: "\u0427\u0442\u0435\u043d\u0438\u0435", color: "#3b82f6" },
+        { label: "\u0417\u0430\u043f\u0438\u0441\u044c", color: "#22c55e" }
+    ], "IOPS", function(v) { return Math.round(v).toLocaleString("ru-RU"); });
+
+    _perfCharts.latency = createPerfChart("chart-latency", [
+        { label: "\u0427\u0442\u0435\u043d\u0438\u0435", color: "#3b82f6" },
+        { label: "\u0417\u0430\u043f\u0438\u0441\u044c", color: "#22c55e" },
+        { label: "\u0421\u0440\u0435\u0434\u043d\u0435\u0435", color: "#6b7280" }
+    ], "\u043c\u0441", function(v) { return v.toFixed(2); });
+
+    /* Period button handlers */
+    var btns = document.querySelectorAll("#perf-period-btns button");
+    btns.forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            btns.forEach(function(b) { b.classList.remove("active"); });
+            btn.classList.add("active");
+            _perfMinutes = parseInt(btn.dataset.minutes) || 15;
+            updatePerfCharts();
+        });
+    });
+
+    /* Render loaded history immediately */
+    updatePerfCharts();
+}
+
+/**
+ * Set X-axis time window and data on a chart, then update (no animation).
+ */
+function _updCh(chart, seriesArrays, xMin, xMax, ts) {
+    if (!chart) return;
+    var GAP_MS = 30000; /* insert null if gap > 30s between points */
+    seriesArrays.forEach(function(arr, di) {
+        var pts = [];
+        for (var i = 0; i < ts.length; i++) {
+            /* Detect gap — insert null point to break the line */
+            if (i > 0 && ts[i] - ts[i - 1] > GAP_MS) {
+                pts.push({ x: ts[i - 1] + 1000, y: null });
+            }
+            pts.push({ x: ts[i], y: arr[i] != null ? arr[i] : 0 });
+        }
+        chart.data.datasets[di].data = pts;
+    });
+    chart.options.scales.x.min = xMin;
+    chart.options.scales.x.max = xMax;
+    chart.update("none");
+}
+
+function updatePerfCharts() {
+    /* Lazy-init if charts not created yet */
+    if (!_perfCharts.cpu) {
+        if (typeof Chart !== "undefined") initPerfCharts();
+        if (!_perfCharts.cpu) return;
+    }
+    /* data comes from backend daemon via perfReload() */
+    var now = Date.now();
+    var windowMs = _perfMinutes * 60 * 1000;
+    var xMin = now - windowMs;
+    var xMax = now;
+
+    /* Find start index */
+    var startIdx = 0;
+    for (var i = 0; i < perfH.ts.length; i++) {
+        if (perfH.ts[i] >= xMin) { startIdx = i; break; }
+    }
+    var ts = perfH.ts.slice(startIdx);
+
+    /* CPU (0-100%) */
+    _perfCharts.cpu.options.scales.y.max = 100;
+    _updCh(_perfCharts.cpu, [perfH.cpu.slice(startIdx)], xMin, xMax, ts);
+
+    /* RAM (0-100%) */
+    _perfCharts.ram.options.scales.y.max = 100;
+    _updCh(_perfCharts.ram, [perfH.ram.slice(startIdx)], xMin, xMax, ts);
+
+    /* Network (RX / TX bytes/s) */
+    _updCh(_perfCharts.net, [perfH.netR.slice(startIdx), perfH.netT.slice(startIdx)], xMin, xMax, ts);
+
+    /* Throughput (read/write bytes/s) */
+    _updCh(_perfCharts.throughput, [perfH.thrR.slice(startIdx), perfH.thrW.slice(startIdx)], xMin, xMax, ts);
+
+    /* IOPS */
+    _updCh(_perfCharts.iops, [perfH.iopsR.slice(startIdx), perfH.iopsW.slice(startIdx)], xMin, xMax, ts);
+
+    /* Latency — real data from /proc/diskstats (ms per IO) */
+    var latR = perfH.latR.slice(startIdx);
+    var latW = perfH.latW.slice(startIdx);
+    var latA = latR.map(function(v, i) {
+        var w = latW[i] || 0;
+        return (v > 0 && w > 0) ? (v + w) / 2 : (v || w);
+    });
+    _updCh(_perfCharts.latency, [latR, latW, latA], xMin, xMax, ts);
+}
+
+// ── Chart Expand Modal ────────────────────────────────────────────────────────
+var _expandChart = null;
+var _expandMinutes = 15;
+var _expandChartKey = null;
+
+var _CHART_META = {
+    cpu:        { title: "Загрузка CPU, %",        unit: "%",    yFmt: function(v){ return Math.round(v)+"%"; },
+                  series: [{label:"CPU", color:"#3b82f6", fill:true}],
+                  getData: function(si){ return [perfH.cpu.slice(si)]; } },
+    ram:        { title: "Использование RAM, %",   unit: "%",    yFmt: function(v){ return Math.round(v)+"%"; },
+                  series: [{label:"RAM", color:"#8b5cf6", fill:true}],
+                  getData: function(si){ return [perfH.ram.slice(si)]; } },
+    net:        { title: "Сеть, КБ/с",             unit: "КБ/с", yFmt: function(v){ return (v/1024).toFixed(1); },
+                  series: [{label:"RX ↓", color:"#22c55e"},{label:"TX ↑", color:"#f97316"}],
+                  getData: function(si){ return [perfH.netR.slice(si), perfH.netT.slice(si)]; } },
+    throughput: { title: "Дисковый I/O, МБ/с",     unit: "МБ/с", yFmt: function(v){ return (v/1048576).toFixed(1); },
+                  series: [{label:"Чтение", color:"#3b82f6"},{label:"Запись", color:"#22c55e"}],
+                  getData: function(si){ return [perfH.thrR.slice(si), perfH.thrW.slice(si)]; } },
+    iops:       { title: "IOPS",                   unit: "IOPS", yFmt: function(v){ return Math.round(v).toLocaleString("ru-RU"); },
+                  series: [{label:"Чтение", color:"#3b82f6"},{label:"Запись", color:"#22c55e"}],
+                  getData: function(si){ return [perfH.iopsR.slice(si), perfH.iopsW.slice(si)]; } },
+    latency:    { title: "Время отклика, мс",      unit: "мс",   yFmt: function(v){ return v.toFixed(2); },
+                  series: [{label:"Чтение", color:"#3b82f6"},{label:"Запись", color:"#22c55e"},{label:"Среднее", color:"#6b7280"}],
+                  getData: function(si){
+                      var lR = perfH.latR.slice(si), lW = perfH.latW.slice(si);
+                      var lA = lR.map(function(v,i){ var w=lW[i]||0; return (v>0&&w>0)?(v+w)/2:(v||w); });
+                      return [lR, lW, lA];
+                  } }
+};
+
+function openExpandModal(chartKey) {
+    var meta = _CHART_META[chartKey];
+    if (!meta) return;
+    _expandChartKey = chartKey;
+    _expandMinutes  = _perfMinutes;
+
+    el("chart-expand-title").textContent = meta.title;
+    el("chart-expand-modal").classList.remove("hidden");
+
+    // sync period buttons
+    var btns = document.querySelectorAll("#chart-expand-period-btns button");
+    btns.forEach(function(b) {
+        b.classList.toggle("active", parseInt(b.dataset.minutes) === _expandMinutes);
+    });
+
+    _renderExpandChart();
+}
+
+function closeExpandModal() {
+    el("chart-expand-modal").classList.add("hidden");
+    if (_expandChart) { _expandChart.destroy(); _expandChart = null; }
+}
+
+function _renderExpandChart() {
+    var meta = _CHART_META[_expandChartKey];
+    if (!meta) return;
+
+    if (_expandChart) { _expandChart.destroy(); _expandChart = null; }
+
+    var now = Date.now();
+    var windowMs = _expandMinutes * 60 * 1000;
+    var xMin = now - windowMs, xMax = now;
+
+    var startIdx = 0;
+    for (var i = 0; i < perfH.ts.length; i++) {
+        if (perfH.ts[i] >= xMin) { startIdx = i; break; }
+    }
+    var ts = perfH.ts.slice(startIdx);
+    var seriesData = meta.getData(startIdx);
+
+    var datasets = meta.series.map(function(s, di) {
+        return {
+            label: s.label, borderColor: s.color,
+            backgroundColor: s.fill ? s.color.replace(")", ",0.15)").replace("rgb","rgba") : "transparent",
+            fill: !!s.fill, tension: 0.3, pointRadius: 0, borderWidth: 2,
+            data: ts.map(function(t, i){ return { x: t, y: (seriesData[di]||[])[i] || 0 }; })
+        };
+    });
+
+    var canvas = el("chart-expand-canvas");
+    _expandChart = new Chart(canvas, {
+        type: "line",
+        data: { datasets: datasets },
+        options: {
+            animation: false, responsive: true, maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { display: meta.series.length > 1,
+                    labels: { color: "var(--color-muted)", font: { size: 11 }, boxWidth: 10, padding: 12 } },
+                tooltip: {
+                    backgroundColor: "var(--bg-card)", borderColor: "var(--color-border)", borderWidth: 1,
+                    titleColor: "var(--color-muted)", bodyColor: "var(--color-text)",
+                    callbacks: {
+                        label: function(ctx) {
+                            return " " + ctx.dataset.label + ": " + meta.yFmt(ctx.parsed.y) + " " + meta.unit;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { type:"time", min: xMin, max: xMax,
+                     adapters: { date: {} },
+                     time: { tooltipFormat: "HH:mm:ss", displayFormats: { second:"HH:mm:ss", minute:"HH:mm", hour:"HH:mm" } },
+                     grid: { color:"rgba(128,128,128,0.12)" },
+                     ticks: { color:"var(--color-muted)", font:{ size:11 }, maxTicksLimit:10 } },
+                y: { min: 0, beginAtZero: true,
+                     grid: { color:"rgba(128,128,128,0.12)" },
+                     ticks: { color:"var(--color-muted)", font:{size:11},
+                              callback: function(v){ return meta.yFmt(v); } } }
+            }
+        }
+    });
+
+    // Stats summary row
+    _renderExpandStats(meta, seriesData);
+}
+
+function _renderExpandStats(meta, seriesData) {
+    var statsEl = el("chart-expand-stats");
+    if (!statsEl) return;
+
+    var html = "";
+    meta.series.forEach(function(s, di) {
+        var arr = (seriesData[di] || []).filter(function(v){ return v > 0; });
+        if (arr.length === 0) return;
+        var sum = arr.reduce(function(a,b){ return a+b; }, 0);
+        var avg = sum / arr.length;
+        var mx  = Math.max.apply(null, arr);
+        html += "<div class='db-ces-item'>"
+             + "<span class='db-ces-label' style='color:" + s.color + "'>" + s.label + "</span>"
+             + "<span class='db-ces-val'>" + meta.yFmt(avg) + " <span style='font-size:11px;font-weight:400;color:var(--color-muted)'>avg</span></span>"
+             + "<span class='db-ces-label'>Пик: " + meta.yFmt(mx) + " " + meta.unit + "</span>"
+             + "</div>";
+    });
+    statsEl.innerHTML = html;
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     loadIdentity();
     initMetricsBlock();
 
     // Network monitor modal events
-    var cardNet = el("card-net");
-    if (cardNet) cardNet.addEventListener("click", window.openNetModal);
     var nmClose = el("net-modal-close");
     if (nmClose) nmClose.addEventListener("click", window.closeNetModal);
     var nmOverlay = el("net-modal");
@@ -1995,8 +2569,6 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     // CPU monitor modal events
-    var cardCpu = el("card-cpu");
-    if (cardCpu) cardCpu.addEventListener("click", window.openCpuModal);
     var cmClose = el("cpu-modal-close");
     if (cmClose) cmClose.addEventListener("click", window.closeCpuModal);
     var cmOverlay = el("cpu-modal");
@@ -2004,6 +2576,48 @@ document.addEventListener("DOMContentLoaded", function() {
         if (e.target === cmOverlay) window.closeCpuModal();
     });
 
+    // Info buttons (i) → open detail modals for CPU/Net
+    document.querySelectorAll(".db-chart-info-btn").forEach(function(btn) {
+        btn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            var modal = btn.dataset.modal;
+            if (modal === "cpu" && window.openCpuModal) window.openCpuModal();
+            else if (modal === "net" && window.openNetModal) window.openNetModal();
+        });
+    });
+
+
+    // Performance charts (Chart.js) — load saved history, then init
+    perfLoad(function() {
+        setTimeout(initPerfCharts, 500);
+    });
+
+    // Chart expand buttons (⤢ in corner of each perf card)
+    document.querySelectorAll(".db-chart-expand-btn").forEach(function(btn) {
+        btn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            openExpandModal(btn.dataset.chart);
+        });
+    });
+    var expandClose = el("chart-expand-close");
+    if (expandClose) expandClose.addEventListener("click", closeExpandModal);
+    var expandOverlay = el("chart-expand-modal");
+    if (expandOverlay) expandOverlay.addEventListener("click", function(e) {
+        if (e.target === expandOverlay) closeExpandModal();
+    });
+    document.querySelectorAll("#chart-expand-period-btns button").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+            document.querySelectorAll("#chart-expand-period-btns button").forEach(function(b) {
+                b.classList.remove("active");
+            });
+            btn.classList.add("active");
+            _expandMinutes = parseInt(btn.dataset.minutes) || 15;
+            _renderExpandChart();
+        });
+    });
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") closeExpandModal();
+    });
 
     // Initial loads
     tickFast();
@@ -2015,6 +2629,11 @@ document.addEventListener("DOMContentLoaded", function() {
     loadUpsStatus();
     loadSsdCacheStatus();
     loadFbDashStatus();
+
+    // Security self-test widget
+    loadSectestStatus();
+    el("btn-sectest-run").addEventListener("click", runSectest);
+    el("btn-sectest-report").addEventListener("click", openSectestReport);
 
     // Containers widget — delayed load
     setTimeout(loadContainersWidget, 1200);
@@ -2041,6 +2660,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var _timerUps     = setInterval(loadUpsStatus, TICK_UPS);
     setInterval(loadFbDashStatus, TICK_FB);
     setInterval(loadSsdCacheStatus, TICK_SSD);
+    setInterval(loadSectestStatus, TICK_SECTEST);
     setInterval(loadIdentity, 30000);
 
     // Pause high-frequency polls when tab is hidden to reduce CPU load
@@ -2060,6 +2680,116 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SECURITY SELF-TEST WIDGET
+// ══════════════════════════════════════════════════════════════════════════════
+
+var _sectestRunning = false;
+
+function loadSectestStatus() {
+    cockpit.file(SECTEST_STATE).read().done(function(content) {
+        if (!content) { renderSectestEmpty(); return; }
+        try {
+            var d = JSON.parse(content);
+            renderSectestData(d);
+        } catch(e) { renderSectestEmpty(); }
+    }).fail(function() { renderSectestEmpty(); });
+}
+
+function renderSectestEmpty() {
+    var st = el("sectest-status");
+    if (st) st.textContent = "Сканирование не проводилось";
+    var badge = el("sectest-score-badge");
+    if (badge) { badge.textContent = "—"; badge.className = "db-sectest-badge"; }
+    var sum = el("sectest-summary");
+    if (sum) sum.classList.add("hidden");
+    var dt = el("sectest-date");
+    if (dt) dt.textContent = "";
+}
+
+function renderSectestData(d) {
+    var score = d.score || 0;
+    var grade = d.grade || "?";
+
+    // Badge
+    var badge = el("sectest-score-badge");
+    if (badge) {
+        badge.textContent = score + " " + grade;
+        var cls = "db-sectest-badge";
+        if (score >= 80) cls += " badge-green";
+        else if (score >= 60) cls += " badge-yellow";
+        else cls += " badge-red";
+        badge.className = cls;
+    }
+
+    // Status text
+    var st = el("sectest-status");
+    if (st) {
+        var sm = d.summary || {};
+        var fails = (sm.critical||0) + (sm.high||0) + (sm.medium||0) + (sm.low||0);
+        if (fails === 0) st.innerHTML = '<span class="db-ok">✓ Проблем не обнаружено</span>';
+        else st.innerHTML = '<span class="' + (sm.critical > 0 ? 'db-crit' : 'db-warn') + '">' + fails + ' проблем обнаружено</span>';
+    }
+
+    // Summary counts
+    var sum = el("sectest-summary");
+    if (sum) {
+        sum.classList.remove("hidden");
+        var sm = d.summary || {};
+        var c = el("sec-cnt-crit"); if (c) c.textContent = sm.critical || 0;
+        var h = el("sec-cnt-high"); if (h) h.textContent = sm.high || 0;
+        var m = el("sec-cnt-med");  if (m) m.textContent = sm.medium || 0;
+        var l = el("sec-cnt-low");  if (l) l.textContent = sm.low || 0;
+    }
+
+    // Date
+    var dt = el("sectest-date");
+    if (dt && d.timestamp) {
+        var ts = new Date(d.timestamp);
+        var mode = d.quick_mode ? "быстрый" : "полный";
+        dt.textContent = "Последняя проверка: " + ts.toLocaleString("ru") + " (" + mode + ", " + (d.duration_seconds || 0).toFixed(1) + "с)";
+    }
+
+    // Show report button
+    var rb = el("btn-sectest-report");
+    if (rb) rb.style.display = "";
+
+    // Alert banner for critical/high findings
+    var sm = d.summary || {};
+    if ((sm.critical || 0) > 0) {
+        showAlertBanner("🔒 Security: " + sm.critical + " критических проблем! Score: " + score + "/100. Проверьте отчёт.", "alert-warn");
+    }
+}
+
+function runSectest() {
+    if (_sectestRunning) return;
+    _sectestRunning = true;
+    var btn = el("btn-sectest-run");
+    if (btn) { btn.disabled = true; btn.textContent = "Сканирование…"; btn.classList.add("db-sectest-running"); }
+    var st = el("sectest-status");
+    if (st) st.innerHTML = '<span class="db-warn">⏳ Идёт сканирование…</span>';
+
+    cockpit.spawn(["sudo", "-n", "python3", SECTEST_SCRIPT, "--quick", "--json"], {err: "message"})
+        .done(function() {
+            _sectestRunning = false;
+            if (btn) { btn.disabled = false; btn.textContent = "Проверить сейчас"; btn.classList.remove("db-sectest-running"); }
+            loadSectestStatus();
+        })
+        .fail(function(ex) {
+            _sectestRunning = false;
+            if (btn) { btn.disabled = false; btn.textContent = "Проверить сейчас"; btn.classList.remove("db-sectest-running"); }
+            if (st) st.innerHTML = '<span class="db-crit">Ошибка: ' + escHtml(String(ex.message || ex)) + '</span>';
+        });
+}
+
+function openSectestReport() {
+    cockpit.file("/var/lib/rusnas/sectest-report.md").read().done(function(content) {
+        if (!content) return;
+        var w = window.open("", "_blank");
+        if (w) { w.document.write("<pre style='font-family:monospace;white-space:pre-wrap;padding:20px'>" + escHtml(content) + "</pre>"); w.document.title = "Security Report"; }
+    });
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // NIGHT REPORT WIDGET — "Утренняя газета для инфраструктуры"

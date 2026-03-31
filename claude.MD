@@ -18,6 +18,7 @@
 > Git Workflow: [git-workflow.md](./git-workflow.md) — правила веток, коммитов, merge
 > История багов: [bugs.MD](./bugs.MD) — полная история всех багов и фиксов (BUG-01..30)
 > Performance Tuner: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md) — ТЗ авто-оптимизатора (12 уровней)
+> Security Self-Test: [rusnas-sectest/rusnas-sectest-task.md](./rusnas-sectest/rusnas-sectest-task.md) — ТЗ и архитектура автопентеста (OWASP Top 10)
 > Btrfs проблемы: [btrfs-problems.md](./btrfs-problems.md) — 15 известных проблем Btrfs+mdadm с решениями
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -188,6 +189,13 @@ RusNAS/
 ├── rusnas-metrics/
 │   ├── metrics_server.py         # Prometheus + JSON metrics HTTP server (port 9100)
 │   └── rusnas-metrics.service    # systemd unit
+├── rusnas-sectest/               # Security Self-Test (automated pentest)
+│   ├── sectest.py                # Orchestrator — 9 phases, OWASP Top 10
+│   ├── checks/*.py               # 9 check modules (recon, web, auth, injection, etc.)
+│   ├── wordlists/rusnas-paths.txt # ffuf wordlist
+│   ├── rusnas-sectest.service    # systemd oneshot
+│   ├── rusnas-sectest.timer      # Monthly timer (1st, 04:00)
+│   └── rusnas-sectest-task.md    # ТЗ и архитектура
 ├── btrfs-problems.md             # Известные проблемы Btrfs+mdadm (15 разделов)
 ├── deploy.sh                     # Deploy Cockpit plugin to VM
 ├── deploy-landing.sh             # Deploy landing page to Apache on VM
@@ -201,6 +209,7 @@ RusNAS/
 ├── install-storage-analyzer.sh   # Deploy Storage Analyzer backend to VM
 ├── install-ups.sh                # Deploy NUT (UPS) to VM
 ├── install-worm.sh               # Deploy WORM backend to VM
+├── install-sectest.sh            # Deploy Security Self-Test + pentest tools to VM
 ├── rusnas-metrics-install.sh     # Deploy Metrics Server to VM
 ├── install-perf-collector.sh     # Deploy Performance Collector daemon to VM
 ├── rusnas-perf-collector/
@@ -880,4 +889,5 @@ def my_func(param1, param2=10):
 | Container Manager | ✅ реализован 2026-03-28 | containers.html + cgi/container_api.py + catalog/ (10 apps), 19 тестов |
 | Sidebar Redesign + Nav Groups | ✅ реализован 2026-03-31 | branding.css, eye.js — Heroicons, collapsible groups, alert badges |
 | Dashboard Perf Charts + Collector | ✅ реализован 2026-03-31 | dashboard.js (Chart.js 4.x), perf-collector.py daemon |
+| Security Self-Test (Pentest) | ✅ реализован 2026-03-31 | rusnas-sectest/ — 9 OWASP modules, 47+ checks, dashboard widget, monthly timer |
 | MCP Session 2 (SSE/Ollama) | 📋 следующая сессия | roadmap.md |

@@ -2,6 +2,283 @@
 // Automatically analyzes any page and shows AI findings in a compact floating widget.
 // Included in every page. Activates only when localStorage key is set.
 
+/* ── Global: ESC closes any visible modal ─────────────────────────────────── */
+document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    var modals = document.querySelectorAll(".modal-overlay");
+    for (var i = modals.length - 1; i >= 0; i--) {
+        var m = modals[i];
+        /* skip already hidden modals */
+        if (m.classList.contains("hidden") || m.style.display === "none" ||
+            window.getComputedStyle(m).display === "none") continue;
+        /* close: use the same mechanism that opened it */
+        if (m.style.display !== "") {
+            m.style.display = "none";
+        } else {
+            m.classList.add("hidden");
+        }
+        e.preventDefault();
+        return; /* close only the topmost modal */
+    }
+});
+
+/* ── Nav Groups: Tatlin-style collapsible sidebar sections ────────────────── */
+/* Runs from plugin iframe, operates on parent shell document (same-origin)  */
+(function () {
+    "use strict";
+    var STORAGE_KEY = "rusnas_nav_collapsed";
+    var GROUPS = [
+        { id: "storage",  label: "\u0425\u0440\u0430\u043d\u0438\u043b\u0438\u0449\u0435",      hrefs: ["/rusnas","/rusnas/disks","/rusnas/containers"] },
+        { id: "protect",  label: "\u0417\u0430\u0449\u0438\u0442\u0430 \u0434\u0430\u043d\u043d\u044b\u0445",   hrefs: ["/rusnas/guard","/rusnas/snapshots","/rusnas/dedup"] },
+        { id: "infra",    label: "\u0418\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430",  hrefs: ["/rusnas/network","/rusnas/ups","/rusnas/users"] },
+        { id: "monitor",  label: "\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433",      hrefs: ["/rusnas/storage-analyzer","/rusnas/performance","/rusnas/ai"] }
+    ];
+    var CHEVRON = '<svg class="rn-grp-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+    function getCollapsed() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; } }
+    function setCollapsed(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+    function findGroup(href) {
+        for (var i = 0; i < GROUPS.length; i++)
+            for (var j = 0; j < GROUPS[i].hrefs.length; j++)
+                if (href === GROUPS[i].hrefs[j]) return GROUPS[i];
+        return null;
+    }
+
+    function applyStyles(el, styles) {
+        for (var k in styles) if (styles.hasOwnProperty(k)) el.style[k] = styles[k];
+    }
+    var HDR_STYLES = {display:"flex",alignItems:"center",padding:"6px 12px",margin:"10px 8px 2px",border:"none",background:"none",cursor:"pointer",fontSize:"10px",fontWeight:"700",letterSpacing:".07em",textTransform:"uppercase",color:"#4a5878",borderRadius:"4px",listStyle:"none",transition:"color .15s,background .15s"};
+    var CHEV_STYLES = {marginRight:"6px",flexShrink:"0",transition:"transform .2s ease",opacity:".5"};
+    var LABEL_STYLES = {flex:"1"};
+
+    function buildNavGroups() {
+        var doc;
+        try { doc = window.parent.document; } catch(e) { return; }
+        var sections = doc.querySelectorAll(".pf-v6-c-nav__section");
+        var ul = null;
+        for (var i = 0; i < sections.length; i++) {
+            var t = sections[i].querySelector(".pf-v6-c-nav__section-title");
+            if (t && t.textContent.indexOf("\u0421\u0438\u0441\u0442\u0435\u043c") > -1) {
+                ul = sections[i].querySelector(".pf-v6-c-nav__list");
+                break;
+            }
+        }
+        if (!ul || ul.dataset.rnGrouped) return;
+        ul.dataset.rnGrouped = "1";
+
+        var collapsed = getCollapsed();
+
+        /* ── Build href→li map ─────────────────────────────────────── */
+        var hrefMap = {};
+        var allLi = Array.prototype.slice.call(ul.children);
+        allLi.forEach(function (li) {
+            var a = li.querySelector("a");
+            if (a) hrefMap[a.getAttribute("href") || ""] = li;
+        });
+
+        /* ── Detach all items from ul ──────────────────────────────── */
+        while (ul.firstChild) ul.removeChild(ul.firstChild);
+
+        /* ── Append Dashboard (standalone, always first) ───────────── */
+        if (hrefMap["/rusnas/dashboard"]) {
+            ul.appendChild(hrefMap["/rusnas/dashboard"]);
+            delete hrefMap["/rusnas/dashboard"];
+        }
+
+        /* ── Append each group: header + children in defined order ── */
+        GROUPS.forEach(function (group) {
+            /* Check if any child is active */
+            var isActive = false;
+            var childLis = [];
+            group.hrefs.forEach(function (h) {
+                var li = hrefMap[h];
+                if (!li) return;
+                childLis.push(li);
+                var a = li.querySelector("a");
+                if (a && (a.classList.contains("pf-m-current") || a.getAttribute("aria-current") === "page")) isActive = true;
+                delete hrefMap[h];
+            });
+            if (!childLis.length) return;
+
+            var isColl = collapsed[group.id] === true && !isActive;
+
+            /* Create group header with JS style properties */
+            var hdr = doc.createElement("li");
+            hdr.className = "rn-nav-group-hdr";
+            hdr.dataset.groupId = group.id;
+            hdr.dataset.expanded = isColl ? "0" : "1";
+            applyStyles(hdr, HDR_STYLES);
+
+            var chev = doc.createElementNS("http://www.w3.org/2000/svg","svg");
+            chev.setAttribute("width","12"); chev.setAttribute("height","12");
+            chev.setAttribute("viewBox","0 0 24 24"); chev.setAttribute("fill","none");
+            chev.setAttribute("stroke","currentColor"); chev.setAttribute("stroke-width","2");
+            chev.setAttribute("stroke-linecap","round"); chev.setAttribute("stroke-linejoin","round");
+            var chevPath = doc.createElementNS("http://www.w3.org/2000/svg","path");
+            chevPath.setAttribute("d","m9 18 6-6-6-6");
+            chev.appendChild(chevPath);
+            applyStyles(chev, CHEV_STYLES);
+            if (!isColl) chev.style.transform = "rotate(90deg)";
+            hdr.appendChild(chev);
+
+            var labelSpan = doc.createElement("span");
+            applyStyles(labelSpan, LABEL_STYLES);
+            labelSpan.textContent = group.label;
+            hdr.appendChild(labelSpan);
+
+            ul.appendChild(hdr);
+
+            /* Append children in defined order */
+            childLis.forEach(function (li) {
+                li.dataset.rnGroup = group.id;
+                if (isColl) {
+                    li.style.maxHeight = "0";
+                    li.style.overflow = "hidden";
+                    li.style.opacity = "0";
+                    li.style.padding = "0";
+                    li.style.margin = "0";
+                    li.style.pointerEvents = "none";
+                } else {
+                    li.style.transition = "max-height .22s ease,opacity .18s ease";
+                }
+                ul.appendChild(li);
+            });
+
+            /* Click handler */
+            (function(hdr, group, chev) {
+                hdr.addEventListener("click", function () {
+                    var isExp = hdr.dataset.expanded === "1";
+                    hdr.dataset.expanded = isExp ? "0" : "1";
+                    chev.style.transform = isExp ? "" : "rotate(90deg)";
+                    ul.querySelectorAll('[data-rn-group="' + group.id + '"]').forEach(function (c) {
+                        if (isExp) {
+                            c.style.maxHeight = "0";
+                            c.style.overflow = "hidden";
+                            c.style.opacity = "0";
+                            c.style.padding = "0";
+                            c.style.margin = "0";
+                            c.style.pointerEvents = "none";
+                        } else {
+                            c.style.maxHeight = "";
+                            c.style.overflow = "";
+                            c.style.opacity = "";
+                            c.style.padding = "";
+                            c.style.margin = "";
+                            c.style.pointerEvents = "";
+                            c.style.transition = "max-height .22s ease,opacity .18s ease";
+                        }
+                    });
+                    var st = getCollapsed(); st[group.id] = isExp; setCollapsed(st);
+                });
+            })(hdr, group, chev);
+        });
+
+        /* ── Append Лицензия (standalone, after groups) ────────────── */
+        if (hrefMap["/rusnas/license"]) {
+            ul.appendChild(hrefMap["/rusnas/license"]);
+            delete hrefMap["/rusnas/license"];
+        }
+
+        /* ── Append remaining ungrouped items ──────────────────────── */
+        Object.keys(hrefMap).forEach(function (href) {
+            ul.appendChild(hrefMap[href]);
+        });
+    }
+
+    /* ── Alert badges: real system status per group ──────────────── */
+    var BADGE_STYLES = {fontSize:"10px",fontWeight:"700",color:"#fff",background:"#e67e22",
+        minWidth:"18px",height:"18px",lineHeight:"18px",textAlign:"center",
+        borderRadius:"9px",padding:"0 5px",marginLeft:"auto",flexShrink:"0"};
+    var BADGE_DANGER_BG = "#e74c3c";
+
+    function setBadge(groupId, count, danger) {
+        var doc; try { doc = window.parent.document; } catch(e) { return; }
+        var hdr = doc.querySelector('.rn-nav-group-hdr[data-group-id="' + groupId + '"]');
+        if (!hdr) return;
+        var badge = hdr.querySelector(".rn-grp-badge");
+        if (count <= 0) {
+            if (badge) badge.remove();
+            return;
+        }
+        if (!badge) {
+            badge = doc.createElement("span");
+            badge.className = "rn-grp-badge";
+            applyStyles(badge, BADGE_STYLES);
+            hdr.appendChild(badge);
+        }
+        badge.textContent = count;
+        badge.style.background = danger ? BADGE_DANGER_BG : "#e67e22";
+    }
+
+    function pollAlerts() {
+        if (typeof cockpit === "undefined") return;
+        var alerts = { storage: 0, protect: 0, infra: 0, monitor: 0 };
+        var danger = { storage: false, protect: false, infra: false, monitor: false };
+        var pending = 0;
+        var total = 3;
+
+        function done() {
+            pending++;
+            if (pending < total) return;
+            setBadge("storage", alerts.storage, danger.storage);
+            setBadge("protect", alerts.protect, danger.protect);
+            setBadge("infra", alerts.infra, danger.infra);
+            setBadge("monitor", alerts.monitor, danger.monitor);
+        }
+
+        /* 1. RAID: /proc/mdstat — no sudo needed (world-readable) */
+        cockpit.file("/proc/mdstat").read().done(function(content) {
+            if (!content) { done(); return; }
+            var lines = content.split("\n");
+            for (var i = 0; i < lines.length; i++) {
+                if (/inactive/.test(lines[i])) { alerts.storage++; danger.storage = true; }
+                if (/\[.*_.*\]/.test(lines[i])) { alerts.storage++; danger.storage = true; } /* [UU_U] = degraded */
+                if (/\(F\)/.test(lines[i])) alerts.storage++;
+            }
+            done();
+        }).fail(function() { done(); });
+
+        /* 2. Guard events: count lines (file is 644, world-readable) */
+        cockpit.file("/var/log/rusnas-guard/events.jsonl").read().done(function(content) {
+            if (!content) { done(); return; }
+            var lines = content.trim().split("\n").filter(function(l) { return l.trim(); });
+            if (lines.length > 0) alerts.protect = lines.length;
+            done();
+        }).fail(function() { done(); });
+
+        /* 3. UPS: upsc via sudoers NOPASSWD */
+        cockpit.spawn(["sudo", "-n", "upsc", "ups@localhost", "ups.status"], {err:"message"})
+            .done(function(out) {
+                var s = out.trim();
+                if (/OB/.test(s)) { alerts.infra++; if (/LB/.test(s)) danger.infra = true; }
+                if (/COMMLOST/.test(s)) alerts.infra++;
+                done();
+            })
+            .fail(function() { done(); }); /* UPS might not be configured — just skip */
+    }
+
+    var att = 0;
+    function tryBuild() {
+        att++;
+        try {
+            var nav = window.parent.document.querySelector(".pf-v6-c-nav__list");
+            if (nav && nav.children.length > 5 && !nav.dataset.rnGrouped) {
+                buildNavGroups();
+                /* Start alert polling after groups are built */
+                setTimeout(pollAlerts, 1500);
+                setInterval(pollAlerts, 30000);
+                return;
+            }
+        } catch(e) {}
+        if (att < 25) setTimeout(tryBuild, 250);
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function() { setTimeout(tryBuild, 400); });
+    } else {
+        setTimeout(tryBuild, 400);
+    }
+}());
+
 (function () {
 "use strict";
 

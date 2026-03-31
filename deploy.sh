@@ -25,4 +25,10 @@ if [ -f "${BRANDING_SRC}" ]; then
   $SSH ${VM_USER}@${VM_HOST} "echo '${VM_PASS}' | sudo -S cp /tmp/rusnas-branding.css /usr/share/cockpit/branding/debian/branding.css && echo '${VM_PASS}' | sudo -S chmod 644 /usr/share/cockpit/branding/debian/branding.css"
 fi
 
+# Run quick security self-test if installed
+if $SSH ${VM_USER}@${VM_HOST} "test -f /usr/lib/rusnas/sectest/sectest.py" 2>/dev/null; then
+  echo "Running quick security self-test..."
+  $SSH ${VM_USER}@${VM_HOST} "echo '${VM_PASS}' | sudo -S python3 /usr/lib/rusnas/sectest/sectest.py --quick 2>&1 | tail -5" || true
+fi
+
 echo "Done. Refresh Cockpit in the browser (http://${VM_HOST}:9090) to see changes."

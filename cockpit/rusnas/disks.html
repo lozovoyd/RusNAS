@@ -315,14 +315,14 @@
             </div>
             <div class="form-group">
                 <label>Режим кеширования</label>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
-                        <input type="radio" name="ssd-mode" value="writethrough" id="ssd-mode-wt" checked style="margin-top:3px">
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+                    <label style="display:grid;grid-template-columns:20px 1fr;gap:8px;cursor:pointer;font-weight:normal;align-items:start">
+                        <input type="radio" name="ssd-mode" value="writethrough" id="ssd-mode-wt" checked style="margin-top:4px;width:16px;height:16px">
                         <span><b>Безопасный (writethrough)</b><br>
                         <span style="font-size:12px;color:var(--color-muted)">Запись одновременно на SSD и HDD. Защита от потери данных. <i>Рекомендуется.</i></span></span>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
-                        <input type="radio" name="ssd-mode" value="writeback" id="ssd-mode-wb" style="margin-top:3px">
+                    <label style="display:grid;grid-template-columns:20px 1fr;gap:8px;cursor:pointer;font-weight:normal;align-items:start">
+                        <input type="radio" name="ssd-mode" value="writeback" id="ssd-mode-wb" style="margin-top:4px;width:16px;height:16px">
                         <span><b>Быстрый (writeback) ⚠</b><br>
                         <span style="font-size:12px;color:var(--color-muted)">Запись сначала на SSD, потом переносится на HDD. Максимальная скорость. <i>Только с ИБП.</i></span></span>
                     </label>
@@ -366,14 +366,14 @@
             </div>
             <div class="form-group">
                 <label>Режим кеширования</label>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
-                        <input type="radio" name="change-mode-radio" value="writethrough" id="change-mode-wt" style="margin-top:3px">
+                <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+                    <label style="display:grid;grid-template-columns:20px 1fr;gap:8px;cursor:pointer;font-weight:normal;align-items:start">
+                        <input type="radio" name="change-mode-radio" value="writethrough" id="change-mode-wt" style="margin-top:4px;width:16px;height:16px">
                         <span><b>Безопасный (writethrough)</b><br>
                         <span style="font-size:12px;color:var(--color-muted)">Запись на SSD и HDD одновременно.</span></span>
                     </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal">
-                        <input type="radio" name="change-mode-radio" value="writeback" id="change-mode-wb" style="margin-top:3px">
+                    <label style="display:grid;grid-template-columns:20px 1fr;gap:8px;cursor:pointer;font-weight:normal;align-items:start">
+                        <input type="radio" name="change-mode-radio" value="writeback" id="change-mode-wb" style="margin-top:4px;width:16px;height:16px">
                         <span><b>Быстрый (writeback) ⚠</b><br>
                         <span style="font-size:12px;color:var(--color-muted)">Только с ИБП. Возможна потеря данных при отключении питания.</span></span>
                     </label>

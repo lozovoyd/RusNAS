@@ -6,7 +6,7 @@
   "content-security-policy": "default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * https://api.anthropic.com https://ai.api.cloud.yandex.net",
   "menu": {
     "dashboard": {
-      "label": "Dashboard 🏠",
+      "label": "Dashboard",
       "order": 1
     },
     "index": {
@@ -22,11 +22,11 @@
       "order": 4
     },
     "guard": {
-      "label": "Guard 🛡️",
+      "label": "Guard",
       "order": 5
     },
     "snapshots": {
-      "label": "Снапшоты 📸",
+      "label": "Снапшоты",
       "order": 6
     },
     "dedup": {
@@ -34,27 +34,27 @@
       "order": 7
     },
     "ups": {
-      "label": "ИБП 🔋",
+      "label": "ИБП",
       "order": 8
     },
     "storage-analyzer": {
-      "label": "Анализ 💾",
+      "label": "Анализ",
       "order": 9
     },
     "network": {
-      "label": "Сеть 🌐",
+      "label": "Сеть",
       "order": 10
     },
     "ai": {
-      "label": "AI Ассистент 🤖",
+      "label": "AI Ассистент",
       "order": 11
     },
     "performance": {
-      "label": "Performance ⚡",
+      "label": "Performance",
       "order": 12
     },
     "license": {
-      "label": "Лицензия 🔑",
+      "label": "Лицензия",
       "order": 13
     },
     "containers": {
