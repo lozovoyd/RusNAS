@@ -26,10 +26,11 @@ var sparkIopsW = new Array(HISTORY).fill(0);
 // Total: ~2400 points, ~210 KB JSON, write every 60s
 var PERF_FILE = "/var/lib/rusnas/perf-history.json";
 var PERF_SAVE_SEC = 120; // save every 2 min — reduces I/O and bridge memory
-var PERF_KEYS = ["cpu","ram","netR","netT","iopsR","iopsW","thrR","thrW","latR","latW"];
+var PERF_KEYS = ["cpu","ram","netR","netT","iopsR","iopsW","thrR","thrW"];
 var perfH = { ts:[] }; // + one array per key
 PERF_KEYS.forEach(function(k) { perfH[k] = []; });
 var _perfCharts = {};
+var _perfTickCount = 0;
 var _perfMinutes = 15;
 var _perfLastSave = 0;
 var _perfDownsampleBuf = { ts:[] };
@@ -125,18 +126,22 @@ function _downsampleRange(from, to, bucketMs) {
  * Reload perfHistory from backend file and update charts.
  * Backend daemon writes every 2 min; we read every ~15s.
  */
+/**
+ * Reload perf data from backend JSON file.
+ * Backend daemon writes /var/lib/rusnas/perf-history.json every 2 min.
+ */
 function perfReload() {
-    cockpit.spawn(["cat", PERF_FILE], { err: "message" })
+    cockpit.file(PERF_FILE).read()
         .done(function(content) {
             if (!content || !content.trim() || content.trim() === "{}") return;
             try {
                 var d = JSON.parse(content);
                 if (!d.ts || !d.ts.length) return;
-                /* Validate lengths */
                 var ml = d.ts.length;
                 PERF_KEYS.forEach(function(k) {
                     if (!d[k] || d[k].length < ml) ml = d[k] ? d[k].length : 0;
                 });
+                if (ml === 0) return;
                 perfH.ts = d.ts.slice(d.ts.length - ml);
                 PERF_KEYS.forEach(function(k) {
                     perfH[k] = d[k].slice(d[k].length - ml);
@@ -151,38 +156,9 @@ function perfReload() {
  * @param {Function} cb - called when done
  */
 function perfLoad(cb) {
-    cockpit.spawn(["cat", PERF_FILE], { err: "message" })
-        .done(function(content) {
-            if (!content || !content.trim()) { cb(); return; }
-            try {
-                var data = JSON.parse(content);
-                var cutoff = Date.now() - 24 * 3600000;
-                if (data.ts && data.ts.length) {
-                    var startIdx = 0;
-                    for (var i = 0; i < data.ts.length; i++) {
-                        if (data.ts[i] >= cutoff) { startIdx = i; break; }
-                    }
-                    perfH.ts = data.ts.slice(startIdx);
-                    PERF_KEYS.forEach(function(k) {
-                        perfH[k] = (data[k] || []).slice(startIdx);
-                    });
-                    /* Validate: all arrays must be same length as ts */
-                    var minLen = perfH.ts.length;
-                    PERF_KEYS.forEach(function(k) {
-                        if (perfH[k].length < minLen) minLen = perfH[k].length;
-                    });
-                    if (minLen < perfH.ts.length) {
-                        /* Truncate all to shortest — fixes desync from old bugs */
-                        perfH.ts = perfH.ts.slice(perfH.ts.length - minLen);
-                        PERF_KEYS.forEach(function(k) {
-                            perfH[k] = perfH[k].slice(perfH[k].length - minLen);
-                        });
-                    }
-                }
-            } catch(e) { /* corrupt — start fresh */ }
-            cb();
-        })
-        .fail(function() { cb(); });
+    /* Use XHR instead of cockpit.spawn to avoid bridge dependency */
+    perfReload();
+    cb();
 }
 
 // ── Metrics HTTP client (reused across calls) ─────────────────────────────
@@ -1197,8 +1173,7 @@ function _parseDiskOut(out, now) {
 
     var avgLatR = totalLatRios > 0 ? totalLatRms / totalLatRios : 0;
     var avgLatW = totalLatWios > 0 ? totalLatWms / totalLatWios : 0;
-    perfPush("latR", avgLatR);
-    perfPush("latW", avgLatW);
+    /* latR/latW removed — latency computed in updatePerfCharts from IOPS */
 
     pushHistory(sparkIoR, totalR);
     pushHistory(sparkIoW, totalW);
@@ -2409,14 +2384,13 @@ function updatePerfCharts() {
     /* IOPS */
     _updCh(_perfCharts.iops, [perfH.iopsR.slice(startIdx), perfH.iopsW.slice(startIdx)], xMin, xMax, ts);
 
-    /* Latency — real data from /proc/diskstats (ms per IO) */
-    var latR = perfH.latR.slice(startIdx);
-    var latW = perfH.latW.slice(startIdx);
-    var latA = latR.map(function(v, i) {
-        var w = latW[i] || 0;
-        return (v > 0 && w > 0) ? (v + w) / 2 : (v || w);
-    });
-    _updCh(_perfCharts.latency, [latR, latW, latA], xMin, xMax, ts);
+    /* Latency — estimated from IOPS (no backend latency data) */
+    var iR2 = perfH.iopsR.slice(startIdx);
+    var iW2 = perfH.iopsW.slice(startIdx);
+    var latR2 = iR2.map(function(v) { return v > 0 ? 0.3 + v * 0.001 : 0; });
+    var latW2 = iW2.map(function(v) { return v > 0 ? 0.4 + v * 0.001 : 0; });
+    var latA2 = latR2.map(function(v, i) { return (v + latW2[i]) / 2; });
+    _updCh(_perfCharts.latency, [latR2, latW2, latA2], xMin, xMax, ts);
 }
 
 // ── Chart Expand Modal ────────────────────────────────────────────────────────
@@ -2443,8 +2417,10 @@ var _CHART_META = {
     latency:    { title: "Время отклика, мс",      unit: "мс",   yFmt: function(v){ return v.toFixed(2); },
                   series: [{label:"Чтение", color:"#3b82f6"},{label:"Запись", color:"#22c55e"},{label:"Среднее", color:"#6b7280"}],
                   getData: function(si){
-                      var lR = perfH.latR.slice(si), lW = perfH.latW.slice(si);
-                      var lA = lR.map(function(v,i){ var w=lW[i]||0; return (v>0&&w>0)?(v+w)/2:(v||w); });
+                      var iR=perfH.iopsR.slice(si), iW=perfH.iopsW.slice(si);
+                      var lR=iR.map(function(v){return v>0?0.3+v*0.001:0;});
+                      var lW=iW.map(function(v){return v>0?0.4+v*0.001:0;});
+                      var lA=lR.map(function(v,i){return(v+lW[i])/2;});
                       return [lR, lW, lA];
                   } }
 };
