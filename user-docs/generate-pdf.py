@@ -56,8 +56,22 @@ try:
 except ImportError:
     print("ERROR: weasyprint not installed"); sys.exit(1)
 
-def md_to_html(md_text):
-    return markdown.markdown(md_text, extensions=['tables', 'fenced_code', 'toc'])
+def md_to_html(md_text, page_path):
+    """Convert markdown to HTML, fixing image paths to absolute file:// URLs."""
+    html = markdown.markdown(md_text, extensions=['tables', 'fenced_code', 'toc'])
+    # Fix image paths: ../img/X.png or img/X.png -> absolute path
+    import re
+    img_dir = str(DOCS_DIR / 'img')
+    def fix_img(m):
+        src = m.group(1)
+        # Extract just the filename
+        fname = src.split('/')[-1]
+        abs_path = os.path.join(img_dir, fname)
+        if os.path.exists(abs_path):
+            return f'src="file://{abs_path}"'
+        return m.group(0)
+    html = re.sub(r'src="([^"]*?(?:img/)?[^"]+\.png)"', fix_img, html)
+    return html
 
 # Build combined HTML
 html_parts = []
@@ -83,7 +97,7 @@ for page in PAGES:
     anchor = f"section-{section_num}"
     toc_items.append((section_num, title, anchor))
 
-    content_html = md_to_html(md)
+    content_html = md_to_html(md, page)
     html_parts.append(f'<div class="page-section" id="{anchor}">')
     html_parts.append(content_html)
     html_parts.append('</div>')
@@ -170,6 +184,14 @@ th, td {{
 th {{
     background: #e8e8e8;
     font-weight: bold;
+}}
+img {{
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4pt;
+    margin: 8pt 0;
+    page-break-inside: avoid;
 }}
 blockquote {{
     border-left: 3px solid #f5a623;
