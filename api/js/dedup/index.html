@@ -1015,7 +1015,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guides/known-bugs/" class="md-nav__link">
+      <a href="../../../guides/known-bugs.md" class="md-nav__link">
         
   
   
@@ -3272,6 +3272,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#perfpushkey-val" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfPush(key, val)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfdownsample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfDownsample()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfreload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfReload()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfloadcb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfLoad(cb)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#elid-htmlelement-null" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4115,6 +4159,39 @@
     <span class="md-ellipsis">
       
         loadContainersWidget() ⇒ void
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createperfchartcanvasid-datasets-ylabel-yfmt-object-null" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        createPerfChart(canvasId, datasets, yLabel, [yFmt]) ⇒ Object | null
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initperfcharts-void" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        initPerfCharts() ⇒ void
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_updch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _updCh()
       
     </span>
   </a>
@@ -10597,6 +10674,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#perfpushkey-val" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfPush(key, val)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfdownsample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfDownsample()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfreload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfReload()
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perfloadcb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        perfLoad(cb)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#elid-htmlelement-null" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -11440,6 +11561,39 @@
     <span class="md-ellipsis">
       
         loadContainersWidget() ⇒ void
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createperfchartcanvasid-datasets-ylabel-yfmt-object-null" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        createPerfChart(canvasId, datasets, yLabel, [yFmt]) ⇒ Object | null
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initperfcharts-void" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        initPerfCharts() ⇒ void
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_updch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _updCh()
       
     </span>
   </a>
@@ -16241,6 +16395,21 @@
 <dt><a href="#readComposeFile">readComposeFile(file)</a> ⇒ <code>void</code></dt>
 <dd><p>Read a docker-compose file and display in a modal.</p>
 </dd>
+<dt><a href="#perfPush">perfPush(key, val)</a></dt>
+<dd><p>Push a value into raw perfH ring buffer.</p>
+</dd>
+<dt><a href="#perfDownsample">perfDownsample()</a></dt>
+<dd><p>Downsample old data to keep file size small.
+Called every 60s. Merges raw points older than 15 min into 10s averages,
+and points older than 2h into 60s averages.</p>
+</dd>
+<dt><a href="#perfReload">perfReload()</a></dt>
+<dd><p>Reload perfHistory from backend file and update charts.
+Backend daemon writes every 2 min; we read every ~15s.</p>
+</dd>
+<dt><a href="#perfLoad">perfLoad(cb)</a></dt>
+<dd><p>Load perfHistory from disk on startup.</p>
+</dd>
 <dt><a href="#el">el(id)</a> ⇒ <code>HTMLElement</code> | <code>null</code></dt>
 <dd><p>Get DOM element by ID (shorthand for getElementById).</p>
 </dd>
@@ -16441,6 +16610,15 @@
 </dd>
 <dt><a href="#loadContainersWidget">loadContainersWidget()</a> ⇒ <code>void</code></dt>
 <dd><p>Load container apps status for the dashboard widget.</p>
+</dd>
+<dt><a href="#createPerfChart">createPerfChart(canvasId, datasets, yLabel, [yFmt])</a> ⇒ <code>Object</code> | <code>null</code></dt>
+<dd><p>Create a Chart.js line chart for a performance metric.</p>
+</dd>
+<dt><a href="#initPerfCharts">initPerfCharts()</a> ⇒ <code>void</code></dt>
+<dd><p>Initialize all 4 performance charts.</p>
+</dd>
+<dt><a href="#_updCh">_updCh()</a></dt>
+<dd><p>Set X-axis time window and data on a chart, then update (no animation).</p>
 </dd>
 <dt><a href="#shouldShowNightReport">shouldShowNightReport()</a> ⇒ <code>boolean</code></dt>
 <dd><p>Check if Night Report should be displayed based on time of day.</p>
@@ -19505,6 +19683,59 @@
 </tr>
 </tbody>
 </table>
+<p><a name="perfPush"></a></p>
+<h2 id="perfpushkey-val">perfPush(key, val)<a class="headerlink" href="#perfpushkey-val" title="Permanent link">&para;</a></h2>
+<p>Push a value into raw perfH ring buffer.</p>
+<p><strong>Kind</strong>: global function  </p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>val</td>
+<td><code>number</code></td>
+</tr>
+</tbody>
+</table>
+<p><a name="perfDownsample"></a></p>
+<h2 id="perfdownsample">perfDownsample()<a class="headerlink" href="#perfdownsample" title="Permanent link">&para;</a></h2>
+<p>Downsample old data to keep file size small.
+Called every 60s. Merges raw points older than 15 min into 10s averages,
+and points older than 2h into 60s averages.</p>
+<p><strong>Kind</strong>: global function<br />
+<a name="perfReload"></a></p>
+<h2 id="perfreload">perfReload()<a class="headerlink" href="#perfreload" title="Permanent link">&para;</a></h2>
+<p>Reload perfHistory from backend file and update charts.
+Backend daemon writes every 2 min; we read every ~15s.</p>
+<p><strong>Kind</strong>: global function<br />
+<a name="perfLoad"></a></p>
+<h2 id="perfloadcb">perfLoad(cb)<a class="headerlink" href="#perfloadcb" title="Permanent link">&para;</a></h2>
+<p>Load perfHistory from disk on startup.</p>
+<p><strong>Kind</strong>: global function  </p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cb</td>
+<td><code>function</code></td>
+<td>called when done</td>
+</tr>
+</tbody>
+</table>
 <p><a name="el"></a></p>
 <h2 id="elid-htmlelement-null">el(id) ⇒ <code>HTMLElement</code> | <code>null</code><a class="headerlink" href="#elid-htmlelement-null" title="Permanent link">&para;</a></h2>
 <p>Get DOM element by ID (shorthand for getElementById).</p>
@@ -20565,6 +20796,50 @@
 <p><a name="loadContainersWidget"></a></p>
 <h2 id="loadcontainerswidget-void">loadContainersWidget() ⇒ <code>void</code><a class="headerlink" href="#loadcontainerswidget-void" title="Permanent link">&para;</a></h2>
 <p>Load container apps status for the dashboard widget.</p>
+<p><strong>Kind</strong>: global function<br />
+<a name="createPerfChart"></a></p>
+<h2 id="createperfchartcanvasid-datasets-ylabel-yfmt-object-null">createPerfChart(canvasId, datasets, yLabel, [yFmt]) ⇒ <code>Object</code> | <code>null</code><a class="headerlink" href="#createperfchartcanvasid-datasets-ylabel-yfmt-object-null" title="Permanent link">&para;</a></h2>
+<p>Create a Chart.js line chart for a performance metric.</p>
+<p><strong>Kind</strong>: global function<br />
+<strong>Returns</strong>: <code>Object</code> | <code>null</code> - Chart.js instance  </p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>canvasId</td>
+<td><code>string</code></td>
+<td>Canvas element ID</td>
+</tr>
+<tr>
+<td>datasets</td>
+<td><code>Array.&lt;Object&gt;</code></td>
+<td>Array of {label, color} objects</td>
+</tr>
+<tr>
+<td>yLabel</td>
+<td><code>string</code></td>
+<td>Y-axis label/unit</td>
+</tr>
+<tr>
+<td>[yFmt]</td>
+<td><code>function</code></td>
+<td>Optional y-axis value formatter</td>
+</tr>
+</tbody>
+</table>
+<p><a name="initPerfCharts"></a></p>
+<h2 id="initperfcharts-void">initPerfCharts() ⇒ <code>void</code><a class="headerlink" href="#initperfcharts-void" title="Permanent link">&para;</a></h2>
+<p>Initialize all 4 performance charts.</p>
+<p><strong>Kind</strong>: global function<br />
+<a name="_updCh"></a></p>
+<h2 id="_updch">_updCh()<a class="headerlink" href="#_updch" title="Permanent link">&para;</a></h2>
+<p>Set X-axis time window and data on a chart, then update (no animation).</p>
 <p><strong>Kind</strong>: global function<br />
 <a name="shouldShowNightReport"></a></p>
 <h2 id="shouldshownightreport-boolean">shouldShowNightReport() ⇒ <code>boolean</code><a class="headerlink" href="#shouldshownightreport-boolean" title="Permanent link">&para;</a></h2>
