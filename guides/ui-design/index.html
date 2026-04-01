@@ -1627,6 +1627,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sidebar-navigation-2026-03-31-redesign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sidebar Navigation (2026-03-31 redesign)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sidebar Navigation (2026-03-31 redesign)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monochrome-icons-heroicons-outline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monochrome Icons (Heroicons Outline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#collapsible-nav-groups-tatlinyadro-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collapsible Nav Groups (Tatlin/YADRO style)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alert-badges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alert Badges на заголовках групп
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#css-override-justify-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSS Override: justify-content
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3125,6 +3186,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#sidebar-navigation-2026-03-31-redesign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sidebar Navigation (2026-03-31 redesign)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sidebar Navigation (2026-03-31 redesign)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monochrome-icons-heroicons-outline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monochrome Icons (Heroicons Outline)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#collapsible-nav-groups-tatlinyadro-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collapsible Nav Groups (Tatlin/YADRO style)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#alert-badges" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alert Badges на заголовках групп
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#css-override-justify-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSS Override: justify-content
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3912,6 +4034,35 @@
 </code></pre></div>
 <h4 id="3-scope-shell-overrides-bodynotlogin-pf">3. Scope shell overrides с <code>body:not(.login-pf)</code><a class="headerlink" href="#3-scope-shell-overrides-bodynotlogin-pf" title="Permanent link">&para;</a></h4>
 <p><code>branding.css</code> загружается и на логин-странице, и в Cockpit shell. Все shell-overrides <strong>обязаны</strong> иметь префикс <code>body:not(.login-pf)</code> чтобы не ломать стили логин-страницы.</p>
+<h2 id="sidebar-navigation-2026-03-31-redesign">Sidebar Navigation (2026-03-31 redesign)<a class="headerlink" href="#sidebar-navigation-2026-03-31-redesign" title="Permanent link">&para;</a></h2>
+<h3 id="monochrome-icons-heroicons-outline">Monochrome Icons (Heroicons Outline)<a class="headerlink" href="#monochrome-icons-heroicons-outline" title="Permanent link">&para;</a></h3>
+<ul>
+<li>22 SVG icons via CSS <code>mask-image</code> в <code>branding.css</code></li>
+<li><code>background-color: currentColor</code> — адаптация к тёмной/светлой теме</li>
+<li>Селекторы: <code>a[href*="/rusnas/PAGE"]::before</code> для rusNAS, <code>a[href="/system"]::before</code> для системных</li>
+<li>Размер: 16×16px, <code>margin-right: 8px</code>, <code>opacity: 0.55</code> (hover/active: 0.9)</li>
+</ul>
+<h3 id="collapsible-nav-groups-tatlinyadro-style">Collapsible Nav Groups (Tatlin/YADRO style)<a class="headerlink" href="#collapsible-nav-groups-tatlinyadro-style" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Реализовано в <code>eye.js</code> (plugin iframe → parent shell DOM через <code>window.parent.document</code>)</li>
+<li>4 группы: Хранилище, Защита данных, Инфраструктура, Мониторинг</li>
+<li>Inline styles (не CSS классы) — обход ограничения cross-frame stylesheet injection</li>
+<li>Шеврон SVG поворачивается при collapse/expand</li>
+<li>State: <code>localStorage</code> ключ <code>rusnas_nav_collapsed</code></li>
+<li>Группа с активной страницей auto-expand</li>
+</ul>
+<h3 id="alert-badges">Alert Badges на заголовках групп<a class="headerlink" href="#alert-badges" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Polling каждые 30 сек из <code>eye.js</code></li>
+<li>Проверки: RAID degraded (<code>/proc/mdstat</code>), Guard events (<code>events.jsonl</code>), UPS battery (<code>upsc</code>)</li>
+<li>Orange = warning, Red = danger; badge исчезает при отсутствии проблем</li>
+</ul>
+<h3 id="css-override-justify-content">CSS Override: justify-content<a class="headerlink" href="#css-override-justify-content" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Shell <code>shell.css</code>: <code>.nav-system-menu .pf-v6-c-nav__link { justify-content: space-between }</code></li>
+<li>Override в <code>branding.css</code>: <code>justify-content: flex-start !important;</code></li>
+<li>Требуется <code>systemctl restart cockpit</code> для применения branding.css cache</li>
+</ul>
 
 
 
