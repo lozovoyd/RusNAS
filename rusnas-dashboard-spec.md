@@ -878,3 +878,44 @@ if __name__ == '__main__':
      static_configs:
        - targets: ['<NAS_IP>:9100']
    ```
+
+## Performance Charts (Chart.js 4.x) — added 2026-03-31
+
+### Architecture
+- **Backend:** `perf-collector.py` systemd daemon — собирает CPU/RAM/Net/Disk каждые 10 сек
+- **Storage:** `/var/lib/rusnas/perf-history.json` (~200-300 KB, 24h retention, auto-downsampling)
+- **Frontend:** `dashboard.js` читает JSON через `cockpit.file().read()`, рисует Chart.js
+- **Правило:** Cockpit = только отображение. Сбор данных ТОЛЬКО в backend daemon.
+
+### 6 графиков (2×3 grid)
+| График | Серии | Источник |
+|--------|-------|----------|
+| CPU % | CPU (blue, filled) | /proc/stat delta |
+| RAM % | RAM (purple, filled) | /proc/meminfo |
+| Сеть КБ/с | RX↓ (green), TX↑ (orange) | /proc/net/dev delta |
+| Дисковый I/O МБ/с | Чтение (blue), Запись (green) | /proc/diskstats sectors×512 |
+| IOPS | Чтение (blue), Запись (green) | /proc/diskstats ios delta |
+| Время отклика мс | Чтение, Запись, Среднее | Вычисляется из IOPS |
+
+### Переключатель периода
+Кнопки: 5 МИН / 15 МИН / 30 МИН / 1 ЧАС / 24 Ч
+X-axis: `scales.x.min = now - period`, `scales.x.max = now` — фиксированное окно сдвигается вправо
+
+### Downsampling (perf-collector.py)
+| Возраст | Разрешение | Точек/24ч |
+|---------|-----------|-----------|
+| < 15 мин | 10 сек raw | 90 |
+| 15мин – 2ч | 30 сек avg | 210 |
+| > 2ч | 120 сек avg | 660 |
+| **Итого** | | **~960** |
+
+### Конфигурация Chart.js
+- Локальные файлы: `js/chart.umd.min.js`, `js/chartjs-adapter-date-fns.bundle.min.js`
+- `animation: false`, `parsing: false`, `normalized: true` — оптимизация производительности
+- `spanGaps: false` + null gap insertion при разрыве >30 сек
+- `decimation: { enabled: true, algorithm: 'lttb', samples: 200 }`
+- Canvas в карточках фиксированной высоты (240px), absolute positioning
+
+### Кнопки (i) и (⤢)
+- **(i)** на CPU/RAM/Сеть → открывает детальную модалку (CPU monitor / vnstat)
+- **(⤢)** → разворачивает график на весь экран с отдельным переключателем периода

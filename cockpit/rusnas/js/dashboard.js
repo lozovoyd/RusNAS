@@ -2172,6 +2172,9 @@ function loadContainersWidget() {
 function createPerfChart(canvasId, datasets, yLabel, yFmt) {
     var canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return null;
+    /* Destroy any pre-existing Chart on this canvas (guards against double-init) */
+    var _existing = Chart.getChart(canvas);
+    if (_existing) _existing.destroy();
 
     var isDark = document.documentElement.classList.contains("pf-v6-theme-dark") ||
                  document.documentElement.getAttribute("data-rusnas-theme") === "dark";
@@ -2281,6 +2284,7 @@ function createPerfChart(canvasId, datasets, yLabel, yFmt) {
  */
 function initPerfCharts() {
     if (typeof Chart === "undefined") return;
+    if (_perfCharts.cpu) return; /* already initialised — avoid double-init → "Canvas already in use" */
 
     _perfCharts.cpu = createPerfChart("chart-cpu", [
         { label: "CPU", color: "#3b82f6", fill: true }

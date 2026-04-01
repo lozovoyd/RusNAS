@@ -811,3 +811,29 @@ CSS переменные наследуются потомками — `Backgrou
 #### 3. Scope shell overrides с `body:not(.login-pf)`
 
 `branding.css` загружается и на логин-странице, и в Cockpit shell. Все shell-overrides **обязаны** иметь префикс `body:not(.login-pf)` чтобы не ломать стили логин-страницы.
+
+## Sidebar Navigation (2026-03-31 redesign)
+
+### Monochrome Icons (Heroicons Outline)
+- 22 SVG icons via CSS `mask-image` в `branding.css`
+- `background-color: currentColor` — адаптация к тёмной/светлой теме
+- Селекторы: `a[href*="/rusnas/PAGE"]::before` для rusNAS, `a[href="/system"]::before` для системных
+- Размер: 16×16px, `margin-right: 8px`, `opacity: 0.55` (hover/active: 0.9)
+
+### Collapsible Nav Groups (Tatlin/YADRO style)
+- Реализовано в `eye.js` (plugin iframe → parent shell DOM через `window.parent.document`)
+- 4 группы: Хранилище, Защита данных, Инфраструктура, Мониторинг
+- Inline styles (не CSS классы) — обход ограничения cross-frame stylesheet injection
+- Шеврон SVG поворачивается при collapse/expand
+- State: `localStorage` ключ `rusnas_nav_collapsed`
+- Группа с активной страницей auto-expand
+
+### Alert Badges на заголовках групп
+- Polling каждые 30 сек из `eye.js`
+- Проверки: RAID degraded (`/proc/mdstat`), Guard events (`events.jsonl`), UPS battery (`upsc`)
+- Orange = warning, Red = danger; badge исчезает при отсутствии проблем
+
+### CSS Override: justify-content
+- Shell `shell.css`: `.nav-system-menu .pf-v6-c-nav__link { justify-content: space-between }`
+- Override в `branding.css`: `justify-content: flex-start !important;`
+- Требуется `systemctl restart cockpit` для применения branding.css cache

@@ -472,3 +472,44 @@
 **Root cause:** `cmd_get_catalog()` не читал манифесты из папок приложений.
 **Fix:** `cmd_get_catalog()` теперь мерджит `{**manifest, **index_entry}` для каждого приложения.
 **Файлы:** `cockpit/rusnas/cgi/container_api.py:cmd_get_catalog()`
+
+### BUG-33 — Dashboard charts empty: PERF_KEYS array mismatch
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-04-01)
+**Описание:** Все 6 графиков Chart.js на Dashboard пустые — данные из backend не отображаются.
+**Root cause:** `PERF_KEYS` в dashboard.js содержал 10 элементов (включая `latR`, `latW`), но backend daemon `perf-collector.py` записывает только 8 ключей. При валидации `ml = d[k].length` для отсутствующего ключа → `d[k]` undefined → `ml = 0` → `return` (skip загрузки).
+**Fix:** Убрать `latR`, `latW` из `PERF_KEYS`. Latency вычисляется на клиенте из IOPS.
+**Урок:** При добавлении backend daemon — проверять что ключи JSON совпадают между backend и frontend.
+**Файлы:** `cockpit/rusnas/js/dashboard.js`
+
+### BUG-34 — Dashboard crash: _perfTickCount not declared in strict mode
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-04-01)
+**Описание:** Dashboard не отображает никаких данных (CPU/RAM/Сеть/Диски) — всё пустое.
+**Root cause:** Переменная `_perfTickCount` использовалась без `var`: `_perfTickCount = (_perfTickCount || 0) + 1`. В `"use strict"` это `ReferenceError`, crash всего `loadFastMetrics` callback. Все parse-функции (_parseCpuOut, _parseRamOut, _parseNetOut, _parseDiskOut) выполнялись, но DOM-update после них не происходил из-за crash.
+**Fix:** Добавить `var _perfTickCount = 0;` в секцию глобальных переменных.
+**Урок:** В strict mode ВСЕГДА объявлять переменные с `var`. Паттерн `x = (x || 0) + 1` без var — тихая бомба.
+**Файлы:** `cockpit/rusnas/js/dashboard.js`
+
+### BUG-35 — Chart.js CDN не загружается в Cockpit iframe
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-04-01)
+**Описание:** `typeof Chart === 'undefined'` в dashboard iframe, графики не создаются.
+**Root cause:** CDN скрипты (`cdn.jsdelivr.net`) блокируются CSP Cockpit Shell или не загружаются через iframe.
+**Fix:** Скачать `chart.umd.min.js` и `chartjs-adapter-date-fns.bundle.min.js` локально в `js/`, использовать `<script src="js/chart.umd.min.js">`.
+**Урок:** В Cockpit plugin НЕ использовать CDN — скачивать библиотеки локально.
+**Файлы:** `cockpit/rusnas/dashboard.html`, `cockpit/rusnas/js/chart.umd.min.js`
+
+### BUG-36 — "УПС!" в Cockpit: Chart.js "Canvas already in use"
+**Страница:** /rusnas/dashboard
+**Статус:** ✅ Исправлено (2026-04-01)
+**Симптом:** Кнопка "Упс!" появляется в шапке Cockpit. Модальное окно: "У Cockpit произошла неожиданная внутренняя ошибка". Cockpit перехватывает uncaught JS exceptions через глобальный `onerror` и показывает "Упс!".
+**Root cause:** `initPerfCharts()` вызывалась ДВАЖДЫ при загрузке страницы:
+1. `perfLoad()` → `perfReload()` → `updatePerfCharts()` → lazy-init → `initPerfCharts()` (первый вызов)
+2. `setTimeout(initPerfCharts, 500)` в DOMContentLoaded (второй вызов, через 500мс)
+Chart.js бросает исключение: "Canvas is already in use. Chart with ID '0' must be destroyed before the canvas with ID 'chart-cpu' can be reused."
+**Fix:**
+1. В `initPerfCharts()` добавить guard `if (_perfCharts.cpu) return;` — исключает повторную инициализацию.
+2. В `createPerfChart()` добавить `var _existing = Chart.getChart(canvas); if (_existing) _existing.destroy();` — defensive destroy перед созданием нового Chart.
+**Урок:** Chart.js бросает исключение при попытке создать Chart на уже используемом canvas. Cockpit's shell перехватывает ВСЕ uncaught JS exceptions через `window.onerror` и показывает "Упс!" — даже те, что в plugin iframe. Всегда добавлять guard "уже инициализирован" для функций инициализации Chart.js.
+**Файлы:** `cockpit/rusnas/js/dashboard.js:initPerfCharts(), createPerfChart()`
