@@ -18,9 +18,12 @@ echo "╚═══════════════════════�
 echo ""
 
 # ── Prerequisites ────────────────────────────────────────────────────────────
-for cmd in terser dpkg-deb python3 sed; do
+for cmd in terser python3 sed; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Install it first."; exit 1; }
 done
+# dpkg-deb is optional — we can build with ar+tar as fallback
+HAS_DPKG=0
+command -v dpkg-deb >/dev/null 2>&1 && HAS_DPKG=1
 
 # ── Clean previous build ────────────────────────────────────────────────────
 echo "Cleaning previous build..."
@@ -30,23 +33,38 @@ rm -rf "${PKG}/usr" "${PKG}/etc" "${PKG}/lib" "${PKG}/var"
 DEST="${PKG}/usr/share/cockpit/rusnas"
 mkdir -p "${DEST}/js" "${DEST}/css" "${DEST}/scripts" "${DEST}/cgi" "${DEST}/catalog"
 
-# JS: minify all *.js → *.min.js
+# JS: minify our *.js → *.min.js, copy vendor *.min.js as-is
 echo "Minifying JavaScript..."
 JS_COUNT=0
+VENDOR_COUNT=0
 for f in "${SRC}"/js/*.js; do
-    base=$(basename "$f" .js)
-    terser "$f" --compress --mangle \
-        --output "${DEST}/js/${base}.min.js" 2>/dev/null \
-        || { echo "  ERROR: terser failed on $(basename "$f")"; exit 1; }
-    JS_COUNT=$((JS_COUNT + 1))
+    fname=$(basename "$f")
+    if [[ "$fname" == *.min.js ]]; then
+        # Already minified (vendor file) — copy as-is
+        cp "$f" "${DEST}/js/"
+        VENDOR_COUNT=$((VENDOR_COUNT + 1))
+    else
+        base=$(basename "$f" .js)
+        terser "$f" --compress --mangle \
+            --output "${DEST}/js/${base}.min.js" 2>/dev/null \
+            || { echo "  ERROR: terser failed on ${fname}"; exit 1; }
+        JS_COUNT=$((JS_COUNT + 1))
+    fi
 done
-echo "  ✓ ${JS_COUNT} JS files minified"
+echo "  ✓ ${JS_COUNT} JS files minified, ${VENDOR_COUNT} vendor files copied"
 
-# HTML: copy + rewrite .js refs → .min.js
+# HTML: copy + rewrite our .js refs → .min.js (skip already-minified and external)
 echo "Processing HTML..."
 HTML_COUNT=0
 for f in "${SRC}"/*.html; do
-    sed 's/\.js"/\.min.js"/g; s/\.js'"'"'/\.min.js'"'"'/g' "$f" > "${DEST}/$(basename "$f")"
+    # Only rewrite js/XXX.js → js/XXX.min.js (our plugin scripts)
+    # Don't touch: cockpit.js (external), *.min.js (already minified), CDN URLs
+    # Two-pass: first protect .min.js with placeholder, then rewrite, then restore
+    sed -E \
+        -e 's|\.min\.js"|.MINJS_PLACEHOLDER"|g' \
+        -e 's|src="js/([^"]+)\.js"|src="js/\1.min.js"|g' \
+        -e 's|\.MINJS_PLACEHOLDER"|.min.js"|g' \
+        "$f" > "${DEST}/$(basename "$f")"
     HTML_COUNT=$((HTML_COUNT + 1))
 done
 echo "  ✓ ${HTML_COUNT} HTML files processed"
@@ -55,8 +73,8 @@ echo "  ✓ ${HTML_COUNT} HTML files processed"
 cp "${SRC}"/css/*.css "${DEST}/css/"
 echo "  ✓ $(ls "${DEST}/css/"*.css | wc -l | tr -d ' ') CSS files copied"
 
-# manifest.json: copy + rewrite .js refs → .min.js
-sed 's/\.js"/\.min.js"/g' "${SRC}/manifest.json" > "${DEST}/manifest.json"
+# manifest.json: copy as-is (no JS refs in manifest that need rewriting)
+cp "${SRC}/manifest.json" "${DEST}/manifest.json"
 echo "  ✓ manifest.json"
 
 # Python scripts: copy as-is
@@ -320,7 +338,30 @@ rm -f "${PKG}/DEBIAN/control.bak"
 echo ""
 echo "Building ${DEB}..."
 rm -f "${DEB}"
-dpkg-deb --root-owner-group --build "${PKG}" "${DEB}"
+
+if [ "$HAS_DPKG" -eq 1 ]; then
+    dpkg-deb --root-owner-group --build "${PKG}" "${DEB}"
+else
+    echo "  (dpkg-deb not found — building with ar+tar fallback)"
+    # Build .deb manually: ar archive with debian-binary + control.tar.gz + data.tar.gz
+    TMPBUILD=$(mktemp -d)
+
+    # debian-binary
+    echo "2.0" > "${TMPBUILD}/debian-binary"
+
+    # control.tar.gz — DEBIAN/ contents
+    (cd "${PKG}/DEBIAN" && tar czf "${TMPBUILD}/control.tar.gz" --no-xattrs *)
+
+    # data.tar.gz — everything except DEBIAN/
+    (cd "${PKG}" && tar czf "${TMPBUILD}/data.tar.gz" --no-xattrs \
+        --exclude='./DEBIAN' --exclude='DEBIAN' \
+        $(ls -d */ 2>/dev/null | grep -v DEBIAN))
+
+    # Assemble ar archive (use 'rc' without 's' — no symbol table for .deb)
+    (cd "${TMPBUILD}" && ar rc "$(pwd)/${DEB}" debian-binary control.tar.gz data.tar.gz)
+    mv "${TMPBUILD}/${DEB}" "${DEB}"
+    rm -rf "${TMPBUILD}"
+fi
 
 SIZE=$(du -sh "${DEB}" | cut -f1)
 echo ""
