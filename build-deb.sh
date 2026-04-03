@@ -90,6 +90,13 @@ echo "  ✓ cgi/ copied"
 cp -r "${SRC}"/catalog/* "${DEST}/catalog/" 2>/dev/null || true
 echo "  ✓ catalog/ copied ($(ls -d "${DEST}"/catalog/*/rusnas-app.json 2>/dev/null | wc -l | tr -d ' ') apps)"
 
+# Assets (favicon, logo)
+if [ -d "${SRC}/assets" ]; then
+    mkdir -p "${DEST}/assets"
+    cp "${SRC}"/assets/* "${DEST}/assets/" 2>/dev/null || true
+    echo "  ✓ assets/ copied (favicon, logo)"
+fi
+
 # ── Branding ────────────────────────────────────────────────────────────────
 if [ -d cockpit-branding ]; then
     BRAND="${PKG}/usr/share/cockpit/branding/debian"
@@ -323,11 +330,24 @@ SUDOEOF
 chmod 440 "${PKG}/etc/sudoers.d/rusnas"
 echo "  ✓ Consolidated sudoers"
 
-# ── Landing page ────────────────────────────────────────────────────────────
+# ── Landing page + fonts + favicon ──────────────────────────────────────────
 if [ -f landing/index.html ]; then
-    mkdir -p "${PKG}/var/www/rusnas-landing"
-    cp landing/index.html "${PKG}/var/www/rusnas-landing/"
-    echo "  ✓ Landing page"
+    LAND="${PKG}/var/www/rusnas-landing"
+    mkdir -p "${LAND}/fonts"
+    cp landing/index.html "${LAND}/"
+    cp landing/favicon.svg "${LAND}/" 2>/dev/null || true
+    cp landing/fonts/*.ttf "${LAND}/fonts/" 2>/dev/null || true
+    echo "  ✓ Landing page + fonts ($(ls "${LAND}/fonts/"*.ttf 2>/dev/null | wc -l | tr -d ' ') font files)"
+fi
+
+# ── User documentation (MkDocs built site) ─────────────────────────────────
+if [ -d user-docs/site ]; then
+    HELP="${PKG}/usr/share/rusnas-help"
+    mkdir -p "$HELP"
+    cp -r user-docs/site/* "$HELP/"
+    echo "  ✓ User docs ($(du -sh "$HELP" | cut -f1))"
+else
+    echo "  ⚠ user-docs/site/ not found — run 'cd user-docs && mkdocs build' first"
 fi
 
 # ── Update version in DEBIAN/control ────────────────────────────────────────

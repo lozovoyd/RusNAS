@@ -40,7 +40,7 @@ BANNER
 echo -e "${NC}"
 
 # ── 1. PREFLIGHT ─────────────────────────────────────────────────────────────
-echo -e "${BOLD}[1/7] Preflight checks${NC}"
+echo -e "${BOLD}[1/8] Preflight checks${NC}"
 
 # Root
 [ "$(id -u)" -eq 0 ] || fail "Must run as root (use: sudo bash demo-install.sh)"
@@ -60,9 +60,76 @@ DEB=$(ls -1 rusnas-system_*.deb 2>/dev/null | head -1)
 [ -n "$DEB" ] || fail "No rusnas-system_*.deb found in current directory. Place the .deb file next to this script."
 ok "Package found: ${DEB}"
 
+# ── Network detection ────────────────────────────────────────────────────────
+echo ""
+info "Network configuration:"
+IP=$(ip -4 route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") print $(i+1); exit}')
+[ -z "$IP" ] && IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$IP" ] && IP="unknown"
+
+IFACE=$(ip -4 route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="dev") print $(i+1); exit}')
+[ -z "$IFACE" ] && IFACE="unknown"
+
+GW=$(ip -4 route get 1 2>/dev/null | awk '{print $3; exit}')
+[ -z "$GW" ] && GW="unknown"
+
+if [ -f /etc/network/interfaces ]; then
+    if grep -q "iface.*dhcp" /etc/network/interfaces 2>/dev/null; then
+        NET_MODE="DHCP"
+    else
+        NET_MODE="Static"
+    fi
+else
+    NET_MODE="NetworkManager"
+fi
+
+echo -e "    Interface: ${BOLD}${IFACE}${NC}"
+echo -e "    IP:        ${BOLD}${IP}${NC} (${NET_MODE})"
+echo -e "    Gateway:   ${BOLD}${GW}${NC}"
+
+# ── Port checks ──────────────────────────────────────────────────────────────
+echo ""
+info "Port availability:"
+PORT_WARN=0
+check_port() {
+    local port=$1 name=$2
+    local proc=$(ss -tlnp 2>/dev/null | grep ":${port} " | awk '{print $NF}' | sed 's/.*"\(.*\)".*/\1/' | head -1)
+    if [ -n "$proc" ]; then
+        warn "Port ${port} (${name}) occupied by: ${proc}"
+        PORT_WARN=1
+    else
+        ok "Port ${port} (${name}) is free"
+    fi
+}
+check_port 80   "HTTP / Landing page"
+check_port 9090 "Cockpit Web UI"
+check_port 8091 "Apache WebDAV"
+
+# ── Existing installation check ──────────────────────────────────────────────
+if dpkg -l cockpit 2>/dev/null | grep -q '^ii'; then
+    warn "Cockpit is already installed — will be reconfigured"
+fi
+if dpkg -l rusnas-system 2>/dev/null | grep -q '^ii'; then
+    warn "rusnas-system is already installed — will be upgraded"
+fi
+
+# ── Confirmation ─────────────────────────────────────────────────────────────
+echo ""
+if [ "$PORT_WARN" -eq 1 ]; then
+    warn "Some ports are occupied. Services on those ports will be reconfigured."
+fi
+echo -e "${BOLD}  rusNAS will be installed to this system.${NC}"
+echo ""
+read -p "  Continue with installation? [Y/n] " REPLY
+REPLY=${REPLY:-Y}
+case "$REPLY" in
+    [yYдД]*) ok "Starting installation..." ;;
+    *) echo "  Installation cancelled."; exit 0 ;;
+esac
+
 # ── 2. SYSTEM DEPENDENCIES ──────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[2/7] Installing system dependencies${NC}"
+echo -e "${BOLD}[2/8] Installing system dependencies${NC}"
 info "This may take several minutes on a fresh system..."
 
 export DEBIAN_FRONTEND=noninteractive
@@ -101,7 +168,7 @@ apt-get install -y -qq \
 
 # ── 3. INSTALL .DEB PACKAGE ─────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[3/7] Installing rusNAS package${NC}"
+echo -e "${BOLD}[3/8] Installing rusNAS package${NC}"
 
 dpkg -i "${DEB}" 2>/dev/null || true
 apt-get install -f -y -qq 2>/dev/null  # fix any missing deps
@@ -109,7 +176,7 @@ ok "rusnas-system package installed"
 
 # ── 4. USER & PERMISSIONS ───────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[4/7] Configuring user & permissions${NC}"
+echo -e "${BOLD}[4/8] Configuring user & permissions${NC}"
 
 RUSNAS_PASS="rusnas"
 if ! id rusnas &>/dev/null; then
@@ -126,7 +193,7 @@ chmod o+x /var/lib/rusnas 2>/dev/null || true
 
 # ── 5. DEMO LICENSE ──────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[5/7] Setting up demo license${NC}"
+echo -e "${BOLD}[5/8] Setting up demo license${NC}"
 
 mkdir -p /etc/rusnas
 echo "RUSNAS-DEMO-INTE-RNAL-ONLY" > /etc/rusnas/serial
@@ -159,7 +226,7 @@ ok "Demo license: Enterprise (all features, no expiry)"
 
 # ── 6. SERVICES CONFIGURATION ───────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[6/7] Configuring services${NC}"
+echo -e "${BOLD}[6/8] Configuring services${NC}"
 
 # Cockpit
 mkdir -p /etc/cockpit
@@ -206,6 +273,12 @@ server {
         proxy_buffering off;
     }
 
+    # User documentation
+    location /help/ {
+        alias /usr/share/rusnas-help/;
+        index index.html;
+    }
+
     # Container apps includes
     include /etc/nginx/conf.d/rusnas-apps/*.conf;
 
@@ -219,9 +292,19 @@ NGEOF
 ln -sf /etc/nginx/sites-available/rusnas.conf /etc/nginx/sites-enabled/rusnas.conf
 nginx -t 2>/dev/null && ok "nginx configured" || warn "nginx config test failed"
 
-# ── 7. START SERVICES ────────────────────────────────────────────────────────
+# ── 7. DOCUMENTATION ─────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}[7/7] Starting services${NC}"
+echo -e "${BOLD}[7/8] Documentation${NC}"
+
+if [ -d /usr/share/rusnas-help ] && [ -f /usr/share/rusnas-help/index.html ]; then
+    ok "User documentation available at http://${IP}/help/"
+else
+    warn "User documentation not included in this build"
+fi
+
+# ── 8. START SERVICES ────────────────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}[8/8] Starting services${NC}"
 
 systemctl daemon-reload
 
@@ -253,6 +336,7 @@ cat << DONE
     ║                                                              ║
     ║   Web UI (Cockpit):  https://${IP}:9090                ║
     ║   Landing page:      http://${IP}                           ║
+    ║   Documentation:     http://${IP}/help/                     ║
     ║                                                              ║
     ║   Логин:    rusnas                                           ║
     ║   Пароль:   rusnas                                           ║
