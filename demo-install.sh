@@ -144,7 +144,7 @@ info "Installing core packages..."
 apt-get install -y -qq \
     sudo \
     cockpit cockpit-storaged \
-    python3 python3-bcrypt python3-croniter \
+    python3 python3-bcrypt python3-croniter python3-inotify \
     samba nfs-kernel-server \
     mdadm btrfs-progs smartmontools \
     targetcli-fb hdparm \

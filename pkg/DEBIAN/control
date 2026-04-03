@@ -3,7 +3,7 @@ Version: 1.0.0-demo
 Architecture: amd64
 Maintainer: rusNAS <support@rusnas.ru>
 Depends: cockpit (>= 300), python3 (>= 3.11), sudo, samba, nfs-kernel-server, mdadm, btrfs-progs, smartmontools, targetcli-fb, hdparm, nginx
-Recommends: podman, podman-compose, nut, vsftpd, apache2, lvm2, thin-provisioning-tools, certbot, nmap, python3-bcrypt, python3-croniter
+Recommends: podman, podman-compose, nut, vsftpd, apache2, lvm2, thin-provisioning-tools, certbot, nmap, python3-bcrypt, python3-croniter, python3-inotify
 Description: rusNAS NAS Management System (Demo)
  Enterprise-grade NAS management platform. Cockpit-based web UI with
  RAID management, Btrfs snapshots, ransomware protection (Guard),
