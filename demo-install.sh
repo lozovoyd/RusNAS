@@ -7,6 +7,9 @@
 # ╚══════════════════════════════════════════════════════════════╝
 set -euo pipefail
 
+# Ensure sbin paths are available (needed when called via su -c)
+export PATH="/usr/local/sbin:/usr/sbin:/sbin:$PATH"
+
 # ── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -170,7 +173,7 @@ apt-get install -y -qq \
 echo ""
 echo -e "${BOLD}[3/8] Installing rusNAS package${NC}"
 
-dpkg -i "${DEB}" 2>/dev/null || true
+dpkg --force-overwrite -i "${DEB}" 2>/dev/null || true
 apt-get install -f -y -qq 2>/dev/null  # fix any missing deps
 ok "rusnas-system package installed"
 

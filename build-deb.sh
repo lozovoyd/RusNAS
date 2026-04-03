@@ -362,25 +362,19 @@ rm -f "${DEB}"
 if [ "$HAS_DPKG" -eq 1 ]; then
     dpkg-deb --root-owner-group --build "${PKG}" "${DEB}"
 else
-    echo "  (dpkg-deb not found — building with ar+tar fallback)"
-    # Build .deb manually: ar archive with debian-binary + control.tar.gz + data.tar.gz
-    TMPBUILD=$(mktemp -d)
-
-    # debian-binary
-    echo "2.0" > "${TMPBUILD}/debian-binary"
-
-    # control.tar.gz — DEBIAN/ contents
-    (cd "${PKG}/DEBIAN" && tar czf "${TMPBUILD}/control.tar.gz" --no-xattrs *)
-
-    # data.tar.gz — everything except DEBIAN/
-    (cd "${PKG}" && tar czf "${TMPBUILD}/data.tar.gz" --no-xattrs \
-        --exclude='./DEBIAN' --exclude='DEBIAN' \
-        $(ls -d */ 2>/dev/null | grep -v DEBIAN))
-
-    # Assemble ar archive (use 'rc' without 's' — no symbol table for .deb)
-    (cd "${TMPBUILD}" && ar rc "$(pwd)/${DEB}" debian-binary control.tar.gz data.tar.gz)
-    mv "${TMPBUILD}/${DEB}" "${DEB}"
-    rm -rf "${TMPBUILD}"
+    echo "  dpkg-deb not found on this machine."
+    echo "  Creating pkg.tar.gz for remote build (copy to Debian and run dpkg-deb there)."
+    export COPYFILE_DISABLE=1
+    TAR_OPTS="--no-xattrs"
+    # macOS tar supports --no-mac-metadata
+    tar --no-mac-metadata -czf "rusnas-pkg.tar.gz" -C "${PKG}" . 2>/dev/null \
+        || tar ${TAR_OPTS} -czf "rusnas-pkg.tar.gz" -C "${PKG}" .
+    echo ""
+    echo "  To build the .deb on a Debian machine:"
+    echo "    scp rusnas-pkg.tar.gz demo-install.sh user@host:/tmp/"
+    echo "    ssh user@host 'sudo mkdir -p /tmp/pkg && cd /tmp/pkg && tar xzf /tmp/rusnas-pkg.tar.gz && dpkg-deb --root-owner-group --build /tmp/pkg /tmp/${DEB}'"
+    echo ""
+    DEB="rusnas-pkg.tar.gz"
 fi
 
 SIZE=$(du -sh "${DEB}" | cut -f1)
