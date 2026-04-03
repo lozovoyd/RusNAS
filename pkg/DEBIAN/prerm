@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+for svc in rusnas-guard rusnas-metrics rusnas-perf-collector rusnas-spind; do
+    systemctl stop "$svc" 2>/dev/null || true
+done
+for tmr in rusnas-snapd.timer rusnas-sectest.timer rusnas-storage-collector.timer rusnas-worm.timer rusnas-certcheck.timer; do
+    systemctl stop "$tmr" 2>/dev/null || true
+done
+exit 0

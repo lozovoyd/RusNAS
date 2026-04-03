@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+# ── Directories ──────────────────────────────────────────────────────────────
+mkdir -p /var/lib/rusnas /var/log/rusnas /var/log/rusnas-guard
+mkdir -p /etc/rusnas /etc/rusnas-guard /etc/rusnas/containers /etc/rusnas/certs
+mkdir -p /var/lib/rusnas-containers/compose /var/lib/rusnas-containers/catalog
+mkdir -p /etc/nginx/conf.d/rusnas-apps
+mkdir -p /var/www/rusnas-landing
+
+# ── Permissions ──────────────────────────────────────────────────────────────
+chmod 755 /etc/rusnas-guard
+chmod 755 /var/lib/rusnas
+chmod 755 /var/log/rusnas-guard
+
+# ── Guard daemon symlink ─────────────────────────────────────────────────────
+ln -sf /usr/lib/rusnas-guard/guard.py /usr/local/sbin/rusnas-guard
+
+# ── Executable permissions ───────────────────────────────────────────────────
+chmod 755 /usr/lib/rusnas-guard/guard.py 2>/dev/null || true
+chmod 755 /usr/local/bin/rusnas-snap 2>/dev/null || true
+chmod 755 /usr/local/bin/rusnas-dedup-run.sh 2>/dev/null || true
+chmod 755 /usr/local/bin/rusnas-worm 2>/dev/null || true
+chmod 755 /usr/local/bin/rusnas-ups-notify 2>/dev/null || true
+chmod 755 /usr/lib/rusnas/spind/spind.py 2>/dev/null || true
+chmod 755 /usr/lib/rusnas/sectest/sectest.py 2>/dev/null || true
+find /usr/lib/rusnas/cgi/ -name '*.py' -exec chmod 755 {} + 2>/dev/null || true
+find /usr/share/cockpit/rusnas/scripts/ -name '*.py' -exec chmod 755 {} + 2>/dev/null || true
+find /usr/share/cockpit/rusnas/scripts/ -name '*.sh' -exec chmod 755 {} + 2>/dev/null || true
+
+# ── Config defaults (don't overwrite existing) ───────────────────────────────
+[ -f /etc/rusnas/spindown.json ] || echo '{"version":1,"arrays":{}}' > /etc/rusnas/spindown.json
+[ -f /etc/rusnas/dedup-config.json ] || echo '{"volumes":[],"schedule_enabled":false}' > /etc/rusnas/dedup-config.json
+[ -f /etc/rusnas/ssd-tiers.json ] || echo '{"tiers":[]}' > /etc/rusnas/ssd-tiers.json
+[ -f /etc/rusnas/worm.json ] || echo '{"paths":[]}' > /etc/rusnas/worm.json
+[ -f /etc/rusnas/containers/installed.json ] || echo '{}' > /etc/rusnas/containers/installed.json
+
+# ── State files ──────────────────────────────────────────────────────────────
+touch /var/lib/rusnas/perf-history.json
+chmod 666 /var/lib/rusnas/perf-history.json
+
+# ── Sudoers validation ───────────────────────────────────────────────────────
+if [ -f /etc/sudoers.d/rusnas ]; then
+    visudo -cf /etc/sudoers.d/rusnas || echo "WARNING: sudoers syntax error in /etc/sudoers.d/rusnas"
+fi
+
+# ── Reload systemd ───────────────────────────────────────────────────────────
+systemctl daemon-reload
+
+# ── Enable core services ─────────────────────────────────────────────────────
+systemctl enable cockpit.socket 2>/dev/null || true
+systemctl enable rusnas-guard 2>/dev/null || true
+systemctl enable rusnas-snapd.timer 2>/dev/null || true
+systemctl enable rusnas-metrics 2>/dev/null || true
+
+exit 0
