@@ -360,27 +360,75 @@ echo "Building ${DEB}..."
 rm -f "${DEB}"
 
 if [ "$HAS_DPKG" -eq 1 ]; then
+    # Linux or Mac with dpkg installed — build directly
     dpkg-deb --root-owner-group --build "${PKG}" "${DEB}"
 else
-    echo "  dpkg-deb not found on this machine."
-    echo "  Creating pkg.tar.gz for remote build (copy to Debian and run dpkg-deb there)."
+    # macOS without dpkg — pack and build remotely on any Debian machine
+    echo "  dpkg-deb not found locally (macOS). Building remotely..."
+
+    # Pack without macOS metadata (._* files break dpkg-deb on Linux)
     export COPYFILE_DISABLE=1
-    TAR_OPTS="--no-xattrs"
-    # macOS tar supports --no-mac-metadata
-    tar --no-mac-metadata -czf "rusnas-pkg.tar.gz" -C "${PKG}" . 2>/dev/null \
-        || tar ${TAR_OPTS} -czf "rusnas-pkg.tar.gz" -C "${PKG}" .
-    echo ""
-    echo "  To build the .deb on a Debian machine:"
-    echo "    scp rusnas-pkg.tar.gz demo-install.sh user@host:/tmp/"
-    echo "    ssh user@host 'sudo mkdir -p /tmp/pkg && cd /tmp/pkg && tar xzf /tmp/rusnas-pkg.tar.gz && dpkg-deb --root-owner-group --build /tmp/pkg /tmp/${DEB}'"
-    echo ""
-    DEB="rusnas-pkg.tar.gz"
+    TARBALL="rusnas-pkg.tar.gz"
+    # Remove any ._* files first
+    find "${PKG}" -name '._*' -delete 2>/dev/null || true
+    tar --no-mac-metadata --no-xattrs -czf "${TARBALL}" -C "${PKG}" . 2>/dev/null \
+        || COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${PKG}" .
+    echo "  ✓ pkg.tar.gz created ($(du -sh "${TARBALL}" | cut -f1))"
+
+    # Try remote build if BUILD_HOST is set
+    if [ -n "${BUILD_HOST:-}" ]; then
+        echo "  Building on ${BUILD_HOST}..."
+        BUILD_USER="${BUILD_USER:-root}"
+        BUILD_PASS="${BUILD_PASS:-}"
+
+        # SSH/SCP command construction (with or without password)
+        SSH_OPTS="-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+        if [ -n "$BUILD_PASS" ] && command -v sshpass >/dev/null 2>&1; then
+            SSH_CMD="sshpass -p '${BUILD_PASS}' ssh ${SSH_OPTS}"
+            SCP_CMD="sshpass -p '${BUILD_PASS}' scp ${SSH_OPTS}"
+        else
+            SSH_CMD="ssh"
+            SCP_CMD="scp"
+        fi
+
+        eval ${SCP_CMD} "${TARBALL}" "${BUILD_USER}@${BUILD_HOST}:/tmp/${TARBALL}"
+        eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "'
+            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            rm -rf /tmp/rusnas-pkg && mkdir -p /tmp/rusnas-pkg
+            cd /tmp/rusnas-pkg && tar xzf /tmp/${TARBALL}
+            echo kl4389qd | su -c \"dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}\" root 2>/dev/null \
+                || dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}
+            rm -rf /tmp/rusnas-pkg /tmp/${TARBALL}
+        '"
+        eval ${SCP_CMD} "${BUILD_USER}@${BUILD_HOST}:/tmp/${DEB}" "./${DEB}"
+        eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "rm -f /tmp/${DEB}"
+        rm -f "${TARBALL}"
+        echo "  ✓ Remote build complete"
+    else
+        echo ""
+        echo "  ┌──────────────────────────────────────────────────────────────┐"
+        echo "  │  dpkg-deb not available. Two options:                        │"
+        echo "  │                                                              │"
+        echo "  │  Option A: Set BUILD_HOST and re-run:                        │"
+        echo "  │    BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 ./build-deb.sh   │"
+        echo "  │                                                              │"
+        echo "  │  Option B: Copy tar.gz manually to any Debian machine:       │"
+        echo "  │    scp ${TARBALL} user@host:/tmp/                            │"
+        echo "  │    ssh user@host 'mkdir -p /tmp/pkg && cd /tmp/pkg \\        │"
+        echo "  │      && tar xzf /tmp/${TARBALL} \\                           │"
+        echo "  │      && dpkg-deb --root-owner-group --build . /tmp/${DEB}'   │"
+        echo "  └──────────────────────────────────────────────────────────────┘"
+        echo ""
+        DEB="${TARBALL}"
+    fi
 fi
 
-SIZE=$(du -sh "${DEB}" | cut -f1)
-echo ""
-echo "╔══════════════════════════════════════════════════╗"
-echo "║  ✓ Build complete                               ║"
-echo "║  Package: ${DEB}"
-echo "║  Size: ${SIZE}"
-echo "╚══════════════════════════════════════════════════╝"
+if [ -f "${DEB}" ]; then
+    SIZE=$(du -sh "${DEB}" | cut -f1)
+    echo ""
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║  ✓ Build complete                               ║"
+    echo "║  Package: ${DEB}"
+    echo "║  Size:    ${SIZE}"
+    echo "╚══════════════════════════════════════════════════╝"
+fi
