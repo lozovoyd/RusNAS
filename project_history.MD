@@ -2670,3 +2670,68 @@ location /chat/          → без rewrite           (SPA+assets+sockjs)
 - `cockpit/rusnas/css/dashboard.css` — sectest badge/summary styles
 - `deploy.sh` — quick sectest after deploy
 - `CLAUDE.md` — sectest reference, roadmap, project structure
+
+---
+
+## Session: 2026-04-03 — Demo Release (.deb installer)
+
+**Ветка:** `feat/demo-release` → merged в `main`
+**VM:** 10.10.10.31 (чистый Debian 13 Trixie)
+
+### Что сделано
+
+1. **build-deb.sh** — скрипт сборки .deb пакета
+   - JS минификация через terser (15 файлов → `.min.js`)
+   - Vendor JS (Chart.js) копируется as-is, HTML ссылки переписываются корректно
+   - Удалённая сборка через `BUILD_HOST`/`BUILD_USER`/`BUILD_PASS` (macOS не имеет dpkg-deb)
+   - Удаление macOS `._*` metadata перед tar (`COPYFILE_DISABLE=1`)
+
+2. **demo-install.sh** — установщик для чистого Debian 13
+   - Preflight: проверка root, Debian 13, наличие .deb
+   - Network detection: интерфейс, IP, gateway, DHCP/static
+   - Port checks: 80, 9090, 8091 — предупреждение если заняты
+   - Interactive confirmation [Y/n]
+   - Установка ~100 apt-пакетов + dpkg -i (--force-overwrite для branding.css)
+   - Создание пользователя rusnas, demo-лицензия (Enterprise, all features)
+   - nginx primary (:80), Apache (:8091), Cockpit (:9090), /help/ docs
+
+3. **pkg/DEBIAN/** — метаданные Debian пакета
+   - control: Depends + Recommends
+   - postinst: dirs, permissions, systemctl enable
+   - prerm: stop services
+   - conffiles: protect /etc/rusnas-guard/
+
+4. **User documentation** — MkDocs Material site включен в пакет
+   - 32 markdown-страницы, 36 скриншотов, тёмная тема
+   - Доступна по `http://<IP>/help/`
+
+5. **Favicon + Logo** — SVG NAS drive bay icon
+   - Добавлен во все 14 HTML-страниц Cockpit
+   - Добавлен в landing page
+
+6. **Landing page offline** — убраны CDN зависимости
+   - Шрифт Manrope self-hosted (5 weights, landing/fonts/)
+   - TMX logo заменён на text span
+   - Ноль внешних URL
+
+7. **docs/build-guide.md** — полное руководство по сборке и установке
+
+### Найденные и исправленные проблемы
+
+- macOS `._*` metadata файлы в tar → ломают dpkg-deb на Linux → `COPYFILE_DISABLE=1` + `find -delete`
+- `su -c` не наследует PATH с /usr/sbin → `export PATH=...` в начале скриптов
+- branding.css конфликт с cockpit-ws → `dpkg --force-overwrite`
+- `python3-inotify` не ставился → Guard daemon crash loop → добавлен в deps
+- Chart.js vendor `.min.js` двойная минификация → placeholder-based sed rewrite
+- `sudo` может быть не предустановлен на minimal Debian → добавлен в Depends
+
+### Ключевые файлы
+
+- `VERSION` — 1.0.0-demo
+- `build-deb.sh` — сборка пакета
+- `demo-install.sh` — установщик
+- `pkg/DEBIAN/` — метаданные пакета
+- `docs/build-guide.md` — руководство по сборке
+- `cockpit/rusnas/assets/` — favicon.svg, logo.svg
+- `landing/fonts/` — Manrope TTF (5 weights)
+- `landing/favicon.svg`
