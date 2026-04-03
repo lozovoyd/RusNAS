@@ -142,6 +142,7 @@ apt-get update -qq 2>/dev/null
 # Core dependencies
 info "Installing core packages..."
 apt-get install -y -qq \
+    sudo \
     cockpit cockpit-storaged \
     python3 python3-bcrypt python3-croniter \
     samba nfs-kernel-server \
