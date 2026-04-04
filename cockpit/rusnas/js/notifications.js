@@ -34,6 +34,14 @@ var MODULES = [
 
 var CHANNELS = ["email", "telegram", "max", "snmp", "webhook"];
 
+var CHANNEL_ICONS = {
+    email:    "\u2709\uFE0F",
+    telegram: "\u2708\uFE0F",
+    max:      "\uD83D\uDCAC",
+    snmp:     "\uD83D\uDCCA",
+    webhook:  "\uD83D\uDD17"
+};
+
 // ── Log Watcher preset templates ─────────────────────────────────────────────
 
 var LW_TEMPLATES = {
@@ -449,7 +457,7 @@ function loadHistory(offset) {
 }
 
 function buildChannelIcons(deliveries) {
-    var map = { email: "\u2709", telegram: "\u2708", max: "\uD83D\uDCAC", snmp: "\uD83D\uDCE1", webhook: "\uD83D\uDD17" };
+    var map = CHANNEL_ICONS;
     var used = {};
     deliveries.forEach(function(d) { used[d.channel] = true; });
 
