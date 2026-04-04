@@ -21,9 +21,7 @@ echo ""
 for cmd in terser python3 sed; do
     command -v "$cmd" >/dev/null 2>&1 || { echo "ERROR: $cmd not found. Install it first."; exit 1; }
 done
-# dpkg-deb is optional — we can build with ar+tar as fallback
-HAS_DPKG=0
-command -v dpkg-deb >/dev/null 2>&1 && HAS_DPKG=1
+# Build always happens on Linux host via BUILD_HOST (Cython + dpkg-deb)
 
 # ── Python stripping helper ──────────────────────────────────────────────────
 PYSTRIP="$(pwd)/tools/pystrip.py"
@@ -371,89 +369,80 @@ fi
 sed -i.bak "s/^Version:.*/Version: ${VERSION}/" "${PKG}/DEBIAN/control"
 rm -f "${PKG}/DEBIAN/control.bak"
 
-# ── Build .deb ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# PHASE 2: Remote build on Linux host
+# Cython compilation + dpkg-deb MUST run on Linux x86_64.
+# ══════════════════════════════════════════════════════════════════════════════
 echo ""
-echo "Building ${DEB}..."
-rm -f "${DEB}"
+BUILD_HOST="${BUILD_HOST:-}"
+BUILD_USER="${BUILD_USER:-root}"
+BUILD_PASS="${BUILD_PASS:-}"
 
-if [ "$HAS_DPKG" -eq 1 ]; then
-    # Linux or Mac with dpkg installed — build directly
-    dpkg-deb --root-owner-group --build "${PKG}" "${DEB}"
-else
-    # macOS without dpkg — pack and build remotely on any Debian machine
-    echo "  dpkg-deb not found locally (macOS). Building remotely..."
-
-    # Pack without macOS metadata (._* files break dpkg-deb on Linux)
-    export COPYFILE_DISABLE=1
-    TARBALL="rusnas-pkg.tar.gz"
-    # Remove any ._* files first
-    find "${PKG}" -name '._*' -delete 2>/dev/null || true
-    tar --no-mac-metadata --no-xattrs -czf "${TARBALL}" -C "${PKG}" . 2>/dev/null \
-        || COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${PKG}" .
-    echo "  ✓ pkg.tar.gz created ($(du -sh "${TARBALL}" | cut -f1))"
-
-    # Try remote build if BUILD_HOST is set
-    if [ -n "${BUILD_HOST:-}" ]; then
-        echo "  Building on ${BUILD_HOST}..."
-        BUILD_USER="${BUILD_USER:-root}"
-        BUILD_PASS="${BUILD_PASS:-}"
-
-        # SSH/SCP command construction (with or without password)
-        SSH_OPTS="-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no"
-        if [ -n "$BUILD_PASS" ] && command -v sshpass >/dev/null 2>&1; then
-            SSH_CMD="sshpass -p '${BUILD_PASS}' ssh ${SSH_OPTS}"
-            SCP_CMD="sshpass -p '${BUILD_PASS}' scp ${SSH_OPTS}"
-        else
-            SSH_CMD="ssh"
-            SCP_CMD="scp"
-        fi
-
-        eval ${SCP_CMD} "${TARBALL}" "${BUILD_USER}@${BUILD_HOST}:/tmp/${TARBALL}"
-        # Also upload cython-build.sh for Python compilation
-        eval ${SCP_CMD} "tools/cython-build.sh" "${BUILD_USER}@${BUILD_HOST}:/tmp/cython-build.sh" 2>/dev/null || true
-
-        eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "'
-            export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-            rm -rf /tmp/rusnas-pkg && mkdir -p /tmp/rusnas-pkg
-            cd /tmp/rusnas-pkg && tar xzf /tmp/${TARBALL}
-
-            # Cython compilation (if cython3 + gcc available)
-            if command -v cython3 >/dev/null 2>&1 && command -v gcc >/dev/null 2>&1; then
-                echo \"  Compiling Python → native .so (Cython)...\"
-                for d in usr/lib/rusnas-guard usr/lib/rusnas/spind usr/lib/rusnas/cgi usr/lib/rusnas/sectest usr/lib/rusnas/sectest/checks usr/local/lib/rusnas usr/share/cockpit/rusnas/scripts; do
-                    [ -d \"/tmp/rusnas-pkg/\$d\" ] && bash /tmp/cython-build.sh \"/tmp/rusnas-pkg/\$d\" 2>/dev/null | grep -E \"compile:|Done:\"
-                done
-                echo \"  ✓ Python compiled to native code\"
-            else
-                echo \"  ⚠ cython3/gcc not found — Python files included as stripped source\"
-            fi
-
-            echo kl4389qd | su -c \"dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}\" root 2>/dev/null \
-                || dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}
-            rm -rf /tmp/rusnas-pkg /tmp/${TARBALL} /tmp/cython-build.sh
-        '"
-        eval ${SCP_CMD} "${BUILD_USER}@${BUILD_HOST}:/tmp/${DEB}" "./${DEB}"
-        eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "rm -f /tmp/${DEB}"
-        rm -f "${TARBALL}"
-        echo "  ✓ Remote build complete"
-    else
-        echo ""
-        echo "  ┌──────────────────────────────────────────────────────────────┐"
-        echo "  │  dpkg-deb not available. Two options:                        │"
-        echo "  │                                                              │"
-        echo "  │  Option A: Set BUILD_HOST and re-run:                        │"
-        echo "  │    BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 ./build-deb.sh   │"
-        echo "  │                                                              │"
-        echo "  │  Option B: Copy tar.gz manually to any Debian machine:       │"
-        echo "  │    scp ${TARBALL} user@host:/tmp/                            │"
-        echo "  │    ssh user@host 'mkdir -p /tmp/pkg && cd /tmp/pkg \\        │"
-        echo "  │      && tar xzf /tmp/${TARBALL} \\                           │"
-        echo "  │      && dpkg-deb --root-owner-group --build . /tmp/${DEB}'   │"
-        echo "  └──────────────────────────────────────────────────────────────┘"
-        echo ""
-        DEB="${TARBALL}"
-    fi
+if [ -z "$BUILD_HOST" ]; then
+    echo "  ╔══════════════════════════════════════════════════════════════╗"
+    echo "  ║  BUILD_HOST required (Cython + dpkg-deb need Linux x86_64) ║"
+    echo "  ║                                                              ║"
+    echo "  ║  BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 \\                 ║"
+    echo "  ║  BUILD_PASS=password ./build-deb.sh                          ║"
+    echo "  ║                                                              ║"
+    echo "  ║  Build host needs: cython3 python3-dev gcc dpkg-deb          ║"
+    echo "  ╚══════════════════════════════════════════════════════════════╝"
+    exit 1
 fi
+
+# SSH/SCP
+SSH_OPTS="-o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no"
+if [ -n "$BUILD_PASS" ] && command -v sshpass >/dev/null 2>&1; then
+    SSH_CMD="sshpass -p '${BUILD_PASS}' ssh ${SSH_OPTS}"
+    SCP_CMD="sshpass -p '${BUILD_PASS}' scp ${SSH_OPTS}"
+else
+    SSH_CMD="ssh"
+    SCP_CMD="scp"
+fi
+
+# Pack (no macOS metadata)
+export COPYFILE_DISABLE=1
+TARBALL="rusnas-pkg.tar.gz"
+find "${PKG}" -name '._*' -delete 2>/dev/null || true
+tar --no-mac-metadata --no-xattrs -czf "${TARBALL}" -C "${PKG}" . 2>/dev/null \
+    || COPYFILE_DISABLE=1 tar -czf "${TARBALL}" -C "${PKG}" .
+echo "Uploading to ${BUILD_HOST}..."
+eval ${SCP_CMD} "${TARBALL}" "tools/cython-build.sh" "${BUILD_USER}@${BUILD_HOST}:/tmp/"
+
+# Remote: unpack → Cython → dpkg-deb → cleanup
+echo "Building on ${BUILD_HOST} (Cython + dpkg-deb)..."
+eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "'
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    rm -rf /tmp/rusnas-pkg && mkdir -p /tmp/rusnas-pkg
+    cd /tmp/rusnas-pkg && tar xzf /tmp/${TARBALL}
+
+    # Cython: compile ALL Python → native code
+    echo \"  Compiling Python...\"
+    for d in usr/lib/rusnas-guard usr/lib/rusnas/spind usr/lib/rusnas/cgi \
+             usr/lib/rusnas/sectest usr/lib/rusnas/sectest/checks \
+             usr/local/lib/rusnas usr/share/cockpit/rusnas/scripts \
+             usr/share/cockpit/rusnas/cgi usr/local/bin; do
+        [ -d \"/tmp/rusnas-pkg/\$d\" ] && bash /tmp/cython-build.sh \"/tmp/rusnas-pkg/\$d\" 2>/dev/null
+    done
+
+    PY_LEFT=\$(find /tmp/rusnas-pkg/usr -name \"*.py\" -not -name \"__init__.py\" 2>/dev/null | wc -l)
+    if [ \"\$PY_LEFT\" -gt 0 ]; then
+        echo \"  ⚠ \${PY_LEFT} .py files not compiled:\"
+        find /tmp/rusnas-pkg/usr -name \"*.py\" -not -name \"__init__.py\" 2>/dev/null
+    else
+        echo \"  ✓ Zero .py files — all compiled to native code\"
+    fi
+
+    echo kl4389qd | su -c \"dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}\" root 2>/dev/null \
+        || dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}
+    rm -rf /tmp/rusnas-pkg /tmp/${TARBALL} /tmp/cython-build.sh
+'"
+
+# Download
+echo "Downloading ${DEB}..."
+eval ${SCP_CMD} "${BUILD_USER}@${BUILD_HOST}:/tmp/${DEB}" "./${DEB}"
+eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "rm -f /tmp/${DEB}" 2>/dev/null || true
+rm -f "${TARBALL}"
 
 if [ -f "${DEB}" ]; then
     SIZE=$(du -sh "${DEB}" | cut -f1)
@@ -462,5 +451,7 @@ if [ -f "${DEB}" ]; then
     echo "║  ✓ Build complete                               ║"
     echo "║  Package: ${DEB}"
     echo "║  Size:    ${SIZE}"
+    echo "║  Python:  compiled to native code (zero .py)    ║"
+    echo "║  JS:      minified via terser                   ║"
     echo "╚══════════════════════════════════════════════════╝"
 fi
