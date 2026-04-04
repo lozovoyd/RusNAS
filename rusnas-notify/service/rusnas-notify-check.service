@@ -1,0 +1,13 @@
+[Unit]
+Description=rusNAS Notification State Checker
+After=rusnas-notifyd.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/share/cockpit/rusnas/scripts/notify-check.py
+Nice=19
+IOSchedulingClass=idle
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rusnas-notify-check

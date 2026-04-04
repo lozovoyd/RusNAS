@@ -1,0 +1,21 @@
+[Unit]
+Description=rusNAS Notification Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/lib/rusnas/notify
+ExecStart=/usr/lib/rusnas/notify/notifyd.py
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=rusnas-notify
+RuntimeDirectoryMode=0755
+MemoryMax=32M
+Nice=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rusnas-notifyd
+
+[Install]
+WantedBy=multi-user.target
