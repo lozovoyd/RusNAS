@@ -4,37 +4,65 @@
 
 ---
 
-## Быстрый старт (30 секунд)
+## Быстрый старт
 
 ```bash
-# На Mac (dev-машина) — собрать пакет через удалённый Debian хост:
-BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 ./build-deb.sh
+# 1. Собрать (Mac → Linux build host → .deb скачивается обратно)
+BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 BUILD_PASS=password ./build-deb.sh
 
-# Скопировать на целевую машину:
-scp rusnas-system_1.0.0-demo_amd64.deb demo-install.sh user@target:/tmp/
+# 2. Скопировать на целевую машину
+scp rusnas-system_*.deb demo-install.sh user@target:/tmp/
 
-# На целевой машине — установить:
-cd /tmp && sudo bash demo-install.sh
+# 3. Установить
+ssh user@target 'cd /tmp && sudo bash demo-install.sh'
 ```
+
+---
+
+## Архитектура сборки
+
+Сборка двухфазная: **Phase 1 на Mac** (JS minify, pkg tree) → **Phase 2 на Linux** (Cython compile, dpkg-deb).
+
+```
+Mac (dev)                          Linux (build host)
+┌─────────────────┐    tar.gz     ┌──────────────────────┐
+│ terser: JS→min  │──────────────→│ Cython: .py → .so    │
+│ AST strip .py   │               │ Cython --embed → ELF │
+│ collect all     │               │ dpkg-deb --build     │
+│ into pkg/ tree  │    .deb       │                      │
+│                 │←──────────────│ cleanup /tmp         │
+└─────────────────┘               └──────────────────────┘
+```
+
+**Почему две фазы:**
+- Cython компилирует Python в нативный x86_64 код → требует Linux
+- dpkg-deb создаёт .deb → требует Linux
+- terser (JS) работает везде → запускается на Mac
 
 ---
 
 ## Предварительные требования
 
-### На dev-машине (Mac/Linux)
+### На dev-машине (Mac)
 
 | Компонент | Команда установки | Назначение |
 |-----------|------------------|------------|
-| Node.js + npm | `brew install node` | Для terser (JS minification) |
-| terser | `npm install -g terser` | Минификация JavaScript |
-| python3 | Предустановлен на Mac | Проверка синтаксиса |
-| SSH доступ | `~/.ssh/config` | Для удалённой сборки .deb |
+| Node.js + npm | `brew install node` | Для terser |
+| terser | `npm install -g terser` | JS minification |
+| sshpass | `brew install hudochenkov/sshpass/sshpass` | SSH с паролем |
+| python3 | Предустановлен | AST stripping |
 
-**dpkg-deb** (опционально): Если установлен (`brew install dpkg`), сборка идёт локально. Если нет — автоматически используется удалённая сборка через SSH.
+### На build-хосте (Debian/Ubuntu x86_64)
 
-### На build-хосте (любая Debian/Ubuntu машина)
+| Компонент | Команда установки | Назначение |
+|-----------|------------------|------------|
+| cython3 | `apt install cython3` | Python → native code |
+| python3-dev | `apt install python3-dev` | Headers для Cython |
+| gcc | `apt install gcc` | Компилятор C |
+| dpkg-deb | Предустановлен | Сборка .deb |
 
-Нужен только `dpkg-deb` (предустановлен в любом Debian). Это может быть та же целевая машина, отдельная VM, или CI-сервер.
+Build host может быть целевой VM, отдельная машина, или CI-сервер.
+Единственное требование: **Linux x86_64 + cython3 + python3-dev + gcc**.
 
 ### На целевой машине
 
@@ -68,40 +96,30 @@ cd user-docs && python3 -m mkdocs build --clean && cd ..
 
 ### Шаг 3: Сборка .deb
 
-#### Вариант A: С удалённой сборкой (рекомендуется для Mac)
-
 ```bash
-BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 ./build-deb.sh
+BUILD_HOST=10.10.10.31 BUILD_USER=dvl92 BUILD_PASS=password ./build-deb.sh
 ```
 
-Скрипт:
-1. Минифицирует JS через terser (15 файлов → `.min.js`)
-2. Переписывает HTML ссылки на `.min.js`
-3. Собирает все компоненты в `pkg/` дерево
-4. Создаёт `tar.gz`, отправляет на BUILD_HOST
-5. Запускает `dpkg-deb` на BUILD_HOST
-6. Скачивает готовый `.deb` обратно
+**BUILD_HOST обязателен** — Cython и dpkg-deb требуют Linux.
 
-#### Вариант B: Локально на Linux
+Что происходит:
+1. **Mac (Phase 1):** terser минифицирует 15 JS → `.min.js`, HTML ссылки переписываются, все компоненты собираются в `pkg/` дерево, Python файлы проходят AST strip
+2. **Tar + SCP:** `pkg/` упаковывается (без macOS metadata), отправляется на BUILD_HOST
+3. **Linux (Phase 2):** Cython компилирует все `.py`:
+   - Библиотечные модули → `.so` (shared objects)
+   - Entry-point скрипты → ELF бинарники (`--embed`)
+   - `.py` файлы удаляются
+4. **dpkg-deb** собирает `.deb`
+5. **SCP обратно:** готовый `.deb` скачивается на Mac
+6. **Cleanup:** на BUILD_HOST всё удаляется из `/tmp/`
 
-```bash
-./build-deb.sh
-```
+**Переменные окружения:**
 
-Работает напрямую если `dpkg-deb` доступен (любая Debian/Ubuntu машина).
-
-#### Вариант C: Ручная удалённая сборка
-
-```bash
-./build-deb.sh                    # создаст rusnas-pkg.tar.gz
-scp rusnas-pkg.tar.gz user@debian:/tmp/
-ssh user@debian '
-  mkdir -p /tmp/pkg && cd /tmp/pkg
-  tar xzf /tmp/rusnas-pkg.tar.gz
-  dpkg-deb --root-owner-group --build . /tmp/rusnas-system_1.0.0-demo_amd64.deb
-'
-scp user@debian:/tmp/rusnas-system_1.0.0-demo_amd64.deb .
-```
+| Переменная | Обязательная | Описание |
+|-----------|-------------|----------|
+| `BUILD_HOST` | Да | IP или hostname Linux-машины для сборки |
+| `BUILD_USER` | Нет (default: root) | SSH-пользователь |
+| `BUILD_PASS` | Нет | Пароль (если не настроены SSH-ключи) |
 
 ### Шаг 4: Проверка пакета
 
@@ -219,12 +237,15 @@ sudo bash demo-install.sh
 
 ### Защита исходников
 
-| Тип файлов | Защита | В пакете |
-|-----------|--------|----------|
-| JavaScript (15 файлов) | terser minification | Только `.min.js` |
-| Vendor JS (Chart.js) | Уже минифицированы | `.min.js` as-is |
-| Python (39 файлов) | Исходники (для production — pyarmor) | `.py` |
-| HTML/CSS | Без обфускации | As-is |
+| Тип файлов | Метод | В пакете | Декомпиляция |
+|-----------|-------|----------|-------------|
+| JavaScript (15 файлов) | terser minification | `.min.js` | Трудоёмкая |
+| Vendor JS (Chart.js) | Уже минифицированы | `.min.js` as-is | — |
+| Python библиотеки (~25 файлов) | **Cython → .so** | `.cpython-313-x86_64-linux-gnu.so` | **Невозможна** (нативный код) |
+| Python entry-points (~14 файлов) | **Cython --embed → ELF** | ELF binary (без расширения) | **Невозможна** (нативный код) |
+| HTML/CSS | Без обфускации | As-is | Не содержат логики |
+
+**Ноль `.py` файлов в финальном пакете** (кроме `__init__.py` stubs для import).
 
 ---
 

@@ -6,15 +6,19 @@
 
 ## Защита исходного кода
 
-| Тип файлов | Метод защиты | Результат |
-|-----------|-------------|-----------|
-| **JavaScript** (15 файлов) | terser minification | Одна строка, переменные сокращены, нечитаемо |
-| **Vendor JS** (Chart.js, 2 файла) | Уже минифицированы | Копируются as-is |
-| **Python** (39 файлов) | AST strip (tools/pystrip.py) | Удалены все docstrings, комментарии, форматирование |
-| **HTML / CSS** | Без обфускации | As-is (не содержат бизнес-логики) |
-| **JSON / YAML** | Без обфускации | Конфигурация, не код |
+**Ноль `.py` файлов в финальном пакете.** Весь Python компилируется в нативный машинный код.
 
-**Для production-релиза:** планируется pyarmor (полная обфускация Python с шифрованием байткода). Требует сборку на Linux.
+| Тип файлов | Метод | Результат | Декомпиляция |
+|-----------|-------|-----------|-------------|
+| **JavaScript** (15 файлов) | terser minification | `.min.js` — одна строка, переменные сокращены | Трудоёмкая |
+| **Vendor JS** (2 файла) | Уже минифицированы | `.min.js` as-is | — |
+| **Python библиотеки** (~25 файлов) | **Cython → .so** | `.cpython-313-x86_64-linux-gnu.so` (ELF shared object) | **Невозможна** |
+| **Python entry-points** (~14 файлов) | **Cython --embed → ELF** | Нативный бинарник (без расширения .py) | **Невозможна** |
+| **HTML / CSS** | Без обфускации | As-is | Не содержат бизнес-логики |
+
+**Инструменты сборки:**
+- `tools/cython-build.sh` — компиляция Python (запускается на Linux build host)
+- `tools/pystrip.py` — AST strip (fallback если Cython недоступен)
 
 ---
 
@@ -66,8 +70,8 @@
 │   ├── storage-analyzer.css         #   Storage Analyzer
 │   ├── ai.css                       #   AI page
 │   └── containers.css               #   Container Manager
-├── scripts/                         # Python backend (stripped)
-│   ├── perf-collector.py            #   Сбор метрик производительности
+├── scripts/                         # Python backend (compiled to native .so / ELF)
+│   ├── perf-collector[.so|bin]      #   Сбор метрик производительности
 │   ├── storage-collector.py         #   Сбор статистики дисков
 │   ├── storage-analyzer-api.py      #   API анализатора (7 commands)
 │   ├── network-api.py               #   API сети
