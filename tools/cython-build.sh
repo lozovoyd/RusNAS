@@ -36,55 +36,81 @@ find "${DIR}" -name '*.py' -not -name '__init__.py' | sort | while read -r pyfil
         continue
     fi
 
+    # Fix invalid module names: Cython requires valid Python identifiers
+    # Hyphens in filenames (e.g. perf-collector.py) → underscores for compilation
+    safe_base=$(echo "$base" | tr '-' '_')
+    RENAMED=0
+    if [ "$safe_base" != "$base" ]; then
+        cp "$pyfile" "${pydir}/${safe_base}.py"
+        RENAMED=1
+    fi
+
+    COMPILE_SRC="${pydir}/${safe_base}.py"
+    [ "$RENAMED" -eq 0 ] && COMPILE_SRC="$pyfile"
+
     # Detect entry-point: has `if __name__` block
     IS_ENTRY=0
-    grep -q '__name__.*__main__' "$pyfile" && IS_ENTRY=1
+    grep -q '__name__.*__main__' "$COMPILE_SRC" && IS_ENTRY=1
 
     if [ "$IS_ENTRY" -eq 1 ]; then
         # ── Entry point → standalone binary ──────────────────────────
         echo -n "    [entry] ${base}.py → "
-        cython3 -3 --embed "$pyfile" -o "${pydir}/${base}.c" 2>/dev/null
+        cython3 -3 --embed "$COMPILE_SRC" -o "${pydir}/${safe_base}.c" 2>/dev/null
         if [ $? -ne 0 ]; then
             echo "FAILED (cython)"
+            rm -f "${pydir}/${safe_base}.py" "${pydir}/${safe_base}.c" 2>/dev/null
+            [ "$RENAMED" -eq 1 ] && true  # keep original .py
             FAILED=$((FAILED + 1))
             continue
         fi
 
-        gcc -O2 ${PY_INCLUDES} "${pydir}/${base}.c" -o "${pydir}/${base}" ${PY_LDFLAGS} 2>/dev/null
+        gcc -O2 ${PY_INCLUDES} "${pydir}/${safe_base}.c" -o "${pydir}/${base}" ${PY_LDFLAGS} 2>/dev/null
         if [ $? -ne 0 ]; then
             echo "FAILED (gcc)"
-            rm -f "${pydir}/${base}.c"
+            rm -f "${pydir}/${safe_base}.c" "${pydir}/${safe_base}.py" 2>/dev/null
             FAILED=$((FAILED + 1))
             continue
         fi
 
+        # Output binary without .py extension
         chmod 755 "${pydir}/${base}"
-        rm -f "${pydir}/${base}.c" "$pyfile"
+
+        # Create a .py wrapper so `python3 script.py` still works
+        # (systemd units and cockpit.spawn call `python3 /path/script.py`)
+        cat > "$pyfile" << WRAPEOF
+#!/usr/bin/env python3
+import os,sys;os.execv(os.path.join(os.path.dirname(__file__),"${base}"),sys.argv)
+WRAPEOF
+        chmod 755 "$pyfile"
+
+        rm -f "${pydir}/${safe_base}.c" "${pydir}/${safe_base}.py" 2>/dev/null
+        [ "$RENAMED" -eq 1 ] && rm -f "${pydir}/${safe_base}.py" 2>/dev/null
 
         BIN_SIZE=$(du -sh "${pydir}/${base}" | cut -f1)
-        echo "${BIN_SIZE} (ELF binary)"
+        echo "${BIN_SIZE} (ELF + .py wrapper)"
         ENTRIES=$((ENTRIES + 1))
     else
         # ── Library module → shared object (.so) ─────────────────────
         echo -n "    [lib]   ${base}.py → "
-        cython3 -3 "$pyfile" -o "${pydir}/${base}.c" 2>/dev/null
+        cython3 -3 "$COMPILE_SRC" -o "${pydir}/${safe_base}.c" 2>/dev/null
         if [ $? -ne 0 ]; then
             echo "FAILED (cython)"
+            rm -f "${pydir}/${safe_base}.c" "${pydir}/${safe_base}.py" 2>/dev/null
             FAILED=$((FAILED + 1))
             continue
         fi
 
-        gcc -shared -fPIC -O2 ${PY_INCLUDES} "${pydir}/${base}.c" -o "${pydir}/${base}${SUFFIX}" 2>/dev/null
+        gcc -shared -fPIC -O2 ${PY_INCLUDES} "${pydir}/${safe_base}.c" -o "${pydir}/${safe_base}${SUFFIX}" 2>/dev/null
         if [ $? -ne 0 ]; then
             echo "FAILED (gcc)"
-            rm -f "${pydir}/${base}.c"
+            rm -f "${pydir}/${safe_base}.c" "${pydir}/${safe_base}.py" 2>/dev/null
             FAILED=$((FAILED + 1))
             continue
         fi
 
-        rm -f "${pydir}/${base}.c" "$pyfile"
+        rm -f "${pydir}/${safe_base}.c" "${pydir}/${safe_base}.py" "$pyfile"
 
-        SO_SIZE=$(du -sh "${pydir}/${base}${SUFFIX}" | cut -f1)
+        SO_SIZE=$(du -sh "${pydir}/${safe_base}${SUFFIX}" | cut -f1)
         echo "${SO_SIZE} (.so)"
         COMPILED=$((COMPILED + 1))
     fi
