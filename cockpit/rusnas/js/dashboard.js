@@ -32,6 +32,7 @@ PERF_KEYS.forEach(function(k) { perfH[k] = []; });
 var _perfCharts = {};
 var _perfTickCount = 0;
 var _perfMinutes = 15;
+var _perfAutoFitted = false;
 var _perfLastSave = 0;
 var _perfDownsampleBuf = { ts:[] };
 PERF_KEYS.forEach(function(k) { _perfDownsampleBuf[k] = []; });
@@ -147,6 +148,22 @@ function perfReload() {
                     perfH[k] = d[k].slice(d[k].length - ml);
                 });
             } catch(e) {}
+            /* On first load, auto-fit time window to cover all available data */
+            if (!_perfAutoFitted && perfH.ts.length > 1) {
+                _perfAutoFitted = true;
+                var spanMs = perfH.ts[perfH.ts.length - 1] - perfH.ts[0];
+                var spanMin = Math.ceil(spanMs / 60000);
+                var periods = [5, 15, 30, 60, 1440];
+                var best = 1440;
+                for (var p = 0; p < periods.length; p++) {
+                    if (periods[p] >= spanMin) { best = periods[p]; break; }
+                }
+                _perfMinutes = best;
+                var btns = document.querySelectorAll("#perf-period-btns button");
+                btns.forEach(function(b) {
+                    b.classList.toggle("active", parseInt(b.dataset.minutes) === best);
+                });
+            }
             updatePerfCharts();
         });
 }
@@ -2335,11 +2352,12 @@ function initPerfCharts() {
  */
 function _updCh(chart, seriesArrays, xMin, xMax, ts) {
     if (!chart) return;
-    var GAP_MS = 30000; /* insert null if gap > 30s between points */
+    /* Break line only on real gaps (daemon restart, >10 min).
+     * Normal downsample intervals (10s/30s/120s/180s) stay connected. */
+    var GAP_MS = 600000; /* 10 min */
     seriesArrays.forEach(function(arr, di) {
         var pts = [];
         for (var i = 0; i < ts.length; i++) {
-            /* Detect gap — insert null point to break the line */
             if (i > 0 && ts[i] - ts[i - 1] > GAP_MS) {
                 pts.push({ x: ts[i - 1] + 1000, y: null });
             }
@@ -2364,6 +2382,11 @@ function updatePerfCharts() {
     var xMin = now - windowMs;
     var xMax = now;
 
+    /* Clamp xMin to first available data point — avoid empty chart space */
+    if (perfH.ts.length > 0 && perfH.ts[0] > xMin) {
+        xMin = perfH.ts[0] - 60000; /* 1 min padding before first point */
+    }
+
     /* Find start index */
     var startIdx = 0;
     for (var i = 0; i < perfH.ts.length; i++) {
@@ -2371,12 +2394,10 @@ function updatePerfCharts() {
     }
     var ts = perfH.ts.slice(startIdx);
 
-    /* CPU (0-100%) */
-    _perfCharts.cpu.options.scales.y.max = 100;
+    /* CPU — auto-scale Y axis to fit data (no hard max) */
     _updCh(_perfCharts.cpu, [perfH.cpu.slice(startIdx)], xMin, xMax, ts);
 
-    /* RAM (0-100%) */
-    _perfCharts.ram.options.scales.y.max = 100;
+    /* RAM — auto-scale Y axis to fit data (no hard max) */
     _updCh(_perfCharts.ram, [perfH.ram.slice(startIdx)], xMin, xMax, ts);
 
     /* Network (RX / TX bytes/s) */
@@ -2461,6 +2482,11 @@ function _renderExpandChart() {
     var now = Date.now();
     var windowMs = _expandMinutes * 60 * 1000;
     var xMin = now - windowMs, xMax = now;
+
+    /* Clamp xMin to first available data point */
+    if (perfH.ts.length > 0 && perfH.ts[0] > xMin) {
+        xMin = perfH.ts[0] - 60000;
+    }
 
     var startIdx = 0;
     for (var i = 0; i < perfH.ts.length; i++) {
