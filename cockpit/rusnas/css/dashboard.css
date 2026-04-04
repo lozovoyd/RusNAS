@@ -448,6 +448,43 @@
   .cm-proc-row span:nth-child(5) { display: none; }
 }
 
+/* ── RAM Monitor Modal (.rm-*) ────────────────────────────────────────────── */
+.rm-stacked-outer {
+  display: flex; height: 22px; border-radius: 6px; overflow: hidden;
+  margin-bottom: 6px; gap: 1px;
+}
+.rm-stacked-seg {
+  height: 100%; transition: width 0.4s ease;
+  position: relative;
+}
+.rm-stacked-seg:first-child { border-radius: 6px 0 0 6px; }
+.rm-stacked-seg:last-child  { border-radius: 0 6px 6px 0; }
+.rm-stacked-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 14px;
+  font-size: 11px; color: var(--color-muted);
+}
+.rm-legend-item { display: flex; align-items: center; gap: 4px; }
+.rm-legend-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.rm-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
+  font-size: 12px;
+}
+.rm-stat-label { color: var(--color-muted); padding: 3px 0; }
+.rm-stat-value { text-align: right; font-weight: 600; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.rm-proc-head,
+.rm-proc-row { grid-template-columns: 52px 1fr 72px 52px 72px; }
+
+@media (max-width: 700px) {
+  .rm-proc-head,
+  .rm-proc-row { grid-template-columns: 44px 1fr 60px; }
+  .rm-proc-head span:nth-child(4),
+  .rm-proc-head span:nth-child(5),
+  .rm-proc-row span:nth-child(4),
+  .rm-proc-row span:nth-child(5) { display: none; }
+}
+
 /* ── Network Monitor Modal (.nm-*) ─────────────────────────────────────────── */
 
 .nm-live-grid {

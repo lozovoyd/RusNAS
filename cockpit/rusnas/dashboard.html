@@ -208,7 +208,7 @@
     <div class="db-perf-card" data-chart="ram">
       <div class="db-perf-card-title">Использование RAM, %</div>
       <div class="db-perf-card-btns">
-        <button class="db-chart-info-btn" data-modal="cpu" title="Монитор CPU и RAM">i</button>
+        <button class="db-chart-info-btn" data-modal="ram" title="Монитор памяти">i</button>
         <button class="db-chart-expand-btn" data-chart="ram" title="Развернуть">⤢</button>
       </div>
       <canvas id="chart-ram"></canvas>
@@ -500,6 +500,51 @@
         <span class="cm-proc-val">RAM</span>
       </div>
       <div id="cm-proc-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── RAM Monitor Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay hidden" id="ram-modal">
+  <div class="modal-box" style="width:780px;max-width:96vw">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--color-border)">
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">🧠 Монитор памяти</span>
+      <button id="ram-modal-close" class="btn btn-default btn-sm">✕ Закрыть</button>
+    </div>
+
+    <!-- Memory breakdown + stats grid -->
+    <div class="cm-grid">
+
+      <!-- Memory breakdown -->
+      <div class="cm-section">
+        <div class="cm-section-title">📊 Разбивка памяти</div>
+        <!-- stacked bar -->
+        <div id="rm-stacked-bar" style="margin-bottom:12px"></div>
+        <div id="rm-breakdown-bars"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="cm-section">
+        <div class="cm-section-title">📋 Статистика</div>
+        <div class="rm-stat-grid" id="rm-stat-grid"><span class="text-muted" style="font-size:12px">Загрузка…</span></div>
+      </div>
+
+    </div>
+
+    <!-- Process list by RAM -->
+    <div class="cm-section" style="margin-bottom:0">
+      <div class="cm-section-title" style="margin-bottom:6px">🏋️ Топ процессов по RAM</div>
+      <div class="cm-proc-head rm-proc-head">
+        <span>PID</span>
+        <span>Процесс</span>
+        <span class="cm-proc-val">RSS</span>
+        <span class="cm-proc-val">%MEM</span>
+        <span class="cm-proc-val">VSZ</span>
+      </div>
+      <div id="rm-proc-list"></div>
     </div>
 
   </div>
