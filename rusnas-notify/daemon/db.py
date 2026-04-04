@@ -48,10 +48,10 @@ CREATE INDEX IF NOT EXISTS idx_deliveries_event ON deliveries(event_id);
 
 
 def get_db(path=None):
-    """Open SQLite connection with WAL mode."""
+    """Open SQLite connection with WAL mode. Safe for multi-threaded use."""
     db_path = path or DB_PATH
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    conn = sqlite3.connect(db_path, timeout=10)
+    conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
