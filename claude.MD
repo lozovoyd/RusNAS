@@ -624,6 +624,18 @@ EOF
 
 **Catalog apps (10):** nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat
 
+## Notification System (rusnas-notify)
+- Daemon: `/usr/lib/rusnas/notify/notifyd.py` (systemd Type=simple)
+- CLI: `/usr/local/bin/rusnas-notify` (send, test, history, status)
+- Socket: `/run/rusnas-notify/notify.sock` (0o666, no auth)
+- Config: `/etc/rusnas/notify.json`
+- DB: `/var/lib/rusnas/notify.db` (SQLite WAL)
+- Spool: `/var/spool/rusnas-notify/` (CLI fallback)
+- Channels: Email, Telegram, MAX, SNMP traps, Webhook
+- Checker: `notify-check.py` via timer every 5 min
+- Log Watcher: built-in thread, regex patterns from config
+- RULE: any dashboard widget MUST have notification integration (rusnas-notify)
+
 ## Known Bugs and Fixes
 
 > Полная история: [bugs.md](./bugs.md). Ниже — только активные ловушки (паттерны которые легко повторить).
