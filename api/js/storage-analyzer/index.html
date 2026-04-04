@@ -468,6 +468,8 @@
       
         
       
+        
+      
     
     
     
@@ -838,6 +840,34 @@
     
   
     Performance Tuner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../modules/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Уведомления
   
 
     
@@ -7376,6 +7406,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#notifysocketreq-callback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notifySocket(req, callback)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notifycmdcmd-data-callback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notifyCmd(cmd, data, callback)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#spawnpargs-promisestring" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -8902,6 +8954,8 @@
       
         
       
+        
+      
     
     
     
@@ -9101,6 +9155,34 @@
     
   
     Сервер метрик
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../python/notify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    rusnas-notify
   
 
     
@@ -15027,6 +15109,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#notifysocketreq-callback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notifySocket(req, callback)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notifycmdcmd-data-callback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notifyCmd(cmd, data, callback)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#spawnpargs-promisestring" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -17886,6 +17990,12 @@ Backend daemon writes /var/lib/rusnas/perf-history.json every 2 min.</p>
 </dd>
 <dt><a href="#initDomainTab">initDomainTab()</a> ⇒ <code>void</code></dt>
 <dd><p>Initialize the domain tab with all sub-components.</p>
+</dd>
+<dt><a href="#notifySocket">notifySocket(req, callback)</a></dt>
+<dd><p>Send a JSON command to the notification daemon via Unix socket.</p>
+</dd>
+<dt><a href="#notifyCmd">notifyCmd(cmd, data, callback)</a></dt>
+<dd><p>Send a command to the notification daemon.</p>
 </dd>
 <dt><a href="#spawnP">spawnP(args)</a> ⇒ <code>Promise.&lt;string&gt;</code></dt>
 <dd><p>Spawn a command with sudo via cockpit.spawn, returning a Promise.</p>
@@ -25662,7 +25772,62 @@ Backend daemon writes /var/lib/rusnas/perf-history.json every 2 min.</p>
 <h2 id="initdomaintab-void">initDomainTab() ⇒ <code>void</code><a class="headerlink" href="#initdomaintab-void" title="Permanent link">&para;</a></h2>
 <p>Initialize the domain tab with all sub-components.</p>
 <p><strong>Kind</strong>: global function<br />
-<a name="spawnP"></a></p>
+<a name="notifySocket"></a></p>
+<h2 id="notifysocketreq-callback">notifySocket(req, callback)<a class="headerlink" href="#notifysocketreq-callback" title="Permanent link">&para;</a></h2>
+<p>Send a JSON command to the notification daemon via Unix socket.</p>
+<p><strong>Kind</strong>: global function  </p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>req</td>
+<td><code>Object</code></td>
+<td>Request object to send</td>
+</tr>
+<tr>
+<td>callback</td>
+<td><code>function</code></td>
+<td>callback(err, response)</td>
+</tr>
+</tbody>
+</table>
+<p><a name="notifyCmd"></a></p>
+<h2 id="notifycmdcmd-data-callback">notifyCmd(cmd, data, callback)<a class="headerlink" href="#notifycmdcmd-data-callback" title="Permanent link">&para;</a></h2>
+<p>Send a command to the notification daemon.</p>
+<p><strong>Kind</strong>: global function  </p>
+<table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cmd</td>
+<td><code>string</code></td>
+<td>Command name</td>
+</tr>
+<tr>
+<td>data</td>
+<td><code>Object</code></td>
+<td>Extra parameters</td>
+</tr>
+<tr>
+<td>callback</td>
+<td><code>function</code></td>
+<td>callback(err, response)</td>
+</tr>
+</tbody>
+</table>
+<p><a name="spawnP"></a></p>
 <h2 id="spawnpargs-promisestring">spawnP(args) ⇒ <code>Promise.&lt;string&gt;</code><a class="headerlink" href="#spawnpargs-promisestring" title="Permanent link">&para;</a></h2>
 <p>Spawn a command with sudo via cockpit.spawn, returning a Promise.</p>
 <p><strong>Kind</strong>: global function  </p>
