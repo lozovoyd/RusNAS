@@ -3,8 +3,8 @@
 
 import logging
 import threading
-from .channels import CHANNELS
-from . import db
+from channels import CHANNELS
+import db
 
 logger = logging.getLogger("rusnas-notify.dispatcher")
 

@@ -1,6 +1,6 @@
 """Channel registry — maps channel name to send function."""
 
-from . import email_ch, telegram_ch, max_ch, snmp_ch, webhook_ch
+from channels import email_ch, telegram_ch, max_ch, snmp_ch, webhook_ch
 
 CHANNELS = {
     "email":    email_ch.send,
