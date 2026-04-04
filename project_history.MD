@@ -2735,3 +2735,44 @@ location /chat/          → без rewrite           (SPA+assets+sockjs)
 - `cockpit/rusnas/assets/` — favicon.svg, logo.svg
 - `landing/fonts/` — Manrope TTF (5 weights)
 - `landing/favicon.svg`
+
+---
+
+## Сессия 2026-04-04 (вечер) — Fix: Dashboard perf charts full history
+
+**Задача:** Графики производительности на дашборде показывали данные только за последние 15 минут вместо полного аптайма системы (6+ часов).
+
+**Root cause:** 3 связанных проблемы:
+1. Дефолтное окно `_perfMinutes = 15` — графики показывали только последние 15 минут
+2. `GAP_MS = 30000` (30с) разрывал линию на даунсэмпленных данных (120-180с интервалы)
+3. Жёсткий `y.max = 100` для CPU/RAM делал низкие значения (2-5%) невидимыми
+
+**Что сделано:**
+- Авто-определение периода при первой загрузке (`_perfAutoFitted` flag)
+- Clamp xMin к первой точке данных — убирает пустое пространство слева
+- GAP_MS увеличен до 600000 (10 мин) — непрерывные линии
+- Убран жёсткий `y.max = 100` для CPU/RAM — авто-масштаб Chart.js
+- Те же фиксы применены к expand-модалу графиков
+
+**Изменённые файлы:**
+- `cockpit/rusnas/js/dashboard.js` — perfReload(), _updCh(), updatePerfCharts(), _renderExpandChart()
+
+**Ветка:** `claude/keen-pare` → merged в `main`
+
+### RAM Monitor Modal (та же сессия)
+
+**Задача:** Кнопка (i) на графике RAM открывала тот же CPU-модал. Нужен отдельный модал с подробной информацией о памяти.
+
+**Что сделано:**
+- Новый RAM-модал (`#ram-modal`) с тремя секциями:
+  - 📊 Разбивка памяти: stacked bar + breakdown bars (Приложения/Буферы/Кеш/Shared/Slab/Свободно)
+  - 📋 Статистика: 12+ метрик из `/proc/meminfo` (Available, Free, Dirty, Writeback, Page Tables, Slab recl/unrecl, Swap, HugePages)
+  - 🏋️ Топ 15 процессов по RSS: PID, имя, RSS, %MEM, VSZ
+- Кнопка (i) на RAM-графике теперь `data-modal="ram"` → `openRamModal()`
+- Обновление каждые 2 секунды (RAM меняется медленнее CPU)
+- Responsive: на мобильном скрываются колонки VSZ и %MEM
+
+**Изменённые файлы:**
+- `cockpit/rusnas/dashboard.html` — новый `#ram-modal` HTML, `data-modal="ram"` на кнопке
+- `cockpit/rusnas/js/dashboard.js` — `openRamModal()`, `closeRamModal()`, `refreshRamModal()`, `renderRamModal()`, обработчик клика
+- `cockpit/rusnas/css/dashboard.css` — `.rm-*` стили (stacked bar, legend, stat grid, proc table)

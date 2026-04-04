@@ -411,6 +411,20 @@ sshpass -p 'kl4389qd' scp -o StrictHostKeyChecking=no -o PreferredAuthentication
 - `detectProfile()` — `profile.netSpeed` инициализируется 0 (не 1000), чтобы корректно выбрать NIC
 - Sudoers для Performance Tuner **не нужны** — всё через `cockpit.file superuser`
 
+## Dashboard — RAM Monitor Modal
+
+Кнопка (i) на графике RAM открывает отдельный модал `#ram-modal` (не CPU-модал).
+
+**Структура:**
+- Stacked bar: цветная полоса разбивки памяти (Apps/Buffers/Cache/Shared/Slab/Free)
+- Breakdown bars: каждая категория с % и абсолютным значением
+- Stats grid: 12+ метрик из `/proc/meminfo`
+- Process table: top 15 по RSS (PID, имя, RSS, %MEM, VSZ)
+
+**Команда:** `cat /proc/meminfo; echo '===S==='; ps -eo pid,comm,%mem,rss,vsz --sort=-rss --no-header | head -15`
+**Обновление:** каждые 2 сек (`_rmInterval`)
+**CSS:** `.rm-*` классы в `dashboard.css`
+
 ## Dashboard — Night Report (ночной отчёт)
 
 Виджет на дашборде — «утренняя газета для инфраструктуры». Показывает сводку за последние 8 часов.
@@ -680,6 +694,9 @@ EOF
 | Несколько `setInterval` открывают модал быстро | очищать старый interval `if (_interval) clearInterval(_interval)` в начале `open*Modal()` |
 | `setInterval` без сохранения ID = утечка | всегда `var _timer = setInterval(...)` для возможности `clearInterval(_timer)` |
 | tickFast делает N spawns каждые 2 сек | батчить `/proc` reads в один bash spawn с разделителем `===M===`; парсить в `_parse*Out()` функциях |
+| Perf charts: `GAP_MS=30000` рвёт линию на даунсэмпленных данных | `GAP_MS=600000` (10 мин); интервалы даунсэмплинга (120-180с) не должны рвать линию |
+| Perf charts: `y.max=100` → низкие значения CPU/RAM невидимы | не ставить жёсткий `max`; Chart.js авто-масштабирует ось Y |
+| Perf charts: дефолт 15 мин → не видна полная история | `_perfAutoFitted` вычисляет span данных при первой загрузке; clamp xMin к первой точке |
 | `Promise.all(...).then(...)` без `.catch()` | необработанный rejection зависает UI; всегда добавлять `.catch(function(e) { /* show error */ })` |
 | `results.push()` в параллельных spawn callbacks | race condition — порядок не гарантирован; использовать `results[idx] = ...` с индексом из `forEach(dev, idx)` |
 | `renderX()` после `loadData()` через `setTimeout(300)` | ненадёжная гонка; `loadData()` должен возвращать Promise, `renderX()` вызывать через `.then()` |
