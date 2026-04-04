@@ -1816,6 +1816,175 @@ function renderCpuModal(out) {
     }).join("");
 }
 
+// ── RAM Monitor Modal ─────────────────────────────────────────────────────
+var _rmInterval = null;
+
+/**
+ * Open RAM monitor modal.
+ */
+window.openRamModal = function() {
+    if (_rmInterval) { clearInterval(_rmInterval); _rmInterval = null; }
+    el("ram-modal").classList.remove("hidden");
+    refreshRamModal();
+    _rmInterval = setInterval(refreshRamModal, 2000);
+};
+
+/**
+ * Close RAM monitor modal.
+ */
+window.closeRamModal = function() {
+    el("ram-modal").classList.add("hidden");
+    clearInterval(_rmInterval);
+    _rmInterval = null;
+};
+
+/**
+ * Refresh RAM details in the RAM modal.
+ * Reads /proc/meminfo + top processes by RSS.
+ */
+function refreshRamModal() {
+    cockpit.spawn(["bash", "-c",
+        "cat /proc/meminfo; echo '===S==='; " +
+        "ps -eo pid,comm,%mem,rss,vsz --sort=-rss --no-header 2>/dev/null | head -15"
+    ], { err: "message" }).done(renderRamModal);
+}
+
+/**
+ * Color for memory bar category.
+ * @param {string} cat - Category name
+ * @returns {string}
+ */
+function _rmColor(cat) {
+    var map = {
+        apps: "#3b82f6", buffers: "#06b6d4", cached: "#8b5cf6",
+        shared: "#f59e0b", slab: "#64748b", free: "#22c55e",
+        swap: "#a855f7", pagetables: "#94a3b8"
+    };
+    return map[cat] || "#64748b";
+}
+
+/**
+ * Render RAM modal content from raw /proc/meminfo + ps output.
+ * @param {string} out - Combined output
+ */
+function renderRamModal(out) {
+    var parts = out.split("===S===\n");
+    if (parts.length < 2) return;
+    var memText = parts[0];
+    var procText = parts[1];
+
+    /* Parse /proc/meminfo — all values in kB, convert to bytes */
+    var getK = function(k) {
+        var m = memText.match(new RegExp(k + ":\\s+(\\d+)"));
+        return m ? parseInt(m[1]) * 1024 : 0;
+    };
+    var total    = getK("MemTotal");
+    var free     = getK("MemFree");
+    var avail    = getK("MemAvailable");
+    var buffers  = getK("Buffers");
+    var cached   = getK("Cached");
+    var shmem    = getK("Shmem");
+    var sreclm   = getK("SReclaimable");
+    var sunreclm = getK("SUnreclaim");
+    var dirty    = getK("Dirty");
+    var wback    = getK("Writeback");
+    var ptables  = getK("PageTables");
+    var swTotal  = getK("SwapTotal");
+    var swFree   = getK("SwapFree");
+    var swCached = getK("SwapCached");
+    var hugTotal = getK("HugePages_Total");
+
+    var apps     = Math.max(0, total - free - buffers - cached - sreclm);
+    var swUsed   = swTotal - swFree;
+
+    /* Stacked bar */
+    var segments = [
+        { label: "Приложения", val: apps,    color: _rmColor("apps") },
+        { label: "Буферы",     val: buffers, color: _rmColor("buffers") },
+        { label: "Кеш",        val: cached,  color: _rmColor("cached") },
+        { label: "Shared",     val: shmem,   color: _rmColor("shared") },
+        { label: "Slab",       val: sreclm + sunreclm, color: _rmColor("slab") },
+        { label: "Свободно",   val: free,    color: _rmColor("free") }
+    ];
+
+    var stackHtml = '<div class="rm-stacked-outer">';
+    segments.forEach(function(s) {
+        var pct = total > 0 ? (s.val / total * 100) : 0;
+        if (pct < 0.5) return;
+        stackHtml += '<div class="rm-stacked-seg" style="width:' + pct.toFixed(1) +
+            '%;background:' + s.color + '" title="' + s.label + ': ' + fmtBytes(s.val) +
+            ' (' + pct.toFixed(1) + '%)"></div>';
+    });
+    stackHtml += '</div>';
+    /* Legend */
+    stackHtml += '<div class="rm-stacked-legend">';
+    segments.forEach(function(s) {
+        if (total > 0 && (s.val / total * 100) < 0.5) return;
+        stackHtml += '<span class="rm-legend-item"><span class="rm-legend-dot" style="background:' +
+            s.color + '"></span>' + s.label + '</span>';
+    });
+    stackHtml += '</div>';
+    el("rm-stacked-bar").innerHTML = stackHtml;
+
+    /* Breakdown bars */
+    var brkHtml = '';
+    brkHtml += cmBar("Приложения", total > 0 ? Math.round(apps / total * 100) : 0, _rmColor("apps"), fmtBytes(apps));
+    brkHtml += cmBar("Буферы", total > 0 ? Math.round(buffers / total * 100) : 0, _rmColor("buffers"), fmtBytes(buffers));
+    brkHtml += cmBar("Кеш (page)", total > 0 ? Math.round(cached / total * 100) : 0, _rmColor("cached"), fmtBytes(cached));
+    brkHtml += cmBar("Shared", total > 0 ? Math.round(shmem / total * 100) : 0, _rmColor("shared"), fmtBytes(shmem));
+    brkHtml += cmBar("Slab", total > 0 ? Math.round((sreclm + sunreclm) / total * 100) : 0, _rmColor("slab"), fmtBytes(sreclm + sunreclm));
+    brkHtml += cmBar("Свободно", total > 0 ? Math.round(free / total * 100) : 0, _rmColor("free"), fmtBytes(free));
+    if (swTotal > 0) {
+        brkHtml += cmBar("Swap", swTotal > 0 ? Math.round(swUsed / swTotal * 100) : 0, _rmColor("swap"), fmtBytes(swUsed) + " / " + fmtBytes(swTotal));
+    }
+    el("rm-breakdown-bars").innerHTML = brkHtml;
+
+    /* Stats grid */
+    var usedPct = total > 0 ? Math.round((total - avail) / total * 100) : 0;
+    var statsHtml = '';
+    var statItems = [
+        ["Всего",       fmtBytes(total)],
+        ["Используется", fmtBytes(total - avail) + " (" + usedPct + "%)"],
+        ["Available",    fmtBytes(avail)],
+        ["Free",         fmtBytes(free)],
+        ["Dirty pages",  fmtBytes(dirty)],
+        ["Writeback",    fmtBytes(wback)],
+        ["Page Tables",  fmtBytes(ptables)],
+        ["Slab (recl.)", fmtBytes(sreclm)],
+        ["Slab (unrecl.)", fmtBytes(sunreclm)]
+    ];
+    if (swTotal > 0) {
+        statItems.push(["Swap всего", fmtBytes(swTotal)]);
+        statItems.push(["Swap исп.", fmtBytes(swUsed)]);
+        if (swCached > 0) statItems.push(["Swap cached", fmtBytes(swCached)]);
+    }
+    if (hugTotal > 0) statItems.push(["HugePages", String(hugTotal)]);
+    statItems.forEach(function(s) {
+        statsHtml += '<div class="rm-stat-label">' + s[0] + '</div><div class="rm-stat-value">' + s[1] + '</div>';
+    });
+    el("rm-stat-grid").innerHTML = statsHtml;
+
+    /* Process list by RSS */
+    var procs = procText.trim().split("\n").filter(Boolean).slice(0, 15);
+    el("rm-proc-list").innerHTML = procs.map(function(line) {
+        var p = line.trim().split(/\s+/);
+        if (p.length < 5) return "";
+        var pid  = p[0];
+        var name = p[1].slice(0, 22);
+        var mem  = parseFloat(p[2]) || 0;
+        var rss  = parseInt(p[3]) * 1024;
+        var vsz  = parseInt(p[4]) * 1024;
+        var cls  = mem > 15 ? "db-crit" : mem > 5 ? "db-warn" : "";
+        return '<div class="cm-proc-row rm-proc-row">' +
+            '<span>' + escHtml(pid) + '</span>' +
+            '<span class="cm-proc-name">' + escHtml(name) + '</span>' +
+            '<span class="cm-proc-val ' + cls + '">' + fmtBytes(rss) + '</span>' +
+            '<span class="cm-proc-val">' + mem.toFixed(1) + '%</span>' +
+            '<span class="cm-proc-val">' + fmtBytes(vsz) + '</span>' +
+            '</div>';
+    }).join("");
+}
+
 // ── Tick loops ────────────────────────────────────────────────────────────
 /**
  * Execute all fast-refresh metrics (2-second interval).
@@ -2582,12 +2751,21 @@ document.addEventListener("DOMContentLoaded", function() {
         if (e.target === cmOverlay) window.closeCpuModal();
     });
 
-    // Info buttons (i) → open detail modals for CPU/Net
+    // RAM modal close handlers
+    var rmClose = el("ram-modal-close");
+    if (rmClose) rmClose.addEventListener("click", window.closeRamModal);
+    var rmOverlay = el("ram-modal");
+    if (rmOverlay) rmOverlay.addEventListener("click", function(e) {
+        if (e.target === rmOverlay) window.closeRamModal();
+    });
+
+    // Info buttons (i) → open detail modals for CPU/RAM/Net
     document.querySelectorAll(".db-chart-info-btn").forEach(function(btn) {
         btn.addEventListener("click", function(e) {
             e.stopPropagation();
             var modal = btn.dataset.modal;
             if (modal === "cpu" && window.openCpuModal) window.openCpuModal();
+            else if (modal === "ram" && window.openRamModal) window.openRamModal();
             else if (modal === "net" && window.openNetModal) window.openNetModal();
         });
     });
