@@ -25,6 +25,16 @@ done
 HAS_DPKG=0
 command -v dpkg-deb >/dev/null 2>&1 && HAS_DPKG=1
 
+# ── Python stripping helper ──────────────────────────────────────────────────
+PYSTRIP="$(pwd)/tools/pystrip.py"
+strip_py() {
+    # Strip docstrings/comments from all .py files in a directory
+    local dir="$1"
+    if [ -f "$PYSTRIP" ]; then
+        find "$dir" -name '*.py' -exec python3 "$PYSTRIP" {} {} \; 2>/dev/null
+    fi
+}
+
 # ── Clean previous build ────────────────────────────────────────────────────
 echo "Cleaning previous build..."
 rm -rf "${PKG}/usr" "${PKG}/etc" "${PKG}/lib" "${PKG}/var"
@@ -77,14 +87,16 @@ echo "  ✓ $(ls "${DEST}/css/"*.css | wc -l | tr -d ' ') CSS files copied"
 cp "${SRC}/manifest.json" "${DEST}/manifest.json"
 echo "  ✓ manifest.json"
 
-# Python scripts: copy as-is
+# Python scripts: copy + strip docstrings/comments
 cp "${SRC}"/scripts/*.py "${DEST}/scripts/" 2>/dev/null || true
 cp "${SRC}"/scripts/*.sh "${DEST}/scripts/" 2>/dev/null || true
-echo "  ✓ scripts/ copied"
+strip_py "${DEST}/scripts"
+echo "  ✓ scripts/ copied + stripped"
 
-# CGI scripts: copy to Cockpit dir (for fb-* scripts accessed by Cockpit)
+# CGI scripts: copy + strip
 cp "${SRC}"/cgi/*.py "${DEST}/cgi/" 2>/dev/null || true
-echo "  ✓ cgi/ copied"
+strip_py "${DEST}/cgi"
+echo "  ✓ cgi/ copied + stripped"
 
 # Container catalog: copy entire tree
 cp -r "${SRC}"/catalog/* "${DEST}/catalog/" 2>/dev/null || true
@@ -111,6 +123,7 @@ echo "Packaging Guard daemon..."
 GUARD="${PKG}/usr/lib/rusnas-guard"
 mkdir -p "$GUARD"
 cp rusnas-guard/daemon/*.py "$GUARD/"
+strip_py "$GUARD"
 mkdir -p "${PKG}/etc/rusnas-guard"
 cp rusnas-guard/config/config.json "${PKG}/etc/rusnas-guard/"
 cp rusnas-guard/config/ransom_extensions.txt "${PKG}/etc/rusnas-guard/"
@@ -123,6 +136,7 @@ echo "Packaging Spindown daemon..."
 SPIND="${PKG}/usr/lib/rusnas/spind"
 mkdir -p "$SPIND"
 cp rusnas-spind/*.py "$SPIND/"
+strip_py "$SPIND"
 cp rusnas-spind/rusnas-spind.service "${PKG}/lib/systemd/system/"
 echo "  ✓ Spindown daemon"
 
@@ -132,13 +146,15 @@ CGI="${PKG}/usr/lib/rusnas/cgi"
 mkdir -p "$CGI"
 cp "${SRC}/cgi/container_api.py" "$CGI/" 2>/dev/null || true
 cp "${SRC}/cgi/spindown_ctl.py" "$CGI/" 2>/dev/null || true
-echo "  ✓ CGI backend"
+strip_py "$CGI"
+echo "  ✓ CGI backend (stripped)"
 
 # ── Metrics server ──────────────────────────────────────────────────────────
 echo "Packaging Metrics server..."
 METRICS="${PKG}/usr/local/lib/rusnas"
 mkdir -p "$METRICS"
 cp rusnas-metrics/metrics_server.py "$METRICS/"
+strip_py "$METRICS"
 cp rusnas-metrics/rusnas-metrics.service "${PKG}/lib/systemd/system/"
 echo "  ✓ Metrics server"
 
@@ -148,6 +164,7 @@ SEC="${PKG}/usr/lib/rusnas/sectest"
 mkdir -p "${SEC}/checks" "${SEC}/wordlists"
 cp rusnas-sectest/sectest.py "$SEC/"
 cp rusnas-sectest/checks/*.py "${SEC}/checks/"
+strip_py "$SEC"
 cp rusnas-sectest/wordlists/*.txt "${SEC}/wordlists/"
 cp rusnas-sectest/rusnas-sectest.service "${PKG}/lib/systemd/system/"
 cp rusnas-sectest/rusnas-sectest.timer "${PKG}/lib/systemd/system/"
