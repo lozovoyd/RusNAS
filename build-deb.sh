@@ -409,13 +409,28 @@ else
         fi
 
         eval ${SCP_CMD} "${TARBALL}" "${BUILD_USER}@${BUILD_HOST}:/tmp/${TARBALL}"
+        # Also upload cython-build.sh for Python compilation
+        eval ${SCP_CMD} "tools/cython-build.sh" "${BUILD_USER}@${BUILD_HOST}:/tmp/cython-build.sh" 2>/dev/null || true
+
         eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "'
             export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
             rm -rf /tmp/rusnas-pkg && mkdir -p /tmp/rusnas-pkg
             cd /tmp/rusnas-pkg && tar xzf /tmp/${TARBALL}
+
+            # Cython compilation (if cython3 + gcc available)
+            if command -v cython3 >/dev/null 2>&1 && command -v gcc >/dev/null 2>&1; then
+                echo \"  Compiling Python → native .so (Cython)...\"
+                for d in usr/lib/rusnas-guard usr/lib/rusnas/spind usr/lib/rusnas/cgi usr/lib/rusnas/sectest usr/lib/rusnas/sectest/checks usr/local/lib/rusnas usr/share/cockpit/rusnas/scripts; do
+                    [ -d \"/tmp/rusnas-pkg/\$d\" ] && bash /tmp/cython-build.sh \"/tmp/rusnas-pkg/\$d\" 2>/dev/null | grep -E \"compile:|Done:\"
+                done
+                echo \"  ✓ Python compiled to native code\"
+            else
+                echo \"  ⚠ cython3/gcc not found — Python files included as stripped source\"
+            fi
+
             echo kl4389qd | su -c \"dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}\" root 2>/dev/null \
                 || dpkg-deb --root-owner-group --build /tmp/rusnas-pkg /tmp/${DEB}
-            rm -rf /tmp/rusnas-pkg /tmp/${TARBALL}
+            rm -rf /tmp/rusnas-pkg /tmp/${TARBALL} /tmp/cython-build.sh
         '"
         eval ${SCP_CMD} "${BUILD_USER}@${BUILD_HOST}:/tmp/${DEB}" "./${DEB}"
         eval ${SSH_CMD} "${BUILD_USER}@${BUILD_HOST}" "rm -f /tmp/${DEB}"
