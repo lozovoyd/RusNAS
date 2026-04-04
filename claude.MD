@@ -18,6 +18,7 @@
 > Git Workflow: [git-workflow.md](./git-workflow.md) — правила веток, коммитов, merge
 > История багов: [bugs.MD](./bugs.MD) — полная история всех багов и фиксов (BUG-01..30)
 > Performance Tuner: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md) — ТЗ авто-оптимизатора (12 уровней)
+> Уведомления: dev-docs [docs/src/modules/notifications.md](./docs/src/modules/notifications.md) | user-docs [user-docs/docs/notifications.md](./user-docs/docs/notifications.md) | API [docs/src/api/python/notify.md](./docs/src/api/python/notify.md)
 > Security Self-Test: [rusnas-sectest/rusnas-sectest-task.md](./rusnas-sectest/rusnas-sectest-task.md) — ТЗ и архитектура автопентеста (OWASP Top 10)
 > Btrfs проблемы: [btrfs-problems.md](./btrfs-problems.md) — 15 известных проблем Btrfs+mdadm с решениями
 
@@ -90,7 +91,8 @@ CLAUDE.md — оперативная шпаргалка. Детальный ко
 
 - **Host:** Intel Mac with UTM (QEMU hypervisor)
 - **VM:** Debian 13 Trixie, x86_64 — 1 system disk + multiple data disks for RAID testing
-- **VM address:** 10.10.10.72, user: `rusnas` (root SSH disabled)
+- **VM 10.10.10.72** — VM для тестирования и разработки (dev/test), user: `rusnas` (root SSH disabled)
+- **VM 10.10.10.31** — VM для сборки пакетов и теста разворачивания из пакетов (build/package)
 - **File transfer:** `scp` (long commands get truncated when pasted in terminal — create a file locally and `scp` to VM)
 
 ## Deploy / Update Workflow

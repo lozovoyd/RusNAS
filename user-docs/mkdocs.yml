@@ -97,4 +97,5 @@ nav:
   - AI-ассистент: ai/index.md
   - Приложения: containers/index.md
   - Пользователи: users/index.md
+  - Уведомления: notifications.md
   - Решение проблем: troubleshooting.md
