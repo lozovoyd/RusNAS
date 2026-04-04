@@ -1,0 +1,64 @@
+{
+  "channels": {
+    "email": {
+      "enabled": false,
+      "smtp_host": "",
+      "smtp_port": 587,
+      "smtp_tls": "starttls",
+      "smtp_user": "",
+      "smtp_pass": "",
+      "recipients": [],
+      "from": "rusNAS <noreply@localhost>"
+    },
+    "telegram": {
+      "enabled": false,
+      "bot_token": "",
+      "chat_ids": []
+    },
+    "max": {
+      "enabled": false,
+      "bot_token": "",
+      "chat_ids": []
+    },
+    "snmp": {
+      "enabled": false,
+      "version": "v2c",
+      "community": "public",
+      "trap_receivers": [],
+      "v3_username": "",
+      "v3_auth_protocol": "SHA",
+      "v3_auth_password": "",
+      "v3_priv_protocol": "AES",
+      "v3_priv_password": ""
+    },
+    "webhook": {
+      "enabled": false,
+      "urls": [],
+      "method": "POST",
+      "headers": {},
+      "timeout_sec": 10
+    }
+  },
+  "routing": {
+    "guard":      {"email": true, "telegram": true, "max": false, "snmp": true, "webhook": true},
+    "ups":        {"email": true, "telegram": true, "max": false, "snmp": true, "webhook": false},
+    "raid":       {"email": true, "telegram": true, "max": false, "snmp": true, "webhook": false},
+    "snapshots":  {"email": true, "telegram": false, "max": false, "snmp": false, "webhook": false},
+    "storage":    {"email": true, "telegram": false, "max": false, "snmp": false, "webhook": false},
+    "network":    {"email": true, "telegram": false, "max": false, "snmp": false, "webhook": false},
+    "security":   {"email": true, "telegram": true, "max": false, "snmp": true, "webhook": false},
+    "containers": {"email": true, "telegram": false, "max": false, "snmp": false, "webhook": false},
+    "system":     {"email": true, "telegram": true, "max": false, "snmp": true, "webhook": false},
+    "custom":     {"email": true, "telegram": false, "max": false, "snmp": false, "webhook": false}
+  },
+  "throttle": {
+    "window_sec": 300,
+    "max_per_source": 5,
+    "digest_delay_sec": 60
+  },
+  "retry": {
+    "max_attempts": 3,
+    "backoff_sec": [30, 120, 600]
+  },
+  "log_watchers": []
+}

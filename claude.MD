@@ -18,6 +18,7 @@
 > Git Workflow: [git-workflow.md](./git-workflow.md) — правила веток, коммитов, merge
 > История багов: [bugs.MD](./bugs.MD) — полная история всех багов и фиксов (BUG-01..30)
 > Performance Tuner: [rusnas-performance-tuning-spec.md](./rusnas-performance-tuning-spec.md) — ТЗ авто-оптимизатора (12 уровней)
+> Уведомления: dev-docs [docs/src/modules/notifications.md](./docs/src/modules/notifications.md) | user-docs [user-docs/docs/notifications.md](./user-docs/docs/notifications.md) | API [docs/src/api/python/notify.md](./docs/src/api/python/notify.md)
 > Security Self-Test: [rusnas-sectest/rusnas-sectest-task.md](./rusnas-sectest/rusnas-sectest-task.md) — ТЗ и архитектура автопентеста (OWASP Top 10)
 > Btrfs проблемы: [btrfs-problems.md](./btrfs-problems.md) — 15 известных проблем Btrfs+mdadm с решениями
 
@@ -90,7 +91,8 @@ CLAUDE.md — оперативная шпаргалка. Детальный ко
 
 - **Host:** Intel Mac with UTM (QEMU hypervisor)
 - **VM:** Debian 13 Trixie, x86_64 — 1 system disk + multiple data disks for RAID testing
-- **VM address:** 10.10.10.72, user: `rusnas` (root SSH disabled)
+- **VM 10.10.10.72** — VM для тестирования и разработки (dev/test), user: `rusnas` (root SSH disabled)
+- **VM 10.10.10.31** — VM для сборки пакетов и теста разворачивания из пакетов (build/package)
 - **File transfer:** `scp` (long commands get truncated when pasted in terminal — create a file locally and `scp` to VM)
 
 ## Deploy / Update Workflow
@@ -623,6 +625,34 @@ EOF
 - Preflight: `openInstallModal()` вызывает `get_resources` после показа modal → badges success/warning/danger в `#install-preflight`
 
 **Catalog apps (10):** nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat
+
+## Notification System (rusnas-notify)
+- Daemon: `/usr/lib/rusnas/notify/notifyd.py` (systemd Type=simple)
+- CLI: `/usr/local/bin/rusnas-notify` (send, test, history, status)
+- Socket: `/run/rusnas-notify/notify.sock` (0o666, no auth)
+- Config: `/etc/rusnas/notify.json`
+- DB: `/var/lib/rusnas/notify.db` (SQLite WAL)
+- Spool: `/var/spool/rusnas-notify/` (CLI fallback)
+- Channels: Email, Telegram, MAX, SNMP traps, Webhook
+- Checker: `notify-check.py` via timer every 5 min
+- Log Watcher: built-in thread, regex patterns from config
+- RULE: any dashboard widget MUST have notification integration (rusnas-notify)
+- Docs: dev — `docs/src/modules/notifications.md`, API — `docs/src/api/python/notify.md`, user — `user-docs/docs/notifications.md`
+- Spec: `docs/superpowers/specs/2026-04-04-notification-system-design.md`
+
+## Development Rules
+
+> **Обязательные правила при добавлении/изменении функциональности:**
+
+1. **Dashboard → Notify:** Любой виджет на дашборде ДОЛЖЕН иметь интеграцию с системой уведомлений (rusnas-notify). Нельзя добавить мониторинг без событий.
+2. **Docs обязательны:** При добавлении нового модуля или значимом изменении существующего ОБЯЗАТЕЛЬНО обновить:
+   - `claude.MD` — секция модуля (пути, конфиг, паттерны)
+   - `docs/src/modules/<module>.md` — dev-документация (архитектура, API)
+   - `docs/src/api/python/<module>.md` — API-справочник (если есть Python backend)
+   - `user-docs/docs/<module>.md` — пользовательская документация
+   - `docs/mkdocs.yml` + `user-docs/mkdocs.yml` — ссылки в навигации
+   - `landing/index.html` — карточка фичи (если публичная)
+3. **Не забывать:** certification-docs/ при подготовке к сертификации
 
 ## Known Bugs and Fixes
 

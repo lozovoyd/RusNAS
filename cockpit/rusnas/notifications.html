@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>rusNAS — Уведомления</title>
+    <script>(function(){function t(){var s=localStorage.getItem("shell:style");document.documentElement.setAttribute("data-theme",s==="dark"||(s!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light");}t();window.addEventListener("storage",function(e){if(e.key==="shell:style")t();});})()</script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/notifications.css">
+</head>
+<body>
+
+<h1>rusNAS — Уведомления</h1>
+
+<!-- ── Status bar ─────────────────────────────────────────────────── -->
+<div class="section">
+    <div class="section-toolbar">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <span id="notify-daemon-badge" class="badge badge-secondary">Загрузка...</span>
+            <span id="notify-channels-summary" class="text-muted" style="font-size:13px;"></span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Tabs ────────────────────────────────────────────────────────── -->
+<div class="tabs" style="margin-bottom:0;">
+    <button class="tab-btn tab-active" data-tab="tab-channels">Каналы доставки</button>
+    <button class="tab-btn" data-tab="tab-routing">Маршрутизация</button>
+    <button class="tab-btn" data-tab="tab-history">История</button>
+    <button class="tab-btn" data-tab="tab-logwatcher">Log Watcher</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- Tab 1: Channels                                                 -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div id="tab-channels" class="tab-panel">
+
+<div class="section">
+    <h2>Каналы доставки уведомлений</h2>
+    <p class="table-hint" style="margin-top:0;margin-bottom:16px;">Настройте каналы, через которые будут отправляться уведомления. Каждый канал можно включить/выключить и протестировать отдельно.</p>
+
+    <div class="nf-channels-grid">
+
+        <!-- ── Email ──────────────────────────────────────────────── -->
+        <div class="nf-channel-card" id="card-email">
+            <div class="nf-channel-header">
+                <div class="nf-channel-title-row">
+                    <span class="nf-channel-icon">&#9993;</span>
+                    <span class="nf-channel-name">Email (SMTP)</span>
+                </div>
+                <label class="nf-toggle">
+                    <input type="checkbox" id="ch-email-enabled">
+                    <span class="nf-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="nf-channel-body">
+                <div class="form-group">
+                    <label>SMTP-сервер</label>
+                    <input type="text" id="ch-email-host" placeholder="smtp.yandex.ru">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div class="form-group">
+                        <label>Порт</label>
+                        <input type="number" id="ch-email-port" placeholder="587" value="587">
+                    </div>
+                    <div class="form-group">
+                        <label>Шифрование</label>
+                        <select id="ch-email-tls">
+                            <option value="starttls">STARTTLS (587)</option>
+                            <option value="ssl">SSL/TLS (465)</option>
+                            <option value="none">Без шифрования (25)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Логин</label>
+                    <input type="text" id="ch-email-user" placeholder="nas@company.ru">
+                </div>
+                <div class="form-group">
+                    <label>Пароль приложения</label>
+                    <input type="password" id="ch-email-pass" placeholder="app-password">
+                </div>
+                <div class="form-group">
+                    <label>От кого (From)</label>
+                    <input type="text" id="ch-email-from" placeholder="rusNAS <nas@company.ru>">
+                </div>
+                <div class="form-group">
+                    <label>Получатели (по одному на строку)</label>
+                    <textarea id="ch-email-recipients" rows="3" placeholder="admin@company.ru&#10;ops@company.ru"></textarea>
+                </div>
+            </div>
+            <div class="nf-channel-actions">
+                <button class="btn btn-secondary btn-sm" data-test="email">Тест</button>
+                <button class="btn btn-primary btn-sm" data-save="email">Сохранить</button>
+            </div>
+            <div class="nf-channel-result hidden" id="result-email"></div>
+            <details class="nf-channel-instructions">
+                <summary>Инструкция по настройке</summary>
+                <ol>
+                    <li>Создайте почтовый ящик на Яндексе, Mail.ru или другом SMTP-сервере</li>
+                    <li>Включите доступ по IMAP/SMTP в настройках почтового ящика</li>
+                    <li>Создайте <b>пароль приложения</b> (не используйте основной пароль): Яндекс — id.yandex.ru/security/app-passwords, Mail.ru — account.mail.ru/user/2-step-auth/passwords</li>
+                    <li>Укажите SMTP-сервер (smtp.yandex.ru для Яндекса, smtp.mail.ru для Mail.ru)</li>
+                    <li>Порт: 587 (STARTTLS) или 465 (SSL/TLS)</li>
+                    <li>В поле «Получатели» добавьте email-адреса администраторов</li>
+                    <li>Нажмите <b>Тест</b> для проверки — на указанные адреса придёт тестовое письмо</li>
+                </ol>
+            </details>
+        </div>
+
+        <!-- ── Telegram ───────────────────────────────────────────── -->
+        <div class="nf-channel-card" id="card-telegram">
+            <div class="nf-channel-header">
+                <div class="nf-channel-title-row">
+                    <span class="nf-channel-icon">&#9992;</span>
+                    <span class="nf-channel-name">Telegram</span>
+                </div>
+                <label class="nf-toggle">
+                    <input type="checkbox" id="ch-telegram-enabled">
+                    <span class="nf-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="nf-channel-body">
+                <div class="form-group">
+                    <label>Токен бота</label>
+                    <input type="text" id="ch-telegram-token" placeholder="7123456789:AAH..." style="font-family:monospace;font-size:12px;">
+                </div>
+                <div class="form-group">
+                    <label>ID чатов (по одному на строку)</label>
+                    <textarea id="ch-telegram-chats" rows="3" placeholder="-100123456789&#10;123456789" style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+            </div>
+            <div class="nf-channel-actions">
+                <button class="btn btn-secondary btn-sm" data-test="telegram">Тест</button>
+                <button class="btn btn-primary btn-sm" data-save="telegram">Сохранить</button>
+            </div>
+            <div class="nf-channel-result hidden" id="result-telegram"></div>
+            <details class="nf-channel-instructions">
+                <summary>Инструкция по настройке</summary>
+                <ol>
+                    <li>Откройте Telegram и найдите бота <b>@BotFather</b></li>
+                    <li>Отправьте команду <code>/newbot</code> и следуйте инструкциям</li>
+                    <li>Скопируйте полученный <b>токен бота</b> (формат: <code>7123456789:AAH...</code>)</li>
+                    <li>Добавьте бота в нужный чат или группу</li>
+                    <li>Для получения ID чата: добавьте бота <b>@userinfobot</b> в чат или перешлите ему сообщение из чата</li>
+                    <li>Для групп ID начинается с <code>-100</code> (например: <code>-1001234567890</code>)</li>
+                    <li>Вставьте токен и ID чатов, нажмите <b>Тест</b> — в чат придёт тестовое сообщение</li>
+                </ol>
+            </details>
+        </div>
+
+        <!-- ── MAX (VK Teams) ─────────────────────────────────────── -->
+        <div class="nf-channel-card" id="card-max">
+            <div class="nf-channel-header">
+                <div class="nf-channel-title-row">
+                    <span class="nf-channel-icon">&#128172;</span>
+                    <span class="nf-channel-name">MAX (VK Teams)</span>
+                </div>
+                <label class="nf-toggle">
+                    <input type="checkbox" id="ch-max-enabled">
+                    <span class="nf-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="nf-channel-body">
+                <div class="form-group">
+                    <label>Токен бота</label>
+                    <input type="text" id="ch-max-token" placeholder="Токен бота MAX" style="font-family:monospace;font-size:12px;">
+                </div>
+                <div class="form-group">
+                    <label>ID чатов (по одному на строку)</label>
+                    <textarea id="ch-max-chats" rows="3" placeholder="chat-id-1&#10;chat-id-2" style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+            </div>
+            <div class="nf-channel-actions">
+                <button class="btn btn-secondary btn-sm" data-test="max">Тест</button>
+                <button class="btn btn-primary btn-sm" data-save="max">Сохранить</button>
+            </div>
+            <div class="nf-channel-result hidden" id="result-max"></div>
+            <details class="nf-channel-instructions">
+                <summary>Инструкция по настройке</summary>
+                <ol>
+                    <li>Откройте MAX (ранее VK Teams) и перейдите к созданию бота</li>
+                    <li>Создайте нового бота через меню настроек организации</li>
+                    <li>Скопируйте <b>токен бота</b> из настроек</li>
+                    <li>Добавьте бота в нужный чат</li>
+                    <li>Узнайте ID чата через API бота: отправьте боту сообщение и проверьте вебхук</li>
+                    <li>Вставьте токен и ID чатов, нажмите <b>Тест</b></li>
+                </ol>
+            </details>
+        </div>
+
+        <!-- ── SNMP ───────────────────────────────────────────────── -->
+        <div class="nf-channel-card" id="card-snmp">
+            <div class="nf-channel-header">
+                <div class="nf-channel-title-row">
+                    <span class="nf-channel-icon">&#128225;</span>
+                    <span class="nf-channel-name">SNMP Traps</span>
+                </div>
+                <label class="nf-toggle">
+                    <input type="checkbox" id="ch-snmp-enabled">
+                    <span class="nf-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="nf-channel-body">
+                <div class="form-group">
+                    <label>Версия SNMP</label>
+                    <select id="ch-snmp-version">
+                        <option value="v2c">SNMPv2c</option>
+                        <option value="v3">SNMPv3</option>
+                    </select>
+                </div>
+
+                <!-- v2c fields -->
+                <div id="snmp-v2c-fields">
+                    <div class="form-group">
+                        <label>Community string</label>
+                        <input type="text" id="ch-snmp-community" placeholder="public">
+                    </div>
+                </div>
+
+                <!-- v3 fields -->
+                <div id="snmp-v3-fields" class="hidden">
+                    <div class="form-group">
+                        <label>Имя пользователя</label>
+                        <input type="text" id="ch-snmp-v3-user" placeholder="snmpuser">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-group">
+                            <label>Протокол аутентификации</label>
+                            <select id="ch-snmp-v3-auth-proto">
+                                <option value="SHA">SHA</option>
+                                <option value="MD5">MD5</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Пароль аутентификации</label>
+                            <input type="password" id="ch-snmp-v3-auth-pass" placeholder="auth password">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div class="form-group">
+                            <label>Протокол шифрования</label>
+                            <select id="ch-snmp-v3-priv-proto">
+                                <option value="AES">AES</option>
+                                <option value="DES">DES</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Пароль шифрования</label>
+                            <input type="password" id="ch-snmp-v3-priv-pass" placeholder="priv password">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Получатели трапов (host:port, по одному на строку)</label>
+                    <textarea id="ch-snmp-receivers" rows="2" placeholder="192.168.1.10:162" style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+            </div>
+            <div class="nf-channel-actions">
+                <button class="btn btn-secondary btn-sm" data-test="snmp">Тест</button>
+                <button class="btn btn-primary btn-sm" data-save="snmp">Сохранить</button>
+            </div>
+            <div class="nf-channel-result hidden" id="result-snmp"></div>
+            <details class="nf-channel-instructions">
+                <summary>Инструкция по настройке</summary>
+                <ol>
+                    <li>Убедитесь, что на сервере мониторинга (Zabbix, PRTG, Nagios) настроен приём SNMP-трапов</li>
+                    <li>Для <b>SNMPv2c</b>: укажите community string (обычно <code>public</code>) и адрес:порт получателя</li>
+                    <li>Для <b>SNMPv3</b>: настройте пользователя, протоколы аутентификации (SHA/MD5) и шифрования (AES/DES) с паролями</li>
+                    <li>Стандартный порт трапов: <code>162</code></li>
+                    <li>Enterprise OID rusNAS: <code>.1.3.6.1.4.1.99999</code></li>
+                    <li>Нажмите <b>Тест</b> для отправки тестового трапа на указанные получатели</li>
+                </ol>
+            </details>
+        </div>
+
+        <!-- ── Webhook ────────────────────────────────────────────── -->
+        <div class="nf-channel-card" id="card-webhook">
+            <div class="nf-channel-header">
+                <div class="nf-channel-title-row">
+                    <span class="nf-channel-icon">&#128279;</span>
+                    <span class="nf-channel-name">Webhook</span>
+                </div>
+                <label class="nf-toggle">
+                    <input type="checkbox" id="ch-webhook-enabled">
+                    <span class="nf-toggle-slider"></span>
+                </label>
+            </div>
+            <div class="nf-channel-body">
+                <div class="form-group">
+                    <label>URL-адреса (по одному на строку)</label>
+                    <textarea id="ch-webhook-urls" rows="3" placeholder="https://hooks.slack.com/services/...&#10;https://discord.com/api/webhooks/..." style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div class="form-group">
+                        <label>HTTP-метод</label>
+                        <select id="ch-webhook-method">
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Таймаут (сек)</label>
+                        <input type="number" id="ch-webhook-timeout" value="10" min="1" max="60">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Заголовки (JSON)</label>
+                    <textarea id="ch-webhook-headers" rows="2" placeholder='{"Authorization": "Bearer xxx"}' style="font-family:monospace;font-size:12px;"></textarea>
+                </div>
+            </div>
+            <div class="nf-channel-actions">
+                <button class="btn btn-secondary btn-sm" data-test="webhook">Тест</button>
+                <button class="btn btn-primary btn-sm" data-save="webhook">Сохранить</button>
+            </div>
+            <div class="nf-channel-result hidden" id="result-webhook"></div>
+            <details class="nf-channel-instructions">
+                <summary>Инструкция по настройке</summary>
+                <ol>
+                    <li><b>Slack:</b> Создайте Incoming Webhook в настройках приложения Slack (api.slack.com/apps), скопируйте URL</li>
+                    <li><b>Discord:</b> В настройках канала выберите «Интеграции» &rarr; «Вебхуки» &rarr; «Новый вебхук», скопируйте URL</li>
+                    <li><b>PagerDuty:</b> Создайте Events API v2 интеграцию, используйте URL <code>https://events.pagerduty.com/v2/enqueue</code> с заголовком <code>{"Content-Type": "application/json"}</code></li>
+                    <li><b>Произвольный endpoint:</b> Укажите URL, метод (POST/PUT) и необходимые заголовки авторизации</li>
+                    <li>Формат тела запроса: <code>{"source", "severity", "title", "body", "timestamp", "extra"}</code></li>
+                    <li>Нажмите <b>Тест</b> для проверки доставки</li>
+                </ol>
+            </details>
+        </div>
+
+    </div><!-- /nf-channels-grid -->
+</div>
+
+</div><!-- /tab-channels -->
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- Tab 2: Routing                                                  -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div id="tab-routing" class="tab-panel hidden">
+
+<div class="section">
+    <h2>Маршрутизация уведомлений</h2>
+    <p class="table-hint" style="margin-top:0;margin-bottom:16px;">Укажите, какие каналы получают уведомления от каждого модуля. Нажмите на ячейку для переключения.</p>
+
+    <div class="nf-routing-table-wrap">
+        <table id="routing-matrix">
+            <thead>
+                <tr>
+                    <th>Модуль</th>
+                    <th>Email</th>
+                    <th>Telegram</th>
+                    <th>MAX</th>
+                    <th>SNMP</th>
+                    <th>Webhook</th>
+                </tr>
+            </thead>
+            <tbody id="routing-body">
+                <!-- Populated by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-routing">Сохранить маршруты</button>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Защита от спама (Throttling)</h2>
+    <div class="alert alert-info" style="margin-bottom:16px;">
+        Защита от спама уведомлений. Если один модуль генерирует больше N событий за указанный период — вместо отдельных уведомлений отправляется одно сводное (digest). Например: «Guard: 47 событий за 5 минут (honeypot: 30, entropy: 12, iops: 5)».
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+        <div class="form-group">
+            <label>Окно (секунды)</label>
+            <input type="number" id="throttle-window" value="300" min="60" max="3600">
+            <span class="table-hint">Период, в течение которого считаются события</span>
+        </div>
+        <div class="form-group">
+            <label>Макс. событий на модуль</label>
+            <input type="number" id="throttle-max" value="5" min="1" max="100">
+            <span class="table-hint">После этого числа начинается агрегация</span>
+        </div>
+        <div class="form-group">
+            <label>Задержка дайджеста (сек)</label>
+            <input type="number" id="throttle-digest" value="60" min="10" max="600">
+            <span class="table-hint">Пауза перед отправкой сводного уведомления</span>
+        </div>
+    </div>
+    <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-throttle">Сохранить настройки</button>
+    </div>
+</div>
+
+</div><!-- /tab-routing -->
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- Tab 3: History                                                  -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div id="tab-history" class="tab-panel hidden">
+
+<div class="section">
+    <div class="section-toolbar">
+        <h2>История уведомлений</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="nf-filter-bar">
+        <div>
+            <label>Модуль</label>
+            <select id="hist-filter-source">
+                <option value="">Все</option>
+                <option value="guard">Guard</option>
+                <option value="ups">UPS</option>
+                <option value="raid">RAID</option>
+                <option value="snapshots">Snapshots</option>
+                <option value="storage">Storage</option>
+                <option value="network">Network</option>
+                <option value="security">Security</option>
+                <option value="containers">Containers</option>
+                <option value="system">System</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+        <div>
+            <label>Важность</label>
+            <select id="hist-filter-severity">
+                <option value="">Все</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+            </select>
+        </div>
+        <div>
+            <label>Статус</label>
+            <select id="hist-filter-status">
+                <option value="">Все</option>
+                <option value="sent">Отправлено</option>
+                <option value="failed">Ошибка</option>
+                <option value="throttled">Throttled</option>
+            </select>
+        </div>
+        <div>
+            <label>С даты</label>
+            <input type="date" id="hist-filter-from">
+        </div>
+        <div>
+            <label>По дату</label>
+            <input type="date" id="hist-filter-to">
+        </div>
+        <div class="nf-filter-actions">
+            <button class="btn btn-primary btn-sm" id="btn-hist-apply">Применить</button>
+            <button class="btn btn-secondary btn-sm" id="btn-hist-reset">Сбросить</button>
+        </div>
+    </div>
+
+    <!-- Pagination info -->
+    <div class="nf-pagination-bar">
+        <span id="hist-count-info" class="text-muted">---</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-secondary btn-sm" id="btn-hist-prev" disabled>Назад</button>
+            <span id="hist-page-info" class="text-muted" style="font-size:12px;"></span>
+            <button class="btn btn-secondary btn-sm" id="btn-hist-next" disabled>Вперёд</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="white-space:nowrap;">Время</th>
+                <th>Модуль</th>
+                <th>Важность</th>
+                <th>Заголовок</th>
+                <th>Каналы</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody id="hist-body">
+            <tr><td colspan="6" class="text-muted">Загрузка...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+</div><!-- /tab-history -->
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- Tab 4: Log Watcher                                              -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div id="tab-logwatcher" class="tab-panel hidden">
+
+<div class="section">
+    <div class="section-toolbar">
+        <h2>Log Watcher</h2>
+        <button class="btn btn-success" id="btn-add-watcher">+ Добавить правило</button>
+    </div>
+    <p class="table-hint" style="margin-top:0;margin-bottom:12px;">Мониторинг лог-файлов по регулярным выражениям. При совпадении генерируется уведомление с указанной важностью.</p>
+
+    <!-- Template buttons -->
+    <div class="nf-lw-templates">
+        <span class="text-muted" style="font-size:12px;margin-right:6px;">Шаблоны:</span>
+        <button class="btn btn-secondary btn-sm nf-tpl-btn" data-tpl="ssh-root">SSH root</button>
+        <button class="btn btn-secondary btn-sm nf-tpl-btn" data-tpl="oom">OOM Kill</button>
+        <button class="btn btn-secondary btn-sm nf-tpl-btn" data-tpl="segfault">Segfault</button>
+        <button class="btn btn-secondary btn-sm nf-tpl-btn" data-tpl="kernel-panic">Kernel panic</button>
+        <button class="btn btn-secondary btn-sm nf-tpl-btn" data-tpl="disk-error">Disk error</button>
+    </div>
+
+    <!-- Filters/sorting -->
+    <div class="nf-lw-filter-row">
+        <div>
+            <label>Фильтр по имени</label>
+            <input type="text" id="lw-filter-name" placeholder="Поиск..." style="font-size:13px;">
+        </div>
+        <div>
+            <label>Лог-файл</label>
+            <select id="lw-filter-file" style="font-size:13px;">
+                <option value="">Все файлы</option>
+                <option value="/var/log/auth.log">auth.log</option>
+                <option value="/var/log/syslog">syslog</option>
+                <option value="/var/log/kern.log">kern.log</option>
+            </select>
+        </div>
+        <div>
+            <label>Важность</label>
+            <select id="lw-filter-severity" style="font-size:13px;">
+                <option value="">Все</option>
+                <option value="critical">Critical</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+            </select>
+        </div>
+        <div>
+            <label>Сортировка</label>
+            <select id="lw-sort" style="font-size:13px;">
+                <option value="name">По имени</option>
+                <option value="file">По файлу</option>
+                <option value="severity">По важности</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Rules table -->
+    <table id="lw-rules-table">
+        <thead>
+            <tr>
+                <th>Вкл</th>
+                <th>Название</th>
+                <th>Лог-файл</th>
+                <th>Регулярное выражение</th>
+                <th>Важность</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="lw-body">
+            <tr><td colspan="6" class="text-muted">Нет правил. Нажмите «+ Добавить правило» или выберите шаблон.</td></tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-primary" id="btn-save-watchers">Сохранить правила</button>
+    </div>
+</div>
+
+</div><!-- /tab-logwatcher -->
+
+<script src="../base1/cockpit.js"></script>
+<script src="js/notifications.js"></script>
+</body>
+</html>

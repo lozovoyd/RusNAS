@@ -95,6 +95,7 @@ nav:
       - FileBrowser: specs/filebrowser.md
       - AI-ассистент: specs/mcp-ai.md
       - Performance Tuner: specs/performance.md
+      - Уведомления: modules/notifications.md
   - Руководство разработчика:
       - Быстрый старт: guides/getting-started.md
       - Паттерны Cockpit-плагина: guides/cockpit-patterns.md
@@ -125,3 +126,4 @@ nav:
           - API сети: api/python/network-api.md
           - API анализатора: api/python/storage-analyzer.md
           - Сервер метрик: api/python/metrics.md
+          - rusnas-notify: api/python/notify.md
