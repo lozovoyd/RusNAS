@@ -224,7 +224,8 @@ After=local-fs.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /usr/share/cockpit/rusnas/scripts/perf-collector.py
+WorkingDirectory=/usr/share/cockpit/rusnas/scripts
+ExecStart=/usr/share/cockpit/rusnas/scripts/perf-collector
 Restart=always
 RestartSec=5
 Nice=19

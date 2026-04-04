@@ -5,7 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/python3 /usr/local/lib/rusnas/metrics_server.py
+WorkingDirectory=/usr/local/lib/rusnas
+ExecStart=/usr/local/lib/rusnas/metrics_server
 Restart=always
 RestartSec=5
 StandardOutput=journal

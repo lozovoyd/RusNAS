@@ -4,7 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /usr/lib/rusnas-guard/guard.py
+WorkingDirectory=/usr/lib/rusnas-guard
+ExecStart=/usr/lib/rusnas-guard/guard
 Restart=on-failure
 RestartSec=5
 User=root

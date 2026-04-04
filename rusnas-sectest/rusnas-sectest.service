@@ -5,7 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/python3 /usr/lib/rusnas/sectest/sectest.py --json
+WorkingDirectory=/usr/lib/rusnas/sectest
+ExecStart=/usr/lib/rusnas/sectest/sectest --json
 StandardOutput=append:/var/log/rusnas/sectest.log
 StandardError=append:/var/log/rusnas/sectest.log
 User=root
