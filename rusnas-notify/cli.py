@@ -23,7 +23,7 @@ def socket_send(req):
     """Send request via Unix socket. Returns response dict or None."""
     try:
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        s.settimeout(5)
+        s.settimeout(30)
         s.connect(SOCK_PATH)
         s.sendall(json.dumps(req).encode("utf-8") + b"\n")
         buf = b""
