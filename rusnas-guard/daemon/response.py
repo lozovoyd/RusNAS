@@ -309,28 +309,39 @@ def replicate_snapshot(snap_path: str, remote: dict):
 
 # ── Notifications ─────────────────────────────────────────────────────────────
 
-def send_notification(subject: str, body: str):
-    """Send a notification via the rusNAS notification system.
+def send_notification(subject: str, body: str, severity: str = "warning"):
+    """Send a notification via the rusNAS notification bus.
 
-    Delegates to ``/usr/lib/rusnas/notify.sh`` which handles email
-    and Telegram delivery. Fails silently if the script is not installed.
+    Delegates to ``rusnas-notify send`` CLI which routes through the
+    centralized notification daemon (rusnas-notifyd) to all configured
+    channels (Email, Telegram, MAX, SNMP, Webhook).
 
     Args:
-        subject: Notification subject line.
+        subject: Notification subject/title.
         body: Notification body text.
+        severity: Event severity (info, warning, critical). Defaults to
+            "warning". Auto-detected from subject if it contains keywords.
     """
-    script = "/usr/lib/rusnas/notify.sh"
-    if os.path.exists(script):
-        try:
-            subprocess.run(
-                [script, subject, body],
-                check=False, capture_output=True, timeout=15
-            )
-        except Exception as e:
-            logger.error("Notification failed: %s", e)
-    else:
-        logger.warning("Notification script not found: %s\nSubject: %s\n%s",
-                       script, subject, body)
+    # Auto-detect severity from subject keywords
+    subj_lower = subject.lower()
+    if "super-safe" in subj_lower or "shutdown" in subj_lower:
+        severity = "critical"
+    elif "attack" in subj_lower:
+        severity = "critical"
+    elif "monitor" in subj_lower:
+        severity = "warning"
+
+    try:
+        subprocess.run(
+            ["/usr/local/bin/rusnas-notify", "send",
+             "--source", "guard",
+             "--severity", severity,
+             "--title", subject,
+             "--body", body],
+            check=False, capture_output=True, timeout=15
+        )
+    except Exception as e:
+        logger.error("Notification failed: %s", e)
 
 
 # ── Mode responses ────────────────────────────────────────────────────────────
