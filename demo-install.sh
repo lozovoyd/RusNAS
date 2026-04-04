@@ -233,7 +233,7 @@ echo ""
 echo -e "${BOLD}[6/8] Configuring services${NC}"
 
 # Cockpit
-mkdir -p /etc/cockpit
+mkdir -p /etc/cockpit /etc/cockpit/ws-certs.d
 cat > /etc/cockpit/cockpit.conf << 'CCEOF'
 [WebService]
 AllowUnencrypted = true
@@ -243,7 +243,20 @@ MaxStartups = 10
 [Session]
 IdleTimeout = 60
 CCEOF
-ok "Cockpit configured"
+
+# Generate self-signed TLS cert (combined format required by Cockpit)
+if [ ! -f /etc/cockpit/ws-certs.d/0-self-signed.cert ] || \
+   ! grep -q "PRIVATE KEY" /etc/cockpit/ws-certs.d/0-self-signed.cert 2>/dev/null; then
+    openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout /tmp/cockpit.key \
+        -out /tmp/cockpit.cert \
+        -subj "/CN=$(hostname)" 2>/dev/null
+    cat /tmp/cockpit.cert /tmp/cockpit.key > /etc/cockpit/ws-certs.d/0-self-signed.cert
+    chmod 600 /etc/cockpit/ws-certs.d/0-self-signed.cert
+    rm -f /tmp/cockpit.key /tmp/cockpit.cert /etc/cockpit/ws-certs.d/0-self-signed.key
+fi
+ok "Cockpit configured (TLS cert generated)"
 
 # Move Apache to port 8091 (WebDAV only)
 if [ -f /etc/apache2/ports.conf ]; then
