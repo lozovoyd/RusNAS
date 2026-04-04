@@ -637,6 +637,22 @@ EOF
 - Checker: `notify-check.py` via timer every 5 min
 - Log Watcher: built-in thread, regex patterns from config
 - RULE: any dashboard widget MUST have notification integration (rusnas-notify)
+- Docs: dev — `docs/src/modules/notifications.md`, API — `docs/src/api/python/notify.md`, user — `user-docs/docs/notifications.md`
+- Spec: `docs/superpowers/specs/2026-04-04-notification-system-design.md`
+
+## Development Rules
+
+> **Обязательные правила при добавлении/изменении функциональности:**
+
+1. **Dashboard → Notify:** Любой виджет на дашборде ДОЛЖЕН иметь интеграцию с системой уведомлений (rusnas-notify). Нельзя добавить мониторинг без событий.
+2. **Docs обязательны:** При добавлении нового модуля или значимом изменении существующего ОБЯЗАТЕЛЬНО обновить:
+   - `claude.MD` — секция модуля (пути, конфиг, паттерны)
+   - `docs/src/modules/<module>.md` — dev-документация (архитектура, API)
+   - `docs/src/api/python/<module>.md` — API-справочник (если есть Python backend)
+   - `user-docs/docs/<module>.md` — пользовательская документация
+   - `docs/mkdocs.yml` + `user-docs/mkdocs.yml` — ссылки в навигации
+   - `landing/index.html` — карточка фичи (если публичная)
+3. **Не забывать:** certification-docs/ при подготовке к сертификации
 
 ## Known Bugs and Fixes
 
