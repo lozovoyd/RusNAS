@@ -60,6 +60,7 @@ extra:
 
 nav:
   - Главная: index.md
+  - Дашборд: dashboard/index.md
   - Начало работы:
       - Первый запуск: getting-started/first-login.md
       - Обзор интерфейса: getting-started/interface.md
@@ -98,4 +99,6 @@ nav:
   - Приложения: containers/index.md
   - Пользователи: users/index.md
   - Уведомления: notifications.md
+  - Лицензия: license/index.md
+  - Проверка безопасности: sectest/index.md
   - Решение проблем: troubleshooting.md
