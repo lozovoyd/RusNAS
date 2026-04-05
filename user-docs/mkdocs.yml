@@ -93,6 +93,8 @@ nav:
       - Интерфейсы: network/interfaces.md
       - DNS и маршруты: network/dns-routes.md
       - Диагностика: network/diagnostics.md
+      - Сертификаты TLS: network/certificates.md
+      - Домен (AD): network/domain.md
   - Анализ пространства: analyzer/index.md
   - Оптимизация: performance/index.md
   - AI-ассистент: ai/index.md
