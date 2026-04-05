@@ -27,7 +27,7 @@ var sparkIopsW = new Array(HISTORY).fill(0);
 var PERF_FILE = "/var/lib/rusnas/perf-history.json";
 var PERF_SAVE_SEC = 120; // save every 2 min — reduces I/O and bridge memory
 var PERF_KEYS = ["cpu","ram","netR","netT","iopsR","iopsW","thrR","thrW"];
-var perfH = { ts:[] }; // + one array per key
+var perfH = { ts:[], procs:[] }; // + one array per key
 PERF_KEYS.forEach(function(k) { perfH[k] = []; });
 var _perfCharts = {};
 var _perfTickCount = 0;
@@ -147,6 +147,10 @@ function perfReload() {
                 PERF_KEYS.forEach(function(k) {
                     perfH[k] = d[k].slice(d[k].length - ml);
                 });
+                /* Load process data (may be absent in old JSON) */
+                var procs = d.procs || [];
+                while (procs.length < perfH.ts.length) procs.unshift([]);
+                perfH.procs = procs.slice(procs.length - perfH.ts.length);
             } catch(e) {}
             /* On first load, auto-fit time window to cover all available data */
             if (!_perfAutoFitted && perfH.ts.length > 1) {
@@ -2348,14 +2352,80 @@ function loadContainersWidget() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Find process list for the nearest timestamp in perfH.
+ * @param {number} tsMs - target timestamp in ms
+ * @returns {Array} top processes [{n, c}, ...] or []
+ */
+function _findProcAtTime(tsMs) {
+    if (!perfH.procs || !perfH.ts.length) return [];
+    var lo = 0, hi = perfH.ts.length - 1;
+    while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (perfH.ts[mid] < tsMs) lo = mid + 1;
+        else hi = mid;
+    }
+    if (lo > 0 && Math.abs(perfH.ts[lo - 1] - tsMs) < Math.abs(perfH.ts[lo] - tsMs)) {
+        lo = lo - 1;
+    }
+    // If nearest is >120s away, data gap — return empty
+    if (Math.abs(perfH.ts[lo] - tsMs) > 120000) return [];
+    return perfH.procs[lo] || [];
+}
+
+/**
+ * Show process detail panel for a given timestamp.
+ * @param {number} tsMs - timestamp in ms
+ * @param {string} panelId - target panel element ID
+ */
+function _showProcPanel(tsMs, panelId) {
+    var panel = el(panelId);
+    if (!panel) return;
+    var procs = _findProcAtTime(tsMs);
+    if (!procs || !procs.length) {
+        panel.innerHTML = '<div class="cpu-proc-header"><span>\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u043e \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u0430\u0445 \u0434\u043b\u044f \u044d\u0442\u043e\u0439 \u0442\u043e\u0447\u043a\u0438</span>' +
+            '<button class="btn-icon cpu-proc-close-btn" id="' + panelId + '-close">\u2715</button></div>';
+        panel.classList.remove("hidden");
+        el(panelId + "-close").addEventListener("click", function() { panel.classList.add("hidden"); });
+        return;
+    }
+    var d = new Date(tsMs);
+    var timeStr = String(d.getHours()).padStart(2, "0") + ":" +
+                  String(d.getMinutes()).padStart(2, "0") + ":" +
+                  String(d.getSeconds()).padStart(2, "0");
+
+    var html = '<div class="cpu-proc-header">' +
+        '<span>\u041f\u0440\u043e\u0446\u0435\u0441\u0441\u044b \u0432 ' + timeStr + '</span>' +
+        '<button class="btn-icon cpu-proc-close-btn" id="' + panelId + '-close">\u2715</button>' +
+        '</div>';
+    html += '<div class="cpu-proc-table">';
+    html += '<div class="cpu-proc-row cpu-proc-head"><span>#</span><span>\u041f\u0440\u043e\u0446\u0435\u0441\u0441</span><span>CPU %</span></div>';
+    procs.forEach(function(p, i) {
+        var cls = p.c > 30 ? " cpu-proc-crit" : p.c > 10 ? " cpu-proc-warn" : "";
+        html += '<div class="cpu-proc-row">' +
+            '<span>' + (i + 1) + '</span>' +
+            '<span class="cpu-proc-name">' + escHtml(String(p.n || "")) + '</span>' +
+            '<span class="cpu-proc-val' + cls + '">' + (p.c || 0).toFixed(1) + '%</span>' +
+            '</div>';
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+    panel.classList.remove("hidden");
+
+    el(panelId + "-close").addEventListener("click", function() {
+        panel.classList.add("hidden");
+    });
+}
+
+/**
  * Create a Chart.js line chart for a performance metric.
  * @param {string} canvasId - Canvas element ID
  * @param {Array<Object>} datasets - Array of {label, color} objects
  * @param {string} yLabel - Y-axis label/unit
  * @param {Function} [yFmt] - Optional y-axis value formatter
+ * @param {Object} [opts] - Optional {afterBody, onClick} for chart customization
  * @returns {Object|null} Chart.js instance
  */
-function createPerfChart(canvasId, datasets, yLabel, yFmt) {
+function createPerfChart(canvasId, datasets, yLabel, yFmt, opts) {
     var canvas = document.getElementById(canvasId);
     if (!canvas || typeof Chart === "undefined") return null;
     /* Destroy any pre-existing Chart on this canvas (guards against double-init) */
@@ -2439,10 +2509,15 @@ function createPerfChart(canvasId, datasets, yLabel, yFmt) {
                             var v = ctx.parsed.y;
                             var fmt = yFmt ? yFmt(v) : v.toLocaleString("ru-RU");
                             return "  " + ctx.dataset.label + ": " + fmt;
+                        },
+                        afterBody: function(items) {
+                            if (!opts || !opts.afterBody) return "";
+                            return opts.afterBody(items);
                         }
                     }
                 }
             },
+            onClick: opts && opts.onClick ? opts.onClick : undefined,
             scales: {
                 x: {
                     type: "time",
@@ -2474,7 +2549,20 @@ function initPerfCharts() {
 
     _perfCharts.cpu = createPerfChart("chart-cpu", [
         { label: "CPU", color: "#3b82f6", fill: true }
-    ], "%", function(v) { return Math.round(v) + "%"; });
+    ], "%", function(v) { return Math.round(v) + "%"; }, {
+        afterBody: function(items) {
+            if (!items.length) return "";
+            var procs = _findProcAtTime(items[0].parsed.x);
+            if (!procs || !procs.length) return "";
+            return "\n  \u25b6 " + procs[0].n + ": " + procs[0].c + "%";
+        },
+        onClick: function(evt, elements, chart) {
+            if (!elements.length) return;
+            var pt = chart.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+            if (!pt || pt.y == null) return;
+            _showProcPanel(pt.x, "cpu-proc-panel");
+        }
+    });
 
     _perfCharts.ram = createPerfChart("chart-ram", [
         { label: "RAM", color: "#8b5cf6", fill: true }
@@ -2689,10 +2777,22 @@ function _renderExpandChart() {
                     callbacks: {
                         label: function(ctx) {
                             return " " + ctx.dataset.label + ": " + meta.yFmt(ctx.parsed.y) + " " + meta.unit;
+                        },
+                        afterBody: function(items) {
+                            if (_expandChartKey !== "cpu" || !items.length) return "";
+                            var procs = _findProcAtTime(items[0].parsed.x);
+                            if (!procs || !procs.length) return "";
+                            return "\n  \u25b6 " + procs[0].n + ": " + procs[0].c + "%";
                         }
                     }
                 }
             },
+            onClick: _expandChartKey === "cpu" ? function(evt, elements, chart) {
+                if (!elements.length) return;
+                var pt = chart.data.datasets[elements[0].datasetIndex].data[elements[0].index];
+                if (!pt || pt.y == null) return;
+                _showProcPanel(pt.x, "cpu-proc-panel-expand");
+            } : undefined,
             scales: {
                 x: { type:"time", min: xMin, max: xMax,
                      adapters: { date: {} },
@@ -2706,6 +2806,10 @@ function _renderExpandChart() {
             }
         }
     });
+
+    // Hide expand proc panel when switching charts
+    var expandProcPanel = el("cpu-proc-panel-expand");
+    if (expandProcPanel) expandProcPanel.classList.add("hidden");
 
     // Stats summary row
     _renderExpandStats(meta, seriesData);

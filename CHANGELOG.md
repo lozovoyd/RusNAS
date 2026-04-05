@@ -13,6 +13,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 - Build guide (`docs/build-guide.md`) with full build and install instructions
 - Notification system daemon (`rusnas-notify`) with Email, Telegram, MAX, SNMP, and Webhook channels
 - RAM Monitor Modal on dashboard with memory breakdown, `/proc/meminfo` stats, and top 15 processes by RSS
+- Process-level CPU history in perf-collector: top-5 CPU-consuming processes recorded every 10s alongside system metrics
+- CPU chart tooltip shows top-1 process name and CPU% on hover
+- CPU chart click opens process detail panel with full top-5 process table (name, CPU%, color-coded)
 
 ### Changed
 - Dashboard performance charts now show full history instead of last 15 minutes (`_perfAutoFitted` auto-detection)

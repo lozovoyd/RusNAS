@@ -19,7 +19,8 @@ KEYS = ["cpu", "ram", "netR", "netT", "iopsR", "iopsW", "thrR", "thrW"]
 prev_cpu = {}
 prev_net = {}
 prev_disk = {}
-data = {"ts": []}
+prev_proc = {}
+data = {"ts": [], "procs": []}
 for k in KEYS:
     data[k] = []
 last_save = 0
@@ -35,18 +36,20 @@ signal.signal(signal.SIGINT, sigterm)
 # ── Collectors ──
 
 def collect_cpu():
+    """Returns (cpu_pct, total_jiffies_delta)."""
     global prev_cpu
     with open("/proc/stat") as f:
         fields = list(map(int, f.readline().split()[1:]))
     idle = fields[3] + fields[4]
     total = sum(fields)
     pct = 0
+    dt = 0
     if prev_cpu:
         dt = total - prev_cpu["t"]
         di = idle - prev_cpu["i"]
         pct = round((1 - di / dt) * 100) if dt > 0 else 0
     prev_cpu = {"t": total, "i": idle}
-    return max(0, min(100, pct))
+    return max(0, min(100, pct)), dt
 
 def collect_ram():
     info = {}
@@ -108,6 +111,71 @@ def collect_disk():
             prev_disk[dev] = {"ri": ri, "wi": wi, "rs": rs, "ws": ws, "t": now}
     return round(ir, 1), round(iw, 1), round(tr, 1), round(tw, 1)
 
+def collect_top_procs(cpu_dt):
+    """Return top-5 CPU-consuming processes as [{"n": name, "c": cpu%}, ...]."""
+    global prev_proc
+    if cpu_dt <= 0:
+        # First iteration or no CPU activity — just prime state
+        cur = {}
+        try:
+            for entry in os.listdir("/proc"):
+                if not entry.isdigit():
+                    continue
+                try:
+                    with open("/proc/" + entry + "/stat") as f:
+                        raw = f.read()
+                    # comm is in parens and may contain spaces/parens
+                    ci = raw.index("(")
+                    ce = raw.rindex(")")
+                    rest = raw[ce + 2:].split()
+                    utime = int(rest[11])  # field 14 (0-indexed from after comm)
+                    stime = int(rest[12])  # field 15
+                    cur[int(entry)] = utime + stime
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        prev_proc = cur
+        return []
+
+    cur = {}
+    names = {}
+    try:
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                with open("/proc/" + entry + "/stat") as f:
+                    raw = f.read()
+                ci = raw.index("(")
+                ce = raw.rindex(")")
+                comm = raw[ci + 1:ce]
+                rest = raw[ce + 2:].split()
+                utime = int(rest[11])
+                stime = int(rest[12])
+                pid = int(entry)
+                cur[pid] = utime + stime
+                names[pid] = comm[:15]
+            except Exception:
+                pass
+    except Exception:
+        prev_proc = {}
+        return []
+
+    # Compute per-process CPU% delta
+    top = []
+    for pid, ticks in cur.items():
+        if pid in prev_proc:
+            delta = ticks - prev_proc[pid]
+            if delta > 0:
+                pct = round(delta / cpu_dt * 100, 1)
+                if pct >= 0.1:
+                    top.append({"n": names[pid], "c": pct})
+
+    prev_proc = cur
+    top.sort(key=lambda x: x["c"], reverse=True)
+    return top[:5]
+
 # ── Downsampling ──
 
 def downsample():
@@ -127,6 +195,7 @@ def downsample():
         data["ts"] = ts[start:]
         for k in KEYS:
             data[k] = data[k][start:]
+        data["procs"] = data["procs"][start:]
     # Downsample: >2h → 120s buckets, 15m-2h → 30s buckets
     _ds_range(now_ms - 7200000, now_ms - 900000, 30000)   # 15m..2h: 30s
     _ds_range(now_ms - MAX_AGE_S * 1000, now_ms - 7200000, 120000)  # 2h..24h: 120s
@@ -148,26 +217,37 @@ def _ds_range(from_ms, to_ms, bucket_ms):
     # Bucket
     new_ts = []
     new_v = {k: [] for k in KEYS}
+    new_procs = []
+    procs = data.get("procs", [])
     i = hi
     while i < mi:
         be = ts[i] + bucket_ms
         cnt, st = 0, 0
         sums = {k: 0 for k in KEYS}
+        max_cpu_val = -1
+        max_cpu_procs = []
         while i < mi and ts[i] < be:
             st += ts[i]
             for k in KEYS:
                 sums[k] += data[k][i] if i < len(data[k]) else 0
+            # Keep procs from peak CPU sample in this bucket
+            cpu_val = data["cpu"][i] if i < len(data["cpu"]) else 0
+            if cpu_val > max_cpu_val:
+                max_cpu_val = cpu_val
+                max_cpu_procs = procs[i] if i < len(procs) else []
             cnt += 1
             i += 1
         if cnt:
             new_ts.append(int(st / cnt))
             for k in KEYS:
                 new_v[k].append(round(sums[k] / cnt, 2))
+            new_procs.append(max_cpu_procs)
     # Reassemble
     data["ts"] = ts[:hi] + new_ts + ts[mi:]
     for k in KEYS:
         v = data[k]
         data[k] = v[:hi] + new_v[k] + v[mi:]
+    data["procs"] = procs[:hi] + new_procs + procs[mi:]
 
 # ── Persistence ──
 
@@ -180,12 +260,17 @@ def load_data():
             data["ts"] = d["ts"]
             for k in KEYS:
                 data[k] = d.get(k, [])
+            data["procs"] = d.get("procs", [])
             # Validate lengths
             ml = min(len(data["ts"]), *(len(data[k]) for k in KEYS))
             if ml < len(data["ts"]):
                 data["ts"] = data["ts"][-ml:]
                 for k in KEYS:
                     data[k] = data[k][-ml:]
+            # Pad procs to match ts length (backward compat)
+            while len(data["procs"]) < len(data["ts"]):
+                data["procs"].insert(0, [])
+            data["procs"] = data["procs"][-len(data["ts"]):]
     except:
         pass
 
@@ -214,14 +299,16 @@ def main():
     collect_ram()
     collect_net()
     collect_disk()
+    collect_top_procs(0)
     time.sleep(COLLECT_SEC)
 
     while running:
         try:
-            cpu = collect_cpu()
+            cpu, cpu_dt = collect_cpu()
             ram = collect_ram()
             nr, nt = collect_net()
             ir, iw, tr, tw = collect_disk()
+            procs = collect_top_procs(cpu_dt)
 
             now_ms = int(time.time() * 1000)
             data["ts"].append(now_ms)
@@ -233,6 +320,7 @@ def main():
             data["iopsW"].append(iw)
             data["thrR"].append(tr)
             data["thrW"].append(tw)
+            data["procs"].append(procs)
 
             tick += 1
             # Save every SAVE_SEC

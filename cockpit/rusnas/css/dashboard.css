@@ -722,6 +722,69 @@ html:not(.pf-v6-theme-dark) .db-chart-info-btn {
   .db-perf-live { display: none; }
 }
 
+/* ─── CPU Process Detail Panel ─── */
+.cpu-proc-panel {
+  margin: 8px 0 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  animation: fadeIn 0.15s ease;
+}
+.cpu-proc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.cpu-proc-close-btn {
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.cpu-proc-close-btn:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+.cpu-proc-table {
+  display: grid;
+  gap: 0;
+}
+.cpu-proc-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 70px;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+}
+.cpu-proc-row:last-child { border-bottom: none; }
+.cpu-proc-head {
+  font-weight: 600;
+  color: var(--color-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.cpu-proc-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+.cpu-proc-val {
+  font-family: var(--font-mono, monospace);
+  text-align: right;
+  font-weight: 600;
+}
+.cpu-proc-warn { color: #f59e0b; }
+.cpu-proc-crit { color: #ef4444; }
+
 /* ─── Night Report Widget ─── */
 
 .db-night-report {

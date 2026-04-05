@@ -749,3 +749,15 @@ vm.* (sysctl), I/O scheduler (udev), read-ahead, mdadm stripe_cache, Btrfs mount
 - `applySingleItem(id)` — null-guard on `actEl` before `.innerHTML` (BUG-28)
 - `detectProfile()` — `profile.netSpeed` initialized to 0 (not 1000), to correctly select NIC
 - Sudoers for Performance Tuner are **NOT needed** — everything via `cockpit.file superuser`
+
+### Process-Level CPU History (2026-04-05)
+
+- `collect_top_procs(cpu_dt)` in `perf-collector.py` — reads `/proc/[pid]/stat` for all PIDs, computes CPU% delta using total jiffies from `collect_cpu()`, returns top-5
+- `collect_cpu()` now returns `(pct, dt)` tuple — `dt` is total CPU jiffies delta
+- Process data stored in `procs` key of `perf-history.json` — array parallel to `ts`, each entry is `[{"n": name, "c": cpu%}, ...]`
+- Downsampling: process list from peak-CPU sample kept in each bucket (not averaged)
+- Backward compatible: old JSON without `procs` key padded with `[]` on load
+- Frontend: `_findProcAtTime(tsMs)` binary search in `perfH.ts`, returns nearest procs
+- CPU chart tooltip: `afterBody` callback shows `▶ top_process: X%`
+- CPU chart click: `_showProcPanel(tsMs, panelId)` renders top-5 table with color coding (>30% red, >10% yellow)
+- Works in both inline chart and expand modal

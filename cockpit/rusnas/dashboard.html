@@ -237,6 +237,8 @@
       <canvas id="chart-latency"></canvas>
     </div>
   </div>
+  <!-- Process detail panel (shown on CPU chart click) -->
+  <div id="cpu-proc-panel" class="cpu-proc-panel hidden"></div>
 </div>
 <!-- Hidden sparkline SVGs (kept for backward compat, not displayed) -->
 <svg id="spark-cpu" style="display:none"></svg>
@@ -570,6 +572,7 @@
       <canvas id="chart-expand-canvas"></canvas>
     </div>
     <div id="chart-expand-stats" class="db-chart-expand-stats"></div>
+    <div id="cpu-proc-panel-expand" class="cpu-proc-panel hidden"></div>
   </div>
 </div>
 

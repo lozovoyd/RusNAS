@@ -2776,3 +2776,35 @@ location /chat/          → без rewrite           (SPA+assets+sockjs)
 - `cockpit/rusnas/dashboard.html` — новый `#ram-modal` HTML, `data-modal="ram"` на кнопке
 - `cockpit/rusnas/js/dashboard.js` — `openRamModal()`, `closeRamModal()`, `refreshRamModal()`, `renderRamModal()`, обработчик клика
 - `cockpit/rusnas/css/dashboard.css` — `.rm-*` стили (stacked bar, legend, stat grid, proc table)
+
+---
+
+## Сессия 25 — Process-Level CPU History
+**Дата:** 2026-04-05
+
+### Проблема
+Пользователь видит 90% CPU на графике в 4 утра, но не может узнать, какой процесс это вызвал. Данные о процессах не собирались.
+
+### Что было сделано
+
+**Backend (`perf-collector.py`):**
+- Добавлена функция `collect_top_procs(cpu_dt)` — читает `/proc/[pid]/stat` для всех PID, вычисляет дельту CPU%, возвращает top-5 процессов
+- `collect_cpu()` теперь возвращает tuple `(pct, dt)` — `dt` нужен для расчёта per-process CPU%
+- Новый ключ `procs` в `perf-history.json` — массив параллельный `ts`, каждый элемент `[{"n": name, "c": cpu%}, ...]`
+- Downsampling модифицирован — при усреднении в бакет сохраняется список процессов из сэмпла с наибольшим CPU%
+- Backward compatible — старый JSON без ключа `procs` дополняется пустыми массивами
+
+**Frontend (`dashboard.js` + `dashboard.html` + `dashboard.css`):**
+- `_findProcAtTime(tsMs)` — бинарный поиск ближайшего timestamp в `perfH.ts`
+- CPU chart tooltip: `afterBody` callback показывает `▶ cockpit-ws: 1.4%` (top-1 процесс)
+- CPU chart click: `_showProcPanel()` — таблица top-5 процессов (имя, CPU%), цветовая кодировка (>30% красный, >10% жёлтый)
+- Работает в inline и expand modal
+- `createPerfChart()` расширена — 5й параметр `opts` с `afterBody` и `onClick`
+
+**Размер данных:** ~150 байт/сэмпл × ~960 downsampled точек = ~144 КБ доп. Итого JSON ~360 КБ (было ~210 КБ).
+
+### Изменённые файлы
+- `cockpit/rusnas/scripts/perf-collector.py` — `collect_top_procs()`, модификация `collect_cpu()`, downsampling, load/save
+- `cockpit/rusnas/js/dashboard.js` — `_findProcAtTime()`, `_showProcPanel()`, модификация `createPerfChart()`, tooltip/click для CPU
+- `cockpit/rusnas/dashboard.html` — `#cpu-proc-panel`, `#cpu-proc-panel-expand`
+- `cockpit/rusnas/css/dashboard.css` — `.cpu-proc-*` стили

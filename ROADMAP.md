@@ -39,6 +39,7 @@
 | Dashboard Perf Charts + Collector | 2026-03-31 | -- | Chart.js 4.x (6 графиков: CPU/RAM/Net/IO/IOPS/Latency), perf-collector.py daemon (10s interval, 24h retention, downsampling) |
 | Security Self-Test (Pentest) | 2026-03-31 | -- | 9 OWASP modules, 47+ checks, dashboard widget, monthly systemd timer |
 | Notification System (rusnas-notify) | 2026-04-04 | -- | Daemon notifyd.py, CLI rusnas-notify, 5 каналов (Email/Telegram/MAX/SNMP/Webhook), Log Watcher, checker timer |
+| Process CPU History | 2026-04-05 | -- | Top-5 процессов в perf-collector.py (каждые 10с), tooltip + click-panel на CPU графике дашборда |
 
 ---
 
