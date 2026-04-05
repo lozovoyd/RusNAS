@@ -86,7 +86,7 @@ nav:
       - Guard (Антишифровальщик): specs/guard.md
       - Снапшоты и репликация: specs/snapshots.md
       - RAID Manager: specs/raid-manager.md
-      - Хранилище: specs/storage.md
+      - Хранилище (Шары): specs/storage.md
       - Анализатор пространства: specs/storage-analyzer.md
       - SSD-кеширование: specs/ssd-tier.md
       - Дедупликация: specs/dedup.md
@@ -95,7 +95,11 @@ nav:
       - FileBrowser: specs/filebrowser.md
       - AI-ассистент: specs/mcp-ai.md
       - Performance Tuner: specs/performance.md
-      - Уведомления: modules/notifications.md
+      - Контейнеры: specs/containers.md
+      - Дашборд: specs/dashboard.md
+      - License Server: specs/license-server.md
+      - Уведомления: specs/notifications.md
+      - Btrfs проблемы: specs/btrfs-problems.md
   - Руководство разработчика:
       - Быстрый старт: guides/getting-started.md
       - Паттерны Cockpit-плагина: guides/cockpit-patterns.md

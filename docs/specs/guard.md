@@ -396,3 +396,53 @@ WantedBy=multi-user.target
 - Автообновление списка расширений шифровальщиков с внешних URL
 - Интеграция с Windows FSRM
 - Антивирусное сканирование (отдельная функция: vfs_virusfilter + ClamAV)
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture Notes
+
+- Daemon on VM: `/usr/lib/rusnas-guard/` — Python 3, systemd service `rusnas-guard`
+- Config dir: `/etc/rusnas-guard/` — must be **chmod 755** (not 700) so Cockpit bridge can read `ransom_extensions.txt`
+- Events log: `/var/log/rusnas-guard/events.jsonl`
+- Socket: `/run/rusnas-guard/control.sock` — permissions **0o666** (world-accessible); Cockpit bridge connects as non-root without `superuser: "require"`
+- `RuntimeDirectory=rusnas-guard` in systemd unit creates `/run/rusnas-guard/` on start; `RuntimeDirectoryMode=0755` makes it traversable
+- Guard PIN stored as bcrypt hash at `/etc/rusnas-guard/guard.pin` — independent of Cockpit admin password
+- **Daemon lifecycle:** the systemd service runs continuously; `Start/Stop` buttons in UI control the **Detector thread** only, not the process. This allows the socket server to always be reachable.
+- Post-attack flag: `/etc/rusnas-guard/post_attack` — forces Monitor mode on next start
+- PIN reset requires root/SSH access (security model: Cockpit admin password must NOT grant PIN reset)
+
+### PIN Reset
+
+```bash
+sudo rusnas-guard --reset-pin
+# Symlink: /usr/local/sbin/rusnas-guard -> /usr/lib/rusnas-guard/guard.py
+# After reset Guard will show the new PIN setup dialog
+```
+
+### Critical guard.js Notes
+
+- Socket channel: `cockpit.channel({ payload: "stream", unix: SOCK_PATH })` — NO `superuser: "require"` (causes timeout in iframe context)
+- `requirePin()` always shows PIN modal even when a session token is already active — this is intentional for sensitive operations
+- Dashboard stats come from `guardCmd("status")` polled every 5 seconds, NOT from `cockpit.file(state.json).watch()`
+- Extensions file read: `cockpit.file(EXTS_PATH).read()` works without superuser because `/etc/rusnas-guard/` is `755` and the file is `644`
+- `detection.hide_smb_baits`: toggle in Guard Settings; `_apply_smb_hide(enabled)` in `guard.py` writes `hide files = /!~rng_*/` to `[global]` in smb.conf atomically, calls `systemctl reload smbd`; applied on daemon start + on config change
+
+### Guard Page Structure (guard.html)
+
+Three tabs:
+- **Overview** — stats + how-it-works infographic
+- **Event Log** — filtered paginated event log
+- **Settings** — detection methods, monitored paths, snapshot config
+
+Tab badge on "Event Log" shows unacknowledged event count.
+
+### Guard Event Log (guard.js)
+
+- `loadEvents(resetPage)` — main function; sends `get_events` with filters + pagination
+- `eventsFilters = {method, status, date_from, date_to}` — global filter state
+- `eventsPage` — 0-based page index; `PAGE_SIZE = 25`
+- `exportEventsCsv()` — requests all matching events (limit=10000), builds Blob CSV with UTF-8 BOM, triggers download
+- Backend: `load_events()` in response.py supports offset/method/status/date_from/date_to; returns `{events, total}`
+- Backend: `clear_events` socket command (auth required) truncates `events.jsonl`

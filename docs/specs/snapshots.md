@@ -1349,3 +1349,34 @@ telegram_command = /usr/local/bin/rusnas-notify telegram
 - **Ansible роль** — полный деплой на чистую VM
 - **Smart Retention** — алгоритм с 5 окнами хранения, защита locked снапшотов
 - **Pre-update hook** — автоснапшот перед каждым `apt upgrade`
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture Notes
+
+- CLI: `/usr/local/bin/rusnas-snap` — Python 3, all output as JSON to stdout, log to stderr
+- DB: `/var/lib/rusnas/snaps.db` — SQLite WAL, tables: `snapshots`, `schedules`, `events`
+- Timer: `rusnas-snapd.timer` (every 5 min) -> `rusnas-snap scheduled-run`
+- Apt hook: `/etc/apt/apt.conf.d/99rusnas-snapshot` — `pre-update-all` before `apt upgrade`
+- Snapshot layout: `/mnt/btrfspool/.snapshots/shares__public/@2026-03-14_03-03-40_manual`
+- Sudoers: `rusnas ALL=(ALL) NOPASSWD: /usr/local/bin/rusnas-snap`
+- Btrfs on test VM: loop image at `/var/lib/rusnas/btrfs-pool.img` mounted at `/mnt/btrfspool`
+
+### Critical snapshots.js Notes
+
+- `schedule list` / `events` do NOT accept `--json` flag (always output JSON) — omit it
+- `cockpit.spawn` uses `err: "message"` to keep stderr separate from JSON stdout
+- `loadSubvols()` uses `schedule list` paths directly — skips `findBtrfsSubvols()` (bash not in sudoers NOPASSWD)
+- `safeJson()` does `JSON.parse(str)` directly on clean stdout
+- `replication list` returns `{tasks:[...], ok:true}` — parse as `data.tasks`
+- Replication tab: infographic HTML is STATIC (before `#replication-content`); no JS rendering for it
+
+### Replication Architecture (2026-03-23)
+
+- CLI: `rusnas-snap replication set/list/delete/run/check-ssh` (DB table: `replication_tasks`)
+- Transport: `btrfs send [-p <parent>] | ssh user@host btrfs receive /path`
+- First run: full transfer; subsequent: incremental (`-p <last_sent_snap>`)
+- Scheduled via `rusnas-snapd.service` second `ExecStart=/usr/local/bin/rusnas-snap replication run-all`
+- SSH keys must be pre-configured by admin; UI only takes host/user/path

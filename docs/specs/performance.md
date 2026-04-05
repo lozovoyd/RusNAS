@@ -727,3 +727,25 @@ rusnas ALL=(ALL) NOPASSWD: /bin/systemctl start smartd
    - Через ~2 мин данные обновляются автоматически, кнопки разблокируются
 5. **Расписание:** включить краткий тест, сохранить → проверить `/etc/smartd.conf` на VM
 6. `sudo systemctl status smartd` — сервис работает
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### 12 Levels of Optimization
+
+vm.* (sysctl), I/O scheduler (udev), read-ahead, mdadm stripe_cache, Btrfs mount options, network (sysctl), NIC ethtool, Samba smb.conf, NFS nfsd threads, CPU governor, IRQ balancing, TuneD profile.
+
+### Key Architectural Decisions
+
+- Reading params: `cat /proc/sys/vm/swappiness` (not `sysctl -n`) — no sudoers needed
+- Writing params: `writeSysFile(sysctlPath(param), val)` = `cockpit.file(path, {superuser:"require"}).replace(val)` — no sudoers needed
+- `sysctlPath("vm.swappiness")` -> `"/proc/sys/vm/swappiness"` — helper for conversion
+- Persist: writes to `/etc/sysctl.d/99-rusnas-perf.conf` via `cockpit.file` superuser
+- Each parameter has: `readFn` (current) + `applyFn` (in-memory) + `persistFn` (to disk) + `rollbackFn`
+
+### Critical performance.js Notes
+
+- `applySingleItem(id)` — null-guard on `actEl` before `.innerHTML` (BUG-28)
+- `detectProfile()` — `profile.netSpeed` initialized to 0 (not 1000), to correctly select NIC
+- Sudoers for Performance Tuner are **NOT needed** — everything via `cockpit.file superuser`

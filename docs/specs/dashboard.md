@@ -918,4 +918,38 @@ X-axis: `scales.x.min = now - period`, `scales.x.max = now` — фиксиров
 
 ### Кнопки (i) и (⤢)
 - **(i)** на CPU/RAM/Сеть → открывает детальную модалку (CPU monitor / vnstat)
-- **(⤢)** → разворачивает график на весь экран с отдельным переключателем периода
+- **(⤢)** -> expands chart to fullscreen with separate period selector
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### RAM Monitor Modal
+
+Button (i) on the RAM chart opens a dedicated modal `#ram-modal` (not the CPU modal).
+
+**Structure:**
+- Stacked bar: colored bar showing memory breakdown (Apps/Buffers/Cache/Shared/Slab/Free)
+- Breakdown bars: each category with % and absolute value
+- Stats grid: 12+ metrics from `/proc/meminfo`
+- Process table: top 15 by RSS (PID, name, RSS, %MEM, VSZ)
+
+**Command:** `cat /proc/meminfo; echo '===S==='; ps -eo pid,comm,%mem,rss,vsz --sort=-rss --no-header | head -15`
+**Update interval:** every 2 sec (`_rmInterval`)
+**CSS:** `.rm-*` classes in `dashboard.css`
+
+### Night Report
+
+Dashboard widget — "morning newspaper for infrastructure". Shows a summary for the last 8 hours.
+
+**HTML:** block `#night-report` in `dashboard.html` (after `#db-alert-banner`)
+**CSS:** classes `.nr-*`, `.db-night-report` in `dashboard.css`
+**JS:** functions `initNightReport()`, `refreshNightReport()`, `nrCollect*()`, `nrRender*()` in `dashboard.js`
+
+**Widget structure:**
+- Health Score (0-100, stored in `localStorage`)
+- 5 stat cards: incidents, snapshots, CPU peak, network 8h, SMART
+- 3 columns: Guard events / Disk SMART / Dedup and snapshots
+- Button `#btn-nr-refresh` — manual refresh
+
+**Init:** `setTimeout(initNightReport, 800)` in DOMContentLoaded — delay to avoid competing with main dashboard load.

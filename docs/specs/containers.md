@@ -1466,3 +1466,57 @@ rusnas-containers backup nextcloud      # Дамп БД + архив данны�
 | **v2.0** | GPU passthrough (Immich ML, Jellyfin transcoding), resource limits UI | Hardware detection |
 | **v2.1** | LDAP интеграция (Nextcloud, Rocket.Chat, Mailcow — единая авторизация) | v0.4 AD roadmap |
 | **v2.2** | Fleet: централизованная установка приложений на парк устройств | Fleet management |
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture
+
+- CGI: `/usr/lib/rusnas/cgi/container_api.py` — 16 commands via argv (including `check_ports`, `get_resources`)
+- **Podman runs as root** (not rootless) — rootless Podman on Debian 13 / QEMU requires D-Bus (aardvark-dns) -> 502 without systemd session
+- **aardvark-dns issue on this VM**: aardvark-dns only starts on the first network bridge (10.89.0.1), new podman networks (10.89.1.x) remain without DNS. Fix: `network_mode: host` for containers needing inter-container communication (rocketchat <-> mongo).
+- **Container image storage**: moved to `/mnt/data` via `/etc/containers/storage.conf` (`graphRoot = "/mnt/data/containers/storage"`) — root disk was filling up (94%)
+- State: `/etc/rusnas/containers/installed.json` (chmod 644); fields: `nginx_path`, `proxy_active`, `host_ports`
+- Catalog: `/usr/share/cockpit/rusnas/catalog/` (10 apps); URL built on client: `window.location.hostname + app.nginx_path`
+- Compose dir: `/var/lib/rusnas-containers/compose/<appid>/`
+- **Nginx apps: `/etc/nginx/conf.d/rusnas-apps/<appid>.conf`** (NOT in `/var/lib/rusnas-containers/nginx-apps/`)
+- Sudoers: `/etc/sudoers.d/rusnas-containers` + `/etc/sudoers.d/rusnas-nginx`
+- Port check: `container_api.py check_ports <port>` -> `{free, suggestion}` via `socket.bind()`
+- **Resource check: `container_api.py get_resources <path>` -> `{avail_ram_mb, free_disk_gb}` from `/proc/meminfo` + `shutil.disk_usage`**
+- `cmd_install()` performs soft RAM check (80% of `min_ram_mb`); blocks if insufficient, unless `force=true` is passed
+- **Rocket.Chat post-install**: `cmd_install()` automatically starts MongoDB replica set init (`rs.initiate()`) and waits for PRIMARY election before starting Rocket.Chat
+- **All 9 docker-compose templates (except mailcow) have `mem_limit`** — cgroup limit prevents OOM of entire system
+- **Rocket.Chat requires MongoDB 8.0+** (mongo:8, NOT mongo:6) — Rocket.Chat 8.x is incompatible with MongoDB 6.x
+- Migration: `./install-nginx-primary.sh` — nginx as primary :80/:443, Apache -> :8091
+- **cmd_uninstall()**: after `podman-compose down --volumes` runs `podman image prune -af` — without this images remain on disk and occupy several GB
+
+### Rocket.Chat Nginx Sub-path (Critical)
+
+Rocket.Chat with `ROOT_URL=http://host/chat` requires **3 separate location blocks** in nginx:
+
+1. **API**: strip /chat (RC registers API on /api/v1/, NOT /chat/api/v1/)
+2. **WebSocket**: strip /chat + upgrade headers
+3. **SPA + assets + sockjs**: do NOT strip (RC serves them on /chat/*)
+
+**Why:** Meteor catch-all intercepts ALL `/chat/*` and returns SPA HTML. Express API routes are registered on `/api/v1/...` (without sub-path), but sockjs and static assets on `/chat/...`. Single block without stripping -> API returns HTML. With stripping -> SPA doesn't load (RC answers "Unknown path" on `/`).
+
+`nginx_strip_prefix: false` + `nginx_websocket: true` in manifest -> `generate_proxy_config()` generates 3 blocks automatically.
+
+### Rocket.Chat Site_Url in MongoDB
+
+Env var `ROOT_URL` is overwritten by value from DB on startup. When changing ROOT_URL, must update both: env in compose + DB record via mongosh. Then `podman restart rusnas-rocketchat`.
+
+### Critical containers.js Notes
+
+- `cgiCall(cmd, args)` wraps cockpit.spawn in `new Promise()` — required for Promise.all()
+- All catalog/installed buttons use `data-appid` + `addEventListener` (no inline onclick — CSP)
+- `startStatsPolling()` uses `_statsTimer` stored ID to avoid timer leaks
+- Compose template substitution: `{{VAR:-default}}` pattern in docker-compose.yml files
+- Docker Compose DNS: service key names (under `services:`), NOT `container_name` values
+- `_installForce` global variable — set by preflight check on RAM shortage, passed as `force=true` to `doInstall()`
+- Preflight: `openInstallModal()` calls `get_resources` after showing modal -> badges success/warning/danger in `#install-preflight`
+
+### Catalog Apps (10)
+
+nextcloud, immich, jellyfin, vaultwarden, home-assistant, pihole, wireguard, mailcow, onlyoffice, rocketchat

@@ -130,4 +130,47 @@ btrfs subvolume delete /mnt/data/homes   # удалить
 1. **Создать:** «+ Создать массив» → 3 диска, RAID 5, `/mnt/data` → лог → массив смонтирован в UI
 2. **Субтома:** «Субтома» → создать `homes`, `documents` → использовать как путь для SMB-шары
 3. **Размонтировать / Смонтировать:** проверить смену статуса в карточке
-4. **Удалить:** подтверждение → лог → диски свободны, массив исчез из UI
+4. **Удалить:** подтверждение -> лог -> диски свободны, массив исчез из UI
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### RAID Backup Mode (HDD Spindown)
+
+Automatic RAID spindown for backup use-case.
+
+**Deploy:**
+```bash
+./install-spindown.sh
+```
+
+### Key Architecture
+
+- Daemon: `/usr/lib/rusnas/spind/spind.py` + `rusnas-spind.service` (--dry-run on QEMU VM)
+- State: `/run/rusnas/spindown_state.json` (read by dashboard + Prometheus)
+- Totals: `/var/lib/rusnas/spindown_totals.json` (wakeup_count_total persistence across restarts)
+- CGI: `/usr/lib/rusnas/cgi/spindown_ctl.py` — 5 commands: get_state, get_config, set_config, wake_up, spindown_now
+- Config: `/etc/rusnas/spindown.json`
+- Sudoers: `/etc/sudoers.d/rusnas-spindown`
+
+### State Machine
+
+`active -> flushing -> standby -> waking -> active`
+
+### Monitoring
+
+5 Prometheus metrics in `rusnas-metrics/metrics_server.py` (rusnas_spindown_*)
+
+### UI
+
+Backup Mode panel per array in `disks.js`; spindown badge + sub-line in dashboard.
+Tests: `tests/test_backup_mode_ui.py` (15 tests, all pass on VM with dry-run)
+
+### Critical Spindown Notes
+
+- `--dry-run` flag in systemd unit: QEMU VM doesn't support hdparm -Y; daemon logs `[DRY-RUN]` and skips actual spindown
+- `suppress_check`: writes `idle` to `/sys/block/mdX/md/sync_action` to pause RAID check during standby
+- `wakeup_count_total` persisted in `/var/lib/rusnas/spindown_totals.json` — survives daemon restarts
+- CGI called as: `cockpit.spawn(["sudo", "-n", "python3", "/usr/lib/rusnas/cgi/spindown_ctl.py", cmd, ...], {err:"message"})`
+- `_warnIfSleeping(md)` in disks.js: checks state before expand/replace/umount/subvol operations
