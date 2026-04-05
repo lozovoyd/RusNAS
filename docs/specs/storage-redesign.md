@@ -307,3 +307,82 @@ async function loadAllShares() {
 | `cockpit/rusnas/index.html` | 445 → 297 | Полная реструктуризация |
 | `cockpit/rusnas/js/app.js` | 1132 → 873 | Рефактор (-259 строк) |
 | `cockpit/rusnas/css/style.css` | 1240 → 1266 | +26 строк (3 класса) |
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Storage Page Structure (4 Tabs, `advisor-tabs`)
+
+- `Shares` — unified SMB+NFS table, loads immediately when page opens
+- `iSCSI` — two sections: LUN Manager + Target Manager; reloads on each tab click
+- `WORM` — WriteOnce paths, lazy load on first click (`_tabsLoaded.worm` guard)
+- `Services` — FTP + WebDAV cards, lazy load on first click
+
+### Unified Share Modal (`#share-modal`)
+
+- Single modal with inner `.tab-btn` tabs: `Basic | SMB | NFS`
+- `openShareModal(null)` — create mode; `openShareModal(shareData)` — edit mode
+- In edit mode volume `<select>` disabled, shows only current path
+- `_shareModalMode` + `_shareModalData` — modal state variables
+
+### Key Functions
+
+- `parseSmbConf()` — returns `Promise<SmbShare[]>` via `testparm -s` + python3 inline
+- `parseNfsExports()` — returns `Promise<NfsShare[]>` from `/etc/exports`
+- `loadAllShares()` — `Promise.all([parseSmbConf(), parseNfsExports()])`, merge by path, calls `renderSharesTable()`
+- `renderSharesTable(shares)` — renders unified table, stores data in `window._sharesData[]`
+- `saveShareModal()` — mkdir + chmod + chown, then SMB (sed+printf) and/or NFS (sed+echo) by toggle state
+- `deleteShareEntry(shareData)` — removes sections from smb.conf and/or /etc/exports, does NOT delete directory
+- `loadServiceStatus()` — badges `SMB / NFS` via `systemctl is-active smbd nfs-kernel-server`
+- `loadVolumeSelects(callback, targetId)` — now accepts `targetId` (default `"sm-volume"`)
+
+### smb.conf Patterns
+
+- Edit/delete: `sed -i '/^\[name\]/,/^\[/{/^\[name\]/d;/^\[/!d}'`
+- Add: `printf '\n[name]\npath = ...\n...\n' >> /etc/samba/smb.conf`
+- Reload: `systemctl reload smbd` (not restart — preserves active connections)
+
+### NFS Patterns
+
+- Delete old entry before adding: `sed -i '\|^/path |d'` before append (prevents duplication)
+- `exportfs -ra` after each change
+
+### iSCSI Redesign (2026-03-22)
+
+- Data source: `sudo cat /etc/rtslib-fb-target/saveconfig.json` (NOT `/etc/target/`)
+- Always `targetcli saveconfig` before reading (file is not auto-updated)
+- JSON structure: `storage_objects[]` — flat list, field `plugin` (fileio/block); `targets[]` — flat list, field `fabric === "iscsi"`
+- `storage_object` in `luns[]` has prefix `/backstores/` -> normalized by strip during parsing
+- State: `_iscsiState = { backstores, targets, loaded }`; `_iscsiDeleteCtx`
+- LUN deletion: button disabled if `inUseBy.length > 0`; optional `.img` file deletion (checkbox, default OFF)
+- Target deletion: config only, does not touch files
+- `_esc(s)` — HTML-escape for safe innerHTML rendering
+
+### disks.js Notes
+
+- Parse `/proc/mdstat` with states: `active` / `degraded` / `inactive` / `resyncing` / `reshaping` — check BOTH `resync` AND `reshape` keywords
+- Physical disk info via `sudo smartctl -i` (model, serial, S.M.A.R.T. health)
+- Safe disk removal: `--fail -> --remove -> device/delete` with serial number confirmation
+- **Replace disk** vs **Expand array** vs **Upgrade RAID level** are separate operations
+- Expand: `--add` + `--grow --raid-devices=N` + auto `resize2fs`/`btrfs resize` on completion
+- **Level upgrade (RAID 5->6):** `--add /dev/sdX` + `--grow --level=6 --raid-devices=N+1`
+- SCSI bus rescan: `echo "- - -" > /sys/class/scsi_host/host*/scan`
+- Auto-refresh every 4 seconds during degraded or resyncing states
+- Full RAID lifecycle UI (create, delete, mount, unmount, subvolumes)
+- **Admin access required**: `superuser: "require"` works in disks.js (not nested iframe)
+- **Backup Mode (HDD Spindown):** per-array panel toggled via "Backup Mode" button
+
+### FTP Settings (app.js / index.html)
+
+- Status badge + start/stop buttons
+- `loadFtp()`: reads `/etc/vsftpd.conf`, shows anonymous/write/chroot toggles and passive port range
+- `saveFtp()`: writes config via Python inline script (`re.sub` for each key), then `systemctl restart vsftpd`
+- Active connections from `/proc/net/tcp` port 0x7530 (21)
+
+### WebDAV Settings (app.js / index.html)
+
+- Status badge + start/stop buttons
+- `loadWebdav()`: reads `/etc/apache2/sites-enabled/webdav.conf` (Alias + Directory block)
+- `saveWebdav()`: writes full config block + `systemctl reload apache2`
+- User management: list from `/etc/apache2/webdav.passwords`, add via `htdigest -b` (Python MD5 fallback), remove via `sed -i`

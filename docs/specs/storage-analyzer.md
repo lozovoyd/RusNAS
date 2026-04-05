@@ -889,5 +889,46 @@ btrfs subvolume list /volume1 | grep -i snapshot
 
 ---
 
-*Документ подготовлен: март 2026*  
+*Документ подготовлен: март 2026*
 *Следующий шаг: реализация Фазы 1 в Claude Code*
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture Notes
+
+- Navigation: Dashboard Storage card -> `storage-analyzer.html` (updated from `/rusnas/disks`)
+- Backend collector: `/usr/share/cockpit/rusnas/scripts/storage-collector.py` — hourly systemd timer
+- API script: `/usr/share/cockpit/rusnas/scripts/storage-analyzer-api.py` — 7 commands via argv
+- DB: `/var/lib/rusnas/storage_history.db` — SQLite, 4 tables: volume_snapshots, share_snapshots, user_snapshots, file_type_snapshots
+- Cache: `/var/lib/rusnas/storage_cache.json` — fast load, avoids re-scan on page open
+- Sudoers: `/etc/sudoers.d/rusnas-storage` — NOPASSWD for both python3 scripts + du
+- Timer: `rusnas-storage-collector.timer` (hourly, RandomizedDelaySec=300)
+- API call pattern: `cockpit.spawn(['sudo', '-n', 'python3', SA_API, cmd, ...], { err: 'message', superuser: 'try' })`
+
+### 5 Tabs
+
+1. **Overview** — cards (total/used/free/forecast), volume map, fill chart (SVG), top consumers
+2. **Shares** — shares table with inline expand + sparkline + forecast
+3. **Files and Folders** — interactive treemap (squarified algo) + list view + filters
+4. **Users** — usage by UID 1000-60000 with quota display
+5. **File Types** — donut chart + table; click row -> jumps to Files tab with type filter
+
+### Forecast Algorithm
+
+Linear regression (least squares) over history points; `forecast_days(history_points, free_bytes)` in API script. Needs >=2 scan points to show forecast.
+
+### Critical storage-analyzer.js Notes
+
+- `saApi(args)` wraps cockpit.spawn in a Promise; streams stdout into `out` string, parses JSON on done
+- `squarify()` + `squarifyRow()` implement squarified treemap recursively; `worstRatio()` decides when to start a new row
+- `renderDonut()` draws SVG arc paths with gap between segments for donut chart
+- Treemap navigation: `navigateTo(path)` updates `filePath` global and reloads files view
+- `guessColor(entry)` classifies files by extension client-side for treemap coloring
+
+### Critical storage-analyzer-api.py Notes
+
+- `classify_ext()` and extension constants are defined INLINE in the api file (not imported from storage_collector_lib — module does not exist)
+- `cmd_files(path, sort, ftype, older_than)`: when `ftype != "all"` — recursive `os.walk`, directories are skipped (avoids timeout from `du -sb`); files shown with rel-path from root
+- When `ftype == "all"` — flat `os.listdir` with `du -sb` for directories (as before)

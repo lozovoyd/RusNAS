@@ -894,3 +894,29 @@ for s in shares:
 ---
 
 *Файл создан Claude.ai. Следующий шаг: передать в Claude Code для реализации.*
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture Notes
+
+- Config: `/etc/rusnas/dedup-config.json` — `volumes`, `duperemove_args`, `schedule_enabled`, `schedule_cron`
+- Run script: `/usr/local/bin/rusnas-dedup-run.sh` — wraps duperemove, writes state JSON
+- State: `/var/lib/rusnas/dedup-last.json` — last run result (chmod 644, readable by Cockpit)
+- History: `/var/lib/rusnas/dedup-history.json` — last 7 days (date + saved_bytes)
+- Service: `rusnas-dedup.service` — Type=oneshot, Nice=19, IOSchedulingClass=idle
+- Schedule: `/etc/cron.d/rusnas-dedup` — managed by Cockpit UI
+- Log: `/var/log/rusnas/dedup.log`
+- Sudoers: included in `install-dedup.sh` — allows `systemctl start/stop rusnas-dedup.service`, `tee /etc/rusnas/dedup-config.json`, `tee /etc/cron.d/rusnas-dedup`, `rm /etc/cron.d/rusnas-dedup`
+- duperemove version on Debian 13: **v0.11.2** — does NOT support `--min-size` or `--hash` (added in v0.12+)
+- Savings metric: `btrfs filesystem du -s $VOL | tail -1 | awk '{print $3}'` — total shared extents (includes reflinks + snapshots + duperemove)
+
+### Critical dedup.js Notes
+
+- `writeConfig()`: uses `cockpit.file(DEDUP_CONFIG, {superuser:"require"}).replace(...)` — never `echo | sudo tee`
+- `saveSchedule()`: writes `/etc/cron.d/rusnas-dedup` via `cockpit.file().replace()`, deletes via `cockpit.spawn(["rm", "-f", ...])`
+- `loadSambaShares()`: writes Python script to `/tmp/rusnas_parse_smb.py` then executes — `configparser` fails on smb.conf inline comments
+- Polling: `checkRunning()` every 5s, calls `setRunningState(false)` + 800ms delay + `loadLastRun()` when service goes inactive
+- `systemctl start` for oneshot service blocks until completion — `.done()` fires AFTER run finishes
+- `setRunningState(false)` clears "Running" to "---" immediately, then `loadLastRun()` fills real status

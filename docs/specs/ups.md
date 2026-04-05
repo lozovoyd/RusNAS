@@ -424,3 +424,39 @@ cockpit.file("/etc/nut/nut.conf", { superuser: "require" }).replace(content)
 | Авто-сканирование USB UPS | `nut-scanner -U` | ✅ |
 | Журнал событий UPS | syslog + journal парсинг | ✅ |
 | Safe shutdown при отключении питания | `upsmon + SHUTDOWNCMD` | ✅ |
+
+## Implementation Notes
+
+<!-- ОБНОВЛЯЕТСЯ Claude Code при каждом изменении модуля -->
+
+### Key Architecture Notes
+
+- Package: `nut` (Debian 13: nut 2.8.1) — includes nut-server, nut-client, nut-scanner
+- Config files: `/etc/nut/` — `nut.conf`, `ups.conf`, `upsd.conf`, `upsd.users`, `upsmon.conf`
+- All configs written via `cockpit.file().replace()` — never `sudo tee`
+- Status polling: `upsc -j <name>@localhost` (JSON, NUT 2.8+); fallback: text mode (line parsing)
+- Notify script: `/usr/local/bin/rusnas-ups-notify` — called by upsmon NOTIFYCMD
+- Sudoers: `/etc/sudoers.d/rusnas-nut` — upsc, nut-scanner, systemctl nut.target, journalctl
+- NUT password (upsd.users): `rusnas_nut_2026` (hardcoded template, changeable via UI)
+
+### ups.status Flags
+
+| Flag | Meaning | UI Color |
+|------|---------|----------|
+| `OL` | On line (grid power) | Green |
+| `OB` | On battery | Yellow |
+| `OB LB` | Low battery — critical | Red |
+| `CHRG` | Charging | Blue |
+| `RB` | Replace battery | Orange |
+| `COMMLOST` | No communication with UPS | Gray |
+
+### Dashboard Widget
+
+UPS card in grid-4 bottom section, updates every 10 seconds.
+
+### Critical ups.js Notes
+
+- `superuser:"require"` is NOT used in spawn — polkit timeout in iframe; sudoers covers it
+- `upsc -j` fails with error if driver is not running — `renderUpsNoDevice()` fallback
+- Configs `/etc/nut/` written via `cockpit.file(path, {superuser:"require"}).replace()`
+- `restartNut()`: tries `nut.target` first, on error falls back to `nut-server` (varies by distro)
